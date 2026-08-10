@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -7,17 +7,18 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, Maximize2, Minimize2
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// ─── EYE_SVG Constant ────────────────────────────────────────────────────────
+// â”€â”€â”€ EYE_SVG Constant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EYE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye inline-block w-3.5 h-3.5"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
 import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress } from "@/server/actions/optimized-guide-actions";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
+import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
@@ -48,7 +49,7 @@ const getNoobsDungeonSlug = (name: string) => {
     prefix = "donjon-d-";
   }
   
-  const duBosses = ["kimbo", "chene mou", "skeunk", "kralamoure geant", "kralamoure", "peki peki", "bworker", "torig", "grozilla", "rasboul", "maitre donjon", "maitre corbac", "sfincter cell", "weabbit", "wa wabbit", "kardala", "koulosse", "blop", "royal", "gargoutte", "dramak", "qu Tan", "ilyzaelle", "dazak", "tal kasha", "koutoulou", "dramak", "shogun", "tanukouï san", "tengu", "korriandre", "kolosso", "glourseleste"];
+  const duBosses = ["kimbo", "chene mou", "skeunk", "kralamoure geant", "kralamoure", "peki peki", "bworker", "torig", "grozilla", "rasboul", "maitre donjon", "maitre corbac", "sfincter cell", "weabbit", "wa wabbit", "kardala", "koulosse", "blop", "royal", "gargoutte", "dramak", "qu Tan", "ilyzaelle", "dazak", "tal kasha", "koutoulou", "dramak", "shogun", "tanukouÃ¯ san", "tengu", "korriandre", "kolosso", "glourseleste"];
   if (duBosses.some(b => clean.includes(b))) {
     prefix = "donjon-du-";
   }
@@ -56,7 +57,7 @@ const getNoobsDungeonSlug = (name: string) => {
   const rawSlug = `${prefix}${clean}`
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/['’]/g, "")
+    .replace(/['â€™]/g, "")
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-")
@@ -65,7 +66,7 @@ const getNoobsDungeonSlug = (name: string) => {
   return rawSlug;
 };
 
-// ─── World Detector Helper ───────────────────────────────────────────────────
+// â”€â”€â”€ World Detector Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function detectWorldId(textContext: string): number {
   const txt = textContext.toLowerCase();
   if (txt.includes("incarnam")) return 2;
@@ -73,13 +74,13 @@ function detectWorldId(textContext: string): number {
   if (txt.includes("dragon cochon") || txt.includes("dragon-cochon")) return 5;
   if (txt.includes("corbac")) return 6;
   if (txt.includes("givrefoux")) return 7;
-  if (txt.includes("méphitiques")) return 8;
-  if (txt.includes("entrailles de brâkmar") || txt.includes("entrailles de brakmar")) return 9;
-  if (txt.includes("canopée") || txt.includes("canopee")) return 10;
+  if (txt.includes("mÃ©phitiques")) return 8;
+  if (txt.includes("entrailles de brÃ¢kmar") || txt.includes("entrailles de brakmar")) return 9;
+  if (txt.includes("canopÃ©e") || txt.includes("canopee")) return 10;
   return 1; // Default to Monde des Douze
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type Sequence = {
   id: string; subGuideRef: string; subGuideName: string;
   stepFrom?: number; stepTo?: number; note?: string;
@@ -113,7 +114,7 @@ type UniqueGuildMember = {
   bookmarkedSteps: Map<string, string>; // milestoneId -> stepKey
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const GP_PALETTE = [
   "#3b82f6","#8b5cf6","#ec4899","#f59e0b","#10b981",
   "#06b6d4","#f97316","#84cc16","#a78bfa","#34d399","#fb7185"
@@ -136,15 +137,15 @@ const decodeTitle = (title: string): string =>
 const TYPE_CONFIG: Record<string,{label:string;color:string;bg:string}> = {
   DOFUS:      { label:"Dofus",      color:"#f59e0b", bg:"rgba(245,158,11,0.12)" },
   DONJON:     { label:"Donjon",     color:"#a855f7", bg:"rgba(168,85,247,0.12)" },
-  QUETE_SERIE:{ label:"Quêtes",    color:"#3b82f6", bg:"rgba(59,130,246,0.12)" },
-  PREREQUIS:  { label:"Prérequis",  color:"#71717a", bg:"rgba(255,255,255,0.06)" },
+  QUETE_SERIE:{ label:"QuÃªtes",    color:"#3b82f6", bg:"rgba(59,130,246,0.12)" },
+  PREREQUIS:  { label:"PrÃ©requis",  color:"#71717a", bg:"rgba(255,255,255,0.06)" },
   ALIGNEMENT: { label:"Alignement", color:"#06b6d4", bg:"rgba(6,182,212,0.12)" },
 };
 
 // Detects narrative block type from html content
 const getBlockType = (html: string) => {
   const t = html.toLowerCase();
-  if (/r[eé]compense|obtient|obtiendrez|obtiens/.test(t)) return 'reward';
+  if (/r[eÃ©]compense|obtient|obtiendrez|obtiens/.test(t)) return 'reward';
   if (/\blore\b/.test(t)) return 'lore';
   if (/astuce|tip\b/.test(t)) return 'tip';
   if (/important|attention|attention/.test(t)) return 'warning';
@@ -154,18 +155,18 @@ const getBlockType = (html: string) => {
 
 const GANYMEDE_BOSS_LIST = new Set([
   "kardorim", "milimilou", "tournesol sauvage", "bouftou royal", "shin larve", "mollusky", "gligli royal",
-  "pichon royal", "mob l'éponge", "bworkette", "corailleur magistral", "gourlo le terrible", "batofu",
-  "craqueleur légendaire", "gelée royale bleue", "gelée royale menthe", "gelée royale fraise", "gelée royale citron",
-  "wa wabbit", "wa wobot", "moon", "le chouque", "chouque", "koulosse", "maître corbac", "péki péki", "chêne mou",
+  "pichon royal", "mob l'Ã©ponge", "bworkette", "corailleur magistral", "gourlo le terrible", "batofu",
+  "craqueleur lÃ©gendaire", "gelÃ©e royale bleue", "gelÃ©e royale menthe", "gelÃ©e royale fraise", "gelÃ©e royale citron",
+  "wa wabbit", "wa wobot", "moon", "le chouque", "chouque", "koulosse", "maÃ®tre corbac", "pÃ©ki pÃ©ki", "chÃªne mou",
   "dragon cochon", "minotoror", "minotot", "skeunk", "grozilla", "grasmera", "sphincter cell", "bworker",
-  "tanukouï san", "silf le rasboul majeur", "tynril", "kimbo", "kralamour géant", "obsidiantre", "tengu givrefoux",
+  "tanukouÃ¯ san", "silf le rasboul majeur", "tynril", "kimbo", "kralamour gÃ©ant", "obsidiantre", "tengu givrefoux",
   "korriandre", "klime", "nileza", "sylargh", "missiz frizz", "comte harebourg", "merkator", "ombre", "kanigrula",
   "capitaine meno", "koutoulou", "dazak martegel", "tal kasha", "ilyzaelle", "bethel akryon", "solar", "toxoliath",
   "kabaal", "belladone", "nelween", "dramak", "halouine", "gargoul", "pounicheur", "founoroshi", "hans l'ausculteur",
-  "shogun tofugawa", "yokaï firefoux", "toxine", "qu'tan", "ilyzaelle", "dazak", "meno", "koutoulou", "tal kasha",
+  "shogun tofugawa", "yokaÃ¯ firefoux", "toxine", "qu'tan", "ilyzaelle", "dazak", "meno", "koutoulou", "tal kasha",
   "aniripsa", "bwork", "wa", "le wabbit", "bworker", "kankreblath", "rasboul", "sfincter", "sfincter cell",
-  "royal", "blop", "blop multicolore royal", "glourdoraval", "glourceleste", "glourséleste", "kralamour",
-  "dramak", "usher", "servitude", "guerre", "misère", "corruption", "kabahal", "kabaal", "torkélonia", "dazak martegel",
+  "royal", "blop", "blop multicolore royal", "glourdoraval", "glourceleste", "gloursÃ©leste", "kralamour",
+  "dramak", "usher", "servitude", "guerre", "misÃ¨re", "corruption", "kabahal", "kabaal", "torkÃ©lonia", "dazak martegel",
   "bounine", "crapaud", "nelween", "gargoul", "pounicheur", "sfincter cell", "wa wabbit", "shin larve", "bouftou royal"
 ]);
 
@@ -174,34 +175,34 @@ const isBossName = (name: string): boolean => {
   if (GANYMEDE_BOSS_LIST.has(n)) return true;
   if (n.endsWith(" royal") || n.endsWith(" royale")) return true;
   if (n.startsWith("roi ") || n.startsWith("reine ")) return true;
-  if (n.startsWith("maître ") || n.startsWith("maîtresse ")) return true;
+  if (n.startsWith("maÃ®tre ") || n.startsWith("maÃ®tresse ")) return true;
   if (n.includes("donjon") || n.includes("gardien de donjon")) return true;
   return false;
 };
 
 const RESOURCE_KEYWORDS = new Set([
   // Farming
-  "blé", "orge", "avoine", "houblon", "seigle", "millet", "chanvre", "lin", "trèfle", "farine", "pain",
+  "blÃ©", "orge", "avoine", "houblon", "seigle", "millet", "chanvre", "lin", "trÃ¨fle", "farine", "pain",
   // Wood
-  "bois de frêne", "bois de châtaignier", "bois de noyer", "bois de chêne", "bois de bombu", "bois d'érable",
-  "bois d'if", "bois de merisier", "bois d'ébène", "bois de charme", "bois d'orme", "bois de bambou",
-  "bois d'oliviolet", "bois de bambou sombre", "bois de bambou sacré", "bois de tremble",
+  "bois de frÃªne", "bois de chÃ¢taignier", "bois de noyer", "bois de chÃªne", "bois de bombu", "bois d'Ã©rable",
+  "bois d'if", "bois de merisier", "bois d'Ã©bÃ¨ne", "bois de charme", "bois d'orme", "bois de bambou",
+  "bois d'oliviolet", "bois de bambou sombre", "bois de bambou sacrÃ©", "bois de tremble",
   // Mining
-  "fer", "cuivre", "bronze", "cobalt", "manganèse", "étain", "silicate", "argent", "bauxite", "or",
+  "fer", "cuivre", "bronze", "cobalt", "manganÃ¨se", "Ã©tain", "silicate", "argent", "bauxite", "or",
   "charbon", "obsidienne", "dolomite", "pierre", "gemme",
   // Alchemy
-  "ortie", "sauge", "trèfle à 5 feuilles", "menthe sauvage", "orchidée freyesque", "edelweiss", "ginseng",
+  "ortie", "sauge", "trÃ¨fle Ã  5 feuilles", "menthe sauvage", "orchidÃ©e freyesque", "edelweiss", "ginseng",
   "belladone", "mandragore", "perce-neige", "salicorne",
   // Fishing
   "goujon", "truite", "poisson-chat", "crabe", "gardon", "brochet", "sardine", "kralamoure", "morue",
   "tanche", "espadon", "requin", "bar", "poisson", "crevette",
   // Common drops & monster resources
   "peau de", "plume de", "oeil de", "ongle de", "dent de", "griffe de", "aile de", "carapace de",
-  "pétale de", "graine de", "feuille de", "oreille de", "queue de", "bec de", "patte de", "corne de",
-  "sang de", "sperme de", "salive de", "cervelle de", "os de", "crâne de", "cendre de", "poudre de",
-  "bourgeon de", "écorce de", "racine de", "sève de", "étoffe de", "cuir de", "laine de", "poil de",
-  "défense de", "antenne de", "patte de", "moustache de", "flocon de", "larme de", "ambre de",
-  "gelée de", "noeud de", "bourgeon", "morceau de", "fragment de", "essence de", "pyrute", "rutile",
+  "pÃ©tale de", "graine de", "feuille de", "oreille de", "queue de", "bec de", "patte de", "corne de",
+  "sang de", "sperme de", "salive de", "cervelle de", "os de", "crÃ¢ne de", "cendre de", "poudre de",
+  "bourgeon de", "Ã©corce de", "racine de", "sÃ¨ve de", "Ã©toffe de", "cuir de", "laine de", "poil de",
+  "dÃ©fense de", "antenne de", "patte de", "moustache de", "flocon de", "larme de", "ambre de",
+  "gelÃ©e de", "noeud de", "bourgeon", "morceau de", "fragment de", "essence de", "pyrute", "rutile",
   "aluminite", "ardoisine", "substrat"
 ]);
 
@@ -210,13 +211,13 @@ const isResourceItem = (name: string, typeAttr: string): boolean => {
   const t = typeAttr.toLowerCase().trim();
   if (t === "resource" || t === "ressource") return true;
   if (RESOURCE_KEYWORDS.has(n)) return true;
-  for (const prefix of ["peau de", "plume de", "oeil de", "ongle de", "dent de", "griffe de", "aile de", "carapace de", "pétale de", "graine de", "feuille de", "oreille de", "queue de", "bec de", "patte de", "corne de", "étoffe de", "cuir de", "laine de", "poil de", "bourgeon de", "écorce de", "racine de", "sève de", "morceau de", "fragment de", "essence de"]) {
+  for (const prefix of ["peau de", "plume de", "oeil de", "ongle de", "dent de", "griffe de", "aile de", "carapace de", "pÃ©tale de", "graine de", "feuille de", "oreille de", "queue de", "bec de", "patte de", "corne de", "Ã©toffe de", "cuir de", "laine de", "poil de", "bourgeon de", "Ã©corce de", "racine de", "sÃ¨ve de", "morceau de", "fragment de", "essence de"]) {
     if (n.startsWith(prefix)) return true;
   }
   return false;
 };
 
-// ─── Module-level HTML cache ─────────────────────────────────────────────────
+// â”€â”€â”€ Module-level HTML cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // processHtml is expensive (sanitize + regex). We cache results to avoid
 // re-processing identical step HTML on every re-render (e.g. each checkbox toggle).
 const _htmlCache = new Map<string, string>();
@@ -235,7 +236,7 @@ const cachedProcessHtml = (html: string): string => {
 const processHtml = (html: string) => {
   if (!html) return "";
   
-  // 0. Sanitize FIRST — remove any malicious tags/attributes before transforming
+  // 0. Sanitize FIRST â€” remove any malicious tags/attributes before transforming
   const safe = sanitizeHtml(html) ?? "";
   if (!safe) return "";
   
@@ -330,8 +331,8 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
   );
 }
 
-// ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, guildId, onShowStepPresenceModal, onOpenMission }: {
+// â”€â”€â”€ Sub-Guide Accordion Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, guildId, onShowStepPresenceModal }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -352,7 +353,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[],
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
-  onOpenMission?: (seq: Sequence, steps: SubStep[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -432,9 +432,9 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     }
   };
 
-  // ─── Pre-compute step presence (memoized) ─────────────────────────────────
-  // This avoids O(steps × members) computation inside filteredSteps.map().
-  // Re-runs only when guild members, milestones, or steps change — NOT on every
+  // â”€â”€â”€ Pre-compute step presence (memoized) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // This avoids O(steps Ã— members) computation inside filteredSteps.map().
+  // Re-runs only when guild members, milestones, or steps change â€” NOT on every
   // checkbox toggle (checkedSteps is intentionally excluded from deps).
   const stepPresenceMap = useMemo(() => {
     const map = new Map<string, {
@@ -510,13 +510,13 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
           </span>
           <span className="sgc-range">
             {seq.stepFrom && seq.stepTo
-              ? `Étapes ${seq.stepFrom} → ${seq.stepTo}`
-              : seq.stepFrom ? `À partir de l'étape ${seq.stepFrom}` : "Guide complet"}
+              ? `Ã‰tapes ${seq.stepFrom} â†’ ${seq.stepTo}`
+              : seq.stepFrom ? `Ã€ partir de l'Ã©tape ${seq.stepFrom}` : "Guide complet"}
           </span>
           <div className="sgc-tags">
             <span className="sgc-tag">{seq.subGuideRef}</span>
             {seq.stepFrom && seq.stepTo && (
-              <span className="sgc-tag">{seq.stepTo - seq.stepFrom + 1} étapes</span>
+              <span className="sgc-tag">{seq.stepTo - seq.stepFrom + 1} Ã©tapes</span>
             )}
             {seq.isOptional && <span className="sgc-tag">Bonus</span>}
           </div>
@@ -560,12 +560,12 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                     const oldBg = el.style.backgroundColor;
                     el.style.backgroundColor = "rgba(59, 130, 246, 0.25)";
                     setTimeout(() => el.style.backgroundColor = oldBg, 1500);
-                    toast.success("Retour à votre position !");
+                    toast.success("Retour Ã  votre position !");
                   }
                 }
               }}
             >
-              ↩ Reprendre depuis votre dernière position
+              â†© Reprendre depuis votre derniÃ¨re position
             </button>
           )}
           {seq.note && <span className="sgc-flag warn"><AlertTriangle size={10}/> {seq.note}</span>}
@@ -581,36 +581,23 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: "easeInOut" }}>
             {loading ? (
-              <div className="sgc-loading"><Loader2 className="animate-spin" size={16}/> Chargement…</div>
+              <div className="sgc-loading"><Loader2 className="animate-spin" size={16}/> Chargementâ€¦</div>
             ) : steps.length === 0 ? (
               <div className="sgc-empty">
-                <Info size={14}/> Ce sous-guide n&apos;est pas encore importé dans la bibliothèque.
-                Contactez un modérateur pour le rendre disponible.
+                <Info size={14}/> Ce sous-guide n&apos;est pas encore importÃ© dans la bibliothÃ¨que.
+                Contactez un modÃ©rateur pour le rendre disponible.
               </div>
             ) : (
               <>
-                {/* Mode mission CTA */}
-                {onOpenMission && steps.length > 0 && (
-                  <div className="sgc-mission-cta-wrap">
-                    <button
-                      className="sgc-mission-cta"
-                      onClick={(e) => { e.stopPropagation(); onOpenMission(seq, steps); }}
-                    >
-                      ▶ Passer en mode mission
-                      <span className="sgc-mission-cta-sub">Navigation clavier · Espace = valider</span>
-                    </button>
-                  </div>
-                )}
-
                 {/* Mode controls */}
                 <div className="sgc-controls">
                   <button 
                     className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
-                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes terminées de ce sous-guide"}
+                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les Ã©tapes terminÃ©es de ce sous-guide"}
                   >
                     <EyeOff size={12}/>
-                    <span>Cacher validées ({done})</span>
+                    <span>Cacher validÃ©es ({done})</span>
                   </button>
                 </div>
 
@@ -620,7 +607,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                     return (
                       <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
                         <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500 animate-bounce" />
-                        <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
+                        <span>Toutes les Ã©tapes de ce sous-guide sont validÃ©es ! ðŸŽ‰</span>
                       </div>
                     );
                   }
@@ -634,7 +621,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                     (step.plainText ?? step.web_text ?? "").matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g)
                   ).map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]), worldId: m[3] ? parseInt(m[3]) : undefined }));
 
-                  // ── O(1) presence lookup from pre-computed map ──
+                  // â”€â”€ O(1) presence lookup from pre-computed map â”€â”€
                   const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
 
                   return (
@@ -650,7 +637,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                         
                         {/* Interactive Step Input selector */}
                         <div className="flex items-center gap-1">
-                          <span className="text-[11px] text-zinc-400 font-bold">Étape</span>
+                          <span className="text-[11px] text-zinc-400 font-bold">Ã‰tape</span>
                           <input
                             type="number"
                             min={1}
@@ -677,7 +664,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                               }
                             }}
                             className="w-12 bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-center text-xs font-black text-emerald-400 outline-none focus:border-emerald-500 transition-colors"
-                            title="Entrez un numéro d'étape pour y aller directement"
+                            title="Entrez un numÃ©ro d'Ã©tape pour y aller directement"
                           />
                           <span className="text-[10px] text-zinc-500 font-semibold">
                             / {steps.length}
@@ -700,7 +687,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                         </div>
                         <button
                           className="sgc-step-bookmark-btn"
-                          title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+                          title={bookmarkStepKey === key ? "Retirer mon marque-page de cette Ã©tape (J'en suis lÃ )" : "Marquer cette Ã©tape comme ma position (J'en suis lÃ )"}
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
@@ -725,12 +712,12 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                               role="button"
                               tabIndex={0}
                               className="sgc-step-presence cursor-pointer hover:opacity-80 active:scale-95 transition-all select-none"
-                              title="Cliquer pour voir la liste des membres ayant validé ou en cours sur cette étape"
+                              title="Cliquer pour voir la liste des membres ayant validÃ© ou en cours sur cette Ã©tape"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onShowStepPresenceModal(
                                   step.stepNumber,
-                                  step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                  step.plainText ?? step.web_text ?? `Ã‰tape ${step.stepNumber}`,
                                   validatedMembers,
                                   activeMembers
                                 );
@@ -740,7 +727,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                   e.preventDefault();
                                   onShowStepPresenceModal(
                                     step.stepNumber,
-                                    step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                    step.plainText ?? step.web_text ?? `Ã‰tape ${step.stepNumber}`,
                                     validatedMembers,
                                     activeMembers
                                   );
@@ -751,7 +738,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                 <div
                                   key={`val-${m.profileId}`}
                                   className="sgc-step-presence-avatar validated"
-                                  title={`✅ ${m.userName} — a validé cette étape`}
+                                  title={`âœ… ${m.userName} â€” a validÃ© cette Ã©tape`}
                                 >
                                   {m.userAvatar
                                     ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
@@ -762,7 +749,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                 <div
                                   key={`act-${m.profileId}`}
                                   className="sgc-step-presence-avatar active"
-                                  title={`📍 ${m.userName} — rendu à cette étape`}
+                                  title={`ðŸ“ ${m.userName} â€” rendu Ã  cette Ã©tape`}
                                 >
                                   {m.userAvatar
                                     ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
@@ -780,11 +767,11 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                 <div className="flex items-center gap-1.5">
                                   <MapPin size={10} className="text-cyan-400" />
                                   <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
-                                    Trajet · {coords.length} carte{coords.length > 1 ? "s" : ""}
+                                    Trajet Â· {coords.length} carte{coords.length > 1 ? "s" : ""}
                                   </span>
                                 </div>
                                 <span className="text-[9px] text-zinc-500 font-semibold">
-                                  {Object.values(activeSubMapCheckedState).filter(Boolean).length}/{coords.length} visitées
+                                  {Object.values(activeSubMapCheckedState).filter(Boolean).length}/{coords.length} visitÃ©es
                                 </span>
                               </div>
                               {/* Map cards */}
@@ -809,7 +796,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                           setCheckedSubMaps(prev => ({ ...prev, [key]: nextState }));
                                           localStorage.setItem(`sigilos_submaps_${guildId}_${key}`, JSON.stringify(nextState));
                                           if (!isSubChecked && Object.values(nextState).filter(Boolean).length === coords.length) {
-                                            toast.success("Trajet terminé ! Toutes les cartes visitées 🗺️");
+                                            toast.success("Trajet terminÃ© ! Toutes les cartes visitÃ©es ðŸ—ºï¸");
                                           }
                                         }}
                                         className={`flex items-center justify-center w-5 h-5 rounded-lg border transition-all shrink-0 cursor-pointer ${
@@ -817,7 +804,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                             ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
                                             : "bg-black/40 border-white/10 hover:border-emerald-500/50 text-zinc-600 hover:text-emerald-400"
                                         }`}
-                                        title={isSubChecked ? "Décocher cette carte" : "Marquer cette carte comme visitée"}
+                                        title={isSubChecked ? "DÃ©cocher cette carte" : "Marquer cette carte comme visitÃ©e"}
                                       >
                                         {isSubChecked
                                           ? <CheckCircle2 size={11} />
@@ -841,7 +828,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             navigator.clipboard.writeText(cmd);
-                                            toast.success("Commande copiée !", { description: cmd });
+                                            toast.success("Commande copiÃ©e !", { description: cmd });
                                           }}
                                           className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-white text-[9px] font-black transition-all cursor-pointer"
                                           title="Copier /travel"
@@ -879,7 +866,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   );
 }
 
-// ─── Narrative Block ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Narrative Block â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function NarrativeBlock({ html }: { html: string }) {
   const type = getBlockType(html);
   return (
@@ -899,7 +886,7 @@ function NarrativeBlock({ html }: { html: string }) {
   );
 }
 
-// ─── Chapter Group ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Chapter Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
@@ -938,7 +925,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
           <span className="chapter-name">{label}</span>
           <div className="chapter-meta">
             <span className="chapter-count" style={{ color: isChapterActive ? "color-mix(in srgb, var(--accent-color) 75%, white)" : undefined }}>
-              {done}/{milestones.length} complétées
+              {done}/{milestones.length} complÃ©tÃ©es
             </span>
             {totalPresence > 0 && (
               <span className="chapter-presence" style={{ color: "#38bdf8" }}>
@@ -1017,7 +1004,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                   <div className="flex items-center gap-1.5 ml-auto shrink-0">
                     <button
                       className="ms-reset-btn"
-                      title="Réinitialiser ce jalon"
+                      title="RÃ©initialiser ce jalon"
                       onClick={(e) => {
                         e.stopPropagation();
                         onResetMilestone(ms);
@@ -1029,7 +1016,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                     {!isDone && (
                       <button
                         className="ms-bookmark-btn"
-                        title={bookmarkId === ms.id ? "Retirer mon marque-page (J'en suis là)" : "Marquer comme ma position (J'en suis là)"}
+                        title={bookmarkId === ms.id ? "Retirer mon marque-page (J'en suis lÃ )" : "Marquer comme ma position (J'en suis lÃ )"}
                         onClick={(e) => {
                           e.stopPropagation();
                           onBookmark(ms.id);
@@ -1053,7 +1040,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = []
@@ -1111,13 +1098,13 @@ export default function OptimizedGuideClient({
       const next = prev === stepKey ? null : stepKey;
       if (next) {
         localStorage.setItem(`guide-bm-step-${guide.slug}`, next);
-        toast.success("Position d'étape sauvegardée !");
+        toast.success("Position d'Ã©tape sauvegardÃ©e !");
       } else {
         localStorage.removeItem(`guide-bm-step-${guide.slug}`);
-        toast.info("Marque-page d'étape retiré");
+        toast.info("Marque-page d'Ã©tape retirÃ©");
       }
 
-      // Persist step bookmark to database (J'en suis là / en cours)
+      // Persist step bookmark to database (J'en suis lÃ  / en cours)
       if (selected) {
         updateBookmarkedStep(guildId, selected.id, next).catch((e) => {
           console.error("Failed to update bookmarked step in DB:", e);
@@ -1130,7 +1117,7 @@ export default function OptimizedGuideClient({
 
   const handleCollapseAll = useCallback(() => {
     setOpenChapters({});
-    toast.info("Tous les chapitres ont été réduits");
+    toast.info("Tous les chapitres ont Ã©tÃ© rÃ©duits");
   }, []);
 
   const handleExpandAll = useCallback(() => {
@@ -1139,7 +1126,7 @@ export default function OptimizedGuideClient({
       all[m.chapter] = true;
     });
     setOpenChapters(all);
-    toast.success("Tous les chapitres ont été développés");
+    toast.success("Tous les chapitres ont Ã©tÃ© dÃ©veloppÃ©s");
   }, [initialMilestones]);
 
   const handleToggleChapter = useCallback((chapterNum: number, open: boolean) => {
@@ -1264,7 +1251,7 @@ export default function OptimizedGuideClient({
             });
           }
         } else {
-          toast.error(res.error || "Erreur de vérification");
+          toast.error(res.error || "Erreur de vÃ©rification");
         }
       });
     });
@@ -1399,8 +1386,8 @@ export default function OptimizedGuideClient({
   const handleBookmark = useCallback((milestoneId: string) => {
     const next = bookmarkId === milestoneId ? null : milestoneId;
     setBookmarkId(next);
-    if (next) { localStorage.setItem(`guide-bm-${guide.slug}`, next); toast.success("Position sauvegardée !"); }
-    else { localStorage.removeItem(`guide-bm-${guide.slug}`); toast.info("Marque-page supprimé"); }
+    if (next) { localStorage.setItem(`guide-bm-${guide.slug}`, next); toast.success("Position sauvegardÃ©e !"); }
+    else { localStorage.removeItem(`guide-bm-${guide.slug}`); toast.info("Marque-page supprimÃ©"); }
   }, [bookmarkId, guide.slug]);
 
   const handleBackToMainGuideCurrentStep = useCallback(() => {
@@ -1410,7 +1397,7 @@ export default function OptimizedGuideClient({
       if (bmMs) {
         setSelected(bmMs);
         toast.success("Retour au guide principal !", {
-          description: `Positionné sur : ${bmMs.title}`
+          description: `PositionnÃ© sur : ${bmMs.title}`
         });
         return;
       }
@@ -1565,7 +1552,7 @@ export default function OptimizedGuideClient({
           currentMilestoneId = bestActiveMilestoneId;
         }
       } else if (m.completedMilestoneIds.size > 0) {
-        // Has completed some milestones but no active steps — find next after last completed
+        // Has completed some milestones but no active steps â€” find next after last completed
         let maxCompletedOrder = -1;
         m.completedMilestoneIds.forEach(id => {
           const ms = sortedM.find(s => s.id === id);
@@ -1694,73 +1681,29 @@ export default function OptimizedGuideClient({
     });
   }, [selected, guildId]);
 
-  // ─── Mode mission (sous-guide plein écran) ───────────────────────────────
-  const [mission, setMission] = useState<{ seq: Sequence; steps: SubStep[] } | null>(null);
-  const [missionFocus, setMissionFocus] = useState(0);
-  const [missionHideDone, setMissionHideDone] = useState(false);
-
-  const handleOpenMission = useCallback((seq: Sequence, steps: SubStep[]) => {
-    const firstUndone = steps.findIndex(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
-    setMissionFocus(firstUndone === -1 ? 0 : firstUndone);
-    setMissionHideDone(false);
-    setMission({ seq, steps });
-  }, [checkedSteps]);
-
-  const handleCloseMission = useCallback(() => {
-    setMission(null);
-    setMissionFocus(0);
-  }, []);
-
-  const handleMissionToggleStep = useCallback((stepNumber: number) => {
-    if (mission) {
-      handleStepToggle(mission.seq.subGuideRef, stepNumber);
-    }
-  }, [mission, handleStepToggle]);
-
-  // Clavier mode mission : Échap = fermer · ↑/↓ = naviguer · Espace = valider
-  useEffect(() => {
-    if (!mission) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { handleCloseMission(); return; }
-      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-        e.preventDefault();
-        setMissionFocus(f => Math.min(mission.steps.length - 1, f + 1));
-      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-        e.preventDefault();
-        setMissionFocus(f => Math.max(0, f - 1));
-      } else if (e.key === " " && mission.steps[missionFocus]) {
-        e.preventDefault();
-        handleMissionToggleStep(mission.steps[missionFocus].stepNumber);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [mission, missionFocus, handleCloseMission, handleMissionToggleStep]);
-
-  // ─── Mode focus plein écran (guide complet) ─────────────────────────────
-  const [focusMode, setFocusMode] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try { return localStorage.getItem(`guide-focus-${guide.slug}`) === "1"; } catch { return false; }
+  // â”€â”€â”€ Sommaire / sidebar repliable (mode unique plein Ã©cran) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem(`guide-sommaire-${guide.slug}`) !== "0"; } catch { return true; }
   });
-  const toggleFocusMode = useCallback(() => {
-    setFocusMode(prev => {
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => {
       const next = !prev;
-      try { localStorage.setItem(`guide-focus-${guide.slug}`, next ? "1" : "0"); } catch { /* ignore */ }
+      try { localStorage.setItem(`guide-sommaire-${guide.slug}`, next ? "1" : "0"); } catch { /* ignore */ }
       return next;
     });
   }, [guide.slug]);
 
-  // Raccourci clavier F (hors mission / modales)
+  // Raccourci clavier S : ouvrir/fermer le sommaire
   useEffect(() => {
-    if (mission) return;
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
-      if (e.key === "f" || e.key === "F") toggleFocusMode();
+      if (e.key === "s" || e.key === "S") toggleSidebar();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mission, toggleFocusMode]);
+  }, [toggleSidebar]);
 
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
@@ -1788,7 +1731,7 @@ export default function OptimizedGuideClient({
               } catch (e) {}
             }
 
-            toast.success("Étape validée ! 🎉", { description: selected.title });
+            toast.success("Ã‰tape validÃ©e ! ðŸŽ‰", { description: selected.title });
             // Auto-advance
             if (nextMs) setTimeout(() => setSelected(nextMs), 600);
           }
@@ -1799,7 +1742,7 @@ export default function OptimizedGuideClient({
     finally { setValidating(false); }
   }, [selected, guildId, nextMs, completedIds, altPseudo]);
 
-  // ─── Reset single milestone ────────────────────────────────────────────────
+  // â”€â”€â”€ Reset single milestone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleResetMilestone = useCallback(() => {
     setIsResetMilestoneConfirmOpen(true);
   }, []);
@@ -1825,13 +1768,13 @@ export default function OptimizedGuideClient({
         });
         setBookmarkStepKey(null);
         localStorage.removeItem(`guide-bm-step-${guide.slug}`);
-        toast.success("Jalon réinitialisé ↺", { description: selected.title });
+        toast.success("Jalon rÃ©initialisÃ© â†º", { description: selected.title });
       }
-    } catch { toast.error("Erreur lors de la réinitialisation"); }
+    } catch { toast.error("Erreur lors de la rÃ©initialisation"); }
     finally { setValidating(false); }
   }, [selected, guildId, altPseudo, guide.slug]);
 
-  // ─── Reset entire guide ────────────────────────────────────────────────────
+  // â”€â”€â”€ Reset entire guide â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleResetGuide = useCallback(() => {
     setIsResetGuideConfirmOpen(true);
   }, []);
@@ -1849,9 +1792,9 @@ export default function OptimizedGuideClient({
         localStorage.removeItem(`guide-bm-${guide.slug}`);
         localStorage.removeItem(`guide-bm-step-${guide.slug}`);
         localStorage.removeItem(`sigilos_session_${guildId}_${guide.id}`);
-        toast.success("Guide réinitialisé ↺", { description: "Toute votre progression a été effacée." });
+        toast.success("Guide rÃ©initialisÃ© â†º", { description: "Toute votre progression a Ã©tÃ© effacÃ©e." });
       }
-    } catch { toast.error("Erreur lors de la réinitialisation du guide"); }
+    } catch { toast.error("Erreur lors de la rÃ©initialisation du guide"); }
     finally { setValidating(false); }
   }, [guildId, guide.id, guide.slug, altPseudo]);
 
@@ -1862,9 +1805,9 @@ export default function OptimizedGuideClient({
     const extractTargetStep = (el: HTMLElement) => {
       let targetStep = parseInt(el.getAttribute("stepnumber") || "0", 10);
       if (targetStep <= 1) {
-        // Try parsing surrounding text for "étape X"
+        // Try parsing surrounding text for "Ã©tape X"
         const parentText = el.parentElement?.textContent || el.textContent || "";
-        const etapeMatch = parentText.match(/étapes?\s+(\d+)/i) || parentText.match(/etapes?\s+(\d+)/i);
+        const etapeMatch = parentText.match(/Ã©tapes?\s+(\d+)/i) || parentText.match(/etapes?\s+(\d+)/i);
         if (etapeMatch) {
           targetStep = parseInt(etapeMatch[1], 10);
         }
@@ -1938,7 +1881,7 @@ export default function OptimizedGuideClient({
         if (targetMs) {
           if (targetMs.id !== selected?.id) {
             setSelected(targetMs);
-            toast.info(`→ ${targetMs.title}`);
+            toast.info(`â†’ ${targetMs.title}`);
           }
           setActiveSeqIndex(foundSeqIndex);
           scrollToStep(ref, targetStep);
@@ -1946,7 +1889,7 @@ export default function OptimizedGuideClient({
           import("@/server/actions/optimized-guide-actions").then((mod: any) => {
             mod.findGuideBySubRef(ref).then((res: any) => {
               if (res?.success && res.slug) {
-                toast.info(`Ouverture du guide ${res.guideName || ref}…`);
+                toast.info(`Ouverture du guide ${res.guideName || ref}â€¦`);
                 let url = `/dashboard/${guildId}/quetes-dofus/guide/${res.slug}`;
                 if (targetStep > 0) url += `?step=${ref}-${targetStep}`;
                 window.location.href = url;
@@ -2015,7 +1958,7 @@ export default function OptimizedGuideClient({
               <Copy className="w-4 h-4 animate-pulse" />
             </div>
             <div className="text-left">
-              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Position copiée</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Position copiÃ©e</p>
               <p className="text-xs font-mono text-zinc-300">/travel {xNum} {yNum}</p>
             </div>
           </div>
@@ -2060,7 +2003,7 @@ export default function OptimizedGuideClient({
       if (targetMs) {
         if (targetMs.id !== selected?.id) {
           setSelected(targetMs);
-          toast.info(`→ ${targetMs.title}`);
+          toast.info(`â†’ ${targetMs.title}`);
         }
         setActiveSeqIndex(foundSeqIndex);
         scrollToStep(ref, targetStep);
@@ -2068,7 +2011,7 @@ export default function OptimizedGuideClient({
         import("@/server/actions/optimized-guide-actions").then((mod: any) => {
           mod.findGuideBySubRef(ref).then((res: any) => {
             if (res?.success && res.slug) {
-              toast.info(`Ouverture du guide ${res.guideName || ref}…`);
+              toast.info(`Ouverture du guide ${res.guideName || ref}â€¦`);
               let url = `/dashboard/${guildId}/quetes-dofus/guide/${res.slug}`;
               if (targetStep > 0) url += `?step=${ref}-${targetStep}`;
               window.open(url, "_blank");
@@ -2173,12 +2116,12 @@ export default function OptimizedGuideClient({
           display: none !important;
         }
       `}} />
-      <div className={`guide-shell ${focusMode ? "focus-mode" : ""}`}>
+      <div className={`guide-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
 
-      {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
+      {/* â”€â”€ LEFT SIDEBAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <aside className="guide-sidebar">
 
-        {/* ── Compact Header ── */}
+        {/* â”€â”€ Compact Header â”€â”€ */}
         <div className="sidebar-compact-header">
           <Link href={`/dashboard/${guildId}/quetes-dofus`} className="sb-back-btn group">
             <ChevronLeft size={11} className="group-hover:-translate-x-0.5 transition-transform"/>
@@ -2186,7 +2129,7 @@ export default function OptimizedGuideClient({
           </Link>
           <div className="sb-guide-meta">
             <span className="sb-guide-name" title={guide.name}>{guide.name}</span>
-            <span className="sb-guide-stats">{totalDone}/{totalMs} complétées</span>
+            <span className="sb-guide-stats">{totalDone}/{totalMs} complÃ©tÃ©es</span>
           </div>
           <div className="sb-ring-wrap">
             <ProgressRing pct={overallPct} size={38} stroke={3} color="#10b981"/>
@@ -2194,14 +2137,14 @@ export default function OptimizedGuideClient({
           </div>
         </div>
 
-        {/* ── Compact Toolbar ── */}
+        {/* â”€â”€ Compact Toolbar â”€â”€ */}
         <div className="sidebar-toolbar">
           {/* Search */}
           <div className="sb-search">
             <Search size={11} className="sb-search-icon"/>
             <input
               className="sb-search-input"
-              placeholder="Rechercher une étape…"
+              placeholder="Rechercher une Ã©tapeâ€¦"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -2216,18 +2159,18 @@ export default function OptimizedGuideClient({
             <button
               className={`sb-action-btn sb-action-btn-hide-completed ${hideCompleted ? "active" : ""}`}
               onClick={() => setHideCompleted(v => !v)}
-              title={hideCompleted ? "Afficher les étapes validées" : "Masquer les étapes validées"}
+              title={hideCompleted ? "Afficher les Ã©tapes validÃ©es" : "Masquer les Ã©tapes validÃ©es"}
             >
               {hideCompleted ? <Eye size={13}/> : <EyeOff size={13}/>}
             </button>
 
             {/* Collapse all */}
-            <button className="sb-action-btn sb-action-btn-collapse" onClick={handleCollapseAll} title="Réduire tous les chapitres">
+            <button className="sb-action-btn sb-action-btn-collapse" onClick={handleCollapseAll} title="RÃ©duire tous les chapitres">
               <ChevronDown size={13} style={{ transform: "rotate(180deg)" }}/>
             </button>
 
             {/* Expand all */}
-            <button className="sb-action-btn sb-action-btn-expand" onClick={handleExpandAll} title="Développer tous les chapitres">
+            <button className="sb-action-btn sb-action-btn-expand" onClick={handleExpandAll} title="DÃ©velopper tous les chapitres">
               <ChevronDown size={13}/>
             </button>
 
@@ -2235,7 +2178,7 @@ export default function OptimizedGuideClient({
             <button
               className={`sb-action-btn sb-action-btn-legend ${legendOpen ? "active" : ""}`}
               onClick={() => setLegendOpen(v => !v)}
-              title="Légende des indicateurs"
+              title="LÃ©gende des indicateurs"
             >
               <HelpCircle size={13}/>
             </button>
@@ -2244,26 +2187,15 @@ export default function OptimizedGuideClient({
             <button
               className="sb-action-btn sb-action-btn-reset text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
               onClick={handleResetGuide}
-              title="Réinitialiser TOUT le guide (progression remise à zéro)"
+              title="RÃ©initialiser TOUT le guide (progression remise Ã  zÃ©ro)"
               disabled={validating}
             >
               <RotateCcw size={13}/>
             </button>
 
-            {/* Focus mode plein écran */}
-            <button
-              type="button"
-              className={`sb-action-btn ${focusMode ? "active" : ""}`}
-              style={{ color: focusMode ? "#10b981" : undefined, borderColor: focusMode ? "rgba(16,185,129,0.4)" : undefined }}
-              onClick={toggleFocusMode}
-              title={focusMode ? "Quitter le mode focus (F)" : "Mode focus plein écran (F)"}
-            >
-              {focusMode ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}
-            </button>
-
           </div>
 
-          {/* Guild radar mini — only if members */}
+          {/* Guild radar mini â€” only if members */}
           {guildProgress.length > 0 && (
             <button 
               onClick={() => setIsAllMembersModalOpen(true)}
@@ -2279,11 +2211,11 @@ export default function OptimizedGuideClient({
               </div>
               {Object.keys(presenceMap).length > 0 && (
                 <div className="text-[9px] text-zinc-500">
-                  Répartis sur <strong>{Object.keys(presenceMap).length}</strong> jalon{Object.keys(presenceMap).length > 1 ? "s" : ""} différent{Object.keys(presenceMap).length > 1 ? "s" : ""} du parcours.
+                  RÃ©partis sur <strong>{Object.keys(presenceMap).length}</strong> jalon{Object.keys(presenceMap).length > 1 ? "s" : ""} diffÃ©rent{Object.keys(presenceMap).length > 1 ? "s" : ""} du parcours.
                 </div>
               )}
               <div className="text-[9px] text-indigo-400 mt-0.5 underline font-bold">
-                Afficher les membres →
+                Afficher les membres â†’
               </div>
             </button>
           )}
@@ -2293,10 +2225,10 @@ export default function OptimizedGuideClient({
             <button
               onClick={handleBackToMainGuideCurrentStep}
               className="sb-back-main-btn"
-              title="Retourner à votre position du guide principal"
+              title="Retourner Ã  votre position du guide principal"
             >
               <BookOpenCheck size={10}/>
-              <span>← Guide principal</span>
+              <span>â† Guide principal</span>
             </button>
           )}
 
@@ -2312,23 +2244,23 @@ export default function OptimizedGuideClient({
               >
                 <div className="sb-legend-row">
                   <Bookmark size={10} className="text-amber-500 fill-amber-500/20 shrink-0"/>
-                  <span><strong className="text-amber-400">J&apos;en suis là</strong> — Position courante (sans valider)</span>
+                  <span><strong className="text-amber-400">J&apos;en suis lÃ </strong> â€” Position courante (sans valider)</span>
                 </div>
                 <div className="sb-legend-row">
                   <CheckCircle2 size={10} className="text-emerald-500 shrink-0"/>
-                  <span><strong className="text-emerald-400">Validée</strong> — Étape terminée</span>
+                  <span><strong className="text-emerald-400">ValidÃ©e</strong> â€” Ã‰tape terminÃ©e</span>
                 </div>
                 <div className="sb-legend-row">
                   <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)] shrink-0"/>
-                  <span><strong className="text-blue-400">Sélectionnée</strong> — Vue active</span>
+                  <span><strong className="text-blue-400">SÃ©lectionnÃ©e</strong> â€” Vue active</span>
                 </div>
                 <div className="sb-legend-row">
                   <Circle size={10} className="text-zinc-600 shrink-0"/>
-                  <span><strong>À faire</strong> — Non commencée</span>
+                  <span><strong>Ã€ faire</strong> â€” Non commencÃ©e</span>
                 </div>
                 <div className="sb-legend-row">
                   <Users size={10} className="text-blue-400 shrink-0"/>
-                  <span><strong>Guilde</strong> — Membres positionnés ici</span>
+                  <span><strong>Guilde</strong> â€” Membres positionnÃ©s ici</span>
                 </div>
               </motion.div>
             )}
@@ -2338,7 +2270,7 @@ export default function OptimizedGuideClient({
         {/* Chapter list */}
         <div className="sidebar-chapters">
           {filteredChapters.length === 0 ? (
-            <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+            <div className="sidebar-empty"><Info size={14}/> Aucun rÃ©sultat</div>
           ) : (
             filteredChapters.map((ch, idx) => (
               <ChapterGroup
@@ -2363,12 +2295,12 @@ export default function OptimizedGuideClient({
         </div>
       </aside>
 
-      {/* ── CENTER CONTENT ───────────────────────────────────────────────── */}
+      {/* â”€â”€ CENTER CONTENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <main className="guide-main" ref={mainRef}>
         {!selected ? (
           <div className="guide-empty">
             <Flag size={32} className="text-zinc-600"/>
-            <p>Sélectionnez une étape dans la roadmap</p>
+            <p>SÃ©lectionnez une Ã©tape dans la roadmap</p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -2381,9 +2313,9 @@ export default function OptimizedGuideClient({
               <div className="guide-read-crumb">
                 <div className="guide-read-crumb-path">
                   Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
-                  {selected.chapterLabel ? <><span className="sep"> · </span><span>{selected.chapterLabel}</span></> : null}
-                  <span className="sep"> · </span>
-                  <span className="here">{overallPct}% complété</span>
+                  {selected.chapterLabel ? <><span className="sep"> Â· </span><span>{selected.chapterLabel}</span></> : null}
+                  <span className="sep"> Â· </span>
+                  <span className="here">{overallPct}% complÃ©tÃ©</span>
                 </div>
                 <div className="guide-read-crumb-bar"><div style={{ width: `${overallPct}%` }} /></div>
                 <span className="guide-read-crumb-pct">{overallPct}%</span>
@@ -2392,9 +2324,20 @@ export default function OptimizedGuideClient({
               {/* Guide name banner */}
               <div className="guide-name-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-zinc-950/80 via-emerald-950/20 to-zinc-950/80 border border-emerald-500/20 shadow-2xl flex items-center justify-between">
                 <div className="flex items-center gap-2">
+                  {/* Sommaire toggle */}
+                  <button
+                    type="button"
+                    className="guide-sommaire-btn"
+                    onClick={toggleSidebar}
+                    title={sidebarOpen ? "Masquer le sommaire (S)" : "Afficher le sommaire (S)"}
+                  >
+                    {sidebarOpen ? <PanelLeftClose size={15}/> : <PanelLeft size={15}/>}
+                    <span>Sommaire</span>
+                  </button>
+
                   <BookOpen size={14} className="text-emerald-400"/>
                   <span className="guide-name-label font-black text-xs uppercase tracking-widest text-emerald-400">{guide.name}</span>
-                  <span className="guide-name-sep text-zinc-600">›</span>
+                  <span className="guide-name-sep text-zinc-600">â€º</span>
                   <span className="guide-name-step text-xs font-semibold text-zinc-300">{decodeTitle(selected.title)}</span>
                   {bookmarkId === selected.id && (
                     <span title="Votre position actuelle"><BookmarkCheck size={14} className="text-amber-400 ml-1.5"/></span>
@@ -2437,16 +2380,24 @@ export default function OptimizedGuideClient({
                     Comment utiliser ?
                   </button>
 
-                  {/* Ganymède Credit Link */}
+                  {/* Signaler un bug / feedback */}
+                  <QuestFeedbackButton
+                    guildId={guildId}
+                    sourcePage={`guide:${guide.slug}`}
+                    targetSlug={guide.slug}
+                    compact
+                  />
+
+                  {/* GanymÃ¨de Credit Link */}
                   <a
                     href="https://ganymede-app.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 hover:text-blue-200 text-[10px] font-black uppercase tracking-wider transition-all"
-                    title="Parcours et étapes issus de Ganymède"
+                    title="Parcours et Ã©tapes issus de GanymÃ¨de"
                   >
-                    <img src="/assets/icons/ganymede.png" alt="Ganymède" className="w-3.5 h-3.5 rounded-sm object-contain" />
-                    <span>Ganymède ↗</span>
+                    <img src="/assets/icons/ganymede.png" alt="GanymÃ¨de" className="w-3.5 h-3.5 rounded-sm object-contain" />
+                    <span>GanymÃ¨de â†—</span>
                   </a>
                 </div>
               </div>
@@ -2457,17 +2408,17 @@ export default function OptimizedGuideClient({
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="step-nav-ref">
-                        {activeGuideFilter ? `📌 ${activeGuideFilter}` : `🗺️ ${guide.name}`}
+                        {activeGuideFilter ? `ðŸ“Œ ${activeGuideFilter}` : `ðŸ—ºï¸ ${guide.name}`}
                       </span>
                       <div className="step-nav-controls">
-                        <button className="nav-step-btn" onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs} title="Étape précédente">
+                        <button className="nav-step-btn" onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs} title="Ã‰tape prÃ©cÃ©dente">
                           <ChevronLeft size={16}/>
                         </button>
                         
                         <button
                           onClick={() => setIsMilestoneModalOpen(true)}
                           className="flex items-center justify-between gap-2 px-3 py-1.5 bg-zinc-950/80 border border-white/10 rounded-lg text-xs text-white font-bold hover:bg-zinc-900 hover:border-emerald-500/50 transition-all max-w-[150px] sm:max-w-[200px] cursor-pointer"
-                          title="Aller directement à une étape précise"
+                          title="Aller directement Ã  une Ã©tape prÃ©cise"
                         >
                           <span className="truncate">
                             {selectedIdx !== -1 ? selectedIdx + 1 : 1}. {decodeTitle(selected.title)}
@@ -2475,7 +2426,7 @@ export default function OptimizedGuideClient({
                           <ChevronDown size={12} className="text-zinc-500 shrink-0" />
                         </button>
 
-                        <button className="nav-step-btn" onClick={() => nextMs && setSelected(nextMs)} disabled={!nextMs} title="Étape suivante">
+                        <button className="nav-step-btn" onClick={() => nextMs && setSelected(nextMs)} disabled={!nextMs} title="Ã‰tape suivante">
                           <ChevronRight size={16}/>
                         </button>
                       </div>
@@ -2486,12 +2437,12 @@ export default function OptimizedGuideClient({
                         className={`validate-btn-compact ${isCompleted ? "validated" : ""}`}
                         onClick={handleToggleMs} disabled={validating}>
                         {validating ? <Loader2 size={12} className="animate-spin"/> :
-                          isCompleted ? <><CheckCircle2 size={12}/> Validée</> : <><Flag size={12}/> Valider</>}
+                          isCompleted ? <><CheckCircle2 size={12}/> ValidÃ©e</> : <><Flag size={12}/> Valider</>}
                       </button>
                       <button
                         className={`bookmark-btn-compact ${bookmarkId === selected.id ? "active" : ""}`}
                         onClick={() => handleBookmark(selected.id)}
-                        title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis là"}
+                        title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis lÃ "}
                       >
                         {bookmarkId === selected.id ? <BookmarkCheck size={12} className="text-amber-500"/> : <Bookmark size={12}/>}
                       </button>
@@ -2499,7 +2450,7 @@ export default function OptimizedGuideClient({
                         className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
                         onClick={handleResetMilestone}
                         disabled={validating}
-                        title="Réinitialiser ce jalon (étapes cochées et validation)"
+                        title="RÃ©initialiser ce jalon (Ã©tapes cochÃ©es et validation)"
                       >
                         <RotateCcw size={12} />
                       </button>
@@ -2549,10 +2500,10 @@ export default function OptimizedGuideClient({
                       </div>
                       <div className="flex flex-col text-left">
                         <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
-                          {membersHere.length} {membersHere.length > 1 ? "membres sont" : "membre est"} sur cette étape
+                          {membersHere.length} {membersHere.length > 1 ? "membres sont" : "membre est"} sur cette Ã©tape
                         </span>
                         <span className="text-[10px] text-zinc-500">
-                          Cliquer pour voir la liste complète des pseudos cliquables
+                          Cliquer pour voir la liste complÃ¨te des pseudos cliquables
                         </span>
                       </div>
                     </div>
@@ -2578,17 +2529,17 @@ export default function OptimizedGuideClient({
                 const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
                 return (
                   <section className="subguides-section">
-                    {/* Explication pédagogique de la hiérarchie */}
+                    {/* Explication pÃ©dagogique de la hiÃ©rarchie */}
                     <div className="mb-6 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-xs text-indigo-200/90 leading-relaxed flex items-start gap-3">
                       <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0">
                         <Info className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <span className="font-bold text-zinc-100">Comment suivre cette étape ?</span>
+                        <span className="font-bold text-zinc-100">Comment suivre cette Ã©tape ?</span>
                         <span>
-                          Cette étape de la quête principale nécessite d&apos;accomplir les instructions du sous-guide de terrain ci-dessous.
-                          {sortedSeqs.length > 1 && " L'étape étant longue, elle est découpée en plusieurs sous-guides accessibles via les onglets ci-dessous."}
-                          {" Cochez les étapes secondaires au fur et à mesure pour guider vos équipiers !"}
+                          Cette Ã©tape de la quÃªte principale nÃ©cessite d&apos;accomplir les instructions du sous-guide de terrain ci-dessous.
+                          {sortedSeqs.length > 1 && " L'Ã©tape Ã©tant longue, elle est dÃ©coupÃ©e en plusieurs sous-guides accessibles via les onglets ci-dessous."}
+                          {" Cochez les Ã©tapes secondaires au fur et Ã  mesure pour guider vos Ã©quipiers !"}
                         </span>
                       </div>
                     </div>
@@ -2603,10 +2554,10 @@ export default function OptimizedGuideClient({
                       <button
                         className={`global-hide-steps-btn ${globalHideCompletedSteps ? "active" : ""}`}
                         onClick={() => setGlobalHideCompletedSteps(v => !v)}
-                        title={globalHideCompletedSteps ? "Afficher toutes les étapes validées" : "Masquer globalement toutes les étapes validées"}
+                        title={globalHideCompletedSteps ? "Afficher toutes les Ã©tapes validÃ©es" : "Masquer globalement toutes les Ã©tapes validÃ©es"}
                       >
                         {globalHideCompletedSteps ? <Eye size={11}/> : <EyeOff size={11}/>}
-                        <span>{globalHideCompletedSteps ? "Afficher les validées" : "Cacher les validées"}</span>
+                        <span>{globalHideCompletedSteps ? "Afficher les validÃ©es" : "Cacher les validÃ©es"}</span>
                       </button>
                     </div>
 
@@ -2641,7 +2592,6 @@ export default function OptimizedGuideClient({
                           selectedMilestoneId={selected?.id || ""}
                           guildId={guildId}
                           onShowStepPresenceModal={handleShowStepPresenceModal}
-                          onOpenMission={handleOpenMission}
                           onMapClick={(x, y, explicitWorld) => {
                             navigator.clipboard.writeText(`/travel ${x} ${y}`);
                             let worldId = 1;
@@ -2670,7 +2620,7 @@ export default function OptimizedGuideClient({
                                   <MapPin className="w-4 h-4 animate-bounce" />
                                 </div>
                                 <div className="text-left">
-                                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Position copiée & carte ouverte</p>
+                                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Position copiÃ©e & carte ouverte</p>
                                   <p className="text-xs font-mono text-zinc-300">/travel {x} {y}</p>
                                 </div>
                               </div>
@@ -2697,7 +2647,7 @@ export default function OptimizedGuideClient({
                           disabled={activeSeqIndex === 0}
                           onClick={() => setActiveSeqIndex(idx => Math.max(0, idx - 1))}
                         >
-                          <ChevronLeft size={12}/> Partie précédente
+                          <ChevronLeft size={12}/> Partie prÃ©cÃ©dente
                         </button>
                         <span className="subguide-pag-indicator">
                           Partie {activeSeqIndex + 1} sur {sortedSeqs.length}
@@ -2719,7 +2669,7 @@ export default function OptimizedGuideClient({
               {!selected.description && selected.sequences.length === 0 && (
                 <div className="step-empty">
                   <Info size={20} className="text-zinc-600"/>
-                  <p>Cette étape ne contient pas encore de contenu détaillé.</p>
+                  <p>Cette Ã©tape ne contient pas encore de contenu dÃ©taillÃ©.</p>
                 </div>
               )}
 
@@ -2730,7 +2680,7 @@ export default function OptimizedGuideClient({
                 <div className="step-nav">
                   {prevMs && (
                     <button className="nav-btn prev" onClick={() => setSelected(prevMs)}>
-                      <ChevronLeft size={14}/> <span className="nav-label">Précédent</span>
+                      <ChevronLeft size={14}/> <span className="nav-label">PrÃ©cÃ©dent</span>
                     </button>
                   )}
                   <div className="step-actions">
@@ -2738,15 +2688,15 @@ export default function OptimizedGuideClient({
                       className={`validate-btn ${isCompleted ? "validated" : ""}`}
                       onClick={handleToggleMs} disabled={validating}>
                       {validating ? <Loader2 size={14} className="animate-spin"/> :
-                        isCompleted ? <><CheckCircle2 size={14}/> Validée</> : <><Flag size={14}/> Valider cette étape</>}
+                        isCompleted ? <><CheckCircle2 size={14}/> ValidÃ©e</> : <><Flag size={14}/> Valider cette Ã©tape</>}
                     </button>
                     <button
                       className={`bookmark-btn ${bookmarkId === selected.id ? "active" : ""}`}
                       onClick={() => handleBookmark(selected.id)}
-                      title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis là"}
+                      title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis lÃ "}
                     >
                       {bookmarkId === selected.id ? <BookmarkCheck size={14}/> : <Bookmark size={14}/>}
-                      <span>{bookmarkId === selected.id ? "Ma position" : "J'en suis là"}</span>
+                      <span>{bookmarkId === selected.id ? "Ma position" : "J'en suis lÃ "}</span>
                     </button>
                   </div>
                   {nextMs && (
@@ -2788,7 +2738,7 @@ export default function OptimizedGuideClient({
                     <MapPin className="w-5 h-5 text-cyan-400" />
                   </div>
                   <div>
-                    <p className="text-white font-black text-base">Aperçu HD de la Position</p>
+                    <p className="text-white font-black text-base">AperÃ§u HD de la Position</p>
                     <p className="text-cyan-400 font-mono text-xs mt-0.5">[{mapModal.x}, {mapModal.y}] (Monde {mapModal.worldId ?? 1})</p>
                   </div>
                 </div>
@@ -2827,7 +2777,7 @@ export default function OptimizedGuideClient({
                 <button onClick={() => {
                   const cmd = `/travel ${mapModal.x} ${mapModal.y}`;
                   navigator.clipboard.writeText(cmd);
-                  toast.success("Commande copiée !", { description: cmd });
+                  toast.success("Commande copiÃ©e !", { description: cmd });
                   setMapModal(null);
                 }}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-black text-sm transition-all group">
@@ -2869,7 +2819,7 @@ export default function OptimizedGuideClient({
         }}
       />
 
-      {/* ── VERIFYING OVERLAY ─────────────────────────────── */}
+      {/* â”€â”€ VERIFYING OVERLAY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <AnimatePresence>
         {verifyingDungeonName && (
           <motion.div
@@ -2887,9 +2837,9 @@ export default function OptimizedGuideClient({
               {/* Spinning Loader */}
               <div className="w-16 h-16 rounded-full border-4 border-t-amber-500 border-zinc-800 animate-spin mb-6 shadow-[0_0_20px_rgba(245,158,11,0.2)]" />
               
-              <h3 className="text-white font-black text-base uppercase tracking-wider mb-2">Vérification en cours</h3>
+              <h3 className="text-white font-black text-base uppercase tracking-wider mb-2">VÃ©rification en cours</h3>
               <p className="text-zinc-400 text-xs font-medium max-w-[240px]">
-                Analyse de la base de données pour le donjon :
+                Analyse de la base de donnÃ©es pour le donjon :
               </p>
               <p className="text-amber-400 font-bold text-xs mt-1 truncate max-w-full">
                 {verifyingDungeonName}
@@ -2899,7 +2849,7 @@ export default function OptimizedGuideClient({
         )}
       </AnimatePresence>
 
-      {/* ── DUNGEON CHOICE MODAL ─────────────────────────────── */}
+      {/* â”€â”€ DUNGEON CHOICE MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <AnimatePresence>
         {dungeonChoiceModal && dungeonChoiceModal.isOpen && (
           <motion.div
@@ -2979,7 +2929,7 @@ export default function OptimizedGuideClient({
                         {dungeonChoiceModal.isLoadingUrl ? "Chargement..." : "Consulter le tutoriel Noobs"}
                       </p>
                       <p className="text-amber-400/70 text-[10px] font-bold mt-0.5 truncate pr-2">
-                        {dungeonChoiceModal.customUrl ? dungeonChoiceModal.customUrl.replace("https://www.dofuspourlesnoobs.com/", "") : "Guide complet illustré pas-à-pas du donjon"}
+                        {dungeonChoiceModal.customUrl ? dungeonChoiceModal.customUrl.replace("https://www.dofuspourlesnoobs.com/", "") : "Guide complet illustrÃ© pas-Ã -pas du donjon"}
                       </p>
                     </div>
                     {isAdmin && !dungeonChoiceModal.isLoadingUrl && (
@@ -3001,7 +2951,7 @@ export default function OptimizedGuideClient({
                         className="overflow-hidden mt-2"
                       >
                         <div className="p-3 bg-black/40 border border-amber-500/20 rounded-xl flex flex-col gap-2">
-                          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">URL / Slug Personnalisé</p>
+                          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">URL / Slug PersonnalisÃ©</p>
                           <input 
                             value={noobsUrlInput}
                             onChange={(e) => setNoobsUrlInput(e.target.value)}
@@ -3027,7 +2977,7 @@ export default function OptimizedGuideClient({
                                 const mod = await import("@/server/actions/game-data-actions");
                                 const res = await mod.updateDungeonNoobsUrl(guildId, dungeonChoiceModal.name, dungeonChoiceModal.dofusdbId, noobsUrlInput);
                                 if (res.success) {
-                                  toast.success("URL enregistrée !", { id: "save-url" });
+                                  toast.success("URL enregistrÃ©e !", { id: "save-url" });
                                   setDungeonChoiceModal(prev => prev ? { ...prev, customUrl: res.data.dofuspourlesnoobsUrl } : null);
                                   setEditingNoobsUrl(false);
                                 } else {
@@ -3054,7 +3004,7 @@ export default function OptimizedGuideClient({
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Consulter sur DofusDB</p>
-                    <p className="text-cyan-400/70 text-[10px] font-bold mt-0.5">Fiche et base de données officielle du boss</p>
+                    <p className="text-cyan-400/70 text-[10px] font-bold mt-0.5">Fiche et base de donnÃ©es officielle du boss</p>
                   </div>
                 </button>
               </div>
@@ -3073,7 +3023,7 @@ export default function OptimizedGuideClient({
         )}
       </AnimatePresence>
 
-      {/* ── QUEST CHOICE MODAL ─────────────────────────────── */}
+      {/* â”€â”€ QUEST CHOICE MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <AnimatePresence>
         {questChoiceModal && questChoiceModal.isOpen && (
           <motion.div
@@ -3099,7 +3049,7 @@ export default function OptimizedGuideClient({
                     <BookOpen className="w-5 h-5 text-amber-400" />
                   </div>
                   <div>
-                    <h3 className="text-white font-black text-sm">Options de Quête</h3>
+                    <h3 className="text-white font-black text-sm">Options de QuÃªte</h3>
                     <p className="text-amber-400 font-bold text-xs mt-0.5 truncate max-w-[280px]">
                       {questChoiceModal.name}
                     </p>
@@ -3113,7 +3063,7 @@ export default function OptimizedGuideClient({
 
               {/* Description */}
               <div className="py-6 text-zinc-400 text-xs leading-relaxed">
-                Que souhaitez-vous faire pour cette quête ? Vous pouvez planifier une sortie d'entraide de guilde, consulter son guide complet, ou voir sa fiche sur DofusDB.
+                Que souhaitez-vous faire pour cette quÃªte ? Vous pouvez planifier une sortie d'entraide de guilde, consulter son guide complet, ou voir sa fiche sur DofusDB.
               </div>
 
               {/* Choices */}
@@ -3133,7 +3083,7 @@ export default function OptimizedGuideClient({
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Planifier une sortie d'entraide / donjon</p>
-                    <p className="text-emerald-400/70 text-[10px] font-bold mt-0.5">Créer un groupe de guilde prérempli pour cette étape</p>
+                    <p className="text-emerald-400/70 text-[10px] font-bold mt-0.5">CrÃ©er un groupe de guilde prÃ©rempli pour cette Ã©tape</p>
                   </div>
                 </button>
  
@@ -3143,7 +3093,7 @@ export default function OptimizedGuideClient({
                       .toLowerCase()
                       .normalize("NFD")
                       .replace(/[\u0300-\u036f]/g, "")
-                      .replace(/['’]/g, "")
+                      .replace(/['â€™]/g, "")
                       .replace(/[^a-z0-9\s-]/g, "")
                       .trim()
                       .replace(/\s+/g, "-")
@@ -3158,7 +3108,7 @@ export default function OptimizedGuideClient({
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Consulter le tutoriel Noobs</p>
-                    <p className="text-amber-400/70 text-[10px] font-bold mt-0.5">Ouvrir le guide illustré pas-à-pas</p>
+                    <p className="text-amber-400/70 text-[10px] font-bold mt-0.5">Ouvrir le guide illustrÃ© pas-Ã -pas</p>
                   </div>
                 </button>
  
@@ -3175,7 +3125,7 @@ export default function OptimizedGuideClient({
                     </div>
                     <div>
                       <p className="text-white text-xs font-black">Consulter sur DofusDB</p>
-                      <p className="text-cyan-400/70 text-[10px] font-bold mt-0.5">Données techniques et structure de la quête</p>
+                      <p className="text-cyan-400/70 text-[10px] font-bold mt-0.5">DonnÃ©es techniques et structure de la quÃªte</p>
                     </div>
                   </button>
                 )}
@@ -3221,8 +3171,8 @@ export default function OptimizedGuideClient({
                 <h3 className="text-xl font-black text-white mb-2">Bon retour !</h3>
                 <p className="text-sm text-zinc-400 mb-6">
                   {welcomeModal.validatedCount > 0 
-                    ? `Lors de votre dernière session, vous aviez validé ${welcomeModal.validatedCount} étape${welcomeModal.validatedCount > 1 ? 's' : ''}. `
-                    : `Reprenez votre lecture là où vous l'aviez laissée. `}
+                    ? `Lors de votre derniÃ¨re session, vous aviez validÃ© ${welcomeModal.validatedCount} Ã©tape${welcomeModal.validatedCount > 1 ? 's' : ''}. `
+                    : `Reprenez votre lecture lÃ  oÃ¹ vous l'aviez laissÃ©e. `}
                   Voulez-vous y retourner directement ?
                 </p>
 
@@ -3301,10 +3251,10 @@ export default function OptimizedGuideClient({
               Navigation rapide
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1">
-              Aller à une étape
+              Aller Ã  une Ã©tape
             </div>
             <div className="text-[11px] text-zinc-500 mt-1 font-medium">
-              {completedIds.size} / {milestones.length} étapes complétées ({overallPct}%)
+              {completedIds.size} / {milestones.length} Ã©tapes complÃ©tÃ©es ({overallPct}%)
             </div>
           </DialogHeader>
 
@@ -3313,7 +3263,7 @@ export default function OptimizedGuideClient({
             <Search size={14} className="text-zinc-500 mr-3 shrink-0" />
             <input
               type="text"
-              placeholder="Rechercher par titre d'étape..."
+              placeholder="Rechercher par titre d'Ã©tape..."
               value={modalSearchQuery}
               onChange={(e) => setModalSearchQuery(e.target.value)}
               className="w-full bg-transparent text-sm text-white placeholder-zinc-600 outline-none font-medium"
@@ -3328,13 +3278,13 @@ export default function OptimizedGuideClient({
             )}
           </div>
 
-          {/* Milestone List in ScrollArea — grouped by chapter when no search */}
+          {/* Milestone List in ScrollArea â€” grouped by chapter when no search */}
           <ScrollArea className="h-[420px] pr-2 no-scrollbar">
             <div className="space-y-3 pb-2">
               {filteredModalMilestones.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-zinc-600 italic text-sm">
                   <Info size={20} className="mb-2 opacity-40" />
-                  <span>Aucune étape trouvée</span>
+                  <span>Aucune Ã©tape trouvÃ©e</span>
                 </div>
               ) : modalSearchQuery.trim() ? (
                 /* Flat list when searching */
@@ -3528,10 +3478,10 @@ export default function OptimizedGuideClient({
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
-              Progression Étape
+              Progression Ã‰tape
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1">
-              Étape {stepPresenceModal?.stepNumber}
+              Ã‰tape {stepPresenceModal?.stepNumber}
             </div>
             {stepPresenceModal?.stepTitle && (
               <div 
@@ -3548,7 +3498,7 @@ export default function OptimizedGuideClient({
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-wider text-amber-500 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
                     <BookmarkCheck size={12} className="fill-amber-500/10" />
-                    En cours à cette étape ({stepPresenceModal.activeMembers.length})
+                    En cours Ã  cette Ã©tape ({stepPresenceModal.activeMembers.length})
                   </div>
                   <div className="space-y-2">
                     {stepPresenceModal.activeMembers.map((m) => {
@@ -3594,7 +3544,7 @@ export default function OptimizedGuideClient({
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
                     <CheckCircle2 size={12} />
-                    Validé ({stepPresenceModal.validatedMembers.length})
+                    ValidÃ© ({stepPresenceModal.validatedMembers.length})
                   </div>
                   <div className="space-y-2">
                     {stepPresenceModal.validatedMembers.map((m) => {
@@ -3639,13 +3589,13 @@ export default function OptimizedGuideClient({
                (!stepPresenceModal?.activeMembers || stepPresenceModal.activeMembers.length === 0) && (
                 <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm animate-in fade-in duration-300">
                   <Info size={16} className="mb-2 opacity-40" />
-                  <span>Aucun membre n&apos;a validé ou n&apos;est en cours sur cette étape</span>
+                  <span>Aucun membre n&apos;a validÃ© ou n&apos;est en cours sur cette Ã©tape</span>
                 </div>
               )}
             </div>
           </ScrollArea>
 
-          {/* Footer — entraide (3ᵉ niveau) */}
+          {/* Footer â€” entraide (3áµ‰ niveau) */}
           <div className="flex gap-2 mt-4 border-t border-white/5 pt-4">
             <button
               onClick={() => setStepPresenceModal(prev => prev ? { ...prev, isOpen: false } : null)}
@@ -3657,13 +3607,13 @@ export default function OptimizedGuideClient({
               onClick={() => {
                 const title = (stepPresenceModal?.stepTitle || "").replace(/<[^>]+>/g, "").trim();
                 navigator.clipboard.writeText(
-                  `📣 Besoin d'aide sur l'étape ${stepPresenceModal?.stepNumber} : ${title} — je suis sur le guide « ${guide.name} ».`
+                  `ðŸ“£ Besoin d'aide sur l'Ã©tape ${stepPresenceModal?.stepNumber} : ${title} â€” je suis sur le guide Â« ${guide.name} Â».`
                 ).catch(() => {});
-                toast.success("Message d'entraide copié — collez-le sur Discord !");
+                toast.success("Message d'entraide copiÃ© â€” collez-le sur Discord !");
               }}
               className="flex-[2] py-2.5 px-4 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
             >
-              📣 Demander de l'aide sur Discord
+              ðŸ“£ Demander de l'aide sur Discord
             </button>
           </div>
         </DialogContent>
@@ -3693,7 +3643,7 @@ export default function OptimizedGuideClient({
                   return (
                     <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm">
                       <Info size={16} className="mb-2 opacity-40" />
-                      <span>Aucun membre à cette étape</span>
+                      <span>Aucun membre Ã  cette Ã©tape</span>
                     </div>
                   );
                 }
@@ -3787,8 +3737,8 @@ export default function OptimizedGuideClient({
                             {currentMs 
                               ? `En cours : ${currentMs.title}` 
                               : m.completedMilestoneIds.size === milestones.length 
-                                ? "✨ Guide entièrement complété !" 
-                                : "Pas encore commencé / En pause"
+                                ? "âœ¨ Guide entiÃ¨rement complÃ©tÃ© !" 
+                                : "Pas encore commencÃ© / En pause"
                             }
                           </span>
                         </div>
@@ -3819,28 +3769,28 @@ export default function OptimizedGuideClient({
           <ScrollArea className="max-h-[400px] pr-2 no-scrollbar text-zinc-300 text-xs leading-relaxed space-y-4">
             <div className="space-y-4 pb-2 font-medium">
               <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 mb-4">
-                <h4 className="text-indigo-300 font-black uppercase tracking-wider text-[10px] mb-1">📐 Structure & Hiérarchie</h4>
-                <p className="text-zinc-200">Le système de guide est structuré en deux niveaux :</p>
+                <h4 className="text-indigo-300 font-black uppercase tracking-wider text-[10px] mb-1">ðŸ“ Structure & HiÃ©rarchie</h4>
+                <p className="text-zinc-200">Le systÃ¨me de guide est structurÃ© en deux niveaux :</p>
                 <ul className="list-disc pl-4 mt-1.5 space-y-1 text-zinc-300 text-[11px]">
-                  <li><strong>Guide Principal (à gauche) :</strong> Les étapes et quêtes de la trame globale (ex: Quête du Dofus Émeraude).</li>
-                  <li><strong>Sous-Guides GP (au centre) :</strong> Les fiches d&apos;instructions ultra-détaillées avec coordonnées et dialogues pour chaque objectif spécifique.</li>
+                  <li><strong>Guide Principal (Ã  gauche) :</strong> Les Ã©tapes et quÃªtes de la trame globale (ex: QuÃªte du Dofus Ã‰meraude).</li>
+                  <li><strong>Sous-Guides GP (au centre) :</strong> Les fiches d&apos;instructions ultra-dÃ©taillÃ©es avec coordonnÃ©es et dialogues pour chaque objectif spÃ©cifique.</li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">🗺️ Progression pas-à-pas</h4>
-                <p>Suivez la feuille de route optimisée. Les étapes s&apos;enchaînent logiquement pour réduire les allers-retours.</p>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">ðŸ—ºï¸ Progression pas-Ã -pas</h4>
+                <p>Suivez la feuille de route optimisÃ©e. Les Ã©tapes s&apos;enchaÃ®nent logiquement pour rÃ©duire les allers-retours.</p>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">📍 Marque-page (J&apos;en suis là)</h4>
-                <p>Utilisez l&apos;icône de marque-page pour indiquer précisément votre position actuelle à la guilde sans pour autant marquer l&apos;étape comme terminée.</p>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">ðŸ“ Marque-page (J&apos;en suis lÃ )</h4>
+                <p>Utilisez l&apos;icÃ´ne de marque-page pour indiquer prÃ©cisÃ©ment votre position actuelle Ã  la guilde sans pour autant marquer l&apos;Ã©tape comme terminÃ©e.</p>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">✅ Validation d&apos;étapes</h4>
-                <p>Cochez les étapes secondaires ou validez la milestone principale une fois terminée. Votre progression est enregistrée en temps réel.</p>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">âœ… Validation d&apos;Ã©tapes</h4>
+                <p>Cochez les Ã©tapes secondaires ou validez la milestone principale une fois terminÃ©e. Votre progression est enregistrÃ©e en temps rÃ©el.</p>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">👥 Synchronisation & Entraide</h4>
-                <p>Les avatars des membres s&apos;affichent sur les étapes où ils sont rendus. Pratique pour s&apos;organiser et faire des donjons à plusieurs !</p>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">ðŸ‘¥ Synchronisation & Entraide</h4>
+                <p>Les avatars des membres s&apos;affichent sur les Ã©tapes oÃ¹ ils sont rendus. Pratique pour s&apos;organiser et faire des donjons Ã  plusieurs !</p>
               </div>
             </div>
           </ScrollArea>
@@ -3869,20 +3819,20 @@ export default function OptimizedGuideClient({
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-400 flex items-center gap-2">
               <RotateCcw size={14} className="animate-spin-slow" />
-              Réinitialiser le jalon
+              RÃ©initialiser le jalon
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
               {selected?.title}
             </div>
           </DialogHeader>
           <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
-            <p>Êtes-vous sûr de vouloir réinitialiser la progression de ce jalon ?</p>
+            <p>ÃŠtes-vous sÃ»r de vouloir rÃ©initialiser la progression de ce jalon ?</p>
             <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 text-red-200/90 text-[11px] font-medium">
-              ⚠️ <strong>Cette action va :</strong>
+              âš ï¸ <strong>Cette action va :</strong>
               <ul className="list-disc pl-4 mt-1 space-y-1">
-                <li>Décocher toutes les étapes secondaires de ce jalon</li>
+                <li>DÃ©cocher toutes les Ã©tapes secondaires de ce jalon</li>
                 <li>Retirer le statut de validation de ce jalon</li>
-                <li>Supprimer votre marque-page d'étape</li>
+                <li>Supprimer votre marque-page d'Ã©tape</li>
               </ul>
             </div>
           </div>
@@ -3897,7 +3847,7 @@ export default function OptimizedGuideClient({
               onClick={confirmResetMilestone}
               className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] cursor-pointer"
             >
-              Réinitialiser
+              RÃ©initialiser
             </button>
           </div>
         </DialogContent>
@@ -3909,16 +3859,16 @@ export default function OptimizedGuideClient({
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-500 flex items-center gap-2">
               <RotateCcw size={14} className="animate-pulse" />
-              Réinitialisation Totale
+              RÃ©initialisation Totale
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
               {guide.name}
             </div>
           </DialogHeader>
           <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
-            <p>Êtes-vous absolument sûr de vouloir réinitialiser la totalité de ce guide ?</p>
+            <p>ÃŠtes-vous absolument sÃ»r de vouloir rÃ©initialiser la totalitÃ© de ce guide ?</p>
             <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[11px] font-bold">
-              🚨 WARNING : TOUTE votre progression sur ce guide (quêtes cochées, jalons validés, marque-pages) sera effacée définitivement pour ce personnage.
+              ðŸš¨ WARNING : TOUTE votre progression sur ce guide (quÃªtes cochÃ©es, jalons validÃ©s, marque-pages) sera effacÃ©e dÃ©finitivement pour ce personnage.
             </div>
           </div>
           <div className="flex gap-3 justify-end">
@@ -3939,155 +3889,12 @@ export default function OptimizedGuideClient({
       </Dialog>
       </div>
 
-      {/* Bouton sortie mode focus */}
-      {focusMode && (
-        <button className="guide-focus-exit" onClick={toggleFocusMode} title="Quitter le mode focus (F)">
-          <Minimize2 size={14}/> <span>Quitter le focus</span>
+      {/* Bouton rouvrir le sommaire (quand la sidebar est repliÃ©e) */}
+      {!sidebarOpen && (
+        <button className="guide-sommaire-open" onClick={toggleSidebar} title="Afficher le sommaire (S)">
+          <PanelLeft size={14}/> <span>Sommaire</span>
         </button>
       )}
-
-      {/* Mode mission — sous-guide plein écran */}
-      <MissionOverlay
-        mission={mission}
-        checkedSteps={checkedSteps}
-        onToggle={handleMissionToggleStep}
-        onClose={handleCloseMission}
-        focus={missionFocus}
-        setFocus={setMissionFocus}
-        hideDone={missionHideDone}
-        setHideDone={setMissionHideDone}
-        overallPct={overallPct}
-        guideName={guide.name}
-        phaseLabel={selected ? `Phase ${selected.chapter > 0 ? selected.chapter : "Intro"} · ${selected.chapterLabel || ""}` : ""}
-      />
     </>
   );
 }
-
-// ─── Mode mission : sous-guide plein écran (navigation clavier) ───────────
-function MissionOverlay({
-  mission, checkedSteps, onToggle, onClose, focus, setFocus, hideDone, setHideDone, overallPct, guideName, phaseLabel
-}: {
-  mission: { seq: Sequence; steps: SubStep[] } | null;
-  checkedSteps: Set<string>;
-  onToggle: (stepNumber: number) => void;
-  onClose: () => void;
-  focus: number;
-  setFocus: (n: number) => void;
-  hideDone: boolean;
-  setHideDone: (b: boolean) => void;
-  overallPct: number;
-  guideName: string;
-  phaseLabel: string;
-}) {
-  const [copyIdx, setCopyIdx] = useState<number | null>(null);
-
-  if (!mission) return null;
-  const { seq, steps } = mission;
-  const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
-  const total = steps.length;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const visible = hideDone ? steps.filter(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)) : steps;
-
-  const copyCoord = (coord: string, idx: number) => {
-    navigator.clipboard.writeText(`/travel ${coord}`).catch(() => {});
-    setCopyIdx(idx);
-    setTimeout(() => setCopyIdx(null), 1200);
-  };
-
-  return (
-    <div className="mission-view" role="dialog" aria-modal="true" aria-label={`Mode mission — ${seq.subGuideName}`}>
-      {/* Header */}
-      <div className="mission-header">
-        <button className="mission-back" onClick={onClose} type="button">
-          <ChevronLeft size={14}/> Retour au guide
-        </button>
-
-        <div className="mission-mode-chip">Mode mission</div>
-
-        <div className="mission-title-wrap">
-          <div className="mission-ref">Sous-guide {seq.subGuideRef} · {guideName}</div>
-          <div className="mission-name">{seq.subGuideName}</div>
-          {phaseLabel && <div className="mission-phase">{phaseLabel} · {overallPct}% complété</div>}
-        </div>
-
-        <div className="mission-progress">
-          <div className="mission-bar"><div style={{ width: `${pct}%` }} /></div>
-          <span className="mission-count">{done}/{total} étapes</span>
-        </div>
-
-        <button className="mission-hide-toggle" onClick={() => setHideDone(!hideDone)} type="button">
-          {hideDone ? <Eye size={13}/> : <EyeOff size={13}/>}
-          <span>{hideDone ? "Afficher validées" : "Masquer validées"}</span>
-        </button>
-      </div>
-
-      {/* Bandeau orientation */}
-      <div className="mission-orient">
-        <span>Tu es dans le <strong>sous-guide {seq.subGuideRef}</strong> du guide <strong>« {guideName} »</strong>. Coche les étapes au fur et à mesure. Touche <kbd>Échap</kbd> pour revenir au guide classique.</span>
-      </div>
-
-      {/* Body : liste d'étapes compactes */}
-      <div className="mission-body">
-        {visible.length === 0 ? (
-          <div className="mission-empty">
-            <div className="mission-empty-icon">🏆</div>
-            <div className="mission-empty-title">Sous-guide terminé</div>
-            <p className="mission-empty-sub">Toutes les étapes sont validées. Bravo !</p>
-          </div>
-        ) : (
-          <div className="mission-list">
-            {visible.map((s) => {
-              const idx = steps.indexOf(s);
-              const checked = checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`);
-              const text = s.plainText ?? s.web_text ?? "";
-              const coords = Array.from(text.matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g))
-                .map(m => m[1] + "," + m[2]);
-              return (
-                <div
-                  key={`${seq.subGuideRef}-${s.stepNumber}`}
-                  className={`mission-step ${checked ? "done" : ""} ${idx === focus ? "focused" : ""}`}
-                  data-idx={idx}
-                  onClick={() => setFocus(idx)}
-                >
-                  <button
-                    className="mission-check"
-                    onClick={(e) => { e.stopPropagation(); onToggle(s.stepNumber); }}
-                    aria-label={checked ? `Étape ${s.stepNumber} validée` : `Valider l'étape ${s.stepNumber}`}
-                  >
-                    {checked && <CheckCircle2 size={16}/>}
-                  </button>
-                  <span className="mission-step-num">{s.stepNumber}</span>
-                  <div className="mission-step-main">
-                    <div className="mission-step-text">{text}</div>
-                    {coords.length > 0 && (
-                      <div className="mission-step-icons">
-                        {coords.slice(0, 4).map((c, i) => (
-                          <button
-                            key={c + i}
-                            className="mission-coord"
-                            onClick={(e) => { e.stopPropagation(); copyCoord(c, i); }}
-                          >
-                            <MapPin size={9}/> {copyIdx === i ? "Copié !" : `[${c}]`}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Hint clavier */}
-      <div className="mission-kbd-hint">
-        <span><kbd>Espace</kbd> valider</span>
-        <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
-        <span><kbd>Échap</kbd> retour</span>
-      </div>
-    </div>
-  );
-}
-

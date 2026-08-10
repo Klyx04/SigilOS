@@ -68,10 +68,17 @@ interface InteractiveMapProps {
     showGameEntry?: boolean;
 }
 
+// Retourne l'élément plein écran actif (worldmap, mini-jeux ou bomb)
+function getFullscreenEl(): HTMLElement | null {
+    return document.getElementById('worldmap-page')
+        || document.getElementById('mini-games-page')
+        || document.getElementById('sigil-bomb-page');
+}
+
 // Force le plein écran du guesser quand une partie est active (monté directement dans le rendu du jeu)
 function ForceFullscreen() {
     useEffect(() => {
-        const el = document.getElementById('worldmap-page');
+        const el = getFullscreenEl();
         if (el) {
             el.style.position = 'fixed';
             el.style.inset = '0';
@@ -537,10 +544,11 @@ export default function InteractiveMapV2({
     // Plein écran automatique pendant les parties (Sigil Guesser & Bomb)
     const applyFullscreen = useCallback((fs: boolean) => {
         setIsFullscreen(fs);
-        const el = document.getElementById('worldmap-page');
+        const el = getFullscreenEl();
         if (el) {
             el.classList.toggle('worldmap-fullscreen', fs);
             // Force inline (plus robuste que le CSS) : plein écran total sans bords
+            el.style.position = fs ? 'fixed' : '';
             el.style.top = fs ? '0px' : '';
             el.style.left = fs ? '0px' : '';
             el.style.right = fs ? '0px' : '';

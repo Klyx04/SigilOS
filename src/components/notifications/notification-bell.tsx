@@ -134,43 +134,38 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                 </div>
 
                 {/* Filter Chips */}
-                {notifications.length > 0 && (
-                    <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-black/20 overflow-x-auto no-scrollbar">
-                        {[
-                            { id: "ALL", label: "Toutes" },
-                            { id: "MISSION", label: "Missions" },
-                            { id: "SONGES", label: "Songes" },
-                            { id: "DONJONS", label: "Donjons" },
-                            { id: "EVENT", label: "Events" },
-                            { id: "POLL", label: "Sondages" },
-                            { id: "ADMIN_ALERT", label: "Admin" },
-                        ].map((cat) => {
-                            const count = cat.id === "ALL"
-                                ? notifications.length
-                                : notifications.filter(n => n.category === cat.id).length;
+                <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-black/20 overflow-x-auto no-scrollbar">
+                    {[
+                        { id: "ALL", label: "Toutes" },
+                        { id: "MISSION", label: "Missions" },
+                        { id: "SONGES", label: "Songes" },
+                        { id: "DONJONS", label: "Donjons" },
+                        { id: "EVENT", label: "Events" },
+                        { id: "POLL", label: "Sondages" },
+                        { id: "ADMIN_ALERT", label: "Admin" },
+                    ].map((cat) => {
+                        const count = cat.id === "ALL"
+                            ? notifications.length
+                            : notifications.filter(n => n.category === cat.id).length;
 
-                            if (cat.id !== "ALL" && count === 0) return null;
+                        return (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className={cn(
+                                    "px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-all border",
+                                    activeCategory === cat.id
+                                        ? "bg-cyan-600/30 text-cyan-200 border-cyan-500/40"
+                                        : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                                )}
+                            >
+                                {cat.label}
+                                <span className="ml-1 text-[9px] opacity-60">({count})</span>
+                            </button>
+                        );
+                    })}
+                </div>
 
-                            return (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setActiveCategory(cat.id)}
-                                    className={cn(
-                                        "px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-all",
-                                        activeCategory === cat.id
-                                            ? "bg-white/15 text-white border border-white/20"
-                                            : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-                                    )}
-                                >
-                                    {cat.label}
-                                    {count > 0 && (
-                                        <span className="ml-1 text-[9px] opacity-60">({count})</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
 
                 <ScrollArea className="h-[350px]">
                     {isLoading ? (

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { getUnreadNotifications, markAsRead, markAllAsRead } from "@/server/actions/notification-actions";
+import { getUnreadNotifications, getAllNotifications, markAsRead, markAllAsRead } from "@/server/actions/notification-actions";
 import { replyToServiceRequestAction } from "@/server/actions/service-actions";
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem, MessageSquare, Loader2 } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem, MessageSquare, Loader2, Eye, EyeOff, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ type Notification = {
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [activeTab, setActiveTab] = useState<NotificationCategory | "ALL">("ALL");
+    const [statusFilter, setStatusFilter] = useState<"ALL" | "UNREAD" | "READ">("UNREAD");
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
@@ -74,7 +75,6 @@ export default function NotificationsPage() {
                 toast.success("Votre réponse a été envoyée !");
                 setReplyNotif(null);
                 setReplyText("");
-                // Mark this request notification as read
                 handleDismiss(replyNotif.id);
             } else {
                 toast.error(res.error || "Impossible d'envoyer la réponse.");
@@ -88,7 +88,8 @@ export default function NotificationsPage() {
 
     async function loadNotifications() {
         setLoading(true);
-        const result = await getUnreadNotifications(guildId);
+        // Load all notifications (read and unread)
+        const result = await getAllNotifications(guildId);
         if (result.success && result.data) {
             setNotifications(result.data as any);
         }
@@ -100,7 +101,7 @@ export default function NotificationsPage() {
     }, []);
 
     const handleDismiss = async (id: string) => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
         try {
             await markAsRead(id, guildId);
         } catch (error) {
@@ -112,7 +113,7 @@ export default function NotificationsPage() {
         if (filteredNotifications.length === 0) return;
 
         const idsToRemove = new Set(filteredNotifications.map(n => n.id));
-        setNotifications((prev) => prev.filter((n) => !idsToRemove.has(n.id)));
+        setNotifications((prev) => prev.map((n) => idsToRemove.has(n.id) ? { ...n, read: true } : n));
 
         try {
             await markAllAsRead(guildId);
@@ -150,12 +151,22 @@ export default function NotificationsPage() {
         }
     };
 
-    const filteredNotifications = notifications.filter(n =>
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    // First filter by Status (UNREAD / READ / ALL)
+    const statusFiltered = notifications.filter(n => {
+        if (statusFilter === "UNREAD") return !n.read;
+        if (statusFilter === "READ") return n.read;
+        return true;
+    });
+
+    // Then filter by Category
+    const filteredNotifications = statusFiltered.filter(n =>
         activeTab === "ALL" || n.category === activeTab
     );
 
     const categories: { id: NotificationCategory | "ALL", label: string }[] = [
-        { id: "ALL", label: "Toutes" },
+        { id: "ALL", label: "Toutes les catégories" },
         { id: "MISSION", label: "Missions" },
         { id: "SUCCESS", label: "Succès" },
         { id: "SONGES", label: "Songes" },
@@ -174,59 +185,85 @@ export default function NotificationsPage() {
                         Centre de Notifications
                     </h1>
                     <p className="text-zinc-400">
-                        {notifications.length > 0
-                            ? `Vous avez ${notifications.length} notifications non lues.`
-                            : "Aucune nouvelle notification."}
+                        {unreadCount > 0
+                            ? `Vous avez ${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}.`
+                            : "Aucune nouvelle notification non lue."}
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {filteredNotifications.length > 0 && (
+                    {unreadCount > 0 && (
                         <Button
                             variant="ghost"
                             size="sm"
                             className="text-zinc-400 hover:text-white hover:bg-white/5"
                             onClick={handleDismissAll}
                         >
-                            <Check className="mr-2 h-4 w-4" />
-                            Tout marquer
+                            <Check className="mr-2 h-4 w-4 text-emerald-500" />
+                            Tout marquer comme lu
                         </Button>
                     )}
                 </div>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 mb-6 p-1 bg-zinc-900/50 border border-white/5 rounded-xl overflow-x-auto no-scrollbar">
+            {/* Status Filter (Unread / Read / All) */}
+            <div className="flex items-center gap-2 mb-4 p-1.5 bg-zinc-950 border border-white/10 rounded-2xl">
+                {[
+                    { id: "UNREAD", label: "Non lues", count: unreadCount, icon: Bell },
+                    { id: "READ", label: "Historique (Lues)", count: notifications.filter(n => n.read).length, icon: CheckCircle2 },
+                    { id: "ALL", label: "Toutes", count: notifications.length, icon: Filter },
+                ].map((st) => (
+                    <button
+                        key={st.id}
+                        onClick={() => setStatusFilter(st.id as any)}
+                        className={cn(
+                            "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                            statusFilter === st.id
+                                ? "bg-white/10 text-white border border-white/20 shadow-lg shadow-white/5"
+                                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                        )}
+                    >
+                        <st.icon className={cn("w-3.5 h-3.5", statusFilter === st.id ? "text-cyan-400" : "text-zinc-600")} />
+                        {st.label}
+                        <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                            statusFilter === st.id ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" : "bg-white/5 text-zinc-600"
+                        )}>
+                            {st.count}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Category Filter Tabs (ALWAYS VISIBLE) */}
+            <div className="flex items-center gap-1.5 mb-6 p-1.5 bg-zinc-900/50 border border-white/5 rounded-2xl overflow-x-auto no-scrollbar">
                 {categories.map((cat) => {
                     const count = cat.id === "ALL"
-                        ? notifications.length
-                        : notifications.filter(n => n.category === cat.id).length;
-
-                    if (cat.id !== "ALL" && count === 0) return null;
+                        ? statusFiltered.length
+                        : statusFiltered.filter(n => n.category === cat.id).length;
 
                     return (
                         <button
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all",
+                                "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
                                 activeTab === cat.id
-                                    ? "bg-white text-black shadow-lg shadow-white/10"
-                                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                                    ? "bg-cyan-600 text-white border-cyan-400/50 shadow-md shadow-cyan-900/30 font-black"
+                                    : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-white hover:bg-white/5"
                             )}
                         >
                             {cat.label}
-                            {count > 0 && (
-                                <span className={cn(
-                                    "px-1.5 py-0.5 rounded-full text-[10px]",
-                                    activeTab === cat.id ? "bg-black/10 text-black" : "bg-white/10 text-zinc-400"
-                                )}>
-                                    {count}
-                                </span>
-                            )}
+                            <span className={cn(
+                                "px-1.5 py-0.5 rounded-md text-[10px] font-black",
+                                activeTab === cat.id ? "bg-black/30 text-cyan-200" : "bg-white/10 text-zinc-500"
+                            )}>
+                                {count}
+                            </span>
                         </button>
                     );
                 })}
             </div>
+
 
             {loading ? (
                 <div className="space-y-3">

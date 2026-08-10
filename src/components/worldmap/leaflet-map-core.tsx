@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
+import { MapHDOverlay } from './map-hd-overlay';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -1133,6 +1134,13 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 .leaflet-tooltip-left::before, .leaflet-tooltip-right::before { display: none; }
                 .dungeon-icon-marker { background: none; border: none; }
                 .sigil-grid-canvas { pointer-events: none; }
+                /* ── Vue HD des maps (POC monde 38) : recadrage au centre de la cellule ── */
+                .sigil-hd-map.leaflet-image-layer {
+                    object-fit: cover;
+                    object-position: center;
+                    border: none !important;
+                    image-rendering: auto;
+                }
                 
                 /* ── GPS Pulse Animation ── */
                 @keyframes gps-ping {
@@ -1184,6 +1192,9 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 />
                 {/* 1. Tuiles */}
                 <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
+
+                {/* 1bis. Vue HD des maps à fort zoom (POC monde 38) */}
+                <MapHDOverlay activeWorld={correctedActiveWorld} mapsByCoords={mapsByCoords} selectedWorldId={selectedWorldId} />
 
                 {/* 2. Grille DofusDB canvas (contour par position), contrôlée par showDebugGrid */}
                 <MapGridOverlay

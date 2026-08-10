@@ -37,6 +37,43 @@
   padding: 0;
 }
 
+/* ── Mode focus plein écran ── */
+.guide-shell.focus-mode .guide-sidebar {
+  display: none;
+}
+.guide-shell.focus-mode .guide-read-crumb {
+  max-width: 840px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.guide-focus-exit {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.6rem;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
+}
+.guide-focus-exit:hover {
+  color: #fff;
+  border-color: rgba(16,185,129,0.4);
+  background: var(--guide-green-soft);
+}
+
 /* ── Sidebar ── */
 .guide-sidebar {
   flex: 0 0 380px;

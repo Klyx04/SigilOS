@@ -44,7 +44,7 @@
 - HUD (score/timer/round) en haut en plein écran + **bouton Quitter la partie** + croix (dans la zone `activeTab==='games'`).
 - Guesser : **zone cible / carte monde 50/50**, classement en bandeau + scores agrandis, **pré-chargement tuiles** (anti-clignotement), fix monde `-1` (recherche monstre).
 
-➡️ **Action** : merger PR `feat/deploy-clean-pro` → `dev`, puis `./scripts/deploy-cd.sh beta` (rebuild) + `./scripts/sync-assets.sh beta` (tuiles monde 38 + favicon). Ensuite Prod (`main`).
+➡️ **Action** : PR `feat/deploy-clean-pro` → `dev` ✅ **MERGÉE + DÉPLOYÉE (10/08)** (build beta + `sync-assets.sh` tuiles monde 38 + favicon). Ensuite Prod (`main`).
 
 ## 🧭 Suivi de chantier — Refonte UI « moins IA » (dashboard + landing) — FAIT sur `refonte/dashboard-ui-moins-ia`
 
@@ -71,9 +71,8 @@
 - Pool pg (`src/lib/prisma.ts`) : `connectionTimeoutMillis` 5→10s, `idleTimeoutMillis` 5→15s (réduit « timeout exceeded when trying to connect » sous charge).
 
 ### 🔜 Suite (non fait)
-- **PR `refonte/dashboard-ui-moins-ia` → `dev`** (link + merge + déploiement).
+- **PR `refonte/dashboard-ui-moins-ia` → `dev`** ✅ **MERGÉE (10/08)** — remplacée par la branche `refonte-module-ganymede`.
 - **DB pool/infra** : si timeouts persistent en prod sous charge → `max_connections` Postgres + réduire le parallélisme de la home (11 requêtes, après retrait de 2 appels `getActivityLadder` morts — voir ci-dessous).
-- Commiter les modifs préexistantes `CONTEXT.md`/`MAINTENANCE.md` (assets Caddy §3d) non encore commitées.
 
 ### ✅ Session 10/08 — commit `25918f3d` (poussé sur `refonte/dashboard-ui-moins-ia`) + points 4/5
 - **Home KPI avec comparaisons temporelles** (point 4) : `QuickStatsRow` affiche des deltas (`▲ +3 ce mois` / `▼` / « stable ») pour Membres actifs (croissance nette via `retention.growth`) et Événements (`events.thisMonth`). **0 requête BDD en plus** (réutilise `guildStats` déjà chargé) → cohérent avec le point 2.
@@ -89,6 +88,18 @@
 
 ---
 
+## 🧭 Suivi de chantier — Ménage branches + nouveau chantier (10/08/2026)
+
+> **Tous les chantiers antérieurs sont MERGÉS dans `dev`** (vérifié : les 8 branches feature sont des ancêtres de `origin/dev`, rien perdu). **Nettoyage terminé** le 10/08.
+
+- ✅ **Ménage complet des branches** : suppression (local + remote) de `feat/csp-nonce-based`, `feat/deploy-clean-pro`, `feat/onboarding-admin-tour`, `feat/security-hardening-suite`, `fix/display-name-server-pseudo`, `fix/ladder-discord-stats`, `fix/tour-admin-first-admin`, `refonte/dashboard-ui-moins-ia`. **Ne restent que `main` et `dev`** (remote + local).
+- ✅ **`SECURITY.md` resynchronisé** : CSP_ENFORCE activé beta+prod (10/08), WS auth activé+testé prod — lignes « À faire » obsolètes retirées.
+- ✅ **Nouvelle branche de travail** : `refonte-module-ganymede` (ouverte depuis la HEAD mergée, contenant toute la session).
+
+### 🔜 Nouveau chantier — Refonte module GANYMEDE
+- **Source de vérité** : à documenter dans `src/temp/memo-2026-08-10-module-ganymede.md` (à créer). *Liste à compléter par le product owner.*
+
+---
 
 ## 🔒 Non-négociables (résumé — toujours appliqués)
 
@@ -365,7 +376,7 @@
 - **Dernière étape = rappel navbar/sidebar** : `tourKey` ajoutés (annuaire/calendar/ressources/galerie/la-guilde) + étape « Où le retrouver » en fin de chaque tour + ouverture de la bonne section sidebar.
 
 ### 🔜 À faire (en attente de merge / prod)
-- **Merger la PR `feat/deploy-clean-pro` → `dev`**, puis `./scripts/deploy-cd.sh beta` (avec le script corrigé).
+- **Merger la PR `feat/deploy-clean-pro` → `dev`** ✅ **MERGÉE + DÉPLOYÉE (10/08)** (build beta avec le script corrigé).
 - (sécurité) CSP prod + reconnexion WS : ✅ **FAIT (10/08)**.
 
 ---

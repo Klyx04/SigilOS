@@ -172,13 +172,15 @@ export default async function DashboardLayout({
             <GameProvider>
             <TelemetryTracker />
             <TourProvider guildId={guildId} modules={modules} user={user}>
-                <TourOverlay />
-                <TourCompletion guildId={guildId} />
+                <div className="dashboard-tour">
+                    <TourOverlay />
+                    <TourCompletion guildId={guildId} />
+                </div>
                 <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div className="hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <div className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
@@ -196,7 +198,7 @@ export default async function DashboardLayout({
                 {/* 2. MAIN CONTENT AREA */}
                 <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
-                    <div className="flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
+                    <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
@@ -256,7 +258,9 @@ export default async function DashboardLayout({
                 <CommandMenu guildId={guildId} user={user} />
 
                 {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
-                <GalacticFooterGate />
+                <div className="dashboard-footer">
+                    <GalacticFooterGate />
+                </div>
 
                 {/* Forced Onboarding Wizard (Missing character pseudo or class) */}
                 {!user.isAdmin && (user.hasPseudoIssue || !user.classe) && (

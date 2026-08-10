@@ -68,7 +68,7 @@ export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gameP
                 <span className="text-[8px] sm:text-[9px] text-white/30 font-black uppercase tracking-[0.2em] mb-0.5 italic">Score</span>
                 <div className="flex items-center gap-1 sm:gap-2">
                     <Trophy size={14} className="text-amber-400 sm:w-4 sm:h-4 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
-                    <span className="text-white font-black text-lg sm:text-xl italic tracking-tighter leading-none">{score}</span>
+                    <span className="text-white font-black text-2xl sm:text-3xl italic tracking-tighter leading-none">{score}</span>
                 </div>
             </div>
 

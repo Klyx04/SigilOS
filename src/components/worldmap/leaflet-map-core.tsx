@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
+import { MapHDOverlay } from './map-hd-overlay';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -123,7 +124,7 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
@@ -165,6 +166,9 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const canvas = canvasRef.current;
         const world = activeWorld;
         if (!canvas || !world) return;
+        // POC : le shape officiel de la sous-zone 76 (Village des Brigandins) est décalé →
+        // on force le fallback "cellules des maps" pour couvrir toutes les maps.
+        const forceCellFallback = world?.id === 38;
 
         const size = map.getSize();
         const dpr = window.devicePixelRatio || 1;
@@ -193,18 +197,18 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const cellKey = hoveredCellRef.current;
         const activeSubArea = subAreaId ? subAreasById?.get(subAreaId) : null;
 
-        if (subAreaId !== null && mapsBySubAreaId && subAreasById) {
+        if (zoneHighlight && subAreaId !== null && mapsBySubAreaId && subAreasById) {
             const subArea = subAreasById.get(subAreaId);
             
             ctx.save();
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.45)';
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.65)';
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.8)';
             ctx.lineWidth = 1;
             ctx.lineJoin = 'round';
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
 
-            if (subArea && subArea.shape && subArea.shape.length > 2) {
+            if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
                 // Rendu Doflex Pixel-Perfect via Shape officielle
                 // La shape de DofusDB encode parfois plusieurs polygones avec des headers (ex: 10924).
                 const shape = subArea.shape;
@@ -278,7 +282,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
 
             activeHighlights.forEach((highlightId: number) => {
                 const subArea = subAreasById.get(highlightId);
-                if (subArea && subArea.shape && subArea.shape.length > 2) {
+                if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
                     const shape = subArea.shape;
                     let isFirstPoint = true;
                     ctx.beginPath();
@@ -506,8 +510,8 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const maxGY = Math.ceil(Math.max(g1Y, g2Y)) + 1;
 
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth = 1.5;
 
         for (let gx = minGX; gx <= maxGX + 1; gx++) {
             const p = toCP(gx, 0);
@@ -525,7 +529,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight]);
 
     // ── Sync highlight ref & manage blink animation loop ──
     useEffect(() => {
@@ -680,6 +684,40 @@ function MapNarrativeGPS({ activeWorld, triggerCoords, triggerWorldId, currentWo
 // -------------------------------------------------------------------------------------
 // Fix Resize Issue & Autocenter Result
 // -------------------------------------------------------------------------------------
+// Pré-charge les tuiles de la zone cible (réduit le flash au dézoom du rendu de distance)
+function prefetchTilesForBounds(map: any, world: any, bounds: any) {
+    if (!world || !bounds || typeof window === 'undefined') return;
+    const tileSize = world.id === 1 ? 256 : 250;
+    const zoom = Math.round(map.getBoundsZoom(bounds, false));
+    const scales = world.zoom || [1];
+    const idx = -zoom;
+    let scale = 1, bank = '1';
+    if (idx >= 0 && idx < scales.length) { scale = scales[idx]; bank = scale === 1 ? '1' : parseFloat(scale.toFixed(4)).toString(); }
+    else if (idx < 0) { scale = 1; bank = '1'; }
+    else { scale = scales[scales.length - 1]; bank = parseFloat(scale.toFixed(4)).toString(); }
+    const apiCols = world.id === 1 ? Math.round((world.totalWidth * scale) / tileSize) : Math.ceil((world.totalWidth * scale) / tileSize);
+    const apiRows = world.id === 1 ? Math.round((world.totalHeight * scale) / tileSize) : Math.ceil((world.totalHeight * scale) / tileSize);
+
+    const nw = bounds.getNorthWest();
+    const se = bounds.getSouthEast();
+    const nwPx = map.project(nw, zoom);
+    const sePx = map.project(se, zoom);
+    const minX = Math.floor(nwPx.x / tileSize);
+    const maxX = Math.floor(sePx.x / tileSize);
+    const minY = Math.floor(nwPx.y / tileSize);
+    const maxY = Math.floor(sePx.y / tileSize);
+
+    for (let ty = minY; ty <= maxY; ty++) {
+        for (let tx = minX; tx <= maxX; tx++) {
+            if (tx < 0 || tx >= apiCols || ty < 0 || ty >= apiRows) continue;
+            const index = ty * apiCols + tx + 1;
+            const url = `/game-data/tiles/w${world.id}/${bank}/${index}.webp`;
+            const img = new window.Image();
+            img.src = url;
+        }
+    }
+}
+
 function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants }: any) {
     const map = useMap();
 
@@ -749,6 +787,8 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
         if (points.length >= 2) {
             const bounds = L.latLngBounds(points);
+            // Pré-charge les tuiles de la zone cible pour éviter le flash au dézoom
+            prefetchTilesForBounds(map, world, bounds);
             setTimeout(() => {
                 if (isMiniMap) {
                     map.fitBounds(bounds, { padding: [80, 80], maxZoom: -1, animate: false });
@@ -990,6 +1030,7 @@ interface LeafletMapCoreProps {
     autoCopyTravel?: boolean;
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
     highlightSubareaIds?: number[];
+    zoneHighlight?: boolean;
     minZoom?: number;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
@@ -1001,7 +1042,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
         participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp
+        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight
     } = props;
 
     const correctedActiveWorld = useMemo(() => {
@@ -1133,6 +1174,13 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 .leaflet-tooltip-left::before, .leaflet-tooltip-right::before { display: none; }
                 .dungeon-icon-marker { background: none; border: none; }
                 .sigil-grid-canvas { pointer-events: none; }
+                /* ── Vue HD des maps (POC monde 38) : recadrage au centre de la cellule ── */
+                .sigil-hd-map.leaflet-image-layer {
+                    object-fit: cover;
+                    object-position: center;
+                    border: none !important;
+                    image-rendering: auto;
+                }
                 
                 /* ── GPS Pulse Animation ── */
                 @keyframes gps-ping {
@@ -1185,6 +1233,9 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 {/* 1. Tuiles */}
                 <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
 
+                {/* 1bis. Vue HD des maps à fort zoom (POC monde 38) */}
+                <MapHDOverlay activeWorld={correctedActiveWorld} mapsByCoords={mapsByCoords} selectedWorldId={selectedWorldId} />
+
                 {/* 2. Grille DofusDB canvas (contour par position), contrôlée par showDebugGrid */}
                 <MapGridOverlay
                     activeWorld={correctedActiveWorld}
@@ -1192,6 +1243,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     mapsBySubAreaId={mapsBySubAreaId}
                     subAreasById={subAreasById}
                     showDebugGrid={showDebugGrid}
+                    zoneHighlight={zoneHighlight}
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
                     selectedPosition={selectedPosition}

@@ -522,11 +522,12 @@ export default function InteractiveMapV2({
     }, []);
 
     useEffect(() => {
-        // Plein écran dès qu'une partie est en cours (toutes phases sauf idle)
-        const inGame = gamePhase !== 'idle';
+        // Plein écran dès qu'une partie est en cours (phase de jeu OU session active hors lobby)
+        const inGame = gamePhase !== 'idle'
+            || (!!activeSession && activeSession.state && activeSession.state !== 'LOBBY');
         applyFullscreen(inGame);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gamePhase]);
+    }, [gamePhase, activeSession]);
 
     // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
     useEffect(() => {

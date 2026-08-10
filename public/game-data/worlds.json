@@ -2601,17 +2601,17 @@
     "updatedAt": "2026-03-03T17:13:47.123Z"
   },
   {
-    "_id": "69a716cb96df4304dfe0af99",
+    "_id": "6a3a7301cf287e5b73621344",
     "id": 38,
-    "origineX": 3971,
-    "origineY": 3750,
-    "mapWidth": 209,
-    "mapHeight": 150,
+    "origineX": 9908,
+    "origineY": 9402,
+    "mapWidth": 510,
+    "mapHeight": 366,
     "minScale": 0.25,
     "maxScale": 1,
     "startScale": 0.5,
-    "totalWidth": 1463,
-    "totalHeight": 900,
+    "totalWidth": 4085,
+    "totalHeight": 2861,
     "zoom": [
       1,
       0.75,
@@ -2620,6 +2620,7 @@
     ],
     "visibleOnMap": true,
     "name": {
+      "id": "1183119",
       "de": "Dorf der Brigandiner",
       "en": "Imp Village",
       "es": "Pueblo de los salteadorillos",
@@ -2630,13 +2631,8 @@
     "m_id": 38,
     "customScales": [
       {
-        "x": 3,
-        "y": 3,
-        "name": "custom3"
-      },
-      {
-        "x": 2,
-        "y": 2,
+        "x": 2.3607843137254902,
+        "y": 2.349726775956284,
         "name": "custom2"
       },
       {
@@ -2660,7 +2656,7 @@
         "name": "0.25"
       }
     ],
-    "createdAt": "2026-08-08T13:00:53.597Z",
-    "updatedAt": "2026-08-08T13:00:53.599Z"
+    "createdAt": "2026-06-23T11:50:25.606Z",
+    "updatedAt": "2026-06-23T11:50:25.606Z"
   }
 ]

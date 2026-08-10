@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, Maximize2, Minimize2
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -68,6 +68,34 @@ interface InteractiveMapProps {
     showGameEntry?: boolean;
 }
 
+// Retourne l'élément plein écran actif (worldmap, mini-jeux ou bomb)
+function getFullscreenEl(): HTMLElement | null {
+    return document.getElementById('worldmap-page')
+        || document.getElementById('mini-games-page')
+        || document.getElementById('sigil-bomb-page');
+}
+
+// Force le plein écran du guesser quand une partie est active (monté directement dans le rendu du jeu)
+function ForceFullscreen() {
+    useEffect(() => {
+        const el = getFullscreenEl();
+        if (el) {
+            el.style.position = 'fixed';
+            el.style.inset = '0';
+            el.style.width = '100vw';
+            el.style.height = '100vh';
+            el.style.margin = '0';
+            el.style.border = 'none';
+            el.style.borderRadius = '0';
+            el.style.padding = '0';
+            el.style.zIndex = '9999';
+            el.classList.add('worldmap-fullscreen');
+        }
+        document.body.classList.add('map-fullscreen');
+    }, []);
+    return null;
+}
+
 export default function InteractiveMapV2({ 
     worldMap, 
     initialLadder, 
@@ -95,6 +123,8 @@ export default function InteractiveMapV2({
     // UI States
     const [search, setSearch] = useState('');
     const [showDebugGrid, setShowDebugGrid] = useState(false);
+    const [zoneHighlight, setZoneHighlight] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
     const [triggerCenterPosition, setTriggerCenterPosition] = useState<{ x: number, y: number } | null>(
@@ -324,7 +354,15 @@ export default function InteractiveMapV2({
 
         // Archimonstre result
         if (item.isArchi) {
-            const needsWorldChange = item.worldMapId && item.worldMapId !== selectedWorldId;
+            // Résout le monde cible : refuse les mondes invalides (<=0) pour éviter `w-1` (map vide).
+            let targetWorld = Number(item.worldMapId);
+            if (!targetWorld || targetWorld <= 0) {
+                const m = item.centerX !== null && item.centerY !== null
+                    ? worldMap.maps?.find(mm => mm.x === item.centerX && mm.y === item.centerY)
+                    : undefined;
+                targetWorld = m && m.worldMap > 0 ? m.worldMap : (selectedWorldId || 1);
+            }
+            const needsWorldChange = targetWorld > 0 && targetWorld !== selectedWorldId;
 
             const applyHighlight = () => {
                 if (item.centerX !== null && item.centerY !== null) {
@@ -337,7 +375,7 @@ export default function InteractiveMapV2({
             };
 
             if (needsWorldChange) {
-                setSelectedWorldId(item.worldMapId);
+                setSelectedWorldId(targetWorld);
                 // Wait for Leaflet canvas to remount before applying highlight
                 setTimeout(applyHighlight, 650);
             } else {
@@ -502,6 +540,54 @@ export default function InteractiveMapV2({
     useEffect(() => {
         fetchLadder();
     }, [fetchLadder]);
+
+    // Plein écran automatique pendant les parties (Sigil Guesser & Bomb)
+    const applyFullscreen = useCallback((fs: boolean) => {
+        setIsFullscreen(fs);
+        const el = getFullscreenEl();
+        if (el) {
+            el.classList.toggle('worldmap-fullscreen', fs);
+            // Force inline (plus robuste que le CSS) : plein écran total sans bords
+            el.style.position = fs ? 'fixed' : '';
+            el.style.top = fs ? '0px' : '';
+            el.style.left = fs ? '0px' : '';
+            el.style.right = fs ? '0px' : '';
+            el.style.bottom = fs ? '0px' : '';
+            el.style.width = fs ? '100vw' : '';
+            el.style.height = fs ? '100vh' : '';
+            el.style.margin = fs ? '0px' : '';
+            el.style.borderRadius = fs ? '0px' : '';
+            el.style.border = fs ? 'none' : '';
+            el.style.padding = fs ? '0px' : '';
+            el.style.zIndex = fs ? '9999' : '';
+        }
+        document.body.classList.toggle('map-fullscreen', fs);
+    }, []);
+
+    useEffect(() => {
+        // Plein écran uniquement pendant une partie (gamePhase != idle) → se retire en revenant au menu
+        const inGame = gamePhase !== 'idle';
+        applyFullscreen(inGame);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gamePhase]);
+
+    // Secours : vérifie périodiquement et force le plein écran tant qu'une partie est active
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (gamePhase !== 'idle') applyFullscreen(true); // force seulement pendant la partie
+        }, 600);
+        return () => clearInterval(interval);
+    }, [gamePhase, applyFullscreen]);
+
+    // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
+    useEffect(() => {
+        return () => {
+            setIsFullscreen(false);
+            const el = document.getElementById('worldmap-page');
+            if (el) el.classList.remove('worldmap-fullscreen');
+            document.body.classList.remove('map-fullscreen');
+        };
+    }, []);
 
     useEffect(() => {
         // Initial fetch
@@ -1124,7 +1210,7 @@ export default function InteractiveMapV2({
                                         <button
                                             ref={worldDropdownBtnRef}
                                             onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
-                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors"
+                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-white hover:bg-emerald-500/20 transition-colors"
                                         >
                                             <MapIcon size={12} className="text-emerald-500" />
                                             <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
@@ -1139,7 +1225,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setShowDebugGrid(!showDebugGrid)}
                                             className={cn(
                                                 "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
-                                                showDebugGrid ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                                showDebugGrid ? "bg-emerald-500/25 border-emerald-400/60 text-emerald-200" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20"
                                             )}
                                             title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
                                         >
@@ -1147,12 +1233,38 @@ export default function InteractiveMapV2({
                                             <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Grille</span>
                                         </button>
 
+                                        {/* Zone Highlight Toggle */}
+                                        <button
+                                            onClick={() => setZoneHighlight(!zoneHighlight)}
+                                            className={cn(
+                                                "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
+                                                zoneHighlight ? "bg-indigo-500/25 border-indigo-400/60 text-indigo-200" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20"
+                                            )}
+                                            title={zoneHighlight ? "Masquer le surlignage de zone" : "Afficher le surlignage de zone"}
+                                        >
+                                            <MapPin size={14} />
+                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Zone</span>
+                                        </button>
+
+                                        {/* Fullscreen Toggle */}
+                                        <button
+                                            onClick={() => applyFullscreen(!isFullscreen)}
+                                            className={cn(
+                                                "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
+                                                isFullscreen ? "bg-teal-500/25 border-teal-400/60 text-teal-200" : "bg-teal-500/10 border-teal-500/30 text-teal-300 hover:bg-teal-500/20"
+                                            )}
+                                            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+                                        >
+                                            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">{isFullscreen ? 'Réduire' : 'Écran'}</span>
+                                        </button>
+
                                         {/* Help Toggle */}
                                         <button
                                             onClick={() => setShowMapHelp(true)}
                                             className={cn(
                                                 "p-2 rounded-xl border transition-all",
-                                                showMapHelp ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                                showMapHelp ? "bg-amber-500/25 border-amber-400/60 text-amber-200" : "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
                                             )}
                                             title="Aide du Monde"
                                         >
@@ -1192,7 +1304,7 @@ export default function InteractiveMapV2({
 
                                 {/* Zone Search + Filter */}
                                 <div className="relative hidden md:block">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={12} />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" size={13} />
                                     {isSearchingArchi && (
                                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400/50 animate-spin" size={10} />
                                     )}
@@ -1201,7 +1313,7 @@ export default function InteractiveMapV2({
                                         value={search}
                                         onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
                                         placeholder="Zone, monstre, boss, archimonstre..."
-                                        className="w-36 lg:w-56 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
+                                        className="w-40 lg:w-60 rounded-xl bg-white/10 py-2 pl-9 pr-4 text-white text-[11px] uppercase font-bold border border-white/20 focus:border-emerald-500/60 outline-none transition-all focus:bg-white/15 placeholder:text-white/40"
                                     />
 
                                     {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
@@ -1410,6 +1522,14 @@ export default function InteractiveMapV2({
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* 🏷️ DofusDB Attribution — tout à droite */}
+                                {!hideUI && (
+                                    <div className="hidden lg:flex items-center gap-2 ml-2 pl-2 border-l border-white/10 text-[10px] font-medium text-zinc-300">
+                                        <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
+                                        <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-400 hidden 2xl:inline">(LPNC-IA 1.0)</span></span>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -1418,12 +1538,46 @@ export default function InteractiveMapV2({
 
             {/* Main Content Area (Map or Game) */}
             <div className="flex-1 relative flex overflow-hidden">
+                {activeTab === 'games' && gamePhase !== 'idle' && <ForceFullscreen />}
+
+                {/* HUD + Quitter + Croix en plein écran pendant une partie */}
+                {activeTab === 'games' && gamePhase !== 'idle' && isFullscreen && activeSession && (
+                    <>
+                        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[10001] pointer-events-auto">
+                            <GeoguesserHUD
+                                round={activeSession.currentRound || 1}
+                                maxRounds={activeSession.maxRounds || 5}
+                                timeLeft={timeLeft}
+                                score={score}
+                                gamePhase={gamePhase as any}
+                                spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                onReportMap={handleReportMap}
+                            />
+                        </div>
+                        <button
+                            onClick={handleLeaveSession}
+                            className="fixed top-4 right-20 z-[10001] px-4 py-2.5 rounded-full bg-red-600/90 border border-red-400 text-white font-black uppercase text-xs italic flex items-center gap-2 shadow-2xl hover:bg-red-500 transition-colors"
+                            title="Quitter la partie"
+                        >
+                            <LogOut size={16} />
+                            Quitter
+                        </button>
+                        <button
+                            onClick={() => applyFullscreen(false)}
+                            className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-white/20 text-white flex items-center justify-center hover:bg-red-600/90 hover:border-red-400 shadow-2xl transition-colors"
+                            title="Quitter le plein écran"
+                        >
+                            <X size={22} />
+                        </button>
+                    </>
+                )}
+
 
                 {/* 🎯 MODE SIGIL GUESSER - ACTIVE GAMEPLAY */}
                 {activeTab === 'games' && gamePhase === 'playing' && (
                     <div className="flex flex-col lg:flex-row w-full h-full relative overflow-hidden bg-slate-950">
                         {/* 🖼️ ZONE CIBLE À GAUCHE (FRAGMENTS DE CARTE) */}
-                        <div className="h-[35vh] lg:h-auto lg:flex-1 relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 shrink-0 min-h-0">
+                        <div className="h-[35vh] lg:h-auto lg:w-1/2 lg:flex-none relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 shrink-0 min-h-0">
                             {targetMapId ? (
                                 showHDMap ? (
                                     <motion.div
@@ -1487,7 +1641,7 @@ export default function InteractiveMapV2({
                         </div>
 
                         {/* 🗺️ PANEL INTERACTIF À DROITE (CARTE COMPLÈTE) */}
-                        <div className="flex-1 lg:flex-none lg:w-[35vw] lg:max-w-[850px] lg:min-w-[500px] border-l border-white/5 bg-[#080b0e] flex flex-col relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] min-h-0">
+                        <div className="flex-1 lg:flex-none lg:w-1/2 border-l border-white/5 bg-[#080b0e] flex flex-col relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] min-h-0">
 
                             {/* Integrated Multi-Leaderboard */}
                             {!isSoloMode && (
@@ -1684,6 +1838,7 @@ export default function InteractiveMapV2({
                             dungeonsByMapId={dungeonsByMapId}
                             groupedDungeons={groupedDungeons}
                             showDebugGrid={showDebugGrid}
+                            zoneHighlight={zoneHighlight}
                             selectedPosition={selectedPosition}
                             setSelectedPosition={handleMapClick}
                             setSelectedDungeon={setSelectedDungeon}
@@ -1702,13 +1857,9 @@ export default function InteractiveMapV2({
                             highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
                         />
-                        {/* 🏷️ DofusDB Attribution Badge */}
-                        {!hideUI && (
-                            <div className="absolute bottom-3 left-3 z-[600] pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-medium text-zinc-300 shadow-lg hover:bg-black/90 transition-all group">
-                                <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
-                                <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-500 hidden sm:inline">(LPNC-IA 1.0)</span></span>
-                            </div>
-                        )}
+
+                        {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
+
                     </div>
                 )}
 
@@ -1801,31 +1952,20 @@ export default function InteractiveMapV2({
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-6 flex-wrap">
                                         <div className="px-5 py-3 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center min-w-[100px]">
                                             <span className="text-white/20 text-[8px] font-black uppercase tracking-[0.2em] mb-1 italic">Prochain Round dans</span>
                                             <span className="text-white font-black text-2xl italic tracking-tighter leading-none">{timeLeft}s</span>
                                         </div>
                                         <motion.button
-                                            whileHover={{ scale: 1.02 }}
+                                            whileHover={{ scale: 1.02, y: -2 }}
                                             whileTap={{ scale: 0.98 }}
-                                            onClick={handleLeaveSession}
-                                            className="px-6 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-black uppercase text-[10px] italic transition-all border border-red-500/20 flex items-center gap-2"
+                                            onClick={handleNextRound}
+                                            className="px-8 py-4 rounded-2xl bg-emerald-500 text-white font-black uppercase text-xs italic transition-all flex items-center gap-3 border-b-4 border-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.3)]"
                                         >
-                                            <LogOut size={14} />
-                                            Quitter
+                                            <span>Suivant</span>
+                                            <ChevronRight size={18} />
                                         </motion.button>
-                                        {(activeSession?.hostId === currentUserId || isSoloMode) && activeSession.state !== 'IN_PROGRESS' && (
-                                            <motion.button
-                                                whileHover={{ scale: 1.02, y: -2 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={handleNextRound}
-                                                className="px-8 py-4 rounded-2xl bg-emerald-500 text-white font-black uppercase text-xs italic transition-all flex items-center gap-3 border-b-4 border-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.3)]"
-                                            >
-                                                <span>Suivant</span>
-                                                <ChevronRight size={18} />
-                                            </motion.button>
-                                        )}
                                     </div>
                                 </div>
 
@@ -1840,8 +1980,8 @@ export default function InteractiveMapV2({
                                                             <Target className="text-emerald-400 w-6 h-6 sm:w-8 sm:h-8" />
                                                         </div>
                                                         <div>
-                                                            <div className="text-white/20 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
-                                                            <div className="text-white font-black text-2xl sm:text-3xl italic flex items-baseline gap-2 sm:gap-3">
+                                                            <div className="text-emerald-400/80 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
+                                                            <div className="text-white font-black text-3xl sm:text-4xl italic flex items-baseline gap-2 sm:gap-3">
                                                                 {Math.round(guessResult.distance)} Maps
                                                                 <span className="text-emerald-500/40 text-[10px] sm:text-[14px] font-bold uppercase tracking-widest break-words leading-tight">de distance</span>
                                                             </div>
@@ -2072,7 +2212,7 @@ export default function InteractiveMapV2({
                                             );
                                         })()}
 
-                                        <div className="flex flex-col flex-1 min-h-0">
+                                        <div className="flex flex-col flex-1 min-h-0 bg-white/[0.03] border border-white/10 rounded-3xl p-4">
                                             <div className="flex items-center justify-between mb-5 px-4 shrink-0">
                                                 <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Classement Round</div>
                                                 <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-[9px] font-black italic tracking-widest">
@@ -2124,7 +2264,7 @@ export default function InteractiveMapV2({
 
                                                         <div className="flex flex-col items-end gap-0.5">
                                                             <div className="flex items-center gap-2">
-                                                                <span className={`font-black text-lg italic leading-none ${isMe ? 'text-emerald-400' : 'text-white'} ${(p.lastGuess?.score || 0) > 4000 ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]' : ''}`}>
+                                                                <span className={`font-black text-2xl italic leading-none ${isMe ? 'text-emerald-400' : 'text-white'} ${(p.lastGuess?.score || 0) > 4000 ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]' : ''}`}>
                                                                     +{p.lastGuess?.score || 0}
                                                                 </span>
                                                                 {i === 0 && <Crown size={14} className="text-amber-500" strokeWidth={2.5} />}
@@ -2283,7 +2423,7 @@ export default function InteractiveMapV2({
                                             "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'arena' 
                                                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
-                                                : "text-white/20 hover:text-white/40 hover:bg-white/5"
+                                                : "text-white/70 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         <Rocket size={14} className={cn("transition-transform", gamesSubTab === 'arena' && "animate-bounce-subtle")} />
@@ -2295,7 +2435,7 @@ export default function InteractiveMapV2({
                                             "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'ladder' 
                                                 ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                                                : "text-white/20 hover:text-white/40 hover:bg-white/5"
+                                                : "text-white/70 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         <Trophy size={14} className={cn("transition-transform", gamesSubTab === 'ladder' && "animate-bounce-subtle")} />
@@ -2348,7 +2488,7 @@ export default function InteractiveMapV2({
                                                         <button 
                                                             onClick={() => handleJoinRoom(room, true)} 
                                                             disabled={joiningId === room.id}
-                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
+                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
                                                         >
                                                             Regarder
                                                         </button>
@@ -2369,7 +2509,7 @@ export default function InteractiveMapV2({
                                                         ) : (
                                                             <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-[10px] shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
                                                         )}
-                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
                                                     </div>
                                                 </div>
                                             ))}

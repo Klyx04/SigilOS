@@ -684,6 +684,40 @@ function MapNarrativeGPS({ activeWorld, triggerCoords, triggerWorldId, currentWo
 // -------------------------------------------------------------------------------------
 // Fix Resize Issue & Autocenter Result
 // -------------------------------------------------------------------------------------
+// Pré-charge les tuiles de la zone cible (réduit le flash au dézoom du rendu de distance)
+function prefetchTilesForBounds(map: any, world: any, bounds: any) {
+    if (!world || !bounds || typeof window === 'undefined') return;
+    const tileSize = world.id === 1 ? 256 : 250;
+    const zoom = Math.round(map.getBoundsZoom(bounds, false));
+    const scales = world.zoom || [1];
+    const idx = -zoom;
+    let scale = 1, bank = '1';
+    if (idx >= 0 && idx < scales.length) { scale = scales[idx]; bank = scale === 1 ? '1' : parseFloat(scale.toFixed(4)).toString(); }
+    else if (idx < 0) { scale = 1; bank = '1'; }
+    else { scale = scales[scales.length - 1]; bank = parseFloat(scale.toFixed(4)).toString(); }
+    const apiCols = world.id === 1 ? Math.round((world.totalWidth * scale) / tileSize) : Math.ceil((world.totalWidth * scale) / tileSize);
+    const apiRows = world.id === 1 ? Math.round((world.totalHeight * scale) / tileSize) : Math.ceil((world.totalHeight * scale) / tileSize);
+
+    const nw = bounds.getNorthWest();
+    const se = bounds.getSouthEast();
+    const nwPx = map.project(nw, zoom);
+    const sePx = map.project(se, zoom);
+    const minX = Math.floor(nwPx.x / tileSize);
+    const maxX = Math.floor(sePx.x / tileSize);
+    const minY = Math.floor(nwPx.y / tileSize);
+    const maxY = Math.floor(sePx.y / tileSize);
+
+    for (let ty = minY; ty <= maxY; ty++) {
+        for (let tx = minX; tx <= maxX; tx++) {
+            if (tx < 0 || tx >= apiCols || ty < 0 || ty >= apiRows) continue;
+            const index = ty * apiCols + tx + 1;
+            const url = `/game-data/tiles/w${world.id}/${bank}/${index}.webp`;
+            const img = new window.Image();
+            img.src = url;
+        }
+    }
+}
+
 function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants }: any) {
     const map = useMap();
 
@@ -753,6 +787,8 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
         if (points.length >= 2) {
             const bounds = L.latLngBounds(points);
+            // Pré-charge les tuiles de la zone cible pour éviter le flash au dézoom
+            prefetchTilesForBounds(map, world, bounds);
             setTimeout(() => {
                 if (isMiniMap) {
                     map.fitBounds(bounds, { padding: [80, 80], maxZoom: -1, animate: false });

@@ -75,7 +75,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
         return <MissionsErrorState error={response.error || "Une erreur inconnue est survenue."} />;
     }
 
-    const missions = response.data || [];
+    const missions = JSON.parse(JSON.stringify(response.data || []));
 
     // [MIS-1] XP Override
     const xpOverride = (overrideRes.success && overrideRes.data) ? overrideRes.data.xpOverride : null;

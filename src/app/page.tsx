@@ -99,15 +99,14 @@ export default async function Home({
 
           {/* Guild Directory Teaser */}
           <section className="py-20 border-t border-white/5 relative overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[400px] bg-amber-500/[0.03] blur-[120px] rounded-full pointer-events-none" />
             <div className="container mx-auto px-6 relative z-10">
               <div className="max-w-4xl mx-auto text-center mb-14">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-5 font-mono text-[10px] text-amber-400 uppercase tracking-widest">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-5 font-medium text-[11px] text-amber-400 uppercase tracking-wider">
                   Annuaire SigilOS
                 </div>
                 <h2 className="text-3xl md:text-5xl font-heading text-foreground mb-4">
                   Les guildes qui font{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200 italic font-black">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200 font-bold">
                     référence.
                   </span>
                 </h2>

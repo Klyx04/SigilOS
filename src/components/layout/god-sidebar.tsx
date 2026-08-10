@@ -41,11 +41,11 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
     return (
         <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/10", className)}>
             <div className="p-6 lg:p-8 pb-4">
-                <Link href="/" className="flex items-center gap-4 px-2 group/brand hover:opacity-80 transition-all">
+                <Link href="/" className="flex items-center gap-4 px-2 group/brand hover:opacity-80 transition-opacity">
                     <div className="relative h-8 w-8 md:h-10 md:w-10 shrink-0">
-                        <Image src="/assets/ui/logo-v2.png" alt="SigilOS" fill priority sizes="(max-width: 768px) 32px, 40px" className="object-contain drop-shadow-[0_0_20px_rgba(168,85,247,0.6)] brightness-110" />
+                        <Image src="/assets/ui/logo-v2.png" alt="SigilOS" fill priority sizes="(max-width: 768px) 32px, 40px" className="object-contain" />
                     </div>
-                    <span className="text-lg md:text-2xl font-black tracking-tight text-white leading-none font-heading truncate drop-shadow-md">SIGIL<span className="text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">GOD</span></span>
+                    <span className="text-lg md:text-2xl font-bold tracking-tight text-white leading-none font-heading truncate">SIGIL<span className="text-amber-400">GOD</span></span>
                 </Link>
             </div>
 
@@ -55,7 +55,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                         <div key={group.key}>
                             <div className="flex items-center gap-3 px-3 mb-4">
                                 <group.icon className="h-4 w-4 text-zinc-400" />
-                                <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400">{group.label}</h4>
+                                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{group.label}</h4>
                             </div>
                             <div className="space-y-1.5">
                                 {group.items.map((page) => {
@@ -64,13 +64,13 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                                         <Link
                                             key={page.id}
                                             href={page.sub ? `${godRoute}/${page.sub}${page.query ? `?${page.query}` : ""}` : `${godRoute}?tab=${page.id}`}
-                                            className={cn("flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
-                                                active ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20" : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent")}
+                                            className={cn("flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-colors duration-300 group relative",
+                                                active ? "bg-white/10 text-white border border-white/20" : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent")}
                                         >
-                                            {active && <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]" />}
-                                            <page.icon className={cn("h-5 w-5 transition-all duration-500 group-hover:scale-110", page.color, !active && "opacity-60 group-hover:opacity-100")} />
-                                            <span className="text-[12px] font-bold tracking-widest uppercase truncate flex-1">{page.name}</span>
-                                            <span className={cn("hidden md:inline-flex text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border",
+                                            {active && <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full" />}
+                                            <page.icon className={cn("h-5 w-5 transition-colors duration-150", active ? "text-white" : "text-zinc-400 opacity-70 group-hover:opacity-100 group-hover:text-zinc-200")} />
+                                            <span className="text-[13px] font-medium truncate flex-1">{page.name}</span>
+                                            <span className={cn("hidden md:inline-flex text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border",
                                                 page.scope === "all" ? "border-amber-500/30 text-amber-400/80 bg-amber-500/5" : "border-white/10 text-zinc-500 bg-white/5")}>
                                                 {page.scopeLabel || (page.scope === "all" ? "SU" : page.scope)}
                                             </span>
@@ -86,27 +86,27 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
             <div className="p-4 border-t border-white/10 bg-zinc-950/80 backdrop-blur-md">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/10 group rounded-xl transition-all">
+                        <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/10 group rounded-xl transition-colors">
                             <div className="flex items-center gap-3 w-full">
-                                <Avatar className="h-10 w-10 rounded-lg border-2 border-zinc-800 shadow-md">
+                                <Avatar className="h-10 w-10 rounded-lg border-2 border-zinc-800">
                                     <AvatarImage src={user.image} />
                                     <AvatarFallback className="bg-zinc-800 text-xs font-bold text-amber-500">SU</AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col items-start min-w-0 flex-1 text-left">
-                                    <span className="text-[11px] font-black text-amber-500 uppercase tracking-widest truncate w-full drop-shadow-sm">Super Admin</span>
+                                    <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider truncate w-full">Super Admin</span>
                                 </div>
                             </div>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56 bg-zinc-900 border-zinc-800 text-zinc-200" align="end">
-                        <DropdownMenuItem asChild className="focus:text-emerald-400 focus:bg-emerald-500/10 cursor-pointer rounded-lg font-bold">
+                        <DropdownMenuItem asChild className="focus:text-emerald-400 focus:bg-emerald-500/10 cursor-pointer rounded-lg font-medium">
                             <Link href="/dashboard" className="flex items-center w-full"><Home className="mr-2 h-4 w-4" /> Tableau de bord Membre</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild className="focus:text-blue-400 focus:bg-blue-500/10 cursor-pointer rounded-lg font-bold">
+                        <DropdownMenuItem asChild className="focus:text-emerald-400 focus:bg-emerald-500/10 cursor-pointer rounded-lg font-medium">
                             <Link href="/" className="flex items-center w-full"><Terminal className="mr-2 h-4 w-4" /> Page d'accueil publique</Link>
                         </DropdownMenuItem>
                         <div className="h-px bg-zinc-800 my-1 mx-2" />
-                        <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-300 focus:bg-red-500/20 cursor-pointer rounded-lg font-bold">
+                        <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-300 focus:bg-red-500/20 cursor-pointer rounded-lg font-medium">
                             <LogOut className="mr-2 h-4 w-4" /> Déconnexion
                         </DropdownMenuItem>
                     </DropdownMenuContent>

@@ -95,26 +95,26 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                         key={tab.id}
                         onClick={() => handleTabChange(tab.id)}
                         className={cn(
-                            "flex items-center gap-2.5 px-4 py-2 rounded-xl transition-all duration-300 relative whitespace-nowrap group hover:bg-white/[0.03]",
+                            "flex items-center gap-2.5 px-4 py-2 rounded-xl transition-colors duration-150 relative whitespace-nowrap group hover:bg-white/[0.03]",
                             activeSection === tab.id
                                 ? "text-white bg-white/5 border border-white/10"
                                 : "text-zinc-500 hover:text-zinc-300"
                         )}
                     >
                         <tab.icon className={cn(
-                            "h-3.5 w-3.5 transition-all duration-500",
-                            activeSection === tab.id ? tab.color : "text-zinc-700 group-hover:text-zinc-500"
+                            "h-3.5 w-3.5 transition-colors duration-150",
+                            activeSection === tab.id ? "text-emerald-400" : "text-zinc-700 group-hover:text-zinc-500"
                         )} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">{tab.name}</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider">{tab.name}</span>
 
                         {tab.badge && tab.badge > 0 && (
-                            <span className="flex items-center justify-center bg-rose-500 text-white text-[9px] font-black h-4 px-1.5 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)] animate-bounce ml-1">
+                            <span className="flex items-center justify-center bg-rose-500 text-white text-[10px] font-semibold h-4 px-1.5 rounded-full ml-1">
                                 {tab.badge}
                             </span>
                         )}
 
                         {activeSection === tab.id && (
-                            <div className="absolute -bottom-2 left-4 right-4 h-[2px] bg-white rounded-full shadow-[0_0_8px_white]" />
+                            <div className="absolute -bottom-2 left-4 right-4 h-[2px] bg-white rounded-full" />
                         )}
                     </button>
                 ))}
@@ -129,19 +129,19 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                                 key={tab.id}
                                 onClick={() => handleSubTabChange(tab.id)}
                                 className={cn(
-                                    "flex items-center gap-3 px-5 py-2 rounded-xl transition-all duration-300 relative whitespace-nowrap",
+                                    "flex items-center gap-3 px-5 py-2 rounded-xl transition-colors duration-150 relative whitespace-nowrap",
                                     activeSubTab === tab.id || (activeSubTab === "NONE" && tab.id === currentSubTabs[0].id)
-                                        ? "bg-white/5 text-white shadow-xl border border-white/10 font-bold"
+                                        ? "bg-white/5 text-white border border-white/10 font-semibold"
                                         : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02] border border-transparent"
                                 )}
                             >
                                 <tab.icon className={cn(
-                                    "h-3.5 w-3.5 transition-all duration-500",
+                                    "h-3.5 w-3.5 transition-colors duration-150",
                                     activeSubTab === tab.id || (activeSubTab === "NONE" && tab.id === currentSubTabs[0].id)
-                                        ? (tab.color || "text-white") + " scale-110"
+                                        ? (tab.color || "text-white")
                                         : "text-zinc-600"
                                 )} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">{tab.name}</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wider">{tab.name}</span>
                             </button>
                         ))}
                     </div>
@@ -153,7 +153,7 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                 {rightContent ?? (
                     <div className="flex flex-col items-end">
                         <span className={cn(
-                            "text-[10px] font-black uppercase tracking-[0.2em]",
+                            "text-[11px] font-semibold uppercase tracking-wider",
                             unreadCount > 0 ? "text-rose-500 animate-pulse" : "text-amber-500"
                         )}>
                             {unreadCount > 0 ? "System Alert" : "Live Monitoring"}
@@ -161,9 +161,9 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                         <div className="flex items-center gap-1.5">
                             <div className={cn(
                                 "w-1.5 h-1.5 rounded-full",
-                                unreadCount > 0 ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"
+                                unreadCount > 0 ? "bg-rose-500" : "bg-emerald-500 animate-pulse"
                             )} />
-                            <span className="text-[10px] font-bold text-zinc-600 uppercase">
+                            <span className="text-[11px] font-medium text-zinc-600 uppercase">
                                 {unreadCount > 0 ? `${unreadCount} Unread Alerts` : "All Systems OK"}
                             </span>
                         </div>

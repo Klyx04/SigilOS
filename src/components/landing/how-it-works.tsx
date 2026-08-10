@@ -37,9 +37,9 @@ export function HowItWorks() {
 
                     {STEPS.map((step, idx) => (
                         <div key={idx} className="flex flex-col items-center text-center group">
-                            <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/5 flex items-center justify-center mb-8 transition-all group-hover:border-accent-teal/40 group-hover:bg-accent-teal/5 relative shadow-2xl group-hover:scale-105 duration-500">
+                            <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/5 flex items-center justify-center mb-8 transition-all group-hover:border-accent-teal/40 group-hover:bg-accent-teal/5 relative   duration-150">
                                 <step.icon className="w-10 h-10 text-accent-teal group-hover:scale-110 transition-transform" />
-                                <div className="absolute -top-3 -right-3 w-10 h-10 rounded-2xl bg-bg-secondary border border-white/10 flex items-center justify-center text-[11px] font-black text-white shadow-xl">
+                                <div className="absolute -top-3 -right-3 w-10 h-10 rounded-2xl bg-bg-secondary border border-white/10 flex items-center justify-center text-[11px] font-semibold text-white ">
                                     0{idx + 1}
                                 </div>
                             </div>

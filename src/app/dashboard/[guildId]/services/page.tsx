@@ -62,11 +62,11 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
                     profileId={user.profileId || undefined}
                     isAdmin={isAdmin}
                     canCreate={user.canViewServices}
-                    listings={listingsRes.success ? (listingsRes.data || []) : []}
-                    loans={loansRes.success ? (loansRes.data || []) : []}
-                    vaultEntries={vaultRes.success ? (vaultRes.data || []) : []}
-                    vaultSummary={vaultBalanceRes.success ? (vaultBalanceRes.data || []) : []}
-                    maintenance={statusRes.success ? statusRes.data : undefined}
+                    listings={listingsRes.success ? JSON.parse(JSON.stringify(listingsRes.data || [])) : []}
+                    loans={loansRes.success ? JSON.parse(JSON.stringify(loansRes.data || [])) : []}
+                    vaultEntries={vaultRes.success ? JSON.parse(JSON.stringify(vaultRes.data || [])) : []}
+                    vaultSummary={vaultBalanceRes.success ? JSON.parse(JSON.stringify(vaultBalanceRes.data || [])) : []}
+                    maintenance={statusRes.success ? JSON.parse(JSON.stringify(statusRes.data)) : undefined}
                     servicesDiscordConfigured={servicesDiscordConfigured}
                     loansDiscordConfigured={loansDiscordConfigured}
                     vaultDiscordConfigured={vaultDiscordConfigured}

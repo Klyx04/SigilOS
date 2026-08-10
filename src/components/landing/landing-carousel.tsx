@@ -73,11 +73,11 @@ export function LandingCarousel() {
             onMouseLeave={() => setIsPaused(false)}
         >
             {/* Decoration Glows */}
-            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10 blur-[80px] rounded-full pointer-events-none" />
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/10 blur-[80px] rounded-full pointer-events-none" />
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10  rounded-full pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/10  rounded-full pointer-events-none" />
 
             {/* Main Framework Wrap */}
-            <div className="relative aspect-[16/10] md:aspect-[16/9] rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl">
+            <div className="relative aspect-[16/10] md:aspect-[16/9] rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-zinc-950 border border-white/10 ">
                 
                 {/* Background Glow */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-amber-500/5 opacity-50" />
@@ -145,9 +145,9 @@ export function LandingCarousel() {
                                 setCurrentIndex(index);
                             }}
                             className={cn(
-                                "h-1.5 transition-all duration-500 rounded-full",
+                                "h-1.5 transition-all duration-150 rounded-full",
                                 index === currentIndex
-                                    ? "w-8 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                                    ? "w-8 bg-emerald-500 "
                                     : "w-1.5 bg-zinc-600 hover:bg-zinc-400"
                             )}
                         />
@@ -164,7 +164,7 @@ export function LandingCarousel() {
                     
                     <div className="h-4 w-px bg-white/10 mx-2" />
 
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] min-w-[200px] text-center">
+                    <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider min-w-[200px] text-center">
                         {SCREENSHOTS[currentIndex].alt}
                     </p>
                 </div>

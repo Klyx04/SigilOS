@@ -96,27 +96,6 @@ html {
 
 
 @layer utilities {
-  .magic-glow {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .magic-glow::after {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    background: linear-gradient(to right, var(--sigil-teal), var(--sigil-gold));
-    border-radius: inherit;
-    filter: blur(15px);
-    opacity: 0;
-    transition: opacity 0.5s ease;
-    z-index: -1;
-  }
-
-  .magic-glow:hover::after {
-    opacity: 0.2;
-  }
-
   /* --- HUD SCANLINES --- */
   .bg-scanlines {
     background: linear-gradient(
@@ -652,10 +631,6 @@ html {
 .reduce-motion .animate-bounce-subtle,
 .reduce-motion .mission-card-ring::before {
   animation: none !important;
-}
-
-.reduce-motion .magic-glow::after {
-  display: none !important;
 }
 
 /* --- GANYMEDE STEP STYLES --- */

@@ -8,15 +8,9 @@ import {
     ChevronRight,
     Menu,
     Home,
-    ScrollText,
-    Gamepad2,
-    Loader2,
-    Plus,
-    Minus,
-    CircleHelp,
+    Calendar,
     Rocket,
     Shield,
-    Search as SearchIcon,
     MessageSquare
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
@@ -25,7 +19,6 @@ import { FeedBell } from "@/components/notifications/feed-bell";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
-import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,17 +80,48 @@ interface TopNavProps {
     roadmapEnabled?: boolean;
 }
 
-function DeferredEventTicker({ 
-    eventsPromise, 
-    guildId, 
-    canViewCalendar 
-}: { 
-    eventsPromise: Promise<UpcomingEvent[]>, 
-    guildId: string, 
-    canViewCalendar: boolean 
+function NextEventPill({ eventsPromise, events, guildId, canViewCalendar }: {
+    eventsPromise?: Promise<UpcomingEvent[]>;
+    events: UpcomingEvent[];
+    guildId: string;
+    canViewCalendar: boolean;
+}) {
+    if (eventsPromise) {
+        return (
+            <Suspense fallback={null}>
+                <DeferredNextEventPill eventsPromise={eventsPromise} guildId={guildId} canViewCalendar={canViewCalendar} />
+            </Suspense>
+        );
+    }
+    return <EventPillInner events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+}
+
+function DeferredNextEventPill({ eventsPromise, guildId, canViewCalendar }: {
+    eventsPromise: Promise<UpcomingEvent[]>;
+    guildId: string;
+    canViewCalendar: boolean;
 }) {
     const events = use(eventsPromise);
-    return <EventTicker events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+    return <EventPillInner events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+}
+
+function EventPillInner({ events, guildId, canViewCalendar }: {
+    events: UpcomingEvent[];
+    guildId: string;
+    canViewCalendar: boolean;
+}) {
+    const next = events[0];
+    if (!next) return null;
+    return (
+        <Link
+            href={canViewCalendar ? `/dashboard/${guildId}/calendar` : "#"}
+            className="hidden lg:flex items-center gap-2 h-9 px-3 text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors shrink-0"
+            title={next.title}
+        >
+            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-xs font-medium truncate max-w-[140px]">{next.title}</span>
+        </Link>
+    );
 }
 
 export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadmapEnabled = false }: TopNavProps) {
@@ -110,7 +134,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
 
             {/* LEFT: Mobile Trigger & Clear Readable Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">
@@ -135,7 +159,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         href={`/dashboard/${sidebarProps.guildId}`} 
                         className={cn(
                             "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:text-white hover:bg-white/5",
-                            breadcrumbSegments.length === 0 ? "text-white font-bold bg-white/5" : "text-zinc-400"
+                            breadcrumbSegments.length === 0 ? "text-foreground bg-white/5" : "text-zinc-400"
                         )}
                     >
                         <Home className="w-3.5 h-3.5 text-zinc-400" />
@@ -154,7 +178,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     className={cn(
                                         "px-2 py-1 rounded-md transition-colors truncate max-w-[120px] lg:max-w-[200px]",
                                         isLast 
-                                            ? "text-white font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-sm" 
+                                            ? "text-foreground bg-white/[0.04] border border-white/10" 
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 font-medium"
                                     )}
                                 >
@@ -166,33 +190,16 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                 </nav>
             </div>
 
-            {/* CENTER: Integrated Ticker & Search (2026 Standard) */}
-            <div className="flex-1 flex items-center justify-center gap-4 px-2 min-w-0">
+            {/* CENTER: intentionally empty — calme par défaut (direction 2026 §9.2) */}
+            <div className="flex-1 min-w-0" />
 
-                {/* Event Ticker (Primary visibility) */}
-                <div className="hidden md:flex flex-1 max-w-xl justify-center items-center gap-4">
-                    <LiveStreamBadge guildId={sidebarProps.guildId} />
-                    {eventsPromise ? (
-                        <Suspense fallback={
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/[0.03] border border-border/50 animate-pulse">
-                                <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />
-                                <div className="h-3 w-32 bg-muted/60 rounded-full" />
-                            </div>
-                        }>
-                            <DeferredEventTicker 
-                                eventsPromise={eventsPromise} 
-                                guildId={sidebarProps.guildId} 
-                                canViewCalendar={sidebarProps.user.canViewCalendar} 
-                            />
-                        </Suspense>
-                    ) : (
-                        <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
-                    )}
-                </div>
-            </div>
-
-            {/* RIGHT: Super Island (Integrated Command Center) */}
+            {/* RIGHT: Command Center (pilulier live + event, cloches, profil) */}
             <div className="flex items-center gap-2">
+                {/* Live stream badge (déplacé hors du centre) */}
+                <div className="hidden md:flex items-center shrink-0">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
+                </div>
+
                 <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
                     {/* 1. Smart Bar (Hidden on Mobile) */}
                     <div className="hidden sm:block border-r border-border">
@@ -202,16 +209,24 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         />
                     </div>
 
+                    {/* 2. Next Event Pilulier */}
+                    <NextEventPill
+                        eventsPromise={eventsPromise}
+                        events={events}
+                        guildId={sidebarProps.guildId}
+                        canViewCalendar={sidebarProps.user.canViewCalendar}
+                    />
+
                     {/* 2. Interactive Tools */}
                     <div className="flex items-center px-1">
                         {roadmapEnabled && (
-                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-amber-500 transition-colors" title="Roadmap">
+                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="Roadmap">
                                 <Rocket className="w-4 h-4" />
                             </Link>
                         )}
 
                         {sidebarProps.user.isAdmin && (
-                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-rose-500 transition-colors" title="RBAC / Permissions">
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />
                             </Link>
                         )}
@@ -242,8 +257,8 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
-                                <span className="text-[10px] font-black uppercase tracking-tighter hidden xl:inline">Live</span>
-                                <span className="bg-emerald-500 text-emerald-950 text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                                <span className="text-[11px] font-semibold uppercase tracking-tighter hidden xl:inline">Live</span>
+                                <span className="bg-emerald-500 text-emerald-950 text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
                                     {roomCount}
                                 </span>
                             </Button>
@@ -261,12 +276,12 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                 {((sidebarProps as any).modules?.chat) && (
                     <button 
                         onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
-                        className="h-9 px-3 flex items-center justify-center gap-2 text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all group relative mr-2 ring-1 ring-indigo-500/10 hover:ring-indigo-500/30"
+                        className="h-9 px-3 flex items-center justify-center gap-2 text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-colors group relative mr-2 ring-1 ring-emerald-500/10 hover:ring-emerald-500/30"
                         title="Chat de Guilde"
                     >
-                        <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Chat Live</span>
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse border-[2px] border-background" />
+                        <MessageSquare className="w-4 h-4  transition-transform" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider hidden sm:inline">Chat Live</span>
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-[2px] border-background" />
                     </button>
                 )}
 

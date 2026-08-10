@@ -3059,12 +3059,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--guide-surface-2);
-  border: 1px solid var(--guide-border);
-  color: var(--guide-text-dim);
-  padding: 0.5rem 0.9rem;
-  border-radius: 0.6rem;
-  font-size: 0.72rem;
+  background: var(--guide-gold-soft);
+  border: 1px solid rgba(212, 168, 83, 0.4);
+  color: #e8c97e;
+  padding: 0.55rem 1rem;
+  border-radius: 0.7rem;
+  font-size: 0.74rem;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -3072,11 +3072,23 @@
   transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
   white-space: nowrap;
 }
-.mission-back:hover { color: #fff; border-color: rgba(212, 168, 83, 0.4); background: var(--guide-gold-soft); }
-.mission-back-pct { color: var(--guide-gold); }
+.mission-back:hover { color: #fff; border-color: var(--guide-gold); background: rgba(212,168,83,0.2); }
+.mission-mode-chip {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--guide-text-dim);
+  border: 1px solid var(--guide-border);
+  background: rgba(255,255,255,0.03);
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+}
 .mission-title-wrap { min-width: 0; flex: 1; }
-.mission-ref { font-size: 0.62rem; font-weight: 900; letter-spacing: 0.22em; color: var(--guide-gold); text-transform: uppercase; }
+.mission-ref { font-size: 0.66rem; font-weight: 900; letter-spacing: 0.18em; color: var(--guide-gold); text-transform: uppercase; }
 .mission-name { font-size: 1.05rem; font-weight: 900; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mission-phase { font-size: 0.72rem; color: var(--guide-text-dim); font-weight: 600; margin-top: 0.1rem; }
 .mission-progress { display: flex; align-items: center; gap: 0.7rem; flex: 1 1 100%; order: 3; }
 .mission-bar { flex: 1; height: 6px; border-radius: 6px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .mission-bar > div { height: 100%; background: var(--guide-green); border-radius: 6px; transition: width 400ms ease; }
@@ -3098,6 +3110,28 @@
 .mission-hide-toggle:hover { color: #fff; border-color: rgba(16,185,129,0.4); }
 
 .mission-body { flex: 1; overflow-y: auto; }
+
+/* Bandeau d'orientation (mode mission) */
+.mission-orient {
+  flex-shrink: 0;
+  padding: 0.55rem 1.4rem;
+  border-bottom: 1px solid var(--guide-border);
+  background: rgba(212, 168, 83, 0.05);
+  font-size: 0.78rem;
+  color: var(--guide-text-dim);
+  line-height: 1.5;
+}
+.mission-orient strong { color: var(--guide-gold); }
+.mission-orient kbd {
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-bottom-width: 2px;
+  padding: 0.04rem 0.4rem;
+  border-radius: 0.3rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  color: var(--guide-text);
+}
 
 
 

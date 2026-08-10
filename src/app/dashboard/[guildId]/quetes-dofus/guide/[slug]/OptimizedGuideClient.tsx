@@ -330,7 +330,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, guildId, onShowStepPresenceModal }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, guildId, onShowStepPresenceModal, onOpenMission }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -351,6 +351,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[],
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
+  onOpenMission?: (seq: Sequence, steps: SubStep[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -580,6 +581,19 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
               </div>
             ) : (
               <>
+                {/* Mode mission CTA */}
+                {onOpenMission && steps.length > 0 && (
+                  <div className="sgc-mission-cta-wrap">
+                    <button
+                      className="sgc-mission-cta"
+                      onClick={(e) => { e.stopPropagation(); onOpenMission(seq, steps); }}
+                    >
+                      ▶ Passer en mode mission
+                      <span className="sgc-mission-cta-sub">Navigation clavier · Espace = valider</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Mode controls */}
                 <div className="sgc-controls">
                   <button 
@@ -1671,6 +1685,49 @@ export default function OptimizedGuideClient({
     });
   }, [selected, guildId]);
 
+  // ─── Mode mission (sous-guide plein écran) ───────────────────────────────
+  const [mission, setMission] = useState<{ seq: Sequence; steps: SubStep[] } | null>(null);
+  const [missionFocus, setMissionFocus] = useState(0);
+  const [missionHideDone, setMissionHideDone] = useState(false);
+
+  const handleOpenMission = useCallback((seq: Sequence, steps: SubStep[]) => {
+    const firstUndone = steps.findIndex(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
+    setMissionFocus(firstUndone === -1 ? 0 : firstUndone);
+    setMissionHideDone(false);
+    setMission({ seq, steps });
+  }, [checkedSteps]);
+
+  const handleCloseMission = useCallback(() => {
+    setMission(null);
+    setMissionFocus(0);
+  }, []);
+
+  const handleMissionToggleStep = useCallback((stepNumber: number) => {
+    if (mission) {
+      handleStepToggle(mission.seq.subGuideRef, stepNumber);
+    }
+  }, [mission, handleStepToggle]);
+
+  // Clavier mode mission : Échap = fermer · ↑/↓ = naviguer · Espace = valider
+  useEffect(() => {
+    if (!mission) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { handleCloseMission(); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setMissionFocus(f => Math.min(mission.steps.length - 1, f + 1));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setMissionFocus(f => Math.max(0, f - 1));
+      } else if (e.key === " " && mission.steps[missionFocus]) {
+        e.preventDefault();
+        handleMissionToggleStep(mission.steps[missionFocus].stepNumber);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mission, missionFocus, handleCloseMission, handleMissionToggleStep]);
+
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
     setValidating(true);
@@ -2558,6 +2615,7 @@ export default function OptimizedGuideClient({
                           selectedMilestoneId={selected?.id || ""}
                           guildId={guildId}
                           onShowStepPresenceModal={handleShowStepPresenceModal}
+                          onOpenMission={handleOpenMission}
                           onMapClick={(x, y, explicitWorld) => {
                             navigator.clipboard.writeText(`/travel ${x} ${y}`);
                             let worldId = 1;
@@ -3831,8 +3889,137 @@ export default function OptimizedGuideClient({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+
+      {/* Mode mission — sous-guide plein écran */}
+      <MissionOverlay
+        mission={mission}
+        checkedSteps={checkedSteps}
+        onToggle={handleMissionToggleStep}
+        onClose={handleCloseMission}
+        focus={missionFocus}
+        setFocus={setMissionFocus}
+        hideDone={missionHideDone}
+        setHideDone={setMissionHideDone}
+        overallPct={overallPct}
+        phaseLabel={selected ? `Phase ${selected.chapter > 0 ? selected.chapter : "Intro"} · ${selected.chapterLabel || ""}` : ""}
+      />
     </>
+  );
+}
+
+// ─── Mode mission : sous-guide plein écran (navigation clavier) ───────────
+function MissionOverlay({
+  mission, checkedSteps, onToggle, onClose, focus, setFocus, hideDone, setHideDone, overallPct, phaseLabel
+}: {
+  mission: { seq: Sequence; steps: SubStep[] } | null;
+  checkedSteps: Set<string>;
+  onToggle: (stepNumber: number) => void;
+  onClose: () => void;
+  focus: number;
+  setFocus: (n: number) => void;
+  hideDone: boolean;
+  setHideDone: (b: boolean) => void;
+  overallPct: number;
+  phaseLabel: string;
+}) {
+  const [copyIdx, setCopyIdx] = useState<number | null>(null);
+
+  if (!mission) return null;
+  const { seq, steps } = mission;
+  const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
+  const total = steps.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const visible = hideDone ? steps.filter(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)) : steps;
+
+  const copyCoord = (coord: string, idx: number) => {
+    navigator.clipboard.writeText(`/travel ${coord}`).catch(() => {});
+    setCopyIdx(idx);
+    setTimeout(() => setCopyIdx(null), 1200);
+  };
+
+  return (
+    <div className="mission-view" role="dialog" aria-modal="true" aria-label={`Mode mission — ${seq.subGuideName}`}>
+      {/* Header */}
+      <div className="mission-header">
+        <button className="mission-back" onClick={onClose}>
+          ◀ Guide principal{phaseLabel ? <span className="mission-back-pct"> · {phaseLabel} — {overallPct}%</span> : null}
+        </button>
+        <div className="mission-title-wrap">
+          <div className="mission-ref">{seq.subGuideRef} · Sous-guide</div>
+          <div className="mission-name">{seq.subGuideName}</div>
+        </div>
+        <div className="mission-progress">
+          <div className="mission-bar"><div style={{ width: `${pct}%` }} /></div>
+          <span className="mission-count">{done}/{total}</span>
+        </div>
+        <button className="mission-hide-toggle" onClick={() => setHideDone(!hideDone)}>
+          {hideDone ? <Eye size={13}/> : <EyeOff size={13}/>}
+          <span>{hideDone ? "Afficher validées" : "Masquer validées"}</span>
+        </button>
+      </div>
+
+      {/* Body : liste d'étapes compactes */}
+      <div className="mission-body">
+        {visible.length === 0 ? (
+          <div className="mission-empty">
+            <div className="mission-empty-icon">🏆</div>
+            <div className="mission-empty-title">Sous-guide terminé</div>
+            <p className="mission-empty-sub">Toutes les étapes sont validées. Bravo !</p>
+          </div>
+        ) : (
+          <div className="mission-list">
+            {visible.map((s) => {
+              const idx = steps.indexOf(s);
+              const checked = checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`);
+              const text = s.plainText ?? s.web_text ?? "";
+              const coords = Array.from(text.matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g))
+                .map(m => m[1] + "," + m[2]);
+              return (
+                <div
+                  key={`${seq.subGuideRef}-${s.stepNumber}`}
+                  className={`mission-step ${checked ? "done" : ""} ${idx === focus ? "focused" : ""}`}
+                  data-idx={idx}
+                  onClick={() => setFocus(idx)}
+                >
+                  <button
+                    className="mission-check"
+                    onClick={(e) => { e.stopPropagation(); onToggle(s.stepNumber); }}
+                    aria-label={checked ? `Étape ${s.stepNumber} validée` : `Valider l'étape ${s.stepNumber}`}
+                  >
+                    {checked && <CheckCircle2 size={16}/>}
+                  </button>
+                  <span className="mission-step-num">{s.stepNumber}</span>
+                  <div className="mission-step-main">
+                    <div className="mission-step-text">{text}</div>
+                    {coords.length > 0 && (
+                      <div className="mission-step-icons">
+                        {coords.slice(0, 4).map((c, i) => (
+                          <button
+                            key={c + i}
+                            className="mission-coord"
+                            onClick={(e) => { e.stopPropagation(); copyCoord(c, i); }}
+                          >
+                            <MapPin size={9}/> {copyIdx === i ? "Copié !" : `[${c}]`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Hint clavier */}
+      <div className="mission-kbd-hint">
+        <span><kbd>Espace</kbd> valider</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
+        <span><kbd>Échap</kbd> retour</span>
+      </div>
+    </div>
   );
 }
 

@@ -135,7 +135,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         href={`/dashboard/${sidebarProps.guildId}`} 
                         className={cn(
                             "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:text-white hover:bg-white/5",
-                            breadcrumbSegments.length === 0 ? "text-white font-bold bg-white/5" : "text-zinc-400"
+                            breadcrumbSegments.length === 0 ? "text-foreground bg-white/5" : "text-zinc-400"
                         )}
                     >
                         <Home className="w-3.5 h-3.5 text-zinc-400" />
@@ -154,7 +154,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     className={cn(
                                         "px-2 py-1 rounded-md transition-colors truncate max-w-[120px] lg:max-w-[200px]",
                                         isLast 
-                                            ? "text-white font-bold bg-white/[0.04] border border-white/10 text-zinc-100" 
+                                            ? "text-foreground bg-white/[0.04] border border-white/10" 
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 font-medium"
                                     )}
                                 >

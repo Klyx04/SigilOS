@@ -326,7 +326,15 @@ export default function InteractiveMapV2({
 
         // Archimonstre result
         if (item.isArchi) {
-            const needsWorldChange = item.worldMapId && item.worldMapId !== selectedWorldId;
+            // Résout le monde cible : refuse les mondes invalides (<=0) pour éviter `w-1` (map vide).
+            let targetWorld = Number(item.worldMapId);
+            if (!targetWorld || targetWorld <= 0) {
+                const m = item.centerX !== null && item.centerY !== null
+                    ? worldMap.maps?.find(mm => mm.x === item.centerX && mm.y === item.centerY)
+                    : undefined;
+                targetWorld = m && m.worldMap > 0 ? m.worldMap : (selectedWorldId || 1);
+            }
+            const needsWorldChange = targetWorld > 0 && targetWorld !== selectedWorldId;
 
             const applyHighlight = () => {
                 if (item.centerX !== null && item.centerY !== null) {
@@ -339,7 +347,7 @@ export default function InteractiveMapV2({
             };
 
             if (needsWorldChange) {
-                setSelectedWorldId(item.worldMapId);
+                setSelectedWorldId(targetWorld);
                 // Wait for Leaflet canvas to remount before applying highlight
                 setTimeout(applyHighlight, 650);
             } else {

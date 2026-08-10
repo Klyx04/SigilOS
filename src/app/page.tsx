@@ -5,7 +5,9 @@ import { HeroSection } from "@/components/landing/hero-section";
 import { LandingCarousel } from "@/components/landing/landing-carousel";
 import { auth } from "@/auth";
 import { getPublicGuilds } from "@/server/actions/presentation-actions";
+import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
 import { GuildDirectorySection } from "@/components/landing/guild-directory-section";
+import { GuildShowcaseSection } from "@/components/landing/guild-showcase-section";
 import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -49,6 +51,9 @@ export default async function Home({
     getUserContext(),
     session?.user ? getUserGuilds() : Promise.resolve([]),
   ]);
+
+  // Landing v3 — showcase mini-dashboards par guilde (stats réelles, cache Redis 5 min)
+  const showcaseGuilds = await getPublicGuildShowcase(6);
 
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);
@@ -99,6 +104,9 @@ export default async function Home({
           <section className="py-16 relative w-full max-w-[1400px] mx-auto px-6">
             <LandingCarousel />
           </section>
+
+          {/* Showcase mini-dashboards par guilde (landing v3) */}
+          {showcaseGuilds.length > 0 && <GuildShowcaseSection guilds={showcaseGuilds} />}
 
           {/* Guild Directory Teaser */}
           <section className="py-20 border-t border-white/5 relative overflow-hidden">

@@ -706,7 +706,8 @@ body.map-fullscreen .dashboard-sidebar,
 body.map-fullscreen .dashboard-topnav {
   display: none !important;
 }
-#worldmap-page.worldmap-fullscreen {
+#worldmap-page.worldmap-fullscreen,
+#sigil-bomb-page.worldmap-fullscreen {
   inset: 0 !important;
   z-index: 9999 !important;
   border-radius: 0 !important;

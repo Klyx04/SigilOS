@@ -1550,7 +1550,7 @@ export default function InteractiveMapV2({
                 {activeTab === 'games' && gamePhase === 'playing' && (
                     <div className="flex flex-col lg:flex-row w-full h-full relative overflow-hidden bg-slate-950">
                         {/* 🖼️ ZONE CIBLE À GAUCHE (FRAGMENTS DE CARTE) */}
-                        <div className="h-[35vh] lg:h-auto lg:flex-1 relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 shrink-0 min-h-0">
+                        <div className="h-[35vh] lg:h-auto lg:w-1/2 lg:flex-none relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 shrink-0 min-h-0">
                             {targetMapId ? (
                                 showHDMap ? (
                                     <motion.div
@@ -1614,7 +1614,7 @@ export default function InteractiveMapV2({
                         </div>
 
                         {/* 🗺️ PANEL INTERACTIF À DROITE (CARTE COMPLÈTE) */}
-                        <div className="flex-1 lg:flex-none lg:w-[35vw] lg:max-w-[850px] lg:min-w-[500px] border-l border-white/5 bg-[#080b0e] flex flex-col relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] min-h-0">
+                        <div className="flex-1 lg:flex-none lg:w-1/2 border-l border-white/5 bg-[#080b0e] flex flex-col relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] min-h-0">
 
                             {/* Integrated Multi-Leaderboard */}
                             {!isSoloMode && (

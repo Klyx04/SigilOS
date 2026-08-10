@@ -7,7 +7,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, Focus, Maximize2, Minimize2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1737,6 +1737,31 @@ export default function OptimizedGuideClient({
     return () => window.removeEventListener("keydown", onKey);
   }, [mission, missionFocus, handleCloseMission, handleMissionToggleStep]);
 
+  // ─── Mode focus plein écran (guide complet) ─────────────────────────────
+  const [focusMode, setFocusMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem(`guide-focus-${guide.slug}`) === "1"; } catch { return false; }
+  });
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode(prev => {
+      const next = !prev;
+      try { localStorage.setItem(`guide-focus-${guide.slug}`, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, [guide.slug]);
+
+  // Raccourci clavier F (hors mission / modales)
+  useEffect(() => {
+    if (mission) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === "f" || e.key === "F") toggleFocusMode();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mission, toggleFocusMode]);
+
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
     setValidating(true);
@@ -2148,7 +2173,7 @@ export default function OptimizedGuideClient({
           display: none !important;
         }
       `}} />
-      <div className="guide-shell">
+      <div className={`guide-shell ${focusMode ? "focus-mode" : ""}`}>
 
       {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
       <aside className="guide-sidebar">
@@ -2223,6 +2248,16 @@ export default function OptimizedGuideClient({
               disabled={validating}
             >
               <RotateCcw size={13}/>
+            </button>
+
+            {/* Focus mode plein écran */}
+            <button
+              className={`sb-action-btn ${focusMode ? "active" : ""}`}
+              style={{ color: focusMode ? "#10b981" : undefined, borderColor: focusMode ? "rgba(16,185,129,0.4)" : undefined }}
+              onClick={toggleFocusMode}
+              title={focusMode ? "Quitter le mode focus (F)" : "Mode focus plein écran (F)"}
+            >
+              {focusMode ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}
             </button>
 
           </div>
@@ -3933,6 +3968,13 @@ export default function OptimizedGuideClient({
         </DialogContent>
       </Dialog>
       </div>
+
+      {/* Bouton sortie mode focus */}
+      {focusMode && (
+        <button className="guide-focus-exit" onClick={toggleFocusMode} title="Quitter le mode focus (F)">
+          <Minimize2 size={14}/> <span>Quitter le focus</span>
+        </button>
+      )}
 
       {/* Mode mission — sous-guide plein écran */}
       <MissionOverlay

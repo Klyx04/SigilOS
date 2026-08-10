@@ -96,8 +96,16 @@
 - ✅ **`SECURITY.md` resynchronisé** : CSP_ENFORCE activé beta+prod (10/08), WS auth activé+testé prod — lignes « À faire » obsolètes retirées.
 - ✅ **Nouvelle branche de travail** : `refonte-module-ganymede` (ouverte depuis la HEAD mergée, contenant toute la session).
 
-### 🔜 Nouveau chantier — Refonte module GANYMEDE
-- **Source de vérité** : à documenter dans `src/temp/memo-2026-08-10-module-ganymede.md` (à créer). *Liste à compléter par le product owner.*
+### 🔜 Nouveau chantier — Refonte module GANYMEDE (guide complet)
+- **Module cible** : `https://beta.sigilos.fr/dashboard/1290442961380835451/quetes-dofus/guide/progression-complete` (Guide complet d'une quête → route `src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx`).
+- **Périmètre (fichiers du module)** : copies de référence dans `C:\tmp\sigilos-module-guide-ganymede` :
+  - Parser/helpers : `src/lib/ganymede-parser.ts`, `src/lib/guide-progress-helpers.ts`
+  - Actions serveur : `src/server/actions/optimized-guide-actions.ts`
+  - Rendu guide (`quetes-dofus/guide/[slug]/`) : `OptimizedGuideClient.tsx`, `components.tsx`, `DofusProgressStrip.tsx`, `GuildStatusPanel.tsx`, `QuestGroup.tsx`, `RushTimelineClient.tsx`, `split-implementation.ts`, `page.tsx`, `guide-styles.css`
+  - Onglet + admin : `src/components/dofus-quests/OptimizedGuideTab.tsx`, `src/app/god/dofus-guides/`
+- **Type** : développeur (refonte UI/UX complète du guide, dans la direction design 2026 « moins IA » : une seule accent emerald, zéro glow, typo ≥11px, motion ≤200ms).
+- **Source de vérité session** : `src/temp/memo-2026-08-10-module-ganymede.md` (à créer au démarrage).
+- **Branche** : `refonte-module-ganymede` (ouverte, prête). PR vers `dev` à la fin.
 
 ---
 

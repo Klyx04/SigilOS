@@ -714,6 +714,12 @@ body.map-fullscreen .dashboard-tour {
   z-index: 9999 !important;
   border-radius: 0 !important;
   margin: 0 !important;
+  border: none !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  box-shadow: none !important;
 }
 #worldmap-page.worldmap-fullscreen .worldmap-header {
   display: none !important;

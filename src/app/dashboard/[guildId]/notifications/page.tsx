@@ -166,7 +166,7 @@ export default function NotificationsPage() {
     );
 
     const categories: { id: NotificationCategory | "ALL", label: string }[] = [
-        { id: "ALL", label: "Toutes les catégories" },
+        { id: "ALL", label: "Toutes" },
         { id: "MISSION", label: "Missions" },
         { id: "SUCCESS", label: "Succès" },
         { id: "SONGES", label: "Songes" },
@@ -234,8 +234,8 @@ export default function NotificationsPage() {
                 ))}
             </div>
 
-            {/* Category Filter Tabs (ALWAYS VISIBLE) */}
-            <div className="flex items-center gap-1.5 mb-6 p-1.5 bg-zinc-900/50 border border-white/5 rounded-2xl overflow-x-auto no-scrollbar">
+            {/* Category Filter Tabs (ALWAYS VISIBLE - Responsive Wrap) */}
+            <div className="flex flex-wrap items-center gap-2 mb-6 p-2 bg-zinc-900/50 border border-white/5 rounded-2xl">
                 {categories.map((cat) => {
                     const count = cat.id === "ALL"
                         ? statusFiltered.length
@@ -246,7 +246,7 @@ export default function NotificationsPage() {
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             className={cn(
-                                "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
                                 activeTab === cat.id
                                     ? "bg-cyan-600 text-white border-cyan-400/50 shadow-md shadow-cyan-900/30 font-black"
                                     : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-white hover:bg-white/5"

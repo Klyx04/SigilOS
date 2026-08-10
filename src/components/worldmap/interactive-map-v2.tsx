@@ -513,6 +513,20 @@ export default function InteractiveMapV2({
         fetchLadder();
     }, [fetchLadder]);
 
+    // Plein écran automatique pendant les parties (Sigil Guesser & Bomb)
+    const applyFullscreen = useCallback((fs: boolean) => {
+        setIsFullscreen(fs);
+        const el = document.getElementById('worldmap-page');
+        if (el) el.classList.toggle('worldmap-fullscreen', fs);
+        document.body.classList.toggle('map-fullscreen', fs);
+    }, []);
+
+    useEffect(() => {
+        const inGame = gamePhase === 'countdown' || gamePhase === 'playing' || gamePhase === 'result';
+        applyFullscreen(inGame);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gamePhase]);
+
     useEffect(() => {
         // Initial fetch
         fetchLobbies();
@@ -1172,15 +1186,7 @@ export default function InteractiveMapV2({
 
                                         {/* Fullscreen Toggle */}
                                         <button
-                                            onClick={() => {
-                                                setIsFullscreen(f => {
-                                                    const next = !f;
-                                                    const el = document.getElementById('worldmap-page');
-                                                    if (el) el.classList.toggle('worldmap-fullscreen', next);
-                                                    document.body.classList.toggle('map-fullscreen', next);
-                                                    return next;
-                                                });
-                                            }}
+                                            onClick={() => applyFullscreen(!isFullscreen)}
                                             className={cn(
                                                 "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
                                                 isFullscreen ? "bg-teal-500/25 border-teal-400/60 text-teal-200" : "bg-teal-500/10 border-teal-500/30 text-teal-300 hover:bg-teal-500/20"
@@ -1759,12 +1765,7 @@ export default function InteractiveMapV2({
                         {/* Croix de sortie du plein écran */}
                         {isFullscreen && (
                             <button
-                                onClick={() => {
-                                    setIsFullscreen(false);
-                                    const el = document.getElementById('worldmap-page');
-                                    if (el) el.classList.remove('worldmap-fullscreen');
-                                    document.body.classList.remove('map-fullscreen');
-                                }}
+                                onClick={() => applyFullscreen(false)}
                                 className="fixed top-4 right-4 z-[10000] w-11 h-11 rounded-full bg-black/85 border border-white/20 text-white flex items-center justify-center hover:bg-red-600/90 hover:border-red-400 shadow-2xl transition-colors"
                                 title="Quitter le plein écran"
                             >

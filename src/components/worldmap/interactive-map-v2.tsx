@@ -544,6 +544,17 @@ export default function InteractiveMapV2({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gamePhase, activeSession, guessResult]);
 
+    // Secours : vérifie périodiquement et force le plein écran tant qu'une partie est active
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const inGame = gamePhase !== 'idle'
+                || !!guessResult
+                || (!!activeSession && activeSession.state && activeSession.state !== 'LOBBY');
+            if (inGame) applyFullscreen(true); // force seulement pendant la partie (ne casse pas le fullscreen manuel)
+        }, 600);
+        return () => clearInterval(interval);
+    }, [gamePhase, guessResult, activeSession, applyFullscreen]);
+
     // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
     useEffect(() => {
         return () => {

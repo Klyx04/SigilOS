@@ -1,10 +1,10 @@
-/* SigilOS — Guide Ops Center Styles */
-/* ═══════════════════════════════════════════════════════════
-   TOKENS — Direction design 2026 « moins IA »
-   Palette disciplinée : doré = fil de quête · emerald = progression
-   · rouge = danger · bleu = coords/infos. Zéro glow, typo ≥11px,
-   motion ≤200ms.
-   ═══════════════════════════════════════════════════════════ */
+﻿/* SigilOS â€” Guide Ops Center Styles */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   TOKENS â€” Direction design 2026 Â« moins IA Â»
+   Palette disciplinÃ©e : dorÃ© = fil de quÃªte Â· emerald = progression
+   Â· rouge = danger Â· bleu = coords/infos. ZÃ©ro glow, typo â‰¥11px,
+   motion â‰¤200ms.
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 :root {
   --guide-bg: #0a0b10;
   --guide-bg-mission: #050608;
@@ -27,7 +27,7 @@
   --guide-read-width: 840px;
 }
 
-/* ── Shell & Layout ── */
+/* â”€â”€ Shell & Layout â”€â”€ */
 .guide-shell {
   display: flex;
   height: calc(100vh - 80px);
@@ -37,20 +37,46 @@
   padding: 0;
 }
 
-/* ── Mode focus plein écran ── */
-.guide-shell.focus-mode .guide-sidebar {
+/* â”€â”€ Sommaire / sidebar repliable (mode unique plein Ã©cran) â”€â”€ */
+.guide-shell.sidebar-collapsed .guide-sidebar {
   display: none;
 }
-.guide-shell.focus-mode .guide-content {
+.guide-shell.sidebar-collapsed .guide-content {
   max-width: none;
   padding: 2rem clamp(1.5rem, 6vw, 5rem);
 }
-.guide-shell.focus-mode .guide-read-crumb {
+.guide-shell.sidebar-collapsed .guide-read-crumb {
   max-width: 100%;
   padding-left: clamp(1rem, 5vw, 4rem);
   padding-right: clamp(1rem, 5vw, 4rem);
 }
-.guide-focus-exit {
+
+/* Bouton Â« Sommaire Â» dans le bandeau (ouvre/ferme la sidebar) */
+.guide-sommaire-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
+  white-space: nowrap;
+}
+.guide-sommaire-btn:hover {
+  color: #fff;
+  border-color: rgba(16,185,129,0.4);
+  background: var(--guide-green-soft);
+}
+
+/* Bouton flottant rouvrir le sommaire (quand la sidebar est repliÃ©e) */
+.guide-sommaire-open {
   position: fixed;
   top: 5.25rem;
   left: 50%;
@@ -71,13 +97,13 @@
   cursor: pointer;
   transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
 }
-.guide-focus-exit:hover {
+.guide-sommaire-open:hover {
   color: #fff;
   border-color: rgba(16,185,129,0.4);
   background: var(--guide-green-soft);
 }
 
-/* ── Sidebar ── */
+/* â”€â”€ Sidebar â”€â”€ */
 .guide-sidebar {
   flex: 0 0 380px;
   background: var(--guide-surface);
@@ -88,7 +114,7 @@
   z-index: 10;
 }
 
-/* ── Compact Sidebar Header ── */
+/* â”€â”€ Compact Sidebar Header â”€â”€ */
 .sidebar-compact-header {
   display: flex;
   align-items: center;
@@ -159,7 +185,7 @@
   color: #fff;
 }
 
-/* ── Compact Sidebar Toolbar ── */
+/* â”€â”€ Compact Sidebar Toolbar â”€â”€ */
 .sidebar-toolbar {
   padding: 0.5rem 0.75rem;
   display: flex;
@@ -238,7 +264,7 @@
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Color Coding for Sidebar Actions Buttons — palette disciplinée */
+/* Color Coding for Sidebar Actions Buttons â€” palette disciplinÃ©e */
 .sb-action-btn-hide-completed {
   color: var(--guide-green);
   border-color: var(--guide-green-soft);
@@ -495,7 +521,7 @@
 }
 .search-clear:hover { color: #fff; }
 
-/* ── Guild Radar ── */
+/* â”€â”€ Guild Radar â”€â”€ */
 .sidebar-radar {
   margin: 0 1rem 1rem 1rem;
   padding: 1rem;
@@ -582,7 +608,7 @@
   user-select: none;
 }
 
-/* ── Chapters ── */
+/* â”€â”€ Chapters â”€â”€ */
 .chapter-group {
   margin-bottom: 0.5rem;
 }
@@ -817,7 +843,7 @@
 }
 
 
-/* ── Main Content ── */
+/* â”€â”€ Main Content â”€â”€ */
 .guide-main {
   flex: 1;
   background: #09090b;
@@ -907,7 +933,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Step Navigator (Ganymède Style) */
+/* Step Navigator (GanymÃ¨de Style) */
 .step-navigator {
   background: rgba(20, 22, 31, 0.6);
   backdrop-filter: blur(12px);
@@ -1513,7 +1539,7 @@
   border-bottom-color: transparent;
 }
 
-/* Clickable Entities (Dungeons, Items) — palette disciplinée */
+/* Clickable Entities (Dungeons, Items) â€” palette disciplinÃ©e */
 .clickable-entity {
   cursor: pointer;
   color: var(--guide-text);
@@ -1739,7 +1765,7 @@
   box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
 }
 
-/* ── Guide Name Banner ── */
+/* â”€â”€ Guide Name Banner â”€â”€ */
 .guide-name-banner {
   display: flex;
   align-items: center;
@@ -1775,7 +1801,7 @@
   text-overflow: ellipsis;
 }
 
-/* ── Hide Completed Toggle ── */
+/* â”€â”€ Hide Completed Toggle â”€â”€ */
 .hide-completed-toggle {
   display: flex;
   align-items: center;
@@ -1816,14 +1842,14 @@
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
-/* ── Bookmark in sidebar rows ── */
+/* â”€â”€ Bookmark in sidebar rows â”€â”€ */
 .state-bookmark { color: #f59e0b; }
 .ms-row.bookmarked {
   border-left: 2px solid #f59e0b;
   background: rgba(245, 158, 11, 0.05);
 }
 
-/* ── Step Actions (footer button group) ── */
+/* â”€â”€ Step Actions (footer button group) â”€â”€ */
 .step-actions {
   display: flex;
   align-items: stretch;
@@ -1831,7 +1857,7 @@
   flex: 2;
 }
 
-/* Fix step-nav responsive — wrap on small viewports */
+/* Fix step-nav responsive â€” wrap on small viewports */
 .step-nav {
   display: flex;
   align-items: stretch;
@@ -1841,7 +1867,7 @@
 }
 .step-nav .nav-btn { min-width: 100px; }
 
-/* ── Bookmark Button ── */
+/* â”€â”€ Bookmark Button â”€â”€ */
 .bookmark-btn {
   display: flex;
   align-items: center;
@@ -1869,7 +1895,7 @@
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
 }
 
-/* ── Guide-step cross-guide link ── */
+/* â”€â”€ Guide-step cross-guide link â”€â”€ */
 .guide-step-link {
   cursor: pointer;
   display: inline-flex;
@@ -1908,7 +1934,7 @@
   transition: none !important;
 }
 
-/* ── Subguide Controls & Focus Mode ── */
+/* â”€â”€ Subguide Controls & Focus Mode â”€â”€ */
 .sgc-controls {
   display: flex;
   align-items: center;
@@ -2071,7 +2097,7 @@
   border-color: #3b82f6;
 }
 
-/* Legacy Ganymède formatting fallbacks & Premium Enhancements */
+/* Legacy GanymÃ¨de formatting fallbacks & Premium Enhancements */
 .ganymade-step-text {
   font-family: inherit;
   color: #d1d5db;
@@ -2617,7 +2643,7 @@
   gap: 0.4rem;
 }
 .ganymade-step-text li[data-type="taskItem"]::before { 
-  content: "✦"; 
+  content: "âœ¦"; 
   position: absolute; 
   left: 0.25rem; 
   top: 50%;
@@ -2633,7 +2659,7 @@
   font-weight: 800; 
 }
 
-/* ── Comprehensive Responsive & Grid Pass ── */
+/* â”€â”€ Comprehensive Responsive & Grid Pass â”€â”€ */
 @media (max-width: 1200px) {
   .guide-shell {
     flex-direction: column;
@@ -2727,7 +2753,7 @@
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
 }
 
-/* ── Step presence avatar row ── */
+/* â”€â”€ Step presence avatar row â”€â”€ */
 .sgc-step-presence {
   display: flex;
   align-items: center;
@@ -2865,7 +2891,7 @@
   z-index: 1;
 }
 
-/* ── Quest Hub Embedded Overrides ── */
+/* â”€â”€ Quest Hub Embedded Overrides â”€â”€ */
 .quest-hub-guide-wrapper .guide-shell {
   height: 100%;
   border-radius: 1.5rem;
@@ -2898,7 +2924,7 @@
   margin-bottom: 1.5rem;
 }
 
-/* ── Active Guide Dynamic Sidebar Highlight ── */
+/* â”€â”€ Active Guide Dynamic Sidebar Highlight â”€â”€ */
 .chapter-header.active {
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent-color, #3b82f6) 18%, transparent), color-mix(in srgb, var(--accent-color, #3b82f6) 4%, transparent)) !important;
   border-color: color-mix(in srgb, var(--accent-color, #3b82f6) 40%, transparent) !important;
@@ -2999,255 +3025,3 @@
 
 
 
-/* ═══════════════════════════════════════════════════════════
-   CTA "Passer en mode mission" (card sous-guide)
-   ═══════════════════════════════════════════════════════════ */
-.sgc-mission-cta-wrap {
-  padding: 0 1.5rem 0.5rem;
-}
-.sgc-mission-cta {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.7rem;
-  flex-wrap: wrap;
-  padding: 0.95rem;
-  border: none;
-  border-radius: 0.85rem;
-  background: var(--guide-gold);
-  color: #1a1206;
-  font-size: 0.85rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: background var(--guide-t-fast), transform var(--guide-t-fast);
-}
-.sgc-mission-cta:hover { background: #e8c97e; transform: translateY(-1px); }
-.sgc-mission-cta:active { transform: scale(0.99); }
-.sgc-mission-cta-sub {
-  font-size: 0.66rem;
-  font-weight: 800;
-  text-transform: none;
-  letter-spacing: 0;
-  color: rgba(26, 18, 6, 0.7);
-}
-
-/* ═══════════════════════════════════════════════════════════
-   MODE MISSION — overlay plein écran
-   ═══════════════════════════════════════════════════════════ */
-.mission-view {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: var(--guide-bg-mission);
-  display: flex;
-  flex-direction: column;
-}
-.mission-header {
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--guide-border);
-  background: rgba(255, 255, 255, 0.015);
-  padding: 0.85rem 1.4rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.mission-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--guide-gold-soft);
-  border: 1px solid rgba(212, 168, 83, 0.4);
-  color: #e8c97e;
-  padding: 0.55rem 1rem;
-  border-radius: 0.7rem;
-  font-size: 0.74rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
-  white-space: nowrap;
-}
-.mission-back:hover { color: #fff; border-color: var(--guide-gold); background: rgba(212,168,83,0.2); }
-.mission-mode-chip {
-  flex-shrink: 0;
-  font-size: 0.62rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--guide-text-dim);
-  border: 1px solid var(--guide-border);
-  background: rgba(255,255,255,0.03);
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-}
-.mission-title-wrap { min-width: 0; flex: 1; }
-.mission-ref { font-size: 0.66rem; font-weight: 900; letter-spacing: 0.18em; color: var(--guide-gold); text-transform: uppercase; }
-.mission-name { font-size: 1.05rem; font-weight: 900; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mission-phase { font-size: 0.72rem; color: var(--guide-text-dim); font-weight: 600; margin-top: 0.1rem; }
-.mission-progress { display: flex; align-items: center; gap: 0.7rem; flex: 1 1 100%; order: 3; }
-.mission-bar { flex: 1; height: 6px; border-radius: 6px; background: rgba(255,255,255,0.08); overflow: hidden; }
-.mission-bar > div { height: 100%; background: var(--guide-green); border-radius: 6px; transition: width 400ms ease; }
-.mission-count { font-size: 0.78rem; font-weight: 900; color: var(--guide-green); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mission-hide-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: var(--guide-surface-2);
-  border: 1px solid var(--guide-border);
-  color: var(--guide-text-dim);
-  padding: 0.45rem 0.8rem;
-  border-radius: 0.6rem;
-  font-size: 0.7rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: border-color var(--guide-t-fast), color var(--guide-t-fast);
-}
-.mission-hide-toggle:hover { color: #fff; border-color: rgba(16,185,129,0.4); }
-
-.mission-body { flex: 1; overflow-y: auto; }
-
-/* Bandeau d'orientation (mode mission) */
-.mission-orient {
-  flex-shrink: 0;
-  padding: 0.55rem 1.4rem;
-  border-bottom: 1px solid var(--guide-border);
-  background: rgba(212, 168, 83, 0.05);
-  font-size: 0.78rem;
-  color: var(--guide-text-dim);
-  line-height: 1.5;
-}
-.mission-orient strong { color: var(--guide-gold); }
-.mission-orient kbd {
-  background: rgba(255,255,255,0.09);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-bottom-width: 2px;
-  padding: 0.04rem 0.4rem;
-  border-radius: 0.3rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.68rem;
-  color: var(--guide-text);
-}
-
-
-
-.mission-list {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 1.5rem 1.2rem 4rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.mission-step {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  transition: background var(--guide-t-fast), border-color var(--guide-t-fast);
-}
-.mission-step:hover { background: var(--guide-surface); }
-.mission-step.focused { background: var(--guide-surface-2); border-color: rgba(212,168,83,0.3); }
-.mission-check {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.2);
-  background: rgba(0,0,0,0.3);
-  color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: border-color var(--guide-t-fast), background var(--guide-t-fast), color var(--guide-t-fast);
-}
-.mission-check:hover { border-color: var(--guide-green); }
-.mission-step.done .mission-check { background: var(--guide-green); border-color: var(--guide-green); color: #04110c; }
-.mission-step.done .mission-step-text { text-decoration: line-through; opacity: 0.6; }
-.mission-step-num {
-  font-size: 0.7rem;
-  font-weight: 900;
-  color: var(--guide-text-faint);
-  min-width: 1.7rem;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.mission-step-main { flex: 1; min-width: 0; }
-.mission-step-text {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--guide-text);
-  line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.mission-step-icons { display: flex; gap: 0.35rem; margin-top: 0.25rem; flex-wrap: wrap; }
-.mission-coord {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.62rem;
-  font-weight: 800;
-  padding: 0.12rem 0.45rem;
-  border-radius: 999px;
-  background: var(--guide-blue-soft);
-  color: #93c5fd;
-  border: 1px solid rgba(59,130,246,0.25);
-  font-family: ui-monospace, monospace;
-  cursor: pointer;
-  transition: background var(--guide-t-fast);
-}
-.mission-coord:hover { background: rgba(59,130,246,0.3); }
-
-.mission-empty {
-  max-width: 460px;
-  margin: 0 auto;
-  text-align: center;
-  padding: 4rem 1rem;
-  color: var(--guide-text-faint);
-}
-.mission-empty-icon { font-size: 2.2rem; margin-bottom: 0.8rem; }
-.mission-empty-title { font-weight: 900; color: var(--guide-green); font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.1em; }
-.mission-empty-sub { margin-top: 0.5rem; font-size: 0.85rem; color: var(--guide-text-dim); }
-
-.mission-kbd-hint {
-  position: fixed;
-  bottom: 1.1rem;
-  right: 1.2rem;
-  z-index: 95;
-  display: flex;
-  gap: 0.9rem;
-  font-size: 0.66rem;
-  color: var(--guide-text-faint);
-  font-weight: 700;
-  background: rgba(0,0,0,0.55);
-  border: 1px solid var(--guide-border);
-  padding: 0.5rem 0.85rem;
-  border-radius: 0.6rem;
-}
-.mission-view kbd {
-  background: rgba(255,255,255,0.09);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-bottom-width: 2px;
-  padding: 0.08rem 0.38rem;
-  border-radius: 0.3rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.62rem;
-  color: var(--guide-text);
-}
-
-@media (max-width: 720px) {
-  .mission-kbd-hint { display: none; }
-  .mission-progress { order: 3; flex: 1 1 100%; }
-}

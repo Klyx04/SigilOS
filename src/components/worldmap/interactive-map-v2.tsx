@@ -517,17 +517,32 @@ export default function InteractiveMapV2({
     const applyFullscreen = useCallback((fs: boolean) => {
         setIsFullscreen(fs);
         const el = document.getElementById('worldmap-page');
-        if (el) el.classList.toggle('worldmap-fullscreen', fs);
+        if (el) {
+            el.classList.toggle('worldmap-fullscreen', fs);
+            // Force inline (plus robuste que le CSS) : plein écran total sans bords
+            el.style.top = fs ? '0px' : '';
+            el.style.left = fs ? '0px' : '';
+            el.style.right = fs ? '0px' : '';
+            el.style.bottom = fs ? '0px' : '';
+            el.style.width = fs ? '100vw' : '';
+            el.style.height = fs ? '100vh' : '';
+            el.style.margin = fs ? '0px' : '';
+            el.style.borderRadius = fs ? '0px' : '';
+            el.style.border = fs ? 'none' : '';
+            el.style.padding = fs ? '0px' : '';
+            el.style.zIndex = fs ? '9999' : '';
+        }
         document.body.classList.toggle('map-fullscreen', fs);
     }, []);
 
     useEffect(() => {
-        // Plein écran dès qu'une partie est en cours (phase de jeu OU session active hors lobby)
+        // Plein écran dès qu'une partie est en cours (phase de jeu, résultat, ou session active hors lobby)
         const inGame = gamePhase !== 'idle'
+            || !!guessResult
             || (!!activeSession && activeSession.state && activeSession.state !== 'LOBBY');
         applyFullscreen(inGame);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gamePhase, activeSession]);
+    }, [gamePhase, activeSession, guessResult]);
 
     // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
     useEffect(() => {

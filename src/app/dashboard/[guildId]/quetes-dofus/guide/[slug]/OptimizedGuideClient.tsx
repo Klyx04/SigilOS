@@ -144,6 +144,7 @@ const TYPE_CONFIG: Record<string,{label:string;color:string;bg:string}> = {
 // Detects narrative block type from html content
 const getBlockType = (html: string) => {
   const t = html.toLowerCase();
+  if (/r[eé]compense|obtient|obtiendrez|obtiens/.test(t)) return 'reward';
   if (/\blore\b/.test(t)) return 'lore';
   if (/astuce|tip\b/.test(t)) return 'tip';
   if (/important|attention|attention/.test(t)) return 'warning';
@@ -512,6 +513,13 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
               ? `Étapes ${seq.stepFrom} → ${seq.stepTo}`
               : seq.stepFrom ? `À partir de l'étape ${seq.stepFrom}` : "Guide complet"}
           </span>
+          <div className="sgc-tags">
+            <span className="sgc-tag">{seq.subGuideRef}</span>
+            {seq.stepFrom && seq.stepTo && (
+              <span className="sgc-tag">{seq.stepTo - seq.stepFrom + 1} étapes</span>
+            )}
+            {seq.isOptional && <span className="sgc-tag">Bonus</span>}
+          </div>
         </div>
         <div className="sgc-progress-wrap">
           {loaded && total > 0 && (
@@ -881,6 +889,7 @@ function NarrativeBlock({ html }: { html: string }) {
         {type === 'tip'     && <Lightbulb size={14}/>}
         {type === 'warning' && <AlertTriangle size={14}/>}
         {type === 'counsel' && <Star size={14}/>}
+        {type === 'reward'  && <Crown size={14}/>}
         {type === 'info'    && <Info size={14}/>}
       </div>
       <div className="narrative-body ganymade-step-text"
@@ -2397,7 +2406,7 @@ export default function OptimizedGuideClient({
                     href="https://ganymede-app.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 hover:text-purple-200 text-[10px] font-black uppercase tracking-wider transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 hover:text-blue-200 text-[10px] font-black uppercase tracking-wider transition-all"
                     title="Parcours et étapes issus de Ganymède"
                   >
                     <img src="/assets/icons/ganymede.png" alt="Ganymède" className="w-3.5 h-3.5 rounded-sm object-contain" />
@@ -2474,7 +2483,7 @@ export default function OptimizedGuideClient({
                 {/* Structure / Hierarchy flow */}
                 <div className="flex items-center flex-wrap gap-2 text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-4 bg-zinc-950/20 px-3 py-2 rounded-xl border border-white/5">
                   <span className="text-zinc-400">Structure :</span>
-                  <div className="flex items-center gap-1 text-indigo-400">
+                  <div className="flex items-center gap-1 text-blue-400">
                     <BookOpen size={10} className="shrink-0" />
                     <span>{guide.name}</span>
                   </div>
@@ -3630,6 +3639,28 @@ export default function OptimizedGuideClient({
               )}
             </div>
           </ScrollArea>
+
+          {/* Footer — entraide (3ᵉ niveau) */}
+          <div className="flex gap-2 mt-4 border-t border-white/5 pt-4">
+            <button
+              onClick={() => setStepPresenceModal(prev => prev ? { ...prev, isOpen: false } : null)}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              Fermer
+            </button>
+            <button
+              onClick={() => {
+                const title = (stepPresenceModal?.stepTitle || "").replace(/<[^>]+>/g, "").trim();
+                navigator.clipboard.writeText(
+                  `📣 Besoin d'aide sur l'étape ${stepPresenceModal?.stepNumber} : ${title} — je suis sur le guide « ${guide.name} ».`
+                ).catch(() => {});
+                toast.success("Message d'entraide copié — collez-le sur Discord !");
+              }}
+              className="flex-[2] py-2.5 px-4 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              📣 Demander de l'aide sur Discord
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 

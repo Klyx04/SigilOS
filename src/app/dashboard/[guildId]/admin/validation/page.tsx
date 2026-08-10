@@ -51,10 +51,10 @@ export default async function UnifiedValidationPage({
         getPendingAchievementSubmissions(guildId),
     ]);
 
-    const missions = missionRes.success ? missionRes.data : [];
-    const kamaDonations = kamaRes.success ? kamaRes.data ?? [] : [];
-    const reactivations = reactivationRes.success ? reactivationRes.data ?? [] : [];
-    const achievements = achievementRes.success ? achievementRes.data ?? [] : [];
+    const missions = missionRes.success ? JSON.parse(JSON.stringify(missionRes.data)) : [];
+    const kamaDonations = kamaRes.success ? JSON.parse(JSON.stringify(kamaRes.data ?? [])) : [];
+    const reactivations = reactivationRes.success ? JSON.parse(JSON.stringify(reactivationRes.data ?? [])) : [];
+    const achievements = achievementRes.success ? JSON.parse(JSON.stringify(achievementRes.data ?? [])) : [];
 
     const defaultTab = tab === "kamas" ? "kamas" : tab === "retours" ? "retours" : tab === "succes" ? "succes" : "missions";
 

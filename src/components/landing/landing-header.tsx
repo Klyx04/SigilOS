@@ -8,10 +8,10 @@ import { loginWithDiscord } from "@/server/actions/auth-actions";
 
 export function LandingHeader({ user }: { user?: User }) {
     return (
-        <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4 flex justify-between items-center bg-transparent pointer-events-auto transition-all duration-500">
+        <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4 flex justify-between items-center bg-transparent pointer-events-auto transition-all duration-150">
             <div className="flex items-center gap-10">
                 <Link href="/" className="flex items-center gap-4 group">
-                    <div className="relative w-14 h-14 md:w-16 md:h-16 transition-all group-hover:scale-110 group-hover:rotate-[3deg] duration-700 ease-out">
+                    <div className="relative w-14 h-14 md:w-16 md:h-16 transition-all group-hover:scale-110 group-hover:rotate-[3deg] duration-150 ease-out">
                         <Image
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
@@ -20,7 +20,7 @@ export function LandingHeader({ user }: { user?: User }) {
                             priority
                         />
                     </div>
-                    <div className="text-2xl md:text-3xl font-black tracking-[0.2em] text-white font-heading transition-all duration-500 group-hover:text-purple-100">
+                    <div className="text-2xl md:text-3xl font-semibold tracking-wider text-white font-heading transition-all duration-150 group-hover:text-purple-100">
                         SIGIL<span className="text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.7)]">OS</span>
                     </div>
                 </Link>
@@ -28,7 +28,7 @@ export function LandingHeader({ user }: { user?: User }) {
                 <nav className="hidden md:flex items-center gap-2">
                     <Link
                         href="/guilds"
-                        className="px-4 py-2 rounded-lg text-xs font-black text-zinc-500 hover:text-white hover:bg-white/5 transition-all uppercase tracking-[0.1em]"
+                        className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-500 hover:text-white hover:bg-white/5 transition-all uppercase tracking-[0.1em]"
                     >
                         Annuaire
                     </Link>
@@ -49,7 +49,7 @@ export function LandingHeader({ user }: { user?: User }) {
                 ) : (
                     <button
                         onClick={() => loginWithDiscord()}
-                        className="px-6 py-2.5 rounded-full bg-white text-black hover:bg-zinc-200 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-white/10"
+                        className="px-6 py-2.5 rounded-full bg-white text-black hover:bg-zinc-200 text-[11px] font-semibold uppercase tracking-wider transition-all hover:scale-105  shadow-white/10"
                     >
                         Se connecter
                     </button>

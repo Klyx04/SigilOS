@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
-import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
@@ -124,30 +123,6 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
 
     return (
         <div className="flex flex-col w-full h-full overflow-hidden">
-            {/* Character selector bar */}
-            {mules.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-2 bg-zinc-950/80 border-b border-white/5 shrink-0">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400/60">
-                        <span>📖 {guide.name}</span>
-                    </div>
-                    <CharacterQuestSelector
-                        mainCharacter={{
-                            pseudo: user.pseudoDofus || user.name || "Principal",
-                            classe: user.classe,
-                        }}
-                        mules={mules}
-                    />
-                </div>
-            )}
-
-            <div className="flex justify-end px-4 py-2">
-                <QuestFeedbackButton
-                    guildId={guildId}
-                    sourcePage={`guide:${slug}`}
-                    targetSlug={slug}
-                    compact
-                />
-            </div>
 
             <Suspense fallback={
                 <div className="flex items-center justify-center w-full h-full">

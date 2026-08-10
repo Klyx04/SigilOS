@@ -172,8 +172,10 @@ export default async function DashboardLayout({
             <GameProvider>
             <TelemetryTracker />
             <TourProvider guildId={guildId} modules={modules} user={user}>
-                <TourOverlay />
-                <TourCompletion guildId={guildId} />
+                <div className="dashboard-tour">
+                    <TourOverlay />
+                    <TourCompletion guildId={guildId} />
+                </div>
                 <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
 
 
@@ -256,7 +258,9 @@ export default async function DashboardLayout({
                 <CommandMenu guildId={guildId} user={user} />
 
                 {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
-                <GalacticFooterGate />
+                <div className="dashboard-footer">
+                    <GalacticFooterGate />
+                </div>
 
                 {/* Forced Onboarding Wizard (Missing character pseudo or class) */}
                 {!user.isAdmin && (user.hasPseudoIssue || !user.classe) && (

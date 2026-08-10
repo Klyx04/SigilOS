@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
 import { getActivePresence } from "@/server/actions/presence-actions";
-import { getActivityLadder } from "@/server/actions/ladder-actions";
 import { getDashboardFocus } from "@/server/actions/intelligence-actions";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserProfile } from "@/server/actions/profile-actions";
@@ -64,8 +63,6 @@ export default async function DashboardPage({
     // Parallel Data Fetching
     const [
         onlineUsersResult,
-        weeklyLadder,
-        monthlyLadder,
         profileResult,
         ocreProgress,
         guildStatsResult,
@@ -78,8 +75,6 @@ export default async function DashboardPage({
         activeRaid,
     ] = await Promise.all([
         getActivePresence(guildId, 50),
-        getActivityLadder(guildId, "weekly"),
-        getActivityLadder(guildId, "monthly"),
         getUserProfile(guildId),
         user.canViewOcre ? getMyOcreProgress(guildId) : Promise.resolve({ success: false, data: undefined }),
         getGuildStats(guildId),

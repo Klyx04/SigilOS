@@ -49,6 +49,118 @@ export type PublicGuildSummary = {
     bannerUrl: string | null;
 };
 
+export type PublicGuildShowcase = PublicGuildSummary & {
+    memberCount: number;
+    missionsValidated: number;
+    songesCompleted: number;
+    dofusCompletionRate: number;
+};
+
+/**
+ * Landing v3 — "showcase mini-dashboards par guilde".
+ * Agrège des mini-KPI publics par guilde (membres actifs, missions validées,
+ * songes complétés, progression Dofus moyenne). Léger :
+ *  - limité aux 6 premières guildes publiques,
+ *  - cache Redis 5 min,
+ *  - agrégats groupés (pas une requête par guilde).
+ * Aucune donnée sensible : stats globales de guilde uniquement.
+ */
+export async function getPublicGuildShowcase(limit = 6): Promise<PublicGuildShowcase[]> {
+    try {
+        const redisKey = `public:guilds:showcase:${limit}`;
+        const cached = await (await import("@/lib/redis")).redis.get(redisKey).catch(() => null);
+        if (cached) return JSON.parse(cached) as PublicGuildShowcase[];
+
+        const guilds = await getPublicGuilds();
+        const featured = guilds.slice(0, limit);
+        if (featured.length === 0) return [];
+
+        // Récupère les IDs internes des guildes publiques
+        const guildConfigs = await db.guildConfig.findMany({
+            where: { discordGuildId: { in: featured.map(g => g.discordGuildId) } },
+            select: { id: true, discordGuildId: true },
+        });
+        const internalIds = guildConfigs.map(g => g.id);
+        if (internalIds.length === 0) return [];
+
+        // Agrégats groupés (une requête par type, pas par guilde)
+        const [memberCounts, missionsCount, songesCount, dofusStats] = await Promise.all([
+            db.userProfile.groupBy({
+                by: ["guildId"],
+                where: { guildId: { in: internalIds }, status: "ACTIVE" },
+                _count: true,
+            }),
+            db.submission.groupBy({
+                by: ["missionId"],
+                where: { status: "VALIDATED", mission: { guildId: { in: internalIds } } },
+                _count: true,
+            }),
+            db.dreamRun.groupBy({
+                by: ["guildId"],
+                where: { guildId: { in: internalIds }, status: "COMPLETED" },
+                _count: true,
+            }),
+            db.playerDofusQuestProgress.groupBy({
+                by: ["guildId"],
+                where: { guildId: { in: internalIds }, status: "COMPLETED" },
+                _count: true,
+            }),
+        ]);
+
+        const memberMap = new Map<string, number>(memberCounts.map(m => [m.guildId, m._count]));
+        const songesMap = new Map<string, number>(songesCount.map(s => [s.guildId, s._count]));
+        const dofusMap = new Map<string, number>(dofusStats.map(d => [d.guildId, d._count]));
+
+        // Total de missions par guilde pour calculer un taux (requête légère groupée)
+        const missionTotal = await db.mission.groupBy({
+            by: ["guildId"],
+            where: { guildId: { in: internalIds } },
+            _count: true,
+        });
+        const missionTotalMap = new Map<string, number>(missionTotal.map(m => [m.guildId, m._count]));
+
+        // Validations groupées par guilde (join mission.guildId)
+        const missionsForValidation = await db.mission.findMany({
+            where: { guildId: { in: internalIds } },
+            select: { id: true, guildId: true },
+        });
+        const missionGuildByMission = new Map<string, string>(missionsForValidation.map(m => [m.id, m.guildId]));
+        const validatedMap = new Map<string, number>();
+        for (const s of missionsCount) {
+            const gid = missionGuildByMission.get(s.missionId);
+            if (!gid) continue;
+            validatedMap.set(gid, (validatedMap.get(gid) || 0) + s._count);
+        }
+
+        const result: PublicGuildShowcase[] = featured.map(g => {
+            const internalId = guildConfigs.find(c => c.discordGuildId === g.discordGuildId)?.id;
+            const members = internalId ? (memberMap.get(internalId) || 0) : 0;
+            const validated = internalId ? (validatedMap.get(internalId) || 0) : 0;
+            const totalMissions = internalId ? (missionTotalMap.get(internalId) || 0) : 0;
+            const songes = internalId ? (songesMap.get(internalId) || 0) : 0;
+            const dofusCompleted = internalId ? (dofusMap.get(internalId) || 0) : 0;
+            const dofusTotal = totalMissions > 0 ? totalMissions : 1;
+            const dofusRate = Math.min(100, Math.round((dofusCompleted / dofusTotal) * 100));
+
+            return {
+                ...g,
+                memberCount: members,
+                missionsValidated: validated,
+                songesCompleted: songes,
+                dofusCompletionRate: dofusRate,
+            };
+        });
+
+        const { redis } = await import("@/lib/redis");
+        await redis.set(redisKey, JSON.stringify(result), "EX", 300).catch(() => { });
+        return result;
+    } catch (error) {
+        logger.error("Error fetching public guild showcase:", error);
+        return [];
+    }
+}
+
+
 /**
  * Get all guilds that have enabled their public presentation
  */

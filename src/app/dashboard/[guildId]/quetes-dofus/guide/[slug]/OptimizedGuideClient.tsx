@@ -3957,6 +3957,7 @@ export default function OptimizedGuideClient({
         hideDone={missionHideDone}
         setHideDone={setMissionHideDone}
         overallPct={overallPct}
+        guideName={guide.name}
         phaseLabel={selected ? `Phase ${selected.chapter > 0 ? selected.chapter : "Intro"} · ${selected.chapterLabel || ""}` : ""}
       />
     </>
@@ -3965,7 +3966,7 @@ export default function OptimizedGuideClient({
 
 // ─── Mode mission : sous-guide plein écran (navigation clavier) ───────────
 function MissionOverlay({
-  mission, checkedSteps, onToggle, onClose, focus, setFocus, hideDone, setHideDone, overallPct, phaseLabel
+  mission, checkedSteps, onToggle, onClose, focus, setFocus, hideDone, setHideDone, overallPct, guideName, phaseLabel
 }: {
   mission: { seq: Sequence; steps: SubStep[] } | null;
   checkedSteps: Set<string>;
@@ -3976,6 +3977,7 @@ function MissionOverlay({
   hideDone: boolean;
   setHideDone: (b: boolean) => void;
   overallPct: number;
+  guideName: string;
   phaseLabel: string;
 }) {
   const [copyIdx, setCopyIdx] = useState<number | null>(null);
@@ -3997,21 +3999,32 @@ function MissionOverlay({
     <div className="mission-view" role="dialog" aria-modal="true" aria-label={`Mode mission — ${seq.subGuideName}`}>
       {/* Header */}
       <div className="mission-header">
-        <button className="mission-back" onClick={onClose}>
-          ◀ Guide principal{phaseLabel ? <span className="mission-back-pct"> · {phaseLabel} — {overallPct}%</span> : null}
+        <button className="mission-back" onClick={onClose} type="button">
+          <ChevronLeft size={14}/> Retour au guide
         </button>
+
+        <div className="mission-mode-chip">Mode mission</div>
+
         <div className="mission-title-wrap">
-          <div className="mission-ref">{seq.subGuideRef} · Sous-guide</div>
+          <div className="mission-ref">Sous-guide {seq.subGuideRef} · {guideName}</div>
           <div className="mission-name">{seq.subGuideName}</div>
+          {phaseLabel && <div className="mission-phase">{phaseLabel} · {overallPct}% complété</div>}
         </div>
+
         <div className="mission-progress">
           <div className="mission-bar"><div style={{ width: `${pct}%` }} /></div>
-          <span className="mission-count">{done}/{total}</span>
+          <span className="mission-count">{done}/{total} étapes</span>
         </div>
-        <button className="mission-hide-toggle" onClick={() => setHideDone(!hideDone)}>
+
+        <button className="mission-hide-toggle" onClick={() => setHideDone(!hideDone)} type="button">
           {hideDone ? <Eye size={13}/> : <EyeOff size={13}/>}
           <span>{hideDone ? "Afficher validées" : "Masquer validées"}</span>
         </button>
+      </div>
+
+      {/* Bandeau orientation */}
+      <div className="mission-orient">
+        <span>Tu es dans le <strong>sous-guide {seq.subGuideRef}</strong> du guide <strong>« {guideName} »</strong>. Coche les étapes au fur et à mesure. Touche <kbd>Échap</kbd> pour revenir au guide classique.</span>
       </div>
 
       {/* Body : liste d'étapes compactes */}

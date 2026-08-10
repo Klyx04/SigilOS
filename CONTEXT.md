@@ -493,8 +493,10 @@
 ### ✅ Suppression du Bloc "Ton Stuff" dans les Songes
 - **Nettoyage UI / Formulaires Songes** ([CreateRunButton.tsx](file:///a:/SigilOS/src/components/songes/CreateRunButton.tsx) & [RunCard.tsx](file:///a:/SigilOS/src/components/songes/RunCard.tsx)) : Suppression complète du bloc "🛡️ Ton Stuff pour cette Run" (grille de miniatures, saisie d'un nom personnalisé de stuff, et sélection de build dans la galerie) à la fois lors de la création d'une run de Songes et dans la modale de candidature/postulation.
 
-### ✅ Filtres par Catégorie/Type dans le Popover de Notifications
-- **Filtres rapides intégrés** ([notification-bell.tsx](file:///a:/SigilOS/src/components/notifications/notification-bell.tsx)) : Ajout de puces de filtrage interactives par catégorie (Toutes, Missions, Songes, Donjons, Events, Sondages, Admin) dans le menu déroulant de la cloche de notification. La page dédiée ([page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/notifications/page.tsx)) possédait déjà ces filtres, ils sont désormais aussi accessibles directement depuis la cloche du header.
+### ✅ Refonte du Centre de Notifications (Filtres Statut, Historique & Layout Responsive)
+- **Nouvelle Server Action `getAllNotifications`** ([notification-actions.ts](file:///a:/SigilOS/src/server/actions/notification-actions.ts)) : Permet de récupérer à la fois les notifications lues et non lues (historique complet).
+- **Filtres par Statut** ([page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/notifications/page.tsx)) : Ajout d'onglets principaux **`Non lues`**, **`Historique (Lues)`** et **`Toutes`** avec compteurs dynamiques.
+- **Catégories toujours visibles & Fix Débordement UI** ([page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/notifications/page.tsx) & [notification-bell.tsx](file:///a:/SigilOS/src/components/notifications/notification-bell.tsx)) : Les puces de catégories (Missions, Succès, Songes, Donjons, Events, Sondages, Ocre, Admin) sont désormais **toujours visibles** avec leurs compteurs. Utilisation d'un layout responsive `flex-wrap` pour empêcher tout débordement ou tronquage du texte à droite de l'écran.
 
 ---
 

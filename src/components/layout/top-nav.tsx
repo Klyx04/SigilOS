@@ -8,15 +8,9 @@ import {
     ChevronRight,
     Menu,
     Home,
-    ScrollText,
-    Gamepad2,
-    Loader2,
-    Plus,
-    Minus,
-    CircleHelp,
+    Calendar,
     Rocket,
     Shield,
-    Search as SearchIcon,
     MessageSquare
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
@@ -25,7 +19,6 @@ import { FeedBell } from "@/components/notifications/feed-bell";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
-import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,17 +80,48 @@ interface TopNavProps {
     roadmapEnabled?: boolean;
 }
 
-function DeferredEventTicker({ 
-    eventsPromise, 
-    guildId, 
-    canViewCalendar 
-}: { 
-    eventsPromise: Promise<UpcomingEvent[]>, 
-    guildId: string, 
-    canViewCalendar: boolean 
+function NextEventPill({ eventsPromise, events, guildId, canViewCalendar }: {
+    eventsPromise?: Promise<UpcomingEvent[]>;
+    events: UpcomingEvent[];
+    guildId: string;
+    canViewCalendar: boolean;
+}) {
+    if (eventsPromise) {
+        return (
+            <Suspense fallback={null}>
+                <DeferredNextEventPill eventsPromise={eventsPromise} guildId={guildId} canViewCalendar={canViewCalendar} />
+            </Suspense>
+        );
+    }
+    return <EventPillInner events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+}
+
+function DeferredNextEventPill({ eventsPromise, guildId, canViewCalendar }: {
+    eventsPromise: Promise<UpcomingEvent[]>;
+    guildId: string;
+    canViewCalendar: boolean;
 }) {
     const events = use(eventsPromise);
-    return <EventTicker events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+    return <EventPillInner events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+}
+
+function EventPillInner({ events, guildId, canViewCalendar }: {
+    events: UpcomingEvent[];
+    guildId: string;
+    canViewCalendar: boolean;
+}) {
+    const next = events[0];
+    if (!next) return null;
+    return (
+        <Link
+            href={canViewCalendar ? `/dashboard/${guildId}/calendar` : "#"}
+            className="hidden lg:flex items-center gap-2 h-9 px-3 text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors shrink-0"
+            title={next.title}
+        >
+            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-xs font-medium truncate max-w-[140px]">{next.title}</span>
+        </Link>
+    );
 }
 
 export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadmapEnabled = false }: TopNavProps) {
@@ -166,33 +190,16 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                 </nav>
             </div>
 
-            {/* CENTER: Integrated Ticker & Search (2026 Standard) */}
-            <div className="flex-1 flex items-center justify-center gap-4 px-2 min-w-0">
+            {/* CENTER: intentionally empty — calme par défaut (direction 2026 §9.2) */}
+            <div className="flex-1 min-w-0" />
 
-                {/* Event Ticker (Primary visibility) */}
-                <div className="hidden md:flex flex-1 max-w-xl justify-center items-center gap-4">
-                    <LiveStreamBadge guildId={sidebarProps.guildId} />
-                    {eventsPromise ? (
-                        <Suspense fallback={
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/[0.03] border border-border/50 animate-pulse">
-                                <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />
-                                <div className="h-3 w-32 bg-muted/60 rounded-full" />
-                            </div>
-                        }>
-                            <DeferredEventTicker 
-                                eventsPromise={eventsPromise} 
-                                guildId={sidebarProps.guildId} 
-                                canViewCalendar={sidebarProps.user.canViewCalendar} 
-                            />
-                        </Suspense>
-                    ) : (
-                        <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
-                    )}
-                </div>
-            </div>
-
-            {/* RIGHT: Super Island (Integrated Command Center) */}
+            {/* RIGHT: Command Center (pilulier live + event, cloches, profil) */}
             <div className="flex items-center gap-2">
+                {/* Live stream badge (déplacé hors du centre) */}
+                <div className="hidden md:flex items-center shrink-0">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
+                </div>
+
                 <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
                     {/* 1. Smart Bar (Hidden on Mobile) */}
                     <div className="hidden sm:block border-r border-border">
@@ -201,6 +208,14 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                             onlineCount={sidebarProps.guildData?.activeCount}
                         />
                     </div>
+
+                    {/* 2. Next Event Pilulier */}
+                    <NextEventPill
+                        eventsPromise={eventsPromise}
+                        events={events}
+                        guildId={sidebarProps.guildId}
+                        canViewCalendar={sidebarProps.user.canViewCalendar}
+                    />
 
                     {/* 2. Interactive Tools */}
                     <div className="flex items-center px-1">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Gem, Users, Search, Sparkles, RefreshCw, CheckCircle2, BookOpen, ChevronLeft, ArrowRight, X, Navigation, Trophy, Construction, Zap, TreePine } from "lucide-react";
+import { Gem, Users, Search, Sparkles, RefreshCw, CheckCircle2, BookOpen, ChevronLeft, ArrowRight, X, Navigation, Trophy, Construction, Zap, TreePine, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { DofusGemCard } from "./DofusGemCard";
@@ -11,13 +11,13 @@ import { OptimizedGuideTab } from "./OptimizedGuideTab";
 import { QuestFeedbackButton } from "./QuestFeedbackButton";
 import { getMemberAllGuidesProgress } from "@/server/actions/optimized-guide-actions";
 import { toast } from "sonner";
-import type { DofusItemWithProgress, GuildDofusStats, MemberDofusSummary } from "@/server/actions/dofus-quest-actions";
+import type { DofusItemWithProgress, GuildDofusStats, MemberDofusSummary, GuildMemberSummary } from "@/server/actions/dofus-quest-actions";
 
 type Tab = "menu" | "dofus" | "guide" | "guilde";
 
 interface DofusQuestHubProps {
     dofusList: DofusItemWithProgress[];
-    guildStats: { stats: GuildDofusStats[]; topMembers: MemberDofusSummary[]; totalMembers: number } | null;
+    guildStats: { stats: GuildDofusStats[]; topMembers: MemberDofusSummary[]; members: GuildMemberSummary[]; totalMembers: number } | null;
     guides?: any[];
     timelineGuides?: any[];
     rushSylvestreGuide?: { isUnderConstruction?: boolean } | null;
@@ -94,6 +94,15 @@ export function DofusQuestHub({
         }
     }, [searchParams]);
 
+    useEffect(() => {
+        if (!selectedMember) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setSelectedMember(null);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [selectedMember]);
+
     const normalDofusList = dofusList.filter(d => !d.isMeta);
     const totalObtained = dofusList.filter((d) => d.isObtained).length;
     const totalNormalDofus = normalDofusList.length;
@@ -139,6 +148,27 @@ export function DofusQuestHub({
         }).sort((a, b) => b.completedCount - a.completedCount);
     }, [selectedGuideDetail, selectedGuideGuildProgress]);
 
+    const ficheDofusList = useMemo(() => {
+        return dofusList
+            .filter(d => !d.isMeta)
+            .map((dofus) => {
+                const dofusStat = guildStats?.stats.find(s => s.slug === dofus.slug);
+                const mp = dofusStat?.membersProgress.find(m => m.profileId === selectedMember?.profileId);
+                return {
+                    dofus,
+                    isObtained: mp?.isObtained ?? false,
+                    percent: mp?.percent ?? 0,
+                };
+            })
+            .sort((a, b) => {
+                const aOb = a.isObtained ? 1 : 0;
+                const bOb = b.isObtained ? 1 : 0;
+                if (aOb !== bOb) return bOb - aOb;
+                if (a.percent !== b.percent) return b.percent - a.percent;
+                return a.dofus.nameShort.localeCompare(b.dofus.nameShort);
+            });
+    }, [dofusList, guildStats, selectedMember]);
+
     const guideColor = useMemo(() => {
         if (!selectedGuideDetail?.slug) return "#6366f1";
         return dofusList.find(d => d.slug === selectedGuideDetail.slug)?.color || "#6366f1";
@@ -152,7 +182,7 @@ export function DofusQuestHub({
                 {activeTab !== "menu" ? (
                     <button
                         onClick={() => handleTabChange("menu")}
-                        className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-white/10 bg-zinc-900/90 hover:bg-zinc-800 hover:border-emerald-500/40 text-xs font-black uppercase tracking-[0.2em] text-zinc-200 hover:text-white transition-all shadow-md group backdrop-blur-md cursor-pointer"
+                        className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-zinc-900/90 hover:border-emerald-500/60 hover:from-emerald-500/20 text-xs font-black uppercase tracking-[0.18em] text-emerald-200 hover:text-white transition-all shadow-lg shadow-black/30 group backdrop-blur-md cursor-pointer"
                     >
                         <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                             <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
@@ -437,6 +467,7 @@ export function DofusQuestHub({
                                     <GuildDofusOverview
                                         stats={guildStats?.stats || []}
                                         topMembers={guildStats?.topMembers || []}
+                                        members={guildStats?.members || []}
                                         totalMembers={guildStats?.totalMembers || 0}
                                         guildId={guildId}
                                         onMemberClick={(profileId, pseudo, avatarUrl) => handleMemberClick(profileId, pseudo, avatarUrl)}
@@ -453,6 +484,9 @@ export function DofusQuestHub({
             <AnimatePresence>
                 {selectedMember && (
                     <motion.div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={selectedMember ? `Fiche du membre — ${selectedMember.pseudo}` : "Fiche du membre"}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -471,7 +505,7 @@ export function DofusQuestHub({
                         >
                             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[80px] pointer-events-none" />
 
-                            <div className="flex items-center justify-between p-6 border-b border-white/5">
+                            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/5">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 overflow-hidden flex-shrink-0 flex items-center justify-center">
                                         {selectedMember.avatarUrl ? (
@@ -490,24 +524,21 @@ export function DofusQuestHub({
                                 </button>
                             </div>
 
-                            <div className="p-6 flex flex-col gap-6 max-h-[70vh] overflow-y-auto">
+                            <div className="p-4 sm:p-6 flex flex-col gap-6 max-h-[70vh] overflow-y-auto">
                                 <div>
-                                    <div className="flex items-center gap-2 mb-3">
+                                    <div className="flex items-center gap-2 mb-1">
                                         <Gem className="w-4 h-4 text-emerald-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Progression des Dofus</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Progression personnelle des Dofus</span>
                                     </div>
+                                    <p className="text-[9px] text-zinc-600 mb-3">Progression de <span className="text-zinc-300 font-bold">{selectedMember?.pseudo}</span> — obtenus en premier, puis par avancement.</p>
                                     <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                                        {dofusList.filter(d => !d.isMeta).map((dofus) => {
-                                            const dofusStat = guildStats?.stats.find(s => s.slug === dofus.slug);
-                                            const memberProgress = dofusStat?.membersProgress.find(m => m.profileId === selectedMember.profileId);
-                                            const isObtained = memberProgress?.isObtained ?? false;
-                                            const percent = memberProgress?.percent ?? 0;
+                                        {ficheDofusList.map(({ dofus, isObtained, percent }) => {
                                             const color = dofus.color || "#6366f1";
                                             return (
                                                 <div
                                                     key={dofus.slug}
                                                     title={`${dofus.nameShort} — ${isObtained ? "Obtenu ✓" : `${percent}%`}`}
-                                                    className={`relative flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${isObtained ? "bg-emerald-500/5 border-emerald-500/20" : percent > 0 ? "bg-white/[0.02] border-white/[0.08]" : "bg-black/20 border-white/5 opacity-40"}`}
+                                                    className={`relative flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all ${isObtained ? "bg-emerald-500/10 border-emerald-500/40 ring-1 ring-emerald-500/20" : percent > 0 ? "bg-white/[0.02] border-white/[0.08]" : "bg-black/20 border-white/5 opacity-40"}`}
                                                 >
                                                     <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center" style={{ background: `${color}15` }}>
                                                         {dofus.imageUrl ? (
@@ -517,6 +548,13 @@ export function DofusQuestHub({
                                                         )}
                                                     </div>
                                                     <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-1">{dofus.nameShort}</span>
+                                                    {isObtained ? (
+                                                        <span className="text-[7px] font-black text-emerald-400 uppercase tracking-wider">Obtenu</span>
+                                                    ) : percent > 0 ? (
+                                                        <span className="text-[7px] font-black text-indigo-300 uppercase tracking-wider">{percent}%</span>
+                                                    ) : (
+                                                        <span className="text-[7px] font-black text-zinc-700 uppercase tracking-wider">À faire</span>
+                                                    )}
                                                     {isObtained && (
                                                         <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.5)]">
                                                             <CheckCircle2 className="w-2.5 h-2.5 text-white" />
@@ -536,7 +574,7 @@ export function DofusQuestHub({
                                 <div>
                                     <div className="flex items-center gap-2 mb-3">
                                         <BookOpen className="w-4 h-4 text-indigo-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Progression des Guides</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Progression personnelle des guides</span>
                                     </div>
                                     {isMemberLoading ? (
                                         <div className="flex items-center justify-center py-8">
@@ -562,7 +600,14 @@ export function DofusQuestHub({
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center justify-between mb-1.5">
-                                                                <span className="text-[10px] font-black text-white uppercase tracking-wider truncate">{gp.guideName}</span>
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    <span className="text-[10px] font-black text-white uppercase tracking-wider truncate">{gp.guideName}</span>
+                                                                    {gp.guideSlug && (
+                                                                        <Link href={`/dashboard/${guildId}/quetes-dofus/guide/${gp.guideSlug}`} target="_blank" className="text-indigo-400 hover:text-indigo-200 transition-colors flex-shrink-0" title="Ouvrir le guide">
+                                                                            <ExternalLink className="w-3 h-3" />
+                                                                        </Link>
+                                                                    )}
+                                                                </div>
                                                                 <span className="text-[10px] font-black italic ml-2 flex-shrink-0" style={{ color }}>{gp.percent}%</span>
                                                             </div>
                                                             <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">

@@ -51,7 +51,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
         return () => clearInterval(interval);
     }, [guildId]);
 
-    const handleDismiss = (e: React.MouseEvent) => {
+    const handleDismiss = (e: React.SyntheticEvent) => {
         e.preventDefault();
         e.stopPropagation();
         localStorage.setItem(`live-badge-dismissed-${guildId}`, Date.now().toString());
@@ -96,13 +96,23 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                         {text}
                     </span>
 
-                    <button
+                    <span
+                        role="button"
+                        tabIndex={0}
                         onClick={handleDismiss}
-                        className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-foreground/20 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDismiss(e);
+                            }
+                        }}
+                        className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-foreground/20 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                         title="Cacher pour 4h"
+                        aria-label="Cacher pour 4h"
                     >
                         <X className="w-2.5 h-2.5" />
-                    </button>
+                    </span>
                 </button>
             </div>
 

@@ -732,59 +732,18 @@ export function AppSidebar({
                         </div>
 
                         {/* Quick Access Grid */}
-                        <div className="grid grid-cols-3 gap-2">
-                             <Link 
-                                 href="/docs" 
-                                 className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-colors duration-150 overflow-hidden "
-                            >
-                                {/* Active Inner Glow */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-                                
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-emerald-400  opacity-0 group-hover:opacity-40 transition-opacity" />
-                                    <BookOpen className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400  transition-colors duration-150 relative z-10" />
-                                </div>
-                                
-                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500/90 group-hover:text-emerald-400 transition-colors duration-150 relative z-10">Docs</span>
-                                
-                                {/* Kinetic Indicator */}
-                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-150" />
+                        <div className="flex items-center gap-1">
+                            <Link href="/docs" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Documentation">
+                                <BookOpen className="w-4 h-4" />
+                                <span className="text-[11px] font-medium">Docs</span>
                             </Link>
-                            
-                            <Link 
-                                href="/changelog" 
-                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-colors duration-150 overflow-hidden "
-                            >
-                                {/* Active Inner Glow */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-                                
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-emerald-400  opacity-0 group-hover:opacity-40 transition-opacity" />
-                                    <History className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400  transition-colors duration-150 relative z-10" />
-                                </div>
-                                
-                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500/90 group-hover:text-emerald-400 transition-colors duration-150 relative z-10">Maj</span>
-                                
-                                {/* Kinetic Indicator */}
-                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-150" />
+                            <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Changelog">
+                                <History className="w-4 h-4" />
+                                <span className="text-[11px] font-medium">Maj</span>
                             </Link>
-
-                            <Link 
-                                href={`/dashboard/${guildId}/tracker`} 
-                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-colors duration-150 overflow-hidden "
-                            >
-                                {/* Active Inner Glow */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-                                
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-emerald-400  opacity-0 group-hover:opacity-40 transition-opacity" />
-                                    <Bug className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400  transition-colors duration-150 relative z-10" />
-                                </div>
-                                
-                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500/90 group-hover:text-emerald-400 transition-colors duration-150 relative z-10">Bugs</span>
-                                
-                                {/* Kinetic Indicator */}
-                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-150" />
+                            <Link href={`/dashboard/${guildId}/tracker`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Tracker de bugs">
+                                <Bug className="w-4 h-4" />
+                                <span className="text-[11px] font-medium">Bugs</span>
                             </Link>
                         </div>
                     </div>
@@ -884,9 +843,7 @@ function NavItem({
             }
             className={cn(
                 "group relative flex items-center gap-2.5 transition-colors duration-150 rounded-xl border outline-none mx-2 mb-0.5 overflow-hidden",
-                item.isDashboard 
-                    ? "px-4 py-3 bg-zinc-900/40 border-white/10  hover:bg-zinc-900/60" 
-                    : "px-3 py-1",
+                "px-3 py-1",
                 isActive 
                     ? cn(
                         "z-10 bg-white/[0.03] border-white/10",
@@ -915,8 +872,8 @@ function NavItem({
             {/* Icon Container */}
             <div className={cn(
                 "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
-                item.isDashboard ? "p-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "p-1.5 bg-white/[0.06] border border-white/10 group-hover:border-white/20",
-                isActive && !item.isDashboard 
+                "p-1.5 bg-white/[0.06] border border-white/10 group-hover:border-white/20",
+                isActive 
                     ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
                     : (!item.imgSrc ? cn(scheme.text, "opacity-70 group-hover:opacity-100") : "text-muted-foreground group-hover:text-foreground")
             )}>
@@ -930,7 +887,7 @@ function NavItem({
 
                 {item.imgSrc ? (
                     <div className={cn("relative transition-transform duration-150", 
-                        item.isDashboard ? "h-6 w-6" : "h-5 w-5",
+                        "h-5 w-5",
                         ""
                     )}>
                         <Image 
@@ -946,7 +903,7 @@ function NavItem({
                     </div>
                 ) : (
                     <item.icon className={cn(
-                        item.isDashboard ? "h-6 w-6" : "h-5 w-5", 
+                        "h-5 w-5", 
                         "transition-colors duration-150 ",
                         (isActive || !item.imgSrc) && ""
                     )} />
@@ -960,9 +917,6 @@ function NavItem({
                 )}>
                     {item.name}
                 </span>
-                {item.isDashboard && (
-                    <span className="text-[11px] font-medium text-muted-foreground/70">Accès Principal</span>
-                )}
             </div>
 
             {/* Notification Badge */}

@@ -803,7 +803,7 @@ function SectionTitle({ label, collapsible: _collapsible, isOpen: _isOpen, onTog
     const isPinned = label.includes("Favori");
 
     return (
-        <div className="flex items-center gap-4 px-4 py-2 mb-2 mt-4 group/title select-none relative">
+        <div className="flex items-center gap-3 px-4 py-1 mb-1 mt-2.5 group/title select-none relative">
             {/* Background Pill - UI 2026 */}
             <div className="absolute inset-x-2 inset-y-0 bg-white/[0.02] dark:bg-white/[0.03] rounded-2xl -z-10 group-hover/title:bg-white/[0.05] transition-colors duration-150" />
             
@@ -883,13 +883,13 @@ function NavItem({
                                         : undefined
             }
             className={cn(
-                "group relative flex items-center gap-3.5 transition-colors duration-150 rounded-2xl border outline-none mx-2 mb-1 overflow-hidden",
+                "group relative flex items-center gap-2.5 transition-colors duration-150 rounded-xl border outline-none mx-2 mb-0.5 overflow-hidden",
                 item.isDashboard 
-                    ? "px-6 py-5 bg-zinc-900/40 border-white/10  hover:bg-zinc-900/60" 
-                    : "px-4 py-3",
+                    ? "px-4 py-3 bg-zinc-900/40 border-white/10  hover:bg-zinc-900/60" 
+                    : "px-3 py-1",
                 isActive 
                     ? cn(
-                        "z-10 bg-white/[0.03] backdrop- border-white/10",
+                        "z-10 bg-white/[0.03] border-white/10",
                         scheme.glow
                     )
                     : "text-muted-foreground/70 border-transparent hover:text-foreground hover:bg-white/[0.04] hover:border-white/5  "
@@ -915,7 +915,7 @@ function NavItem({
             {/* Icon Container */}
             <div className={cn(
                 "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
-                item.isDashboard ? "p-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "p-2 bg-white/[0.06] border border-white/10 group-hover:border-white/20",
+                item.isDashboard ? "p-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "p-1.5 bg-white/[0.06] border border-white/10 group-hover:border-white/20",
                 isActive && !item.isDashboard 
                     ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
                     : (!item.imgSrc ? cn(scheme.text, "opacity-70 group-hover:opacity-100") : "text-muted-foreground group-hover:text-foreground")
@@ -955,7 +955,7 @@ function NavItem({
 
             <div className="flex flex-col min-w-0 z-10 transition-transform duration-150 ">
                 <span className={cn(
-                    "text-[13px] font-medium transition-colors duration-150",
+                    "text-[13px] leading-tight font-medium transition-colors duration-150",
                     isActive ? "text-foreground " : "text-muted-foreground/90 group-hover:text-foreground"
                 )}>
                     {item.name}

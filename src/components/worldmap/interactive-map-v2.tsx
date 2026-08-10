@@ -1540,6 +1540,38 @@ export default function InteractiveMapV2({
             <div className="flex-1 relative flex overflow-hidden">
                 {activeTab === 'games' && gamePhase !== 'idle' && <ForceFullscreen />}
 
+                {/* HUD + Quitter + Croix en plein écran pendant une partie */}
+                {activeTab === 'games' && gamePhase !== 'idle' && isFullscreen && activeSession && (
+                    <>
+                        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[10001] pointer-events-auto">
+                            <GeoguesserHUD
+                                round={activeSession.currentRound || 1}
+                                maxRounds={activeSession.maxRounds || 5}
+                                timeLeft={timeLeft}
+                                score={score}
+                                gamePhase={gamePhase as any}
+                                spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                onReportMap={handleReportMap}
+                            />
+                        </div>
+                        <button
+                            onClick={handleLeaveSession}
+                            className="fixed top-4 right-20 z-[10001] px-4 py-2.5 rounded-full bg-red-600/90 border border-red-400 text-white font-black uppercase text-xs italic flex items-center gap-2 shadow-2xl hover:bg-red-500 transition-colors"
+                            title="Quitter la partie"
+                        >
+                            <LogOut size={16} />
+                            Quitter
+                        </button>
+                        <button
+                            onClick={() => applyFullscreen(false)}
+                            className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-white/20 text-white flex items-center justify-center hover:bg-red-600/90 hover:border-red-400 shadow-2xl transition-colors"
+                            title="Quitter le plein écran"
+                        >
+                            <X size={22} />
+                        </button>
+                    </>
+                )}
+
 
                 {/* 🎯 MODE SIGIL GUESSER - ACTIVE GAMEPLAY */}
                 {activeTab === 'games' && gamePhase === 'playing' && (
@@ -1825,42 +1857,6 @@ export default function InteractiveMapV2({
                             highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
                         />
-
-                        {/* Quitter la partie + Croix de sortie du plein écran */}
-                        {isFullscreen && (
-                            <>
-                                <button
-                                    onClick={handleLeaveSession}
-                                    className="fixed top-4 right-20 z-[10000] px-4 py-2.5 rounded-full bg-red-600/90 border border-red-400 text-white font-black uppercase text-xs italic flex items-center gap-2 shadow-2xl hover:bg-red-500 transition-colors"
-                                    title="Quitter la partie"
-                                >
-                                    <LogOut size={16} />
-                                    Quitter
-                                </button>
-                                <button
-                                    onClick={() => applyFullscreen(false)}
-                                    className="fixed top-4 right-4 z-[10000] w-11 h-11 rounded-full bg-black/85 border border-white/20 text-white flex items-center justify-center hover:bg-red-600/90 hover:border-red-400 shadow-2xl transition-colors"
-                                    title="Quitter le plein écran"
-                                >
-                                    <X size={22} />
-                                </button>
-                            </>
-                        )}
-
-                        {/* HUD flottant en plein écran (score/timer/round visibles) */}
-                        {isFullscreen && activeTab === 'games' && gamePhase !== 'idle' && activeSession && (
-                            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[10001] pointer-events-auto">
-                                <GeoguesserHUD
-                                    round={activeSession.currentRound || 1}
-                                    maxRounds={activeSession.maxRounds || 5}
-                                    timeLeft={timeLeft}
-                                    score={score}
-                                    gamePhase={gamePhase as any}
-                                    spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
-                                    onReportMap={handleReportMap}
-                                />
-                            </div>
-                        )}
 
                         {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
 

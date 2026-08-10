@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AuroraBackground } from "@/components/ui/aurora-background";
+
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
 import { getActivePresence } from "@/server/actions/presence-actions";
@@ -111,11 +111,20 @@ export default async function DashboardPage({
     const topActivityName = guildStats?.records?.[0]?.label || "";
     const topActivityValue = guildStats?.records?.[0]?.value || "";
 
+    // Contextual greeting (direction 2026 : header contextuel, plus de watermark ghost)
+    const hour = new Date().getHours();
+    const greeting = hour < 6 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const firstName = (user.name || "Aventurier").split(" ")[0];
+    const nextEvent = upcomingEvents[0] as any;
+    const contextLine = nextEvent?.title
+        ? `Prochain rendez-vous : ${nextEvent.title}`
+        : "Rien de prévu — la guilde est au calme";
+
     return (
         <div className="relative w-full min-h-full pb-20">
-            {/* Background Decorators */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] bg-[radial-gradient(circle_at_50%_50%,var(--primary),transparent_70%)]" />
-            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-[0.02] dark:opacity-[0.04] saturate-100 blur-3xl scale-125 transition-opacity duration-1000" />
+            
+            
+            
 
             {/* Modals */}
             {user.isAdmin && profile && !profile.hasSeenWelcome && (
@@ -132,16 +141,18 @@ export default async function DashboardPage({
 
             <div className="relative z-10 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
 
-                {/* ── 0. Subtle page label ─────────────────────────────── */}
-                <header className="flex items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground/5 drop-shadow-sm uppercase italic select-none">
-                        Dashboard
-                    </h1>
+                <header className="flex items-end justify-between gap-6">
+                    <div>
+                        <h1 className="text-[26px] md:text-[28px] font-bold italic tracking-tight text-foreground">
+                            {greeting} {firstName} ⚔
+                        </h1>
+                        <p className="text-[13px] text-muted-foreground mt-1">{contextLine}</p>
+                    </div>
                     <DashboardAdminTourButton isAdmin={user.isAdmin} />
                 </header>
 
                 {/* ── 1. QUICK STATS ROW ───────────────────────────────── */}
-                <section data-tour="dash-stats" className="animate-in fade-in slide-in-from-top-2 duration-500">
+                <section data-tour="dash-stats" className="animate-in fade-in slide-in-from-top-1 duration-150">
                     <QuickStatsRow
                         onlineCount={onlineCount}
                         totalMembers={totalMembers}
@@ -156,20 +167,20 @@ export default async function DashboardPage({
 
                 {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
                 {hasRaidNow && (
-                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-2 duration-500">
+                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-1 duration-150">
                         <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
                     </section>
                 )}
 
                 {/* ── 3. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
                 {focusData && !hasRaidNow && (
-                    <section data-tour="dash-focus" className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                    <section data-tour="dash-focus" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                         <EchoDuSigil data={focusData} />
                     </section>
                 )}
 
                 {/* ── 4. EVENTS + SONDAGES ─────────────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <section data-tour="dash-events" className="lg:col-span-7 min-h-[340px]">
                         <UpcomingEventsWidget
                             guildId={guildId}
@@ -185,7 +196,7 @@ export default async function DashboardPage({
                 </div>
 
                 {/* ── 5. GROUPES ACTIFS + GALERIE ──────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <section data-tour="dash-groups" className="min-h-[360px]">
                         <RecentDjPosts guildId={guildId} groups={activeGroups} />
                     </section>
@@ -195,7 +206,7 @@ export default async function DashboardPage({
                 </div>
 
                 {/* ── 6. ALMANAX + ACTIVITÉ ────────────────────────────── */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <section data-tour="dash-almanax">
                         <AlmanaxWidget
                             guildId={guildId}

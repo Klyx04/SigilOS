@@ -110,7 +110,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
 
             {/* LEFT: Mobile Trigger & Clear Readable Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">
@@ -154,7 +154,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     className={cn(
                                         "px-2 py-1 rounded-md transition-colors truncate max-w-[120px] lg:max-w-[200px]",
                                         isLast 
-                                            ? "text-white font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-sm" 
+                                            ? "text-white font-bold bg-white/[0.04] border border-white/10 text-zinc-100" 
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 font-medium"
                                     )}
                                 >
@@ -205,13 +205,13 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     {/* 2. Interactive Tools */}
                     <div className="flex items-center px-1">
                         {roadmapEnabled && (
-                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-amber-500 transition-colors" title="Roadmap">
+                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="Roadmap">
                                 <Rocket className="w-4 h-4" />
                             </Link>
                         )}
 
                         {sidebarProps.user.isAdmin && (
-                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-rose-500 transition-colors" title="RBAC / Permissions">
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />
                             </Link>
                         )}
@@ -242,8 +242,8 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
-                                <span className="text-[10px] font-black uppercase tracking-tighter hidden xl:inline">Live</span>
-                                <span className="bg-emerald-500 text-emerald-950 text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                                <span className="text-[11px] font-semibold uppercase tracking-tighter hidden xl:inline">Live</span>
+                                <span className="bg-emerald-500 text-emerald-950 text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
                                     {roomCount}
                                 </span>
                             </Button>
@@ -261,12 +261,12 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                 {((sidebarProps as any).modules?.chat) && (
                     <button 
                         onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
-                        className="h-9 px-3 flex items-center justify-center gap-2 text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all group relative mr-2 ring-1 ring-indigo-500/10 hover:ring-indigo-500/30"
+                        className="h-9 px-3 flex items-center justify-center gap-2 text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-colors group relative mr-2 ring-1 ring-emerald-500/10 hover:ring-emerald-500/30"
                         title="Chat de Guilde"
                     >
-                        <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Chat Live</span>
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse border-[2px] border-background" />
+                        <MessageSquare className="w-4 h-4  transition-transform" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider hidden sm:inline">Chat Live</span>
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-[2px] border-background" />
                     </button>
                 )}
 

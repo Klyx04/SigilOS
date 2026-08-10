@@ -344,7 +344,7 @@ export function AppSidebar({
             <div className="p-4 pb-2 space-y-4">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-4 px-1 group transition-all">
-                    <div className="relative h-9 w-9 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_0_12px_var(--primary)]">
+                    <div className="relative h-9 w-9 transition-colors duration-150  ">
                         <Image
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
@@ -353,8 +353,8 @@ export function AppSidebar({
                             className="object-contain transition-all"
                         />
                     </div>
-                    <span className="text-lg font-black tracking-[0.4em] text-foreground/90 uppercase transition-all group-hover:text-foreground">
-                        SIGIL<span className="text-primary tracking-[0.3em]">OS</span>
+                    <span className="text-lg font-bold tracking-[0.2em] text-foreground/90 uppercase transition-all group-hover:text-foreground">
+                        SIGIL<span className="text-primary tracking-[0.18em]">OS</span>
                     </span>
                 </Link>
 
@@ -372,11 +372,11 @@ export function AppSidebar({
                                     <div className="flex items-center gap-2 min-w-0">
                                         <Avatar className="h-6 w-6 rounded-lg border border-border/20 shrink-0">
                                             <AvatarImage src={guildData.iconUrl || undefined} />
-                                            <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
+                                            <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
                                                 {guildData.name?.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[11px] font-black text-muted-foreground group-hover:text-foreground transition-colors truncate w-[130px]">
+                                        <span className="text-[13px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors truncate w-[130px]">
                                             {guildData.name}
                                         </span>
                                     </div>
@@ -384,11 +384,11 @@ export function AppSidebar({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
-                                className="w-64 bg-background/98 border border-border shadow-2xl p-1 backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
+                                className="w-64 bg-background/98 border border-border shadow-2xl p-1 backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-150"
                                 align="start"
                                 sideOffset={8}
                             >
-                                <DropdownMenuLabel className="px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-[0.3em] font-black italic">
+                                <DropdownMenuLabel className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                                     Changer de guilde
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-border mx-1 mb-2" />
@@ -398,7 +398,7 @@ export function AppSidebar({
                                             <Link
                                                 href={`/dashboard/${g.id}`}
                                                 className={cn(
-                                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200",
+                                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors duration-150",
                                                     g.id === guildId
                                                         ? "bg-primary/10 border border-primary/20 text-foreground"
                                                         : "hover:bg-muted/80 text-muted-foreground hover:text-foreground"
@@ -406,18 +406,18 @@ export function AppSidebar({
                                             >
                                                 <Avatar className="h-6 w-6 rounded-md border border-border/20">
                                                     <AvatarImage src={g.iconUrl || undefined} />
-                                                    <AvatarFallback className="text-[9px] bg-muted/60 text-muted-foreground/60">
+                                                    <AvatarFallback className="text-[10px] bg-muted/60 text-muted-foreground/60">
                                                         {g.name?.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className={cn("text-xs font-black truncate", g.id === guildId ? "text-primary" : "")}>
+                                                    <span className={cn("text-sm font-semibold truncate", g.id === guildId ? "text-primary" : "")}>
                                                         {g.name}
                                                     </span>
-                                                    {g.id === guildId && <span className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Connecté</span>}
+                                                    {g.id === guildId && <span className="text-[10px] font-medium text-primary/70">Connecté</span>}
                                                 </div>
                                                 {g.id === guildId && (
-                                                    <div className="ml-auto w-1 h-4 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
+                                                    <div className="ml-auto w-1 h-4 bg-primary rounded-full " />
                                                 )}
                                             </Link>
                                         </DropdownMenuItem>
@@ -456,7 +456,7 @@ export function AppSidebar({
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: "auto", opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                                            transition={{ duration: 0.2, ease: "easeInOut" }}
                                             className="space-y-1 px-1 overflow-hidden"
                                         >
                                             {pinnedItems.map((item) => (
@@ -472,7 +472,7 @@ export function AppSidebar({
                                             ))}
                                         </motion.div>
                                     )}
-                                    <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-amber-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                                    <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                                 </div>
                         )}
 
@@ -505,7 +505,7 @@ export function AppSidebar({
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
                                     className="space-y-1 px-1 overflow-hidden"
                                 >
                                     {/* La guilde - Hub Link */}
@@ -584,7 +584,7 @@ export function AppSidebar({
                                     )}
                                 </motion.div>
                             )}
-                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-emerald-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-150" />
                         </div>
 
                         {/* SECTION: PROGRESSION */}
@@ -601,7 +601,7 @@ export function AppSidebar({
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: "auto", opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
                                         className="space-y-1 px-1 overflow-hidden"
                                     >
                                         {NAV_PROGRESSION.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
@@ -617,7 +617,7 @@ export function AppSidebar({
                                         ))}
                                     </motion.div>
                                 )}
-                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-amber-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                             </div>
                         )}
 
@@ -633,7 +633,7 @@ export function AppSidebar({
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
                                     className="space-y-1 px-1 overflow-hidden"
                                 >
                                     {NAV_TOOLS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
@@ -649,7 +649,7 @@ export function AppSidebar({
                                     ))}
                                 </motion.div>
                             )}
-                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                         </div>
 
                         <div key="section-others" className="relative group/section">
@@ -664,7 +664,7 @@ export function AppSidebar({
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
                                     className="space-y-1 px-1 overflow-hidden"
                                 >
                                     {NAV_OTHERS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
@@ -680,7 +680,7 @@ export function AppSidebar({
                                     ))}
                                 </motion.div>
                             )}
-                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-zinc-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                         </div>
 
                         {/* SECTION: SUPERVISION (ADMIN) */}
@@ -697,7 +697,7 @@ export function AppSidebar({
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: "auto", opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
                                         className="space-y-1 px-1 overflow-hidden"
                                     >
                                         <NavItem 
@@ -710,7 +710,7 @@ export function AppSidebar({
                                         />
                                     </motion.div>
                                 )}
-                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-rose-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                             </div>
                         )}
 
@@ -725,7 +725,7 @@ export function AppSidebar({
                                     onToggle={() => setHiddenOpen(!hiddenOpen)} 
                                 />
                                 {hiddenOpen && (
-                                    <div className="space-y-0.5 animate-in slide-in-from-top-1 duration-200">
+                                    <div className="space-y-0.5 animate-in slide-in-from-top-1 duration-150">
                                         {hiddenItems.map((item) => (
                                             <NavItem 
                                                 key={`hidden-${item.href}`} 
@@ -749,7 +749,7 @@ export function AppSidebar({
             {/* 3. FOOTER: COMMAND CENTER HUD */}
             <div className="p-4 bg-zinc-950/40 border-t border-white/5 space-y-4 backdrop-blur-3xl relative overflow-hidden">
                 {/* Background Ambient Hud Glow */}
-                <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5 blur-[60px] -z-10" />
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5  -z-10" />
                 
                 {!mounted ? (
                     <div className="w-full h-24 bg-white/5 animate-pulse rounded-2xl" />
@@ -759,7 +759,7 @@ export function AppSidebar({
                         <div className="relative group/search">
                             <SidebarSearch guildId={guildId} />
                             {/* Decorative Corner Accents */}
-                            <div className="absolute top-0 left-0 w-1 h-1 border-t border-l border-white/20 rounded-tl-[2px]" />
+                            <div className="absolute top-0 left-0 w-1 h-1 " />
                             <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-white/20 rounded-tr-[2px]" />
                         </div>
 
@@ -767,56 +767,56 @@ export function AppSidebar({
                         <div className="grid grid-cols-3 gap-2">
                              <Link 
                                  href="/docs" 
-                                 className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-all duration-500 overflow-hidden shadow-2xl active:scale-95"
+                                 className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-colors duration-150 overflow-hidden "
                             >
                                 {/* Active Inner Glow */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                                 
                                 <div className="relative">
-                                    <div className="absolute inset-0 bg-emerald-400 blur-lg opacity-0 group-hover:opacity-40 transition-opacity" />
-                                    <BookOpen className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400 group-hover:scale-110 transition-all duration-500 relative z-10" />
+                                    <div className="absolute inset-0 bg-emerald-400  opacity-0 group-hover:opacity-40 transition-opacity" />
+                                    <BookOpen className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400  transition-colors duration-150 relative z-10" />
                                 </div>
                                 
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500/90 group-hover:text-emerald-400 transition-all duration-300 relative z-10">Docs</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500/90 group-hover:text-emerald-400 transition-colors duration-150 relative z-10">Docs</span>
                                 
                                 {/* Kinetic Indicator */}
-                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-700" />
+                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-150" />
                             </Link>
                             
                             <Link 
                                 href="/changelog" 
-                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-indigo-500/10 border border-white/5 hover:border-indigo-500/50 transition-all duration-500 overflow-hidden shadow-2xl active:scale-95"
+                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-colors duration-150 overflow-hidden "
                             >
                                 {/* Active Inner Glow */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                                 
                                 <div className="relative">
-                                    <div className="absolute inset-0 bg-indigo-400 blur-lg opacity-0 group-hover:opacity-40 transition-opacity" />
-                                    <History className="w-4 h-4 text-indigo-500/60 group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-500 relative z-10" />
+                                    <div className="absolute inset-0 bg-emerald-400  opacity-0 group-hover:opacity-40 transition-opacity" />
+                                    <History className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400  transition-colors duration-150 relative z-10" />
                                 </div>
                                 
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-500/90 group-hover:text-indigo-400 transition-all duration-300 relative z-10">Maj</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500/90 group-hover:text-emerald-400 transition-colors duration-150 relative z-10">Maj</span>
                                 
                                 {/* Kinetic Indicator */}
-                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-indigo-500/0 group-hover:bg-indigo-500/60 transition-all duration-700" />
+                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-150" />
                             </Link>
 
                             <Link 
                                 href={`/dashboard/${guildId}/tracker`} 
-                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/50 transition-all duration-500 overflow-hidden shadow-2xl active:scale-95"
+                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-colors duration-150 overflow-hidden "
                             >
                                 {/* Active Inner Glow */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                                 
                                 <div className="relative">
-                                    <div className="absolute inset-0 bg-amber-400 blur-lg opacity-0 group-hover:opacity-40 transition-opacity" />
-                                    <Bug className="w-4 h-4 text-amber-500/60 group-hover:text-amber-400 group-hover:scale-110 transition-all duration-500 relative z-10" />
+                                    <div className="absolute inset-0 bg-emerald-400  opacity-0 group-hover:opacity-40 transition-opacity" />
+                                    <Bug className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400  transition-colors duration-150 relative z-10" />
                                 </div>
                                 
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500/90 group-hover:text-amber-400 transition-all duration-300 relative z-10">Bugs</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-500/90 group-hover:text-emerald-400 transition-colors duration-150 relative z-10">Bugs</span>
                                 
                                 {/* Kinetic Indicator */}
-                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-amber-500/0 group-hover:bg-amber-500/60 transition-all duration-700" />
+                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-150" />
                             </Link>
                         </div>
                     </div>
@@ -843,34 +843,34 @@ function SectionTitle({ label, collapsible, isOpen, onToggle }: { label: string;
             onClick={onToggle}
         >
             {/* Background Pill - UI 2026 */}
-            <div className="absolute inset-x-2 inset-y-0 bg-white/[0.02] dark:bg-white/[0.03] rounded-2xl -z-10 group-hover/title:bg-white/[0.05] transition-colors duration-500" />
+            <div className="absolute inset-x-2 inset-y-0 bg-white/[0.02] dark:bg-white/[0.03] rounded-2xl -z-10 group-hover/title:bg-white/[0.05] transition-colors duration-150" />
             
             <div className={cn(
-                "h-5 w-[2.5px] rounded-full transition-all duration-500 shadow-glow flex shrink-0",
-                isSupervision ? "bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)]" : 
-                isInfo ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)]" :
-                isOutils ? "bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.6)]" :
-                isAutres ? "bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.6)]" :
-                isPinned ? "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]" :
-                "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]"
+                "h-5 w-[2.5px] rounded-full transition-colors duration-150  flex shrink-0",
+                isSupervision ? "bg-emerald-500 " : 
+                isInfo ? "bg-emerald-500 " :
+                isOutils ? "bg-emerald-500 " :
+                isAutres ? "bg-emerald-500 " :
+                isPinned ? "bg-emerald-500 " :
+                "bg-emerald-500 "
             )} />
             
-            <h4 className="text-[11px] font-black uppercase tracking-[0.35em] text-muted-foreground/80 transition-all duration-300 whitespace-nowrap group-hover/title:text-foreground group-hover/title:tracking-[0.45em]">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors duration-150 whitespace-nowrap group-hover/title:text-foreground">
                 {label}
             </h4>
             
             <div className={cn(
-                "flex-1 h-[1px] transition-all duration-700 opacity-20 group-hover:opacity-40",
-                isSupervision ? "bg-gradient-to-r from-rose-500 via-rose-500/50 to-transparent" : 
+                "flex-1 h-[1px] transition-all duration-150 opacity-20 group-hover:opacity-40",
+                isSupervision ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" : 
                 isInfo ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
-                isOutils ? "bg-gradient-to-r from-indigo-500 via-indigo-500/50 to-transparent" :
-                isAutres ? "bg-gradient-to-r from-cyan-500 via-cyan-500/50 to-transparent" :
-                "bg-gradient-to-r from-amber-500 via-amber-500/50 to-transparent"
+                isOutils ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
+                isAutres ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
+                "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent"
             )} />
             
             {collapsible && (
                 <div className="p-1 rounded-lg bg-white/5 border border-white/5 transition-all group-hover/title:border-white/10">
-                    <ChevronRight className={cn("w-3 h-3 text-muted-foreground/40 transition-all duration-500", isOpen && "rotate-90 text-primary")} />
+                    <ChevronRight className={cn("w-3 h-3 text-muted-foreground/40 transition-colors duration-150", isOpen && "rotate-90 text-primary")} />
                 </div>
             )}
         </div>
@@ -897,12 +897,12 @@ function NavItem({
     unreadCount?: number;
 }) {
     const colorMap: Record<string, { text: string, bg: string, border: string, glow: string, muted: string, accent: string }> = {
-        emerald: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "shadow-[0_0_25px_rgba(16,185,129,0.2)]", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
-        amber: { text: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", glow: "shadow-[0_0_25px_rgba(245,158,11,0.2)]", muted: "text-amber-400/40", accent: "bg-amber-500" },
-        indigo: { text: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", glow: "shadow-[0_0_25px_rgba(99,102,241,0.2)]", muted: "text-indigo-400/40", accent: "bg-indigo-500" },
-        rose: { text: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", glow: "shadow-[0_0_25px_rgba(244,63,94,0.2)]", muted: "text-rose-400/40", accent: "bg-rose-500" },
-        cyan: { text: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", glow: "shadow-[0_0_25px_rgba(6,182,212,0.2)]", muted: "text-cyan-400/40", accent: "bg-cyan-500" },
-        zinc: { text: "text-foreground", bg: "bg-white/5", border: "border-white/10", glow: "shadow-[0_0_25px_rgba(255,255,255,0.05)]", muted: "text-muted-foreground", accent: "bg-zinc-400" },
+        emerald: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
+        amber: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
+        indigo: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
+        rose: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
+        cyan: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
+        zinc: { text: "text-foreground", bg: "bg-white/5", border: "border-white/10", glow: "", muted: "text-muted-foreground", accent: "bg-zinc-400" },
     };
 
     const scheme = colorMap[item.color || "emerald"];
@@ -928,20 +928,20 @@ function NavItem({
                                         : undefined
             }
             className={cn(
-                "group relative flex items-center gap-3.5 transition-all duration-500 rounded-2xl border outline-none mx-2 mb-1 overflow-hidden",
+                "group relative flex items-center gap-3.5 transition-colors duration-150 rounded-2xl border outline-none mx-2 mb-1 overflow-hidden",
                 item.isDashboard 
-                    ? "px-6 py-5 bg-zinc-900/40 border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-zinc-900/60" 
+                    ? "px-6 py-5 bg-zinc-900/40 border-white/10  hover:bg-zinc-900/60" 
                     : "px-4 py-3",
                 isActive 
                     ? cn(
-                        "z-10 bg-white/[0.03] backdrop-blur-md border-white/10",
+                        "z-10 bg-white/[0.03] backdrop- border-white/10",
                         scheme.glow
                     )
-                    : "text-muted-foreground/70 border-transparent hover:text-foreground hover:bg-white/[0.04] hover:border-white/5 hover:translate-x-1 active:scale-[0.98]"
+                    : "text-muted-foreground/70 border-transparent hover:text-foreground hover:bg-white/[0.04] hover:border-white/5  "
             )}
         >
             {/* Glassmorphism Shine Effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" />
 
             {/* Framer Motion Indicator */}
             {isActive && (
@@ -959,7 +959,7 @@ function NavItem({
 
             {/* Icon Container */}
             <div className={cn(
-                "relative transition-all duration-500 shrink-0 flex items-center justify-center rounded-xl z-20",
+                "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
                 item.isDashboard ? "p-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "p-2 bg-white/[0.06] border border-white/10 group-hover:border-white/20",
                 isActive && !item.isDashboard 
                     ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
@@ -968,52 +968,52 @@ function NavItem({
                 {/* Neon Icon Glow */}
                 {isActive && (
                     <div className={cn(
-                        "absolute inset-0 blur-md opacity-40 -z-10",
+                        "absolute inset-0  opacity-40 -z-10",
                         scheme.accent
                     )} />
                 )}
 
                 {item.imgSrc ? (
-                    <div className={cn("relative transition-transform duration-500", 
+                    <div className={cn("relative transition-transform duration-150", 
                         item.isDashboard ? "h-6 w-6" : "h-5 w-5",
-                        "group-hover:scale-110 group-hover:rotate-[3deg]"
+                        ""
                     )}>
                         <Image 
                             src={item.imgSrc} 
                             alt={item.name} 
                             fill 
                             sizes="24px"
-                            className={cn("object-contain transition-all duration-500", 
+                            className={cn("object-contain transition-colors duration-150", 
                                 !isActive && "opacity-80 saturate-100 group-hover:opacity-100",
-                                isActive && "drop-shadow-[0_0_10px_rgba(var(--primary-rgb),0.6)]"
+                                isActive && ""
                             )} 
                         />
                     </div>
                 ) : (
                     <item.icon className={cn(
                         item.isDashboard ? "h-6 w-6" : "h-5 w-5", 
-                        "transition-all duration-500 group-hover:scale-110 group-hover:rotate-[8deg]",
-                        (isActive || !item.imgSrc) && "drop-shadow-[0_0_8px_currentColor]"
+                        "transition-colors duration-150 ",
+                        (isActive || !item.imgSrc) && ""
                     )} />
                 )}
             </div>
 
-            <div className="flex flex-col min-w-0 z-10 transition-transform duration-500 group-hover:translate-x-0.5">
+            <div className="flex flex-col min-w-0 z-10 transition-transform duration-150 ">
                 <span className={cn(
-                    "text-[10.5px] font-bold uppercase tracking-[0.1em] transition-all duration-300",
-                    isActive ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-muted-foreground/90 group-hover:text-foreground"
+                    "text-[13px] font-medium transition-colors duration-150",
+                    isActive ? "text-foreground " : "text-muted-foreground/90 group-hover:text-foreground"
                 )}>
                     {item.name}
                 </span>
                 {item.isDashboard && (
-                    <span className="text-[9px] font-bold text-indigo-400/70 uppercase tracking-tight">Accès Principal</span>
+                    <span className="text-[11px] font-medium text-muted-foreground/70">Accès Principal</span>
                 )}
             </div>
 
             {/* Notification Badge */}
             {unreadCount !== undefined && unreadCount > 0 && (
-                <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)] z-20 animate-in zoom-in">
-                    <span className="text-[10px] font-black text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-red-500 rounded-full  z-20 animate-in zoom-in">
+                    <span className="text-[11px] font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
                 </div>
             )}
 
@@ -1028,19 +1028,19 @@ function NavItem({
                             onPin(item.href);
                         }}
                         className={cn(
-                            "p-2 rounded-xl transition-all duration-300 group/pin flex items-center justify-center relative z-20",
+                            "p-2 rounded-xl transition-colors duration-150 group/pin flex items-center justify-center relative z-20",
                             isPinned 
-                                ? "text-amber-500 bg-amber-500/10 opacity-100 border border-amber-500/20" 
-                                : "opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-amber-500 hover:bg-amber-500/10 hover:border-amber-500/20"
+                                ? "text-emerald-500 bg-emerald-500/10 opacity-100 border border-emerald-500/20" 
+                                : "opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-emerald-500 hover:bg-emerald-500/10 hover:border-emerald-500/20"
                         )}
                     >
                         {isPinned ? (
                             <div className="relative">
-                                <Star className="w-3.5 h-3.5 fill-current group-hover/pin:opacity-0 transition-all duration-300" />
-                                <X className="w-3.5 h-3.5 absolute inset-0 opacity-0 group-hover/pin:opacity-100 transition-all duration-300" />
+                                <Star className="w-3.5 h-3.5 fill-current group-hover/pin:opacity-0 transition-colors duration-150" />
+                                <X className="w-3.5 h-3.5 absolute inset-0 opacity-0 group-hover/pin:opacity-100 transition-colors duration-150" />
                             </div>
                         ) : (
-                            <Star className="w-3.5 h-3.5 transition-all duration-300 group-hover/pin:scale-110" />
+                            <Star className="w-3.5 h-3.5 transition-colors duration-150 " />
                         )}
                     </button>
                 )}
@@ -1058,27 +1058,27 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
             prefetch={false}
             className={cn(
                 "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
-                isActive ? "text-rose-600 dark:text-rose-300 bg-rose-500/5" : "text-muted-foreground hover:text-rose-500 hover:bg-foreground/[0.02]"
+                isActive ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/5" : "text-muted-foreground hover:text-emerald-500 hover:bg-foreground/[0.02]"
             )}
         >
             {/* Active Glow Background */}
             {isActive && (
-                <div className="absolute inset-0 bg-rose-500/5 blur-xl pointer-events-none" />
+                <div className="absolute inset-0 bg-emerald-500/5  pointer-events-none" />
             )}
 
             <div className={cn(
-                "w-1.5 h-1.5 rounded-full border border-rose-500/30 transition-all shrink-0 z-10",
-                isActive ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "bg-muted-foreground/30 group-hover:bg-rose-400 group-hover:border-rose-500"
+                "w-1.5 h-1.5 rounded-full border border-emerald-500/30 transition-all shrink-0 z-10",
+                isActive ? "bg-emerald-500 " : "bg-muted-foreground/30 group-hover:bg-emerald-400 group-hover:border-emerald-500"
             )} />
             <span className={cn(
-                "text-[10px] font-black uppercase tracking-[0.2em] z-10",
-                isActive ? "text-rose-700 dark:text-rose-100" : "text-muted-foreground/60 group-hover:text-rose-500"
+                "text-[13px] font-medium z-10",
+                isActive ? "text-emerald-600 dark:text-emerald-200" : "text-muted-foreground/60 group-hover:text-emerald-500"
             )}>
                 {item.name}
             </span>
 
             {isActive && (
-                <div className="ml-auto h-1 w-1 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e] z-10" />
+                <div className="ml-auto h-1 w-1 rounded-full bg-emerald-500  z-10" />
             )}
         </Link>
     );

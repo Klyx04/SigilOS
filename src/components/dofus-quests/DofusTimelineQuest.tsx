@@ -87,7 +87,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
               isCompleted ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-zinc-900 border-white/10 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
             }`}>
-            {isCompleted ? <><CheckCircle2 className="w-4 h-4" /> Complétée <button onClick={(e) => { e.stopPropagation(); onToggle("NOT_STARTED"); }} className="ml-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-rose-400 text-[8px]" title="Réinitialiser">↺</button></> : <><Circle className="w-4 h-4" /> Valider</>}
+            {isCompleted ? <><CheckCircle2 className="w-4 h-4" /> Complétée <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onToggle("NOT_STARTED"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle("NOT_STARTED"); } }} className="ml-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-rose-400 text-[8px] cursor-pointer" title="Réinitialiser">↺</span></> : <><Circle className="w-4 h-4" /> Valider</>}
           </button>
           {members.length > 0 && (
             <div className="flex -space-x-1 ml-auto">
@@ -287,10 +287,10 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
         </div>
         <div className="flex items-center gap-2">
           {completedCount < entries.length && (
-            <button onClick={(e) => { e.stopPropagation(); handleValidateAll(); }}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500/20 transition-all">
+            <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleValidateAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleValidateAll(); } }}
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500/20 transition-all cursor-pointer">
               <CheckCircle2 className="w-3 h-3" /> Tout valider
-            </button>
+            </span>
           )}
           <div className="hidden sm:block w-20 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }} />

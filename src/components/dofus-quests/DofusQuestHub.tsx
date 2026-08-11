@@ -214,7 +214,6 @@ export function DofusQuestHub({
                                     className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-emerald-950/15 to-zinc-950 border border-emerald-500/25 hover:border-emerald-500/50 rounded-3xl shadow-2xl transition-all duration-300 no-underline"
                                     style={{ textDecoration: 'none' }}
                                 >
-                                    <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/6 blur-[60px] pointer-events-none rounded-full" />
                                     {/* Dofus Sylvestre watermark */}
                                     <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none opacity-[0.08] group-hover:opacity-[0.14] transition-opacity">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -228,7 +227,7 @@ export function DofusQuestHub({
                                     <div className="space-y-4">
                                         <div className="p-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 w-fit group-hover:scale-110 transition-transform duration-500">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
+                                            <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-10 h-10 object-contain" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
@@ -257,9 +256,8 @@ export function DofusQuestHub({
                                 <motion.div
                                     whileHover={{ scale: 1.02, translateY: -4 }}
                                     onClick={() => handleTabChange("guide")}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-indigo-950/20 to-zinc-950 border border-indigo-500/20 hover:border-indigo-500/40 rounded-3xl cursor-pointer shadow-2xl transition-all duration-300"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-indigo-950/15 to-zinc-950 border border-indigo-500/20 hover:border-indigo-500/40 rounded-3xl cursor-pointer shadow-md transition-all duration-300"
                                 >
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-[50px] pointer-events-none rounded-full" />
                                     {/* Ganymède watermark */}
                                     <div className="absolute bottom-4 right-4 w-24 h-24 pointer-events-none opacity-[0.07] group-hover:opacity-[0.12] transition-opacity">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -268,7 +266,7 @@ export function DofusQuestHub({
                                     <div className="space-y-4">
                                         <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 w-fit group-hover:scale-110 transition-transform duration-500">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src="/assets/icons/ganymede.webp" alt="Ganymède" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                                            <img src="/assets/icons/ganymede.webp" alt="Ganymède" className="w-10 h-10 object-contain" />
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-black text-white italic uppercase tracking-wider mb-1">
@@ -293,9 +291,8 @@ export function DofusQuestHub({
                                 <motion.div
                                     whileHover={{ scale: 1.02, translateY: -4 }}
                                     onClick={() => handleTabChange("dofus")}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-violet-950/20 to-zinc-950 border border-violet-500/20 hover:border-violet-500/40 rounded-3xl cursor-pointer shadow-2xl transition-all duration-300"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-violet-950/15 to-zinc-950 border border-violet-500/20 hover:border-violet-500/40 rounded-3xl cursor-pointer shadow-md transition-all duration-300"
                                 >
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 blur-[50px] pointer-events-none rounded-full" />
                                     <div className="space-y-4">
                                         {/* Dofus icon cluster */}
                                         <div className="flex items-center gap-1.5">
@@ -332,9 +329,8 @@ export function DofusQuestHub({
                                 <motion.div
                                     whileHover={{ scale: 1.02, translateY: -4 }}
                                     onClick={() => handleTabChange("guilde")}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-rose-950/20 to-zinc-950 border border-rose-500/20 hover:border-rose-500/40 rounded-3xl cursor-pointer shadow-2xl transition-all duration-300"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-rose-950/15 to-zinc-950 border border-rose-500/20 hover:border-rose-500/40 rounded-3xl cursor-pointer shadow-md transition-all duration-300"
                                 >
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 blur-[50px] pointer-events-none rounded-full" />
                                     <div className="space-y-4">
                                         {/* Member avatars cluster */}
                                         {guildStats && guildStats.topMembers.length > 0 ? (

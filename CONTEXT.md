@@ -44,7 +44,7 @@
 - HUD (score/timer/round) en haut en plein écran + **bouton Quitter la partie** + croix (dans la zone `activeTab==='games'`).
 - Guesser : **zone cible / carte monde 50/50**, classement en bandeau + scores agrandis, **pré-chargement tuiles** (anti-clignotement), fix monde `-1` (recherche monstre).
 
-➡️ **Action** : merger PR `feat/deploy-clean-pro` → `dev`, puis `./scripts/deploy-cd.sh beta` (rebuild) + `./scripts/sync-assets.sh beta` (tuiles monde 38 + favicon). Ensuite Prod (`main`).
+➡️ **Action** : PR `feat/deploy-clean-pro` → `dev` ✅ **MERGÉE + DÉPLOYÉE (10/08)** (build beta + `sync-assets.sh` tuiles monde 38 + favicon). Ensuite Prod (`main`).
 
 ## 🧭 Suivi de chantier — Refonte UI « moins IA » (dashboard + landing) — FAIT sur `refonte/dashboard-ui-moins-ia`
 
@@ -71,9 +71,8 @@
 - Pool pg (`src/lib/prisma.ts`) : `connectionTimeoutMillis` 5→10s, `idleTimeoutMillis` 5→15s (réduit « timeout exceeded when trying to connect » sous charge).
 
 ### 🔜 Suite (non fait)
-- **PR `refonte/dashboard-ui-moins-ia` → `dev`** (link + merge + déploiement).
+- **PR `refonte/dashboard-ui-moins-ia` → `dev`** ✅ **MERGÉE (10/08)** — remplacée par la branche `refonte-module-ganymede`.
 - **DB pool/infra** : si timeouts persistent en prod sous charge → `max_connections` Postgres + réduire le parallélisme de la home (11 requêtes, après retrait de 2 appels `getActivityLadder` morts — voir ci-dessous).
-- Commiter les modifs préexistantes `CONTEXT.md`/`MAINTENANCE.md` (assets Caddy §3d) non encore commitées.
 
 ### ✅ Session 10/08 — commit `25918f3d` (poussé sur `refonte/dashboard-ui-moins-ia`) + points 4/5
 - **Home KPI avec comparaisons temporelles** (point 4) : `QuickStatsRow` affiche des deltas (`▲ +3 ce mois` / `▼` / « stable ») pour Membres actifs (croissance nette via `retention.growth`) et Événements (`events.thisMonth`). **0 requête BDD en plus** (réutilise `guildStats` déjà chargé) → cohérent avec le point 2.
@@ -89,6 +88,40 @@
 
 ---
 
+## 🧭 Suivi de chantier — Ménage branches + nouveau chantier (10/08/2026)
+
+> **Tous les chantiers antérieurs sont MERGÉS dans `dev`** (vérifié : les 8 branches feature sont des ancêtres de `origin/dev`, rien perdu). **Nettoyage terminé** le 10/08.
+
+- ✅ **Ménage complet des branches** : suppression (local + remote) de `feat/csp-nonce-based`, `feat/deploy-clean-pro`, `feat/onboarding-admin-tour`, `feat/security-hardening-suite`, `fix/display-name-server-pseudo`, `fix/ladder-discord-stats`, `fix/tour-admin-first-admin`, `refonte/dashboard-ui-moins-ia`. **Ne restent que `main` et `dev`** (remote + local).
+- ✅ **`SECURITY.md` resynchronisé** : CSP_ENFORCE activé beta+prod (10/08), WS auth activé+testé prod — lignes « À faire » obsolètes retirées.
+- ✅ **Nouvelle branche de travail** : `refonte-module-ganymede` (ouverte depuis la HEAD mergée, contenant toute la session).
+
+### ✅ Refonte module GANYMEDE (guide complet) — FAIT sur `refonte-module-ganymede` (10/08/2026)
+
+> **Branche** : `refonte-module-ganymede` → PR vers `dev`. **Mémo** : `src/temp/memo-2026-08-10-module-ganymede.md`. Mock de référence : `src/guide-complet-refonte.html` (jamais commité).
+
+- **Module cible** : `https://beta.sigilos.fr/dashboard/1290442961380835451/quetes-dofus/guide/progression-complete` (route `src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx`).
+- **Périmètre (fichiers)** : parser `src/lib/ganymede-parser.ts` · actions `optimized-guide-actions.ts` · rendu `OptimizedGuideClient.tsx` + `guide-styles.css` · `RushTimelineClient.tsx` (sylvestre, **non touché**) · onglet/admin `OptimizedGuideTab.tsx` / `god/dofus-guides/` (phase 6 séparée).
+- **Direction design 2026 « moins IA » appliquée** : palette disciplinée **doré = fil de quête · emerald = progression · rouge = danger · bleu = coords/infos**, zéro glow, typo ≥11px, motion ≤200ms, colonne lecture 840px + breadcrumb sticky.
+
+### 🎯 Architecture finale (décision user 10/08) — **mode unique « Guide Focus »**
+- **Un seul mode** plein écran (plus de bascule). **Mode mission supprimé** (overlay, CTA, état, CSS — nettoyé).
+- **Sidebar → sommaire repliable** : `sidebarOpen` (localStorage `guide-sommaire-{slug}`), bouton « Sommaire » (PanelLeft) + raccourci `S`, bouton flottant « Sommaire » quand repliée, contenu élargi plein écran.
+- **Bouton « Signaler un bug » restauré** (`QuestFeedbackButton`, `sourcePage=guide:<slug>`).
+- **Popin sociale 3ᵉ niveau** conservée (qui a validé / qui est dessus + « Demander de l'aide ») sur les étapes des cartes sous-guide accordéon.
+- **Par-Dofus gardé** (10/08) : refonte zero-glow `DofusQuestHub.tsx` + **fix hydration `<button>` imbriqués** dans `DofusTimelineQuest.tsx` (2 endroits → `<span role=button>`).
+
+### Commits clés (poussés, ~10 sur la branche)
+`631ae4c8` tokens · `46aa6378` nettoyage AI slop · `5c1e6dc2` mode mission · `ef1dd0ce` lecture · `e5578ac3` entraide/reward/tags · `f15f766e` par-Dofus + fix hydration · `767f7839` focus · `3a175e93` désencombrement · `9e15d73b` mode unique Guide Focus (+ mission supprimée) · `e3660144` **fix corruption encodage UTF-8** (mojibake Ganymède/›/🗺️ via PowerShell — attention : Windows PowerShell 5.1 `Get-Content` lit en ANSI, utiliser `[IO.File]::ReadAllText/WriteAllText` UTF-8 ou l'outil éditeur).
+
+### ⚠️ Restant / à savoir
+- **PR `refonte-module-ganymede` → `dev`** pas encore créée.
+- **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : **fichiers absents côté serveur** (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
+- **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` (~ligne 1286) — correctif = composant enfant sous Suspense (option).
+- **Leaflet `_leaflet_pos`** (`map-viewer.tsx`) : pré-existant, map détachée/cleanup.
+- **Rush sylvestre** : **NE PAS toucher**. Admin/composer : PR dédiée (phase 6).
+
+---
 
 ## 🔒 Non-négociables (résumé — toujours appliqués)
 
@@ -365,7 +398,7 @@
 - **Dernière étape = rappel navbar/sidebar** : `tourKey` ajoutés (annuaire/calendar/ressources/galerie/la-guilde) + étape « Où le retrouver » en fin de chaque tour + ouverture de la bonne section sidebar.
 
 ### 🔜 À faire (en attente de merge / prod)
-- **Merger la PR `feat/deploy-clean-pro` → `dev`**, puis `./scripts/deploy-cd.sh beta` (avec le script corrigé).
+- **Merger la PR `feat/deploy-clean-pro` → `dev`** ✅ **MERGÉE + DÉPLOYÉE (10/08)** (build beta avec le script corrigé).
 - (sécurité) CSP prod + reconnexion WS : ✅ **FAIT (10/08)**.
 
 ---

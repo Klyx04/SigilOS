@@ -8,7 +8,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,9 +18,12 @@ import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
+import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -797,13 +800,65 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   );
 }
 
+// ─── Sélecteur de personnage (bandeau, style rush sylvestre) ─────────────────
+function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: {
+  selectedCharacter: string;
+  mainPseudo: string;
+  mainClass?: string | null;
+  mules?: { pseudo: string; classe?: string | null; level?: number | null }[];
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const handleSelect = (char: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (char === "PRINCIPAL") params.delete("character");
+    else params.set("character", char);
+    router.push(pathname + "?" + params.toString());
+  };
+  const currentLabel = selectedCharacter === "PRINCIPAL" ? mainPseudo : selectedCharacter;
+  const selClass = selectedCharacter === "PRINCIPAL" ? mainClass : (mules || []).find(m => m.pseudo === selectedCharacter)?.classe || null;
+  const selIcon = selClass
+    ? (() => { const d = getClass(selClass); return d ? <img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/> : null; })()
+    : selectedCharacter === "PRINCIPAL" ? <Crown className="w-3.5 h-3.5 text-amber-500"/> : <Users className="w-3.5 h-3.5 text-blue-400"/>;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={false} className="gch-trigger">
+          <div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div>
+          <ChevronDown className="w-3 h-3 opacity-30 shrink-0"/>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="gch-content">
+        <DropdownMenuItem onClick={() => handleSelect("PRINCIPAL")} className={"gch-opt" + (selectedCharacter === "PRINCIPAL" ? " current" : "")}>
+          <div className="gch-opt-icon principal">{mainClass ? (() => { const d = getClass(mainClass); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Crown className="w-3 h-3 text-amber-500"/>}</div>
+          <div className="flex flex-col text-left">
+            <span className="text-xs font-bold">{mainPseudo}</span>
+            <span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass || "Principal"}</span>
+          </div>
+        </DropdownMenuItem>
+        {(mules || []).length > 0 && <div className="h-px bg-white/5 my-1" />}
+        {(mules || []).map(mule => (
+          <DropdownMenuItem key={mule.pseudo} onClick={() => handleSelect(mule.pseudo)} className={"gch-opt" + (selectedCharacter === mule.pseudo ? " current" : "")}>
+            <div className="gch-opt-icon mule">{mule.classe ? (() => { const d = getClass(mule.classe); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Users className="w-3 h-3 text-blue-400"/>}</div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold">{mule.pseudo}</span>
+              <span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level || 200} {mule.classe ? "• " + mule.classe : ""}</span>
+            </div>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
   currentUserProfile, ocreStats
 }: {
-  guide: { id: string; name: string; slug: string };
+  guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
   userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[]; currentStep?: string | null }[];
   guildProgress: GuildMember[];
@@ -820,7 +875,7 @@ export default function OptimizedGuideClient({
     metamobPseudo?: string | null;
     pseudoDofus?: string | null;
   };
-  ocreStats?: { bosses?: number; archis?: number; progressPercent?: number; currentStep?: number; serverName?: string } | null;
+  ocreStats?: { bosses?: { gathered?: number; total?: number }; archis?: { gathered?: number; total?: number }; progressPercent?: number; currentStep?: number; serverName?: string } | null;
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -1471,15 +1526,7 @@ export default function OptimizedGuideClient({
     };
   }, [guidesOpen]);
 
-  const pathname = usePathname();
-  const [charOpen, setCharOpen] = useState(false);
-  const handleCharacterSelect = useCallback((char: string) => {
-    setCharOpen(false);
-    const params = new URLSearchParams(searchParams.toString());
-    if (char === "PRINCIPAL") params.delete("character");
-    else params.set("character", char);
-    router.push(pathname + "?" + params.toString());
-  }, [router, searchParams, pathname]);
+
 
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
@@ -1877,7 +1924,7 @@ export default function OptimizedGuideClient({
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
               className="guide-content"
             >
-              {/* HUD flottant — position & progression (mode focus) */}
+              {/* Barre sticky — sommaire, guide & progression */}
               <div className="guide-hud">
                 <div className="guide-hud-row">
                   <button
@@ -1890,24 +1937,6 @@ export default function OptimizedGuideClient({
                     <span>Sommaire</span>
                   </button>
 
-                  <div className="guide-hud-crumb">
-                    Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
-                    {activeSeq ? (
-                      <>
-                        <span className="sep"> · </span>
-                        <span className="gp">[{activeSeq.subGuideRef}] {activeSeq.subGuideName}</span>
-                      </>
-                    ) : null}
-                    <span className="sep"> · </span>
-                    <span className="here">{overallPct}% complété</span>
-                  </div>
-
-                  <div className="guide-hud-bar"><div style={{ width: overallPct + "%" }} /></div>
-                  <span className="guide-hud-pct">{overallPct}%</span>
-                </div>
-
-                <div className="guide-hud-row guide-hud-actions">
-                  {/* Sélecteur de guide */}
                   <div className="guide-switcher">
                     <button
                       type="button"
@@ -1950,121 +1979,211 @@ export default function OptimizedGuideClient({
                     )}
                   </div>
 
-                  {/* Personnage actif (mules / alignement / métamob / ocre) */}
-                  <div className="guide-char">
-                    <button
-                      type="button"
-                      className="guide-char-btn"
-                      onClick={() => setCharOpen(v => !v)}
-                      title="Changer de personnage / voir mon contexte"
-                      aria-expanded={charOpen}
-                    >
-                      {selectedCharacter !== "PRINCIPAL" ? <Users size={13} className="text-blue-400"/> : <Crown size={13} className="text-amber-500"/>}
-                      <span className="guide-char-label">
-                        {selectedCharacter !== "PRINCIPAL" ? selectedCharacter : (mainCharacter?.pseudo || "Principal")}
-                      </span>
-                      <ChevronDown size={12} className={"guide-char-chev" + (charOpen ? " open" : "")}/>
-                    </button>
-                    {charOpen && (
-                      <div className="guide-char-menu">
-                        <div className="guide-char-menu-title">Personnage</div>
-                        <button
-                          type="button"
-                          className={"guide-char-item" + (selectedCharacter === "PRINCIPAL" ? " current" : "")}
-                          onClick={() => handleCharacterSelect("PRINCIPAL")}
-                        >
-                          <Crown size={13} className="text-amber-500 shrink-0"/>
-                          <span className="truncate">{mainCharacter?.pseudo || "Principal"}</span>
-                          {mainCharacter?.classe ? <span className="guide-char-sub">{mainCharacter.classe}</span> : null}
-                        </button>
-                        {mules.map(m => (
-                          <button
-                            key={m.pseudo}
-                            type="button"
-                            className={"guide-char-item" + (selectedCharacter === m.pseudo ? " current" : "")}
-                            onClick={() => handleCharacterSelect(m.pseudo)}
-                          >
-                            <Users size={13} className="text-blue-400 shrink-0"/>
-                            <span className="truncate">{m.pseudo}</span>
-                            {m.classe ? <span className="guide-char-sub">Niv. {m.level ?? 200} • {m.classe}</span> : null}
-                          </button>
-                        ))}
-                        <div className="guide-char-divider" />
-                        <div className="guide-char-context">
-                          <span className="guide-char-ctx-row"><span>Classe</span><strong>{currentUserProfile?.dofusClass || mainCharacter?.classe || "—"}</strong></span>
-                          <span className="guide-char-ctx-row"><span>Alignement</span><strong>{currentUserProfile?.alignment ? currentUserProfile.alignment + (currentUserProfile.alignmentOrder ? " " + currentUserProfile.alignmentOrder : "") + (currentUserProfile.alignmentLevel ? " " + currentUserProfile.alignmentLevel : "") : "—"}</strong></span>
-                          <span className="guide-char-ctx-row"><span>Métamob</span><strong>{currentUserProfile?.metamobPseudo || "—"}</strong></span>
-                          <span className="guide-char-ctx-row"><span>Ocre</span><strong>{ocreStats?.progressPercent != null ? ocreStats.progressPercent + "%" : "—"}</strong></span>
-                        </div>
-                      </div>
-                    )}
+                  <div className="guide-hud-crumb">
+                    Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
+                    {activeSeq ? (
+                      <>
+                        <span className="sep"> · </span>
+                        <span className="gp">[{activeSeq.subGuideRef}] {activeSeq.subGuideName}</span>
+                      </>
+                    ) : null}
+                    <span className="sep"> · </span>
+                    <span className="here">{overallPct}% complété</span>
                   </div>
 
-                  <span className="guide-hud-title">{decodeTitle(selected.title)}</span>
+                  <div className="guide-hud-bar"><div style={{ width: overallPct + "%" }} /></div>
+                  <span className="guide-hud-pct">{overallPct}%</span>
+                </div>
+              </div>
 
-                  <div className="guide-hud-spacer" />
-
-                  {bookmarkId === selected.id && (
-                    <span className="guide-hud-bm" title="Votre position actuelle"><BookmarkCheck size={13} className="text-amber-400"/></span>
-                  )}
-
-                  {uniqueGuildMembers.length > 0 && (
+              {/* Bandeau contexte (style rush sylvestre) */}
+              <div className="guide-hero">
+                <div className="guide-hero-top">
+                  <Link href={"/dashboard/" + guildId + "/quetes-dofus"} className="guide-hero-back">
+                    <ChevronLeft size={16} className="guide-hero-back-icon"/>
+                    <span>Quêtes Dofus</span>
+                  </Link>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {uniqueGuildMembers.length > 0 && (
+                      <button
+                        type="button"
+                        className="guide-hud-presence"
+                        onClick={() => setIsAllMembersModalOpen(true)}
+                        title="Voir la liste des membres suivant ce guide"
+                      >
+                        <div className="flex -space-x-1.5">
+                          {uniqueGuildMembers.slice(0, 4).map(m => (
+                            <span key={m.profileId} className="guide-hud-avatar">
+                              {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                        <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      className="guide-hud-presence"
-                      onClick={() => setIsAllMembersModalOpen(true)}
-                      title="Voir la liste des membres suivant ce guide"
+                      className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
+                      onClick={() => setGlobalHideCompletedSteps(v => !v)}
+                      title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
                     >
-                      <div className="flex -space-x-1.5">
-                        {uniqueGuildMembers.slice(0, 4).map(m => (
-                          <span key={m.profileId} className="guide-hud-avatar">
-                            {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
-                          </span>
-                        ))},
-                      </div>
-                      <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
+                      {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      className="guide-hud-btn"
+                      onClick={() => setIsHelpOpen(true)}
+                      title="Comment utiliser ce guide ?"
+                    >
+                      <HelpCircle size={13}/>
+                    </button>
+                    <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
+                    <a
+                      href="https://ganymede-app.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="guide-hud-credit"
+                      title="Parcours et étapes issus de Ganymède"
+                    >
+                      <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
+                    </a>
+                    <button
+                      type="button"
+                      className="guide-hud-btn guide-hud-btn-danger"
+                      onClick={handleResetGuide}
+                      disabled={validating}
+                      title="Réinitialiser TOUT le guide (progression remise à zéro)"
+                    >
+                      <RotateCcw size={13}/>
+                    </button>
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
-                    onClick={() => setGlobalHideCompletedSteps(v => !v)}
-                    title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-                  >
-                    {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
-                  </button>
+                <div className="guide-hero-title">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles size={14} className="text-emerald-400"/>
+                    <span className="guide-hero-eyebrow">Guide de Progression Complet</span>
+                  </div>
+                  <h1 className="guide-hero-name">{guide.name}</h1>
+                  {guide.description && <p className="guide-hero-desc">{guide.description}</p>}
+                </div>
 
-                  <button
-                    type="button"
-                    className="guide-hud-btn"
-                    onClick={() => setIsHelpOpen(true)}
-                    title="Comment utiliser ce guide ?"
-                  >
-                    <HelpCircle size={13}/>
-                  </button>
+                <div className="guide-hero-grid">
+                  {/* Personnage actif */}
+                  <div className="guide-hero-card">
+                    <div className="guide-hero-card-icon class">
+                      {(() => { const d = mainCharacter?.classe ? getClass(mainCharacter.classe) : null; return d ? <img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/> : <Crown className="w-5 h-5 text-amber-500"/>; })()}
+                    </div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="guide-hero-card-label">Personnage Actif</p>
+                      {mainCharacter?.pseudo ? (
+                        <div className="flex items-center gap-1.5">
+                          <GuideCharDropdown selectedCharacter={selectedCharacter} mainPseudo={mainCharacter.pseudo} mainClass={mainCharacter.classe} mules={mules} />
+                          <button
+                            type="button"
+                            onClick={handleResetMilestone}
+                            disabled={validating}
+                            title="Réinitialiser ce jalon (étapes cochées et validation)"
+                            className="flex items-center justify-center p-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-colors shrink-0"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5"/>
+                          </button>
+                        </div>
+                      ) : (
+                        <Link href={"/dashboard/" + guildId + "/profile"} className="guide-hero-link-btn">
+                          <Pencil size={12}/> Lier mon pseudo <ExternalLink size={12}/>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
 
-                  <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
+                  {/* Alignement / Ordre */}
+                  <div className="guide-hero-card">
+                    {(() => {
+                      const { alignment, alignmentOrder, alignmentLevel } = currentUserProfile || {};
+                      if (!alignment || alignment === "neutre") {
+                        return (
+                          <>
+                            <div className="guide-hero-card-icon align neutral"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div>
+                            <div className="text-left min-w-0 flex-1">
+                              <p className="guide-hero-card-label">Alignement</p>
+                              <p className="guide-hero-card-value dim">{!alignment ? "Non défini" : "Neutre"}</p>
+                            </div>
+                          </>
+                        );
+                      }
+                      const ad = getAlignment(alignment);
+                      const ords = (ORDERS as unknown as Record<string, any[]>)[alignment.toLowerCase()] || [];
+                      const od = alignmentOrder ? ords.find((o: any) => o.id === alignmentOrder) : null;
+                      if (od) {
+                        const isBonta = alignment === "bontarien";
+                        const trancheTitle = alignmentLevel && alignmentLevel > 0 ? (od as any).levels?.[alignmentLevel as number] || "" : "";
+                        return (
+                          <>
+                            <div className={"guide-hero-card-icon align " + (isBonta ? "bonta" : "brak")}>
+                              <img src={od.icon} alt="" className="w-5 h-5 object-contain"/>
+                            </div>
+                            <div className="text-left min-w-0 flex-1">
+                              <p className="guide-hero-card-label">Ordre</p>
+                              <p className={"guide-hero-card-value " + (isBonta ? "bonta" : "brak")}>{od.name}</p>
+                              {(alignmentLevel ?? 0) > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  <span className="guide-hero-tranche">Tranche {alignmentLevel}</span>
+                                  {trancheTitle && <span className="guide-hero-tranche-title">{trancheTitle}</span>}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <div className="guide-hero-card-icon align neutral"><img src={ad?.icon || "/ordres/neutre.png"} alt="" className="w-5 h-5 object-contain"/></div>
+                          <div className="text-left min-w-0 flex-1">
+                            <p className="guide-hero-card-label">Alignement</p>
+                            <p className="guide-hero-card-value dim">{ad?.name || alignment}</p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
 
-                  <a
-                    href="https://ganymede-app.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="guide-hud-credit"
-                    title="Parcours et étapes issus de Ganymède"
-                  >
-                    <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
-                  </a>
+                  {/* Métamob / Ocre */}
+                  <div className="guide-hero-card">
+                    <div className="guide-hero-card-icon ocre"><img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain"/></div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="guide-hero-card-label">Metamob</p>
+                      {currentUserProfile?.metamobPseudo ? (
+                        <Link href={"/dashboard/" + guildId + "/quete-ocre"} className="guide-hero-metamob-link">
+                          {ocreStats ? (
+                            <>
+                              <span>Gardiens <span className="font-mono text-white">{ocreStats.bosses?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.bosses?.total ?? 51}</span></span></span>
+                              <span className="text-zinc-600">·</span>
+                              <span>Archis <span className="font-mono text-white">{ocreStats.archis?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.archis?.total ?? 286}</span></span></span>
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-400/80">Voir ma progression →</span>
+                          )}
+                          <ExternalLink size={12} className="text-amber-400/60 shrink-0"/>
+                        </Link>
+                      ) : (
+                        <Link href={"/dashboard/" + guildId + "/profile"} className="guide-hero-link-btn amber">
+                          <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain"/>
+                          Lier Metamob
+                        </Link>
+                      )}
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    className="guide-hud-btn guide-hud-btn-danger"
-                    onClick={handleResetGuide}
-                    disabled={validating}
-                    title="Réinitialiser TOUT le guide (progression remise à zéro)"
-                  >
-                    <RotateCcw size={13}/>
-                  </button>
+                  {/* Ma progression */}
+                  <div className="guide-hero-card">
+                    <div className="guide-hero-card-icon progress"><ProgressRing pct={overallPct} size={30} stroke={3} color="#10b981"/></div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="guide-hero-card-label">Progression</p>
+                      <p className="guide-hero-card-value">{overallPct}% <span className="text-zinc-500 font-mono text-[10px]">({totalDone}/{totalMs})</span></p>
+                      <div className="guide-hero-bar"><div style={{ width: overallPct + "%" }}/></div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

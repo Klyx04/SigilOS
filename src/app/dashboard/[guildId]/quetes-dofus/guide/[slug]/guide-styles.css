@@ -387,8 +387,7 @@
   gap: 0.55rem;
   padding: 0.65rem 0.8rem;
   margin-bottom: 1.5rem;
-  background: rgba(10, 11, 16, 0.92);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 11, 16, 0.98);
   border: 1px solid var(--guide-border);
   border-radius: 0.9rem;
 }
@@ -1212,36 +1211,32 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: rgba(15, 17, 26, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 20px rgba(16, 185, 129, 0.1);
-  border-radius: 100px;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  border-radius: 0.75rem;
   width: max-content;
   margin: 0 auto;
 }
 
 .nav-btn {
   background: transparent;
-  border: none;
-  border-radius: 100px;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
   color: #a1a1aa;
   font-weight: 700;
   font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.75rem 1.25rem;
+  padding: 0.6rem 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: background var(--guide-t-fast), color var(--guide-t-fast), border-color var(--guide-t-fast);
 }
 .nav-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.05);
+  background: var(--guide-surface-2);
   color: #fff;
+  border-color: var(--guide-border);
 }
 .nav-btn:disabled {
   opacity: 0.5;
@@ -1259,63 +1254,57 @@
   background: #10b981;
   color: #fff;
   border: 1px solid rgba(16, 185, 129, 0.5);
-  border-radius: 100px;
-  font-weight: 900;
+  border-radius: 0.6rem;
+  font-weight: 800;
   font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.75rem 2rem;
+  padding: 0.7rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  transition: background var(--guide-t-fast), color var(--guide-t-fast), border-color var(--guide-t-fast);
 }
 
 .validate-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  background: #059669;
 }
 
 .validate-btn.validated {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: var(--guide-green-soft);
+  color: var(--guide-green);
   border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: none;
 }
 
 .validate-btn.validated:hover {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(16, 185, 129, 0.18);
 }
 
 .bookmark-btn {
-  background: rgba(245, 158, 11, 0.1);
+  background: var(--guide-surface);
   color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 100px;
-  font-weight: 800;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 0.6rem;
+  font-weight: 700;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  padding: 0.75rem 1.25rem;
+  padding: 0.7rem 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--guide-t-fast), border-color var(--guide-t-fast), color var(--guide-t-fast);
 }
 
 .bookmark-btn:hover {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
+  background: var(--guide-surface-2);
+  border-color: rgba(245, 158, 11, 0.4);
   color: #fbbf24;
 }
 
 .bookmark-btn.active {
-  background: #f59e0b;
-  color: #000;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 /* ── Bookmark in sidebar rows ── */
@@ -2312,18 +2301,8 @@
 
 .ms-row.active .state-active {
   background: var(--accent-color, #3b82f6) !important;
-  box-shadow: 0 0 8px var(--accent-color, #3b82f6) !important;
 }
 
-/* Floating Actions Enhancements */
-.step-nav {
-  transform: scale(0.95);
-  transition: transform 0.2s ease;
-}
-
-.step-nav:hover {
-  transform: scale(1);
-}
 
 
 

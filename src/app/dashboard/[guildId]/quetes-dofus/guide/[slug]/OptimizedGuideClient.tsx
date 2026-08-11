@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -830,6 +831,12 @@ export default function OptimizedGuideClient({
     new Set(userProgress.filter(p => p.isCompleted).map(p => p.milestoneId))
   );
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // Mode plein écran : masque sidebar/topnav/footer de l'app (pattern map-fullscreen)
+  useEffect(() => {
+    document.body.classList.add("guide-fullscreen");
+    return () => document.body.classList.remove("guide-fullscreen");
+  }, []);
 
   const [openChapters, setOpenChapters] = useState<Record<number, boolean>>(() => {
     const initial: Record<number, boolean> = {};
@@ -2078,7 +2085,7 @@ export default function OptimizedGuideClient({
                 {/* Step presence banner */}
                 {membersHere.length > 0 && (
                   <div 
-                    className="step-presence-banner flex items-center justify-between p-3.5 mt-4 rounded-2xl bg-zinc-950/40 border border-white/5 backdrop-blur-md cursor-pointer hover:bg-zinc-950/60 hover:border-emerald-500/30 transition-all select-none group"
+                    className="step-presence-banner flex items-center justify-between p-3.5 mt-4 rounded-xl bg-zinc-950/40 border border-white/5 cursor-pointer hover:bg-zinc-950/60 hover:border-emerald-500/30 transition-colors select-none group"
                     onClick={() => setPresenceModal({ isOpen: true, milestoneId: selected.id, milestoneTitle: selected.title })}
                   >
                     <div className="flex items-center gap-3">
@@ -2283,71 +2290,76 @@ export default function OptimizedGuideClient({
         <CoordHoverMap containerRef={mainRef} guildId={guildId} />
       </main>
 
-      {/* ── Tiroir Sommaire (TOC) ──────────────────────────────────────── */}
-      <AnimatePresence>
-        {tocOpen && (
-          <motion.div
-            className="toc-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onClick={() => setTocOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {tocOpen && (
-          <motion.aside
-            className="toc-drawer"
-            initial={{ x: -320, opacity: 0.6 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -320, opacity: 0.6 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-          >
-            <div className="toc-header">
-              <div className="toc-title">
-                <span className="toc-title-label">Sommaire</span>
-                <span className="toc-title-name">{guide.name}</span>
-                <span className="toc-title-progress">{overallPct}% complété</span>
-              </div>
-              <button type="button" className="toc-close" onClick={() => setTocOpen(false)} title="Fermer (S ou Échap)">
-                <X size={15}/>
-              </button>
-            </div>
-            {activeGuideFilter && (
-              <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
-                <BookOpenCheck size={12}/> ← Guide principal
-              </button>
+      {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}
+      {typeof document !== "undefined" && createPortal(
+        <>
+          <AnimatePresence>
+            {tocOpen && (
+              <motion.div
+                className="toc-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setTocOpen(false)}
+              />
             )}
-            <div className="sidebar-chapters toc-chapters">
-              {filteredChapters.length === 0 ? (
-                <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
-              ) : (
-                filteredChapters.map((ch) => (
-                  <ChapterGroup
-                    key={ch.chapter}
-                    chapter={ch.chapter}
-                    label={ch.label}
-                    milestones={ch.items}
-                    selectedId={selected?.id}
-                    completedIds={completedIds}
-                    onSelect={ms => { setSelected(ms); setTocOpen(false); }}
-                    isOpen={openChapters[ch.chapter] ?? false}
-                    onToggle={(open) => handleToggleChapter(ch.chapter, open)}
-                    presenceMap={presenceMap}
-                    bookmarkId={bookmarkId}
-                    guildId={guildId}
-                    onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
-                    onBookmark={handleBookmark}
-                    onResetMilestone={handleResetMilestone}
-                  />
-                ))
-              )}
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+          <AnimatePresence>
+            {tocOpen && (
+              <motion.aside
+                className="toc-drawer"
+                initial={{ x: -320, opacity: 0.6 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -320, opacity: 0.6 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+              >
+                <div className="toc-header">
+                  <div className="toc-title">
+                    <span className="toc-title-label">Sommaire</span>
+                    <span className="toc-title-name">{guide.name}</span>
+                    <span className="toc-title-progress">{overallPct}% complété</span>
+                  </div>
+                  <button type="button" className="toc-close" onClick={() => setTocOpen(false)} title="Fermer (S ou Échap)">
+                    <X size={15}/>
+                  </button>
+                </div>
+                {activeGuideFilter && (
+                  <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
+                    <BookOpenCheck size={12}/> ← Guide principal
+                  </button>
+                )}
+                <div className="sidebar-chapters toc-chapters">
+                  {filteredChapters.length === 0 ? (
+                    <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+                  ) : (
+                    filteredChapters.map((ch) => (
+                      <ChapterGroup
+                        key={ch.chapter}
+                        chapter={ch.chapter}
+                        label={ch.label}
+                        milestones={ch.items}
+                        selectedId={selected?.id}
+                        completedIds={completedIds}
+                        onSelect={ms => { setSelected(ms); setTocOpen(false); }}
+                        isOpen={openChapters[ch.chapter] ?? false}
+                        onToggle={(open) => handleToggleChapter(ch.chapter, open)}
+                        presenceMap={presenceMap}
+                        bookmarkId={bookmarkId}
+                        guildId={guildId}
+                        onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
+                        onBookmark={handleBookmark}
+                        onResetMilestone={handleResetMilestone}
+                      />
+                    ))
+                  )}
+                </div>
+              </motion.aside>
+            )}
+          </AnimatePresence>
+        </>,
+        document.body
+      )}
 
       <DjPostCreateModal
         guildId={guildId}

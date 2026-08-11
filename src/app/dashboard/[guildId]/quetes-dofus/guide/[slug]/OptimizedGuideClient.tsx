@@ -1,13 +1,13 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose, LayoutGrid
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -342,9 +342,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   const [loaded, setLoaded] = useState(false);
   const color = getGPColor(seq.subGuideRef);
 
-  // Focus & Hide state
-  const readMode = true;
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  // Hide state
   const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
 
   const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
@@ -372,44 +370,12 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     }
   }, [expanded, loaded, loading, load]);
 
-  // Set initial focus mode index to the first unchecked step
-  useEffect(() => {
-    if (steps.length > 0) {
-      const firstUnchecked = steps.findIndex(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
-      if (firstUnchecked !== -1) {
-        setCurrentStepIndex(firstUnchecked);
-      } else {
-        setCurrentStepIndex(0);
-      }
-    }
-  }, [steps, seq.subGuideRef]);
-
-  // Clamp currentStepIndex within bounds of filteredSteps
-  useEffect(() => {
-    if (currentStepIndex >= filteredSteps.length && filteredSteps.length > 0) {
-      setCurrentStepIndex(filteredSteps.length - 1);
-    }
-  }, [filteredSteps.length, currentStepIndex]);
 
   const handleExpand = () => {
     if (!expanded) load();
     setExpanded(v => !v);
   };
 
-  const handleStepCheckToggle = (stepNumber: number, stepIndex: number) => {
-    const key = `${seq.subGuideRef}-${stepNumber}`;
-    const isNowChecked = !checkedSteps.has(key);
-    onStepToggle(seq.subGuideRef, stepNumber);
-
-    const isHidingCompleted = hideCompletedLocal || hideCompletedGlobal;
-    if (isNowChecked) {
-      if (!isHidingCompleted && stepIndex < filteredSteps.length - 1) {
-        setTimeout(() => {
-          setCurrentStepIndex(stepIndex + 1);
-        }, 400);
-      }
-    }
-  };
 
   // ─── Pre-compute step presence (memoized) ─────────────────────────────────
   // This avoids O(steps × members) computation inside filteredSteps.map().
@@ -579,164 +545,74 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                   </button>
                 </div>
 
-                {(() => {
-                  const step = filteredSteps[currentStepIndex];
-                  if (!step) {
-                    return (
-                      <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
-                        <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500 animate-bounce" />
-                        <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
-                      </div>
-                    );
-                  }
-
-                  const key = `${seq.subGuideRef}-${step.stepNumber}`;
-                  const checked = checkedSteps.has(key);
-
-                  // ── O(1) presence lookup from pre-computed map ──
-                  const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
-
-                  return (
-                    <div className="sgc-focus-wrap" id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}>
-                      <div className="sgc-focus-header">
-                        <button 
-                          className="sgc-focus-nav-btn"
-                          disabled={currentStepIndex === 0}
-                          onClick={() => setCurrentStepIndex(prev => Math.max(0, prev - 1))}
-                        >
-                          <ChevronLeft size={16}/>
-                        </button>
-                        
-                        {/* Interactive Step Input selector */}
-                        <div className="flex items-center gap-1">
-                          <span className="text-[11px] text-zinc-400 font-bold">Étape</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={steps.length}
-                            value={step.stepNumber}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              if (!isNaN(val) && val >= 1 && val <= steps.length) {
-                                // Find index of this step in filtered steps
-                                const targetIdx = filteredSteps.findIndex(s => s.stepNumber === val);
-                                if (targetIdx !== -1) {
-                                  setCurrentStepIndex(targetIdx);
-                                } else {
-                                  // Fallback to closest step if filtered out (e.g. completed)
-                                  const rawIdx = steps.findIndex(s => s.stepNumber === val);
-                                  if (rawIdx !== -1) {
-                                    // Turn off hiding local to let user see it
-                                    setHideCompletedLocal(false);
-                                    setTimeout(() => {
-                                      setCurrentStepIndex(rawIdx);
-                                    }, 10);
-                                  }
-                                }
-                              }
-                            }}
-                            className="w-12 bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-center text-xs font-black text-emerald-400 outline-none focus:border-emerald-500 transition-colors"
-                            title="Entrez un numéro d'étape pour y aller directement"
-                          />
-                          <span className="text-[10px] text-zinc-500 font-semibold">
-                            / {steps.length}
-                          </span>
-                        </div>
-
-                        <button 
-                          className="sgc-focus-nav-btn"
-                          disabled={currentStepIndex === filteredSteps.length - 1}
-                          onClick={() => setCurrentStepIndex(prev => Math.min(filteredSteps.length - 1, prev + 1))}
-                        >
-                          <ChevronRight size={16}/>
-                        </button>
-                      </div>
-
-                      <div className={`sgc-step sgc-step-focus ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
-                        <div className="sgc-step-check" 
-                          onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
-                          {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
-                        </div>
-                        <button
-                          className="sgc-step-bookmark-btn"
-                          title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onStepBookmark(key);
-                          }}
-                        >
-                          {bookmarkStepKey === key ? (
-                            <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
-                          ) : (
-                            <Bookmark size={18} />
-                          )}
-                        </button>
-                        <span className="sgc-step-num">
-                          {step.stepNumber}
-                        </span>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <div className="sgc-step-content ganymade-step-text"
-                            onClick={onInteractiveClick}
-                            {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                          {(validatedMembers.length > 0 || activeMembers.length > 0) && (
-                            <div 
-                              role="button"
-                              tabIndex={0}
-                              className="sgc-step-presence cursor-pointer hover:opacity-80 active:scale-95 transition-all select-none"
-                              title="Cliquer pour voir la liste des membres ayant validé ou en cours sur cette étape"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onShowStepPresenceModal(
-                                  step.stepNumber,
-                                  step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                  validatedMembers,
-                                  activeMembers
-                                );
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  onShowStepPresenceModal(
-                                    step.stepNumber,
-                                    step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                    validatedMembers,
-                                    activeMembers
-                                  );
-                                }
-                              }}
-                            >
-                              {validatedMembers.slice(0, 5).map(m => (
-                                <div
-                                  key={`val-${m.profileId}`}
-                                  className="sgc-step-presence-avatar validated"
-                                  title={`✅ ${m.userName} — a validé cette étape`}
-                                >
-                                  {m.userAvatar
-                                    ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                                    : m.userName.charAt(0).toUpperCase()}
-                                </div>
-                              ))}
-                              {activeMembers.slice(0, 3).map(m => (
-                                <div
-                                  key={`act-${m.profileId}`}
-                                  className="sgc-step-presence-avatar active"
-                                  title={`📍 ${m.userName} — rendu à cette étape`}
-                                >
-                                  {m.userAvatar
-                                    ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                                    : m.userName.charAt(0).toUpperCase()}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          {/* Coords & Travel Roadmap Checks Section (supprimé — remplacé par le hover carte CoordHoverMap) */}
-                        </div>
-                      </div>
+                <div className="sgc-step-list">
+                  {filteredSteps.length === 0 ? (
+                    <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                      <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
+                      <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
                     </div>
-                  );
-                })()}
+                  ) : (
+                    filteredSteps.map((step) => {
+                      const key = `${seq.subGuideRef}-${step.stepNumber}`;
+                      const checked = checkedSteps.has(key);
+                      const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
+                      const presenceCount = validatedMembers.length + activeMembers.length;
+                      return (
+                        <div
+                          key={key}
+                          id={`sgc-step-${key}`}
+                          className={`sgc-step ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}
+                        >
+                          <div className="sgc-step-check" onClick={() => onStepToggle(seq.subGuideRef, step.stepNumber)}>
+                            {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
+                          </div>
+                          <button
+                            className="sgc-step-bookmark-btn"
+                            title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onStepBookmark(key);
+                            }}
+                          >
+                            {bookmarkStepKey === key ? (
+                              <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
+                            ) : (
+                              <Bookmark size={18} />
+                            )}
+                          </button>
+                          <span className="sgc-step-num">{step.stepNumber}</span>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <div className="sgc-step-content ganymade-step-text"
+                              onClick={onInteractiveClick}
+                              {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
+                            <div className="sgc-step-footer">
+                              {presenceCount > 0 && (
+                                <button
+                                  type="button"
+                                  className="sgc-step-presence-btn"
+                                  title="Voir qui a validé ou est en cours sur cette étape"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onShowStepPresenceModal(
+                                      step.stepNumber,
+                                      step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                      validatedMembers,
+                                      activeMembers
+                                    );
+                                  }}
+                                >
+                                  <Users size={11}/>
+                                  <span>{presenceCount} {presenceCount > 1 ? "membres" : "membre"}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </>
             )}
           </motion.div>
@@ -923,7 +799,8 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
-  selectedCharacter = "PRINCIPAL", mainCharacter, mules = []
+  selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
+  currentUserProfile, ocreStats
 }: {
   guide: { id: string; name: string; slug: string };
   milestones: Milestone[];
@@ -933,6 +810,16 @@ export default function OptimizedGuideClient({
   selectedCharacter?: string;
   mainCharacter?: { pseudo: string; classe?: string | null };
   mules?: { pseudo: string; classe?: string | null; level?: number | null }[];
+  currentUserProfile?: {
+    alignment?: string | null;
+    alignmentOrder?: string | null;
+    alignmentLevel?: number;
+    altPseudos?: any[];
+    dofusClass?: string | null;
+    metamobPseudo?: string | null;
+    pseudoDofus?: string | null;
+  };
+  ocreStats?: { bosses?: number; archis?: number; progressPercent?: number; currentStep?: number; serverName?: string } | null;
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -995,19 +882,6 @@ export default function OptimizedGuideClient({
     });
   }, [guide.slug, selected, guildId]);
 
-  const handleCollapseAll = useCallback(() => {
-    setOpenChapters({});
-    toast.info("Tous les chapitres ont été réduits");
-  }, []);
-
-  const handleExpandAll = useCallback(() => {
-    const all: Record<number, boolean> = {};
-    initialMilestones.forEach(m => {
-      all[m.chapter] = true;
-    });
-    setOpenChapters(all);
-    toast.success("Tous les chapitres ont été développés");
-  }, [initialMilestones]);
 
   const handleToggleChapter = useCallback((chapterNum: number, open: boolean) => {
     setOpenChapters(prev => ({
@@ -1037,7 +911,6 @@ export default function OptimizedGuideClient({
     });
     return initial;
   });
-  const [search, setSearch] = useState("");
   const [validating, setValidating] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -1058,8 +931,7 @@ export default function OptimizedGuideClient({
   
   const [activeSeqIndex, setActiveSeqIndex] = useState(0);
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
-  const [hideCompleted, setHideCompleted] = useState(false);
-  const [legendOpen, setLegendOpen] = useState(false);
+
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
@@ -1483,10 +1355,6 @@ export default function OptimizedGuideClient({
   const filteredChapters = useMemo(() => {
     let list = chapters;
 
-    if (hideCompleted) {
-      list = list.map(ch => ({ ...ch, items: ch.items.filter(m => !completedIds.has(m.id)) })).filter(ch => ch.items.length > 0);
-    }
-
     if (activeGuideFilter) {
       list = list.map(ch => ({
         ...ch,
@@ -1494,19 +1362,8 @@ export default function OptimizedGuideClient({
       })).filter(ch => ch.items.length > 0);
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.map(ch => ({
-        ...ch,
-        items: ch.items.filter(m =>
-          m.title.toLowerCase().includes(q) ||
-          m.sequences.some(s => s.subGuideName.toLowerCase().includes(q))
-        )
-      })).filter(ch => ch.items.length > 0);
-    }
-
     return list;
-  }, [chapters, search, activeGuideFilter, hideCompleted, completedIds]);
+  }, [chapters, activeGuideFilter]);
 
   // Overall progress
   const totalDone = completedIds.size;
@@ -1560,29 +1417,21 @@ export default function OptimizedGuideClient({
     });
   }, [selected, guildId]);
 
-  // ─── Sommaire / sidebar repliable (mode unique plein écran) ─────────────
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    try { return localStorage.getItem(`guide-sommaire-${guide.slug}`) !== "0"; } catch { return true; }
-  });
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen(prev => {
-      const next = !prev;
-      try { localStorage.setItem(`guide-sommaire-${guide.slug}`, next ? "1" : "0"); } catch { /* ignore */ }
-      return next;
-    });
-  }, [guide.slug]);
+  // ─── Sommaire (tiroir TOC, mode unique plein écran) ─────────────────────
+  const [tocOpen, setTocOpen] = useState(false);
+  const toggleToc = useCallback(() => setTocOpen(v => !v), []);
 
-  // Raccourci clavier S : ouvrir/fermer le sommaire
+  // Raccourci clavier S : ouvrir/fermer le sommaire · Échap : fermer
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
-      if (e.key === "s" || e.key === "S") toggleSidebar();
+      if (e.key === "s" || e.key === "S") setTocOpen(v => !v);
+      if (e.key === "Escape") setTocOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [toggleSidebar]);
+  }, []);
 
   // --- Selecteur de guide (HUD) ---------------------------------------------------
   const router = useRouter();
@@ -1614,6 +1463,16 @@ export default function OptimizedGuideClient({
       document.removeEventListener("mousedown", onDocClick);
     };
   }, [guidesOpen]);
+
+  const pathname = usePathname();
+  const [charOpen, setCharOpen] = useState(false);
+  const handleCharacterSelect = useCallback((char: string) => {
+    setCharOpen(false);
+    const params = new URLSearchParams(searchParams.toString());
+    if (char === "PRINCIPAL") params.delete("character");
+    else params.set("character", char);
+    router.push(pathname + "?" + params.toString());
+  }, [router, searchParams, pathname]);
 
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
@@ -1995,184 +1854,7 @@ export default function OptimizedGuideClient({
           display: none !important;
         }
       `}} />
-      <div className={`guide-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
-
-      {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
-      <aside className="guide-sidebar">
-
-        {/* ── Compact Header ── */}
-        <div className="sidebar-compact-header">
-          <Link href={`/dashboard/${guildId}/quetes-dofus`} className="sb-back-btn group">
-            <ChevronLeft size={11} className="group-hover:-translate-x-0.5 transition-transform"/>
-            <span>Hub</span>
-          </Link>
-          <div className="sb-guide-meta">
-            <span className="sb-guide-name" title={guide.name}>{guide.name}</span>
-            <span className="sb-guide-stats">{totalDone}/{totalMs} complétées</span>
-          </div>
-          <div className="sb-ring-wrap">
-            <ProgressRing pct={overallPct} size={38} stroke={3} color="#10b981"/>
-            <span className="sb-ring-pct">{overallPct}%</span>
-          </div>
-        </div>
-
-        {/* ── Compact Toolbar ── */}
-        <div className="sidebar-toolbar">
-          {/* Search */}
-          <div className="sb-search">
-            <Search size={11} className="sb-search-icon"/>
-            <input
-              className="sb-search-input"
-              placeholder="Rechercher une étape…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="sb-search-clear"><X size={10}/></button>
-            )}
-          </div>
-
-          {/* Actions row */}
-          <div className="sb-actions-row">
-            {/* Hide completed */}
-            <button
-              className={`sb-action-btn sb-action-btn-hide-completed ${hideCompleted ? "active" : ""}`}
-              onClick={() => setHideCompleted(v => !v)}
-              title={hideCompleted ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-            >
-              {hideCompleted ? <Eye size={13}/> : <EyeOff size={13}/>}
-            </button>
-
-            {/* Collapse all */}
-            <button className="sb-action-btn sb-action-btn-collapse" onClick={handleCollapseAll} title="Réduire tous les chapitres">
-              <ChevronDown size={13} style={{ transform: "rotate(180deg)" }}/>
-            </button>
-
-            {/* Expand all */}
-            <button className="sb-action-btn sb-action-btn-expand" onClick={handleExpandAll} title="Développer tous les chapitres">
-              <ChevronDown size={13}/>
-            </button>
-
-            {/* Legend toggle */}
-            <button
-              className={`sb-action-btn sb-action-btn-legend ${legendOpen ? "active" : ""}`}
-              onClick={() => setLegendOpen(v => !v)}
-              title="Légende des indicateurs"
-            >
-              <HelpCircle size={13}/>
-            </button>
-
-            {/* Reset entire guide progress */}
-            <button
-              className="sb-action-btn sb-action-btn-reset text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
-              onClick={handleResetGuide}
-              title="Réinitialiser TOUT le guide (progression remise à zéro)"
-              disabled={validating}
-            >
-              <RotateCcw size={13}/>
-            </button>
-
-          </div>
-
-          {/* Guild radar mini — only if members */}
-          {guildProgress.length > 0 && (
-            <button 
-              onClick={() => setIsAllMembersModalOpen(true)}
-              className="sb-radar-chip w-full hover:bg-white/5 border border-white/5 hover:border-white/10 rounded-xl transition-all p-2 text-left flex flex-col gap-1 cursor-pointer"
-              title="Voir la liste des membres"
-            >
-              <div className="flex items-center gap-1.5 text-blue-400">
-                <Users size={12} className="shrink-0"/>
-                <span className="text-[11px] font-black uppercase tracking-wider">Suivi de guilde</span>
-              </div>
-              <div className="text-[10px] text-zinc-400 font-medium">
-                <strong>{uniqueGuildMembers.length}</strong> {uniqueGuildMembers.length > 1 ? "membres suivent" : "membre suit"} ce guide.
-              </div>
-              {Object.keys(presenceMap).length > 0 && (
-                <div className="text-[9px] text-zinc-500">
-                  Répartis sur <strong>{Object.keys(presenceMap).length}</strong> jalon{Object.keys(presenceMap).length > 1 ? "s" : ""} différent{Object.keys(presenceMap).length > 1 ? "s" : ""} du parcours.
-                </div>
-              )}
-              <div className="text-[9px] text-indigo-400 mt-0.5 underline font-bold">
-                Afficher les membres →
-              </div>
-            </button>
-          )}
-
-          {/* Back to main guide (only when filter active) */}
-          {activeGuideFilter && (
-            <button
-              onClick={handleBackToMainGuideCurrentStep}
-              className="sb-back-main-btn"
-              title="Retourner à votre position du guide principal"
-            >
-              <BookOpenCheck size={10}/>
-              <span>← Guide principal</span>
-            </button>
-          )}
-
-          {/* Legend panel */}
-          <AnimatePresence initial={false}>
-            {legendOpen && (
-              <motion.div
-                className="sb-legend-panel"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <div className="sb-legend-row">
-                  <Bookmark size={10} className="text-amber-500 fill-amber-500/20 shrink-0"/>
-                  <span><strong className="text-amber-400">J&apos;en suis là</strong> — Position courante (sans valider)</span>
-                </div>
-                <div className="sb-legend-row">
-                  <CheckCircle2 size={10} className="text-emerald-500 shrink-0"/>
-                  <span><strong className="text-emerald-400">Validée</strong> — Étape terminée</span>
-                </div>
-                <div className="sb-legend-row">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)] shrink-0"/>
-                  <span><strong className="text-blue-400">Sélectionnée</strong> — Vue active</span>
-                </div>
-                <div className="sb-legend-row">
-                  <Circle size={10} className="text-zinc-600 shrink-0"/>
-                  <span><strong>À faire</strong> — Non commencée</span>
-                </div>
-                <div className="sb-legend-row">
-                  <Users size={10} className="text-blue-400 shrink-0"/>
-                  <span><strong>Guilde</strong> — Membres positionnés ici</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Chapter list */}
-        <div className="sidebar-chapters">
-          {filteredChapters.length === 0 ? (
-            <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
-          ) : (
-            filteredChapters.map((ch, idx) => (
-              <ChapterGroup
-                key={ch.chapter}
-                chapter={ch.chapter}
-                label={ch.label}
-                milestones={ch.items}
-                selectedId={selected?.id}
-                completedIds={completedIds}
-                onSelect={ms => setSelected(ms)}
-                isOpen={openChapters[ch.chapter] ?? false}
-                onToggle={(open) => handleToggleChapter(ch.chapter, open)}
-                presenceMap={presenceMap}
-                bookmarkId={bookmarkId}
-                guildId={guildId}
-                onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
-                onBookmark={handleBookmark}
-                onResetMilestone={handleResetMilestone}
-              />
-            ))
-          )}
-        </div>
-      </aside>
+      <div className="guide-shell">
 
       {/* ── CENTER CONTENT ───────────────────────────────────────────────── */}
       <main className="guide-main" ref={mainRef}>
@@ -2194,10 +1876,10 @@ export default function OptimizedGuideClient({
                   <button
                     type="button"
                     className="guide-sommaire-btn"
-                    onClick={toggleSidebar}
-                    title={sidebarOpen ? "Masquer le sommaire (S)" : "Afficher le sommaire (S)"}
+                    onClick={toggleToc}
+                    title="Ouvrir le sommaire (S)"
                   >
-                    {sidebarOpen ? <PanelLeftClose size={14}/> : <PanelLeft size={14}/>}
+                    <PanelLeft size={14}/>
                     <span>Sommaire</span>
                   </button>
 
@@ -2257,6 +1939,56 @@ export default function OptimizedGuideClient({
                             </button>
                           );
                         })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Personnage actif (mules / alignement / métamob / ocre) */}
+                  <div className="guide-char">
+                    <button
+                      type="button"
+                      className="guide-char-btn"
+                      onClick={() => setCharOpen(v => !v)}
+                      title="Changer de personnage / voir mon contexte"
+                      aria-expanded={charOpen}
+                    >
+                      {selectedCharacter !== "PRINCIPAL" ? <Users size={13} className="text-blue-400"/> : <Crown size={13} className="text-amber-500"/>}
+                      <span className="guide-char-label">
+                        {selectedCharacter !== "PRINCIPAL" ? selectedCharacter : (mainCharacter?.pseudo || "Principal")}
+                      </span>
+                      <ChevronDown size={12} className={"guide-char-chev" + (charOpen ? " open" : "")}/>
+                    </button>
+                    {charOpen && (
+                      <div className="guide-char-menu">
+                        <div className="guide-char-menu-title">Personnage</div>
+                        <button
+                          type="button"
+                          className={"guide-char-item" + (selectedCharacter === "PRINCIPAL" ? " current" : "")}
+                          onClick={() => handleCharacterSelect("PRINCIPAL")}
+                        >
+                          <Crown size={13} className="text-amber-500 shrink-0"/>
+                          <span className="truncate">{mainCharacter?.pseudo || "Principal"}</span>
+                          {mainCharacter?.classe ? <span className="guide-char-sub">{mainCharacter.classe}</span> : null}
+                        </button>
+                        {mules.map(m => (
+                          <button
+                            key={m.pseudo}
+                            type="button"
+                            className={"guide-char-item" + (selectedCharacter === m.pseudo ? " current" : "")}
+                            onClick={() => handleCharacterSelect(m.pseudo)}
+                          >
+                            <Users size={13} className="text-blue-400 shrink-0"/>
+                            <span className="truncate">{m.pseudo}</span>
+                            {m.classe ? <span className="guide-char-sub">Niv. {m.level ?? 200} • {m.classe}</span> : null}
+                          </button>
+                        ))}
+                        <div className="guide-char-divider" />
+                        <div className="guide-char-context">
+                          <span className="guide-char-ctx-row"><span>Classe</span><strong>{currentUserProfile?.dofusClass || mainCharacter?.classe || "—"}</strong></span>
+                          <span className="guide-char-ctx-row"><span>Alignement</span><strong>{currentUserProfile?.alignment ? currentUserProfile.alignment + (currentUserProfile.alignmentOrder ? " " + currentUserProfile.alignmentOrder : "") + (currentUserProfile.alignmentLevel ? " " + currentUserProfile.alignmentLevel : "") : "—"}</strong></span>
+                          <span className="guide-char-ctx-row"><span>Métamob</span><strong>{currentUserProfile?.metamobPseudo || "—"}</strong></span>
+                          <span className="guide-char-ctx-row"><span>Ocre</span><strong>{ocreStats?.progressPercent != null ? ocreStats.progressPercent + "%" : "—"}</strong></span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2331,64 +2063,13 @@ export default function OptimizedGuideClient({
 
               {/* Step header with Navigator */}
               <header className="step-header">
-                <div className={`step-navigator ${activeGuideFilter ? "focused" : ""}`}>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="step-nav-controls">
-                        <button className="nav-step-btn" onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs} title="Étape précédente">
-                          <ChevronLeft size={16}/>
-                        </button>
-                        
-                        <button
-                          onClick={() => setIsMilestoneModalOpen(true)}
-                          className="flex items-center justify-between gap-2 px-3 py-1.5 bg-zinc-950/80 border border-white/10 rounded-lg text-xs text-white font-bold hover:bg-zinc-900 hover:border-emerald-500/50 transition-all max-w-[150px] sm:max-w-[200px] cursor-pointer"
-                          title="Aller directement à une étape précise"
-                        >
-                          <span className="truncate">
-                            {selectedIdx !== -1 ? selectedIdx + 1 : 1}. {decodeTitle(selected.title)}
-                          </span>
-                          <ChevronDown size={12} className="text-zinc-500 shrink-0" />
-                        </button>
-
-                        <button className="nav-step-btn" onClick={() => nextMs && setSelected(nextMs)} disabled={!nextMs} title="Étape suivante">
-                          <ChevronRight size={16}/>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        className={`validate-btn-compact ${isCompleted ? "validated" : ""}`}
-                        onClick={handleToggleMs} disabled={validating}>
-                        {validating ? <Loader2 size={12} className="animate-spin"/> :
-                          isCompleted ? <><CheckCircle2 size={12}/> Validée</> : <><Flag size={12}/> Valider</>}
-                      </button>
-                      <button
-                        className={`bookmark-btn-compact ${bookmarkId === selected.id ? "active" : ""}`}
-                        onClick={() => handleBookmark(selected.id)}
-                        title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis là"}
-                      >
-                        {bookmarkId === selected.id ? <BookmarkCheck size={12} className="text-amber-500"/> : <Bookmark size={12}/>}
-                      </button>
-                      <button
-                        className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
-                        onClick={handleResetMilestone}
-                        disabled={validating}
-                        title="Réinitialiser ce jalon (étapes cochées et validation)"
-                      >
-                        <RotateCcw size={12} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="step-meta-row mt-3">
-                    <span className="step-phase-badge">Phase {selected.chapter > 0 ? selected.chapter : "Intro"}</span>
-                    <span className="step-type-badge"
-                      style={{ background: typeConf.bg, color: typeConf.color, borderColor: typeConf.color + "40" }}>
-                      {typeConf.label}
-                    </span>
-                    {selected.isOptional && <span className="step-optional-badge">Bonus</span>}
-                  </div>
+                <div className="step-meta-row">
+                  <span className="step-phase-badge">Phase {selected.chapter > 0 ? selected.chapter : "Intro"}</span>
+                  <span className="step-type-badge"
+                    style={{ background: typeConf.bg, color: typeConf.color, borderColor: typeConf.color + "40" }}>
+                    {typeConf.label}
+                  </span>
+                  {selected.isOptional && <span className="step-optional-badge">Bonus</span>}
                 </div>
 
                 <h1 className="step-title">{decodeTitle(selected.title)}</h1>
@@ -2560,6 +2241,13 @@ export default function OptimizedGuideClient({
                   )}
                   <div className="step-actions">
                     <button
+                      className="jump-btn"
+                      onClick={() => setIsMilestoneModalOpen(true)}
+                      title="Aller directement à une étape précise"
+                    >
+                      <ListTree size={14}/> <span>Aller à…</span>
+                    </button>
+                    <button
                       className={`validate-btn ${isCompleted ? "validated" : ""}`}
                       onClick={handleToggleMs} disabled={validating}>
                       {validating ? <Loader2 size={14} className="animate-spin"/> :
@@ -2572,6 +2260,14 @@ export default function OptimizedGuideClient({
                     >
                       {bookmarkId === selected.id ? <BookmarkCheck size={14}/> : <Bookmark size={14}/>}
                       <span>{bookmarkId === selected.id ? "Ma position" : "J'en suis là"}</span>
+                    </button>
+                    <button
+                      className="jump-btn reset"
+                      onClick={handleResetMilestone}
+                      disabled={validating}
+                      title="Réinitialiser ce jalon (étapes cochées et validation)"
+                    >
+                      <RotateCcw size={14}/>
                     </button>
                   </div>
                   {nextMs && (
@@ -2586,6 +2282,72 @@ export default function OptimizedGuideClient({
         )}
         <CoordHoverMap containerRef={mainRef} guildId={guildId} />
       </main>
+
+      {/* ── Tiroir Sommaire (TOC) ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {tocOpen && (
+          <motion.div
+            className="toc-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setTocOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {tocOpen && (
+          <motion.aside
+            className="toc-drawer"
+            initial={{ x: -320, opacity: 0.6 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -320, opacity: 0.6 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            <div className="toc-header">
+              <div className="toc-title">
+                <span className="toc-title-label">Sommaire</span>
+                <span className="toc-title-name">{guide.name}</span>
+                <span className="toc-title-progress">{overallPct}% complété</span>
+              </div>
+              <button type="button" className="toc-close" onClick={() => setTocOpen(false)} title="Fermer (S ou Échap)">
+                <X size={15}/>
+              </button>
+            </div>
+            {activeGuideFilter && (
+              <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
+                <BookOpenCheck size={12}/> ← Guide principal
+              </button>
+            )}
+            <div className="sidebar-chapters toc-chapters">
+              {filteredChapters.length === 0 ? (
+                <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+              ) : (
+                filteredChapters.map((ch) => (
+                  <ChapterGroup
+                    key={ch.chapter}
+                    chapter={ch.chapter}
+                    label={ch.label}
+                    milestones={ch.items}
+                    selectedId={selected?.id}
+                    completedIds={completedIds}
+                    onSelect={ms => { setSelected(ms); setTocOpen(false); }}
+                    isOpen={openChapters[ch.chapter] ?? false}
+                    onToggle={(open) => handleToggleChapter(ch.chapter, open)}
+                    presenceMap={presenceMap}
+                    bookmarkId={bookmarkId}
+                    guildId={guildId}
+                    onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
+                    onBookmark={handleBookmark}
+                    onResetMilestone={handleResetMilestone}
+                  />
+                ))
+              )}
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       <DjPostCreateModal
         guildId={guildId}

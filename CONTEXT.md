@@ -104,22 +104,28 @@
 - **Périmètre (fichiers)** : parser `src/lib/ganymede-parser.ts` · actions `optimized-guide-actions.ts` · rendu `OptimizedGuideClient.tsx` + `guide-styles.css` · `RushTimelineClient.tsx` (sylvestre, **non touché**) · onglet/admin `OptimizedGuideTab.tsx` / `god/dofus-guides/` (phase 6 séparée).
 - **Direction design 2026 « moins IA » appliquée** : palette disciplinée **doré = fil de quête · emerald = progression · rouge = danger · bleu = coords/infos**, zéro glow, typo ≥11px, motion ≤200ms, colonne lecture 840px + breadcrumb sticky.
 
-### 🎯 Architecture finale (décision user 10/08) — **mode unique « Guide Focus »**
-- **Un seul mode** plein écran (plus de bascule). **Mode mission supprimé** (overlay, CTA, état, CSS — nettoyé).
-- **Sidebar → sommaire repliable** : `sidebarOpen` (localStorage `guide-sommaire-{slug}`), bouton « Sommaire » (PanelLeft) + raccourci `S`, bouton flottant « Sommaire » quand repliée, contenu élargi plein écran.
-- **Bouton « Signaler un bug » restauré** (`QuestFeedbackButton`, `sourcePage=guide:<slug>`).
-- **Popin sociale 3ᵉ niveau** conservée (qui a validé / qui est dessus + « Demander de l'aide ») sur les étapes des cartes sous-guide accordéon.
-- **Par-Dofus gardé** (10/08) : refonte zero-glow `DofusQuestHub.tsx` + **fix hydration `<button>` imbriqués** dans `DofusTimelineQuest.tsx` (2 endroits → `<span role=button>`).
+### 🎯 Architecture finale — mode unique « Guide Focus » plein écran (refonte complète 10-12/08)
+- **Un seul mode** : le guide occupe tout l'écran. Mode mission supprimé. **Chrome app masqué** (`body.guide-fullscreen` → cache sidebar/topnav/footer via `globals.css`, `.guide-shell` = 100vh).
+- **Vue de base supprimée** (fini « Hub / X/Y complétées / % / Rechercher / Suivi de guilde ») : plus de sidebar.
+- **Mini-bar sticky** (`guide-hud`) : Sommaire (bouton + raccourci `S`) · sélecteur de guide (`getOptimizedGuidesLite`) · `Phase X · [GPx] nom · Z%` · barre dorée.
+- **Tiroir Sommaire (TOC)** : chapitres/jalons, rendu en `createPortal(document.body)` (passe AU-DESSUS de la navbar app), fermeture `S`/Échap.
+- **Bandeau héro style rush sylvestre** (`guide-hero`) : grand bouton « Quêtes Dofus », 4 cartes — **Personnage Actif** (`GuideCharDropdown` : mules/classe) · **Alignement/Ordre** (`getAlignment`/`ORDERS`, badge tranche) · **Métamob/Ocre** (`ocreStats` : Gardiens X/51 · Archis X/286 + lien `quete-ocre` ou « Lier Metamob ») · **Progression** (% + barre).
+- **Étapes des sous-guides en liste** (plus de focus une-à-la-une), avatars Discord remplacés par un compteur « N membres » discret, popin sociale 3ᵉ niveau conservée, « Signaler un bug » restauré.
+- **Boutons dé-glowés** (directives design system) : `nav-btn`/`validate-btn`/`bookmark-btn` sans glow/pilule/translateY, footer stable (`min-width`).
+- **Par-Dofus gardé** (10/08) : refonte zero-glow `DofusQuestHub.tsx` + fix hydration `<button>` imbriqués dans `DofusTimelineQuest.tsx`.
 
-### Commits clés (poussés, ~10 sur la branche)
-`631ae4c8` tokens · `46aa6378` nettoyage AI slop · `5c1e6dc2` mode mission · `ef1dd0ce` lecture · `e5578ac3` entraide/reward/tags · `f15f766e` par-Dofus + fix hydration · `767f7839` focus · `3a175e93` désencombrement · `9e15d73b` mode unique Guide Focus (+ mission supprimée) · `e3660144` **fix corruption encodage UTF-8** (mojibake Ganymède/›/🗺️ via PowerShell — attention : Windows PowerShell 5.1 `Get-Content` lit en ANSI, utiliser `[IO.File]::ReadAllText/WriteAllText` UTF-8 ou l'outil éditeur).
+### Commits clés (refonte complète, poussés)
+Anciens : `631ae4c8` tokens · `46aa6378` nettoyage AI slop · `5c1e6dc2` mode mission · `ef1dd0ce` lecture · `e5578ac3` entraide/reward/tags · `f15f766e` par-Dofus + fix hydration · `767f7839` focus · `3a175e93` désencombrement · `9e15d73b` mode unique Guide Focus · `e3660144` fix encodage UTF-8 (mojibake).
+Session 11/08 : `36bf6a25` hover carte `CoordHoverMap` + suppression bandeaux positions · `0b93d302` pin supply-chain CI · `908582ea` CONTEXT · `aea3ac68` CodeQL SSRF/command-injection.
+Refonte finale : `4a2d8e04` HUD flottant + sélecteur guide + nettoyage · `d5a2b83e` suppression sidebar + tiroir sommaire + étapes en liste + sélecteur personnage · `8aeb9e9e` tiroir TOC en portal + plein écran app + boutons dé-glowés · `f6fa41c1` bandeau style sylvestre + aération.
 
 ### ⚠️ Restant / à savoir
-- **PR `refonte-module-ganymede` → `dev`** pas encore créée.
-- **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : **fichiers absents côté serveur** (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
-- **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` (~ligne 1286) — correctif = composant enfant sous Suspense (option).
+- **PR `refonte-module-ganymede` → `dev`** à merger (auto-approbation solo sur `dev`).
+- **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : fichiers absents côté serveur (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
+- **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` — correctif = composant enfant sous Suspense (option).
 - **Leaflet `_leaflet_pos`** (`map-viewer.tsx`) : pré-existant, map détachée/cleanup.
-- **Rush sylvestre** : **NE PAS toucher**. Admin/composer : PR dédiée (phase 6).
+- **Rush sylvestre** : **NE PAS toucher**. Admin/composer (`OptimizedGuideAdminClient`, `OptimizedGuideTab`, `god/dofus-guides`) : **phase 6 dédiée** (réimport à la volée déjà fonctionnel).
+- Mémo à jour : `src/temp/memo-2026-08-10-module-ganymede.md`.
 
 ---
 

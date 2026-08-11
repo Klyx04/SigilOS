@@ -175,6 +175,16 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             classe: user.classe,
                         }}
                         mules={mules}
+                        currentUserProfile={{
+                            alignment: userProfile.alignment,
+                            alignmentOrder: userProfile.alignmentOrder,
+                            alignmentLevel: userProfile.alignmentLevel,
+                            altPseudos: mules,
+                            dofusClass: userProfile.dofusClass,
+                            metamobPseudo: userProfile.metamobPseudo,
+                            pseudoDofus: userProfile.pseudoDofus,
+                        }}
+                        ocreStats={ocreStats}
                     />
                 )}
             </Suspense>

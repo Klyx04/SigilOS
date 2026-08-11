@@ -599,3 +599,12 @@
 ---
 
 *— Fichier de contexte global maintenu à jour (créé à l'issue de l'audit 2026). Session 10/08/2026 intégrée. —*
+
+## ✨ Mise à jour 11/08/2026 — Refonte Ganymède (positions) + Repo passé PUBLIC (blindage)
+
+- **Ganymède** : nouveau composant `CoordHoverMap.tsx` → **hover carte sur toutes les positions** (comme rush sylvestre `MapPositionPopover`), délégation sur `mainRef`, résolution monde auto via `resolveMapWorldAction`, boutons Copier /travel + Carte. **Suppression du bandeau « Trajet · N cartes »** (état `checkedSubMaps`, `localStorage sigilos_submaps_*`), du bouton œil `coord-eye-btn` + modal `mapModal` + `onMapClick` + `EYE_SVG` + `detectWorldId` (morts). CSS mort retiré (`.sgc-step-coords`, `.coord-btn`), hover `.coord-chip` amélioré (glow bleu). Commit `36bf6a25`.
+- **Supply-chain CI** : actions tierces épinglées sur SHA de commit (gitleaks/semgrep/trivy) + permissions `issues:write` au job `security-scan`. Commit `0b93d302`.
+- **Repo `Klyx04/SigilOS` passé PUBLIC** (minutes Actions illimitées) → blindage : secret scanning + push protection ON, dependabot alerts/security updates + CodeQL ON, mot de passe beta `BETA_PASSWORD` changé (GitHub + `.env.beta` serveur) + beta redéployé, images GHCR **privées**, branches `dev`/`main` **protégées** (PR + CI vert ; approbation relâchée sur `dev` car solo), interaction limits « prior contributors », limite PR inconnus = 1. Détails : `src/temp/memo-2026-08-11-blindage-public-suite.md`.
+- **Branche `refonte-module-ganymede` poussée** (commits `36bf6a25`, `0b93d302`) → **PR vers `dev` à créer/merger** (le user solo peut s'auto-approuver sur `dev`).
+- **PR dependabot en cours** : `lodash` mergé ✅ · `undici` (sécurité) prête · `ws` (sécurité) en rebase.
+- **Prochaine session** : **continuer la refonte du guide complet Ganymède** (chantier ouvert — cf. `src/temp/memo-2026-08-10-module-ganymede.md`).

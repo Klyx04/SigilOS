@@ -5,17 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
-  BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
+  BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
   Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// ─── EYE_SVG Constant ────────────────────────────────────────────────────────
-const EYE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye inline-block w-3.5 h-3.5"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
 import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress } from "@/server/actions/optimized-guide-actions";
-import { MapViewer } from "@/components/worldmap/map-viewer";
+import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
@@ -65,20 +63,6 @@ const getNoobsDungeonSlug = (name: string) => {
     
   return rawSlug;
 };
-
-// ─── World Detector Helper ───────────────────────────────────────────────────
-function detectWorldId(textContext: string): number {
-  const txt = textContext.toLowerCase();
-  if (txt.includes("incarnam")) return 2;
-  if (txt.includes("minotoror")) return 4;
-  if (txt.includes("dragon cochon") || txt.includes("dragon-cochon")) return 5;
-  if (txt.includes("corbac")) return 6;
-  if (txt.includes("givrefoux")) return 7;
-  if (txt.includes("méphitiques")) return 8;
-  if (txt.includes("entrailles de brâkmar") || txt.includes("entrailles de brakmar")) return 9;
-  if (txt.includes("canopée") || txt.includes("canopee")) return 10;
-  return 1; // Default to Monde des Douze
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Sequence = {
@@ -303,7 +287,7 @@ const processHtml = (html: string) => {
       return part
         .replace(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g, (match, x, y, world) => {
           const worldAttr = world ? ` data-world="${world}"` : '';
-          return `<span class="coord-wrap inline-flex items-center gap-1"><span class="coord-chip cursor-pointer" data-x="${x}" data-y="${y}"${worldAttr} title="Copier la position [${x}, ${y}]">[${x}, ${y}]</span><button class="coord-eye-btn p-0.5 rounded text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-all cursor-pointer inline-flex items-center" data-x="${x}" data-y="${y}"${worldAttr} title="Voir la carte HD">${EYE_SVG}</button></span>`;
+          return `<span class="coord-wrap inline-flex items-center gap-1"><span class="coord-chip cursor-pointer" data-x="${x}" data-y="${y}"${worldAttr} title="Copier la position [${x}, ${y}]">[${x}, ${y}]</span></span>`;
         })
         .replace(/\[(GP\d+)\]/g, `<span class="guide-ref-link" data-ref="$1">[$1]</span>`);
     }
@@ -332,11 +316,10 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, guildId, onShowStepPresenceModal }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
-  onMapClick: (x: number, y: number, worldId?: number) => void;
   onInteractiveClick: (e: React.MouseEvent) => void;
   defaultExpanded?: boolean;
   hideCompletedGlobal?: boolean;
@@ -346,7 +329,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   uniqueGuildMembers: UniqueGuildMember[];
   milestones: Milestone[];
   selectedMilestoneId: string;
-  guildId: string;
   onShowStepPresenceModal: (
     stepNumber: number,
     stepTitle: string,
@@ -364,9 +346,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   const readMode = true;
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
-
-  // Global states for sub-map checkboxes to respect React Rules of Hooks
-  const [checkedSubMaps, setCheckedSubMaps] = useState<Record<string, Record<number, boolean>>>({});
 
   const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
   const total = steps.length;
@@ -615,12 +594,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                   const key = `${seq.subGuideRef}-${step.stepNumber}`;
                   const checked = checkedSteps.has(key);
 
-                  const activeSubMapCheckedState = checkedSubMaps[key] || {};
-
-                  const coords = Array.from(
-                    (step.plainText ?? step.web_text ?? "").matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g)
-                  ).map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]), worldId: m[3] ? parseInt(m[3]) : undefined }));
-
                   // ── O(1) presence lookup from pre-computed map ──
                   const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
 
@@ -759,99 +732,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                             </div>
                           )}
                           
-                          {/* Coords & Travel Roadmap Checks Section */}
-                          {coords.length > 0 && (
-                            <div className="mt-3 rounded-2xl overflow-hidden border border-cyan-500/15 animate-in fade-in duration-300" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.04) 0%, rgba(16,185,129,0.03) 100%)" }}>
-                              {/* Header */}
-                              <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
-                                <div className="flex items-center gap-1.5">
-                                  <MapPin size={10} className="text-cyan-400" />
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
-                                    Trajet · {coords.length} carte{coords.length > 1 ? "s" : ""}
-                                  </span>
-                                </div>
-                                <span className="text-[9px] text-zinc-500 font-semibold">
-                                  {Object.values(activeSubMapCheckedState).filter(Boolean).length}/{coords.length} visitées
-                                </span>
-                              </div>
-                              {/* Map cards */}
-                              <div className="p-2 flex flex-col gap-1.5">
-                                {coords.map((c, i) => {
-                                  const cmd = `/travel ${c.x} ${c.y}`;
-                                  const isSubChecked = !!activeSubMapCheckedState[i];
-                                  return (
-                                    <div
-                                      key={i}
-                                      className={`group flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-all duration-200 cursor-default ${
-                                        isSubChecked
-                                          ? "bg-emerald-500/5 border-emerald-500/20"
-                                          : "bg-black/20 border-white/5 hover:border-cyan-500/20 hover:bg-cyan-500/5"
-                                      }`}
-                                    >
-                                      {/* Checkbox */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const nextState = { ...activeSubMapCheckedState, [i]: !isSubChecked };
-                                          setCheckedSubMaps(prev => ({ ...prev, [key]: nextState }));
-                                          localStorage.setItem(`sigilos_submaps_${guildId}_${key}`, JSON.stringify(nextState));
-                                          if (!isSubChecked && Object.values(nextState).filter(Boolean).length === coords.length) {
-                                            toast.success("Trajet terminé ! Toutes les cartes visitées 🗺️");
-                                          }
-                                        }}
-                                        className={`flex items-center justify-center w-5 h-5 rounded-lg border transition-all shrink-0 cursor-pointer ${
-                                          isSubChecked
-                                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
-                                            : "bg-black/40 border-white/10 hover:border-emerald-500/50 text-zinc-600 hover:text-emerald-400"
-                                        }`}
-                                        title={isSubChecked ? "Décocher cette carte" : "Marquer cette carte comme visitée"}
-                                      >
-                                        {isSubChecked
-                                          ? <CheckCircle2 size={11} />
-                                          : <span className="text-[8px] font-black">{i + 1}</span>
-                                        }
-                                      </button>
-
-                                      {/* Coords label */}
-                                      <div className="flex flex-col flex-1 min-w-0">
-                                        <span className={`text-[10px] font-bold transition-colors ${isSubChecked ? "text-zinc-600 line-through" : "text-zinc-300 group-hover:text-cyan-300"}`}>
-                                          Position {i + 1}
-                                        </span>
-                                        <span className={`font-mono text-[11px] font-black transition-colors ${isSubChecked ? "text-zinc-600" : "text-cyan-400"}`}>
-                                          [{c.x}, {c.y}]
-                                        </span>
-                                      </div>
-
-                                      {/* Actions */}
-                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigator.clipboard.writeText(cmd);
-                                            toast.success("Commande copiée !", { description: cmd });
-                                          }}
-                                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-white text-[9px] font-black transition-all cursor-pointer"
-                                          title="Copier /travel"
-                                        >
-                                          <Copy size={8} /> /travel
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onMapClick(c.x, c.y, c.worldId);
-                                          }}
-                                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 text-[9px] font-black transition-all cursor-pointer"
-                                          title="Voir la carte HD"
-                                        >
-                                          <Eye size={8} /> HD
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
+                          {/* Coords & Travel Roadmap Checks Section (supprimé — remplacé par le hover carte CoordHoverMap) */}
                         </div>
                       </div>
                     </div>
@@ -1176,7 +1057,6 @@ export default function OptimizedGuideClient({
     };
   }, [selected]);
   
-  const [mapModal, setMapModal] = useState<{x:number;y:number;worldId?:number}|null>(null);
   const [activeSeqIndex, setActiveSeqIndex] = useState(0);
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -1903,41 +1783,6 @@ export default function OptimizedGuideClient({
       return;
     }
 
-    // 1. Coordinates eye button click (view HD map)
-    const eyeBtn = target.closest(".coord-eye-btn") as HTMLElement;
-    if (eyeBtn) {
-      e.stopPropagation();
-      e.preventDefault();
-      const x = eyeBtn.getAttribute("data-x");
-      const y = eyeBtn.getAttribute("data-y");
-      const explicitWorld = eyeBtn.getAttribute("data-world");
-      if (x && y) {
-        const xNum = parseInt(x);
-        const yNum = parseInt(y);
-        let worldId = 1;
-        const stepContainer = eyeBtn.closest(".sgc-step") || eyeBtn.closest(".narrative-block") || target.closest("main");
-        const contextText = stepContainer ? stepContainer.textContent || "" : "";
-        if (explicitWorld) {
-          worldId = parseInt(explicitWorld);
-        } else {
-          worldId = detectWorldId(contextText || selected?.title || "");
-        }
-        setMapModal({ x: xNum, y: yNum, worldId });
-
-        // Dynamically resolve precise worldId from server action
-        if (!explicitWorld) {
-          import("@/server/actions/optimized-guide-actions").then((mod) => {
-            mod.resolveMapWorldAction(xNum, yNum, contextText || selected?.title || "").then((res) => {
-              if (res.success && res.worldId) {
-                setMapModal(prev => prev && prev.x === xNum && prev.y === yNum ? { ...prev, worldId: res.worldId } : prev);
-              }
-            });
-          });
-        }
-      }
-      return;
-    }
-
     // 1.5 Coordinate chip click (ONLY copies the travel command)
     const chip = target.closest(".coord-chip") as HTMLElement;
     if (chip) {
@@ -2026,7 +1871,7 @@ export default function OptimizedGuideClient({
 
     // 2.5 Image Lightbox Click
     if (target.tagName === "IMG") {
-      const parentInteractive = target.closest(".clickable-entity, .guide-step-link, .coord-chip, .coord-eye-btn, .guide-ref-link");
+      const parentInteractive = target.closest(".clickable-entity, .guide-step-link, .coord-chip, .guide-ref-link");
       if (!parentInteractive) {
         const src = target.getAttribute("src");
         if (src) {
@@ -2590,45 +2435,7 @@ export default function OptimizedGuideClient({
                           uniqueGuildMembers={uniqueGuildMembers}
                           milestones={milestones}
                           selectedMilestoneId={selected?.id || ""}
-                          guildId={guildId}
                           onShowStepPresenceModal={handleShowStepPresenceModal}
-                          onMapClick={(x, y, explicitWorld) => {
-                            navigator.clipboard.writeText(`/travel ${x} ${y}`);
-                            let worldId = 1;
-                            const contextText = `${activeSeq.subGuideName} ${activeSeq.note || ""} ${selected?.title || ""}`;
-                            if (explicitWorld) {
-                              worldId = explicitWorld;
-                            } else {
-                              worldId = detectWorldId(contextText);
-                            }
-                            setMapModal({ x, y, worldId });
-
-                            // Dynamically resolve precise worldId from server action
-                            if (!explicitWorld) {
-                              import("@/server/actions/optimized-guide-actions").then((mod) => {
-                                mod.resolveMapWorldAction(x, y, contextText).then((res) => {
-                                  if (res.success && res.worldId) {
-                                    setMapModal(prev => prev && prev.x === x && prev.y === y ? { ...prev, worldId: res.worldId } : prev);
-                                  }
-                                });
-                              });
-                            }
-
-                            toast.custom((t) => (
-                              <div className="flex items-center gap-3 bg-zinc-950/95 border border-emerald-500/30 p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.15)] animate-in slide-in-from-bottom-5 duration-300">
-                                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                                  <MapPin className="w-4 h-4 animate-bounce" />
-                                </div>
-                                <div className="text-left">
-                                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Position copiée & carte ouverte</p>
-                                  <p className="text-xs font-mono text-zinc-300">/travel {x} {y}</p>
-                                </div>
-                              </div>
-                            ), {
-                              position: "bottom-right",
-                              duration: 3000
-                            });
-                          }}
                           onInteractiveClick={handleInteractiveClick}
                           defaultExpanded={true}
                           hideCompletedGlobal={globalHideCompletedSteps}
@@ -2709,90 +2516,8 @@ export default function OptimizedGuideClient({
             </motion.div>
           </AnimatePresence>
         )}
+        <CoordHoverMap containerRef={mainRef} guildId={guildId} />
       </main>
-
-      {/* Dynamic HD Map Preview Overlay */}
-      <AnimatePresence>
-        {mapModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
-            style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
-            onClick={() => setMapModal(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="w-full max-w-5xl bg-[#0a0d14] border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-black/40"
-                style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.1) 0%, transparent 60%)" }}>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                    <MapPin className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-white font-black text-base">Aperçu HD de la Position</p>
-                    <p className="text-cyan-400 font-mono text-xs mt-0.5">[{mapModal.x}, {mapModal.y}] (Monde {mapModal.worldId ?? 1})</p>
-                  </div>
-                </div>
-                <button onClick={() => setMapModal(null)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Map preview via MapViewer */}
-              <div className="relative w-full h-[55vh] min-h-[350px] border-b border-zinc-800/80">
-                <MapViewer 
-                    initialTab="map" 
-                    initialX={mapModal.x}
-                    initialY={mapModal.y}
-                    initialZoom={6}
-                    initialWorldId={mapModal.worldId ?? 1}
-                    hideUI={true}
-                />
-                {/* Coordinate overlay badge */}
-                <div className="absolute top-3 right-3 bg-black/85 border border-cyan-500/30 rounded-xl px-3 py-1.5 backdrop-blur-sm pointer-events-none z-10 shadow-lg">
-                  <span className="text-cyan-400 font-mono font-black text-xs">[{mapModal.x}, {mapModal.y}]</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="p-4 flex gap-3 bg-zinc-950/20">
-                <button onClick={() => {
-                  window.open(`/dashboard/${guildId}/worldmap?x=${mapModal.x}&y=${mapModal.y}&world=${mapModal.worldId ?? 1}`, "_blank");
-                  setMapModal(null);
-                }}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 font-black text-sm transition-all hover:border-cyan-500/40 group">
-                  <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Voir en grand sur la carte SigilOS
-                </button>
-                <button onClick={() => {
-                  const cmd = `/travel ${mapModal.x} ${mapModal.y}`;
-                  navigator.clipboard.writeText(cmd);
-                  toast.success("Commande copiée !", { description: cmd });
-                  setMapModal(null);
-                }}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-black text-sm transition-all group">
-                  <Copy className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Copier la commande /travel
-                </button>
-              </div>
-
-              <p className="px-4 pb-4 text-center text-[10px] text-zinc-700 bg-zinc-950/20">
-                Commande autopilote : <span className="font-mono text-zinc-500">/travel {mapModal.x} {mapModal.y}</span>
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <DjPostCreateModal
         guildId={guildId}

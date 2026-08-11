@@ -21,6 +21,9 @@ export type ActionResponse<T = void> = {
  * (Tougli + DofusDB + DofusPourLesNoobs)
  */
 export async function runV3Siphoner(slug: string): Promise<ActionResponse> {
+    if (!/^[a-z0-9][a-z0-9-]*$/i.test(slug)) {
+        return { success: false, error: "Slug invalide" };
+    }
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: "Non autorisé" };
 

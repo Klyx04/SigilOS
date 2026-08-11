@@ -1489,34 +1489,7 @@
   overflow: hidden;
 }
 
-.sgc-step-coords {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-end;
-}
-
-.coord-btn {
-  background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  padding: 0.3rem 0.5rem;
-  border-radius: 0.4rem;
-  font-size: 0.65rem;
-  font-family: monospace;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.coord-btn:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-/* Inline Coordinate Chip */
+/* Inline Coordinate Chip (hover → aperçu carte via CoordHoverMap) */
 .coord-chip {
   display: inline-block;
   background: rgba(59, 130, 246, 0.15);
@@ -1531,7 +1504,9 @@
   transition: all 0.2s;
 }
 .coord-chip:hover {
-  background: rgba(59, 130, 246, 0.25);
+  background: rgba(59, 130, 246, 0.28);
+  border-bottom-color: rgba(96, 165, 250, 0.95);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
 }
 .coord-chip.copied {
   background: #10b981;

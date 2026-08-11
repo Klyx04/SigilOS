@@ -7,7 +7,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +18,7 @@ import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBo
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
+import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
@@ -144,6 +145,7 @@ const TYPE_CONFIG: Record<string,{label:string;color:string;bg:string}> = {
 // Detects narrative block type from html content
 const getBlockType = (html: string) => {
   const t = html.toLowerCase();
+  if (/r[eé]compense|obtient|obtiendrez|obtiens/.test(t)) return 'reward';
   if (/\blore\b/.test(t)) return 'lore';
   if (/astuce|tip\b/.test(t)) return 'tip';
   if (/important|attention|attention/.test(t)) return 'warning';
@@ -511,6 +513,13 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
               ? `Étapes ${seq.stepFrom} → ${seq.stepTo}`
               : seq.stepFrom ? `À partir de l'étape ${seq.stepFrom}` : "Guide complet"}
           </span>
+          <div className="sgc-tags">
+            <span className="sgc-tag">{seq.subGuideRef}</span>
+            {seq.stepFrom && seq.stepTo && (
+              <span className="sgc-tag">{seq.stepTo - seq.stepFrom + 1} étapes</span>
+            )}
+            {seq.isOptional && <span className="sgc-tag">Bonus</span>}
+          </div>
         </div>
         <div className="sgc-progress-wrap">
           {loaded && total > 0 && (
@@ -867,6 +876,7 @@ function NarrativeBlock({ html }: { html: string }) {
         {type === 'tip'     && <Lightbulb size={14}/>}
         {type === 'warning' && <AlertTriangle size={14}/>}
         {type === 'counsel' && <Star size={14}/>}
+        {type === 'reward'  && <Crown size={14}/>}
         {type === 'info'    && <Info size={14}/>}
       </div>
       <div className="narrative-body ganymade-step-text"
@@ -1671,6 +1681,30 @@ export default function OptimizedGuideClient({
     });
   }, [selected, guildId]);
 
+  // ─── Sommaire / sidebar repliable (mode unique plein écran) ─────────────
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem(`guide-sommaire-${guide.slug}`) !== "0"; } catch { return true; }
+  });
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => {
+      const next = !prev;
+      try { localStorage.setItem(`guide-sommaire-${guide.slug}`, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, [guide.slug]);
+
+  // Raccourci clavier S : ouvrir/fermer le sommaire
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === "s" || e.key === "S") toggleSidebar();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleSidebar]);
+
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
     setValidating(true);
@@ -2082,7 +2116,7 @@ export default function OptimizedGuideClient({
           display: none !important;
         }
       `}} />
-      <div className="guide-shell">
+      <div className={`guide-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
 
       {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
       <aside className="guide-sidebar">
@@ -2275,9 +2309,32 @@ export default function OptimizedGuideClient({
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
               className="guide-content"
             >
+              {/* Breadcrumb de progression sticky */}
+              <div className="guide-read-crumb">
+                <div className="guide-read-crumb-path">
+                  Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
+                  {selected.chapterLabel ? <><span className="sep"> · </span><span>{selected.chapterLabel}</span></> : null}
+                  <span className="sep"> · </span>
+                  <span className="here">{overallPct}% complété</span>
+                </div>
+                <div className="guide-read-crumb-bar"><div style={{ width: `${overallPct}%` }} /></div>
+                <span className="guide-read-crumb-pct">{overallPct}%</span>
+              </div>
+
               {/* Guide name banner */}
               <div className="guide-name-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-zinc-950/80 via-emerald-950/20 to-zinc-950/80 border border-emerald-500/20 shadow-2xl flex items-center justify-between">
                 <div className="flex items-center gap-2">
+                  {/* Sommaire toggle */}
+                  <button
+                    type="button"
+                    className="guide-sommaire-btn"
+                    onClick={toggleSidebar}
+                    title={sidebarOpen ? "Masquer le sommaire (S)" : "Afficher le sommaire (S)"}
+                  >
+                    {sidebarOpen ? <PanelLeftClose size={15}/> : <PanelLeft size={15}/>}
+                    <span>Sommaire</span>
+                  </button>
+
                   <BookOpen size={14} className="text-emerald-400"/>
                   <span className="guide-name-label font-black text-xs uppercase tracking-widest text-emerald-400">{guide.name}</span>
                   <span className="guide-name-sep text-zinc-600">›</span>
@@ -2323,12 +2380,20 @@ export default function OptimizedGuideClient({
                     Comment utiliser ?
                   </button>
 
+                  {/* Signaler un bug / feedback */}
+                  <QuestFeedbackButton
+                    guildId={guildId}
+                    sourcePage={`guide:${guide.slug}`}
+                    targetSlug={guide.slug}
+                    compact
+                  />
+
                   {/* Ganymède Credit Link */}
                   <a
                     href="https://ganymede-app.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 hover:text-purple-200 text-[10px] font-black uppercase tracking-wider transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 hover:text-blue-200 text-[10px] font-black uppercase tracking-wider transition-all"
                     title="Parcours et étapes issus de Ganymède"
                   >
                     <img src="/assets/icons/ganymede.png" alt="Ganymède" className="w-3.5 h-3.5 rounded-sm object-contain" />
@@ -2400,37 +2465,6 @@ export default function OptimizedGuideClient({
                     </span>
                     {selected.isOptional && <span className="step-optional-badge">Bonus</span>}
                   </div>
-                </div>
-                
-                {/* Structure / Hierarchy flow */}
-                <div className="flex items-center flex-wrap gap-2 text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-4 bg-zinc-950/20 px-3 py-2 rounded-xl border border-white/5">
-                  <span className="text-zinc-400">Structure :</span>
-                  <div className="flex items-center gap-1 text-indigo-400">
-                    <BookOpen size={10} className="shrink-0" />
-                    <span>{guide.name}</span>
-                  </div>
-                  <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
-                  <div className="flex items-center gap-1 text-zinc-300">
-                    <span>Phase {selected.chapter > 0 ? selected.chapter : "Intro"} : {selected.chapterLabel}</span>
-                  </div>
-                  <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
-                  <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    <Flag size={10} className="shrink-0" />
-                    <span className="max-w-[120px] sm:max-w-[200px] truncate">{decodeTitle(selected.title)}</span>
-                  </div>
-                  {selected.sequences.length > 0 && (() => {
-                    const sortedSeqs = [...selected.sequences].sort((a,b) => a.order - b.order);
-                    const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
-                    return (
-                      <>
-                        <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
-                        <div className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                          <span className="truncate">Sous-Guide {activeSeq.subGuideRef}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
                 </div>
 
                 <h1 className="step-title">{decodeTitle(selected.title)}</h1>
@@ -3560,6 +3594,28 @@ export default function OptimizedGuideClient({
               )}
             </div>
           </ScrollArea>
+
+          {/* Footer — entraide (3ᵉ niveau) */}
+          <div className="flex gap-2 mt-4 border-t border-white/5 pt-4">
+            <button
+              onClick={() => setStepPresenceModal(prev => prev ? { ...prev, isOpen: false } : null)}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              Fermer
+            </button>
+            <button
+              onClick={() => {
+                const title = (stepPresenceModal?.stepTitle || "").replace(/<[^>]+>/g, "").trim();
+                navigator.clipboard.writeText(
+                  `📣 Besoin d'aide sur l'étape ${stepPresenceModal?.stepNumber} : ${title} — je suis sur le guide « ${guide.name} ».`
+                ).catch(() => {});
+                toast.success("Message d'entraide copié — collez-le sur Discord !");
+              }}
+              className="flex-[2] py-2.5 px-4 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              📣 Demander de l'aide sur Discord
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -3831,8 +3887,14 @@ export default function OptimizedGuideClient({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+
+      {/* Bouton rouvrir le sommaire (quand la sidebar est repliée) */}
+      {!sidebarOpen && (
+        <button className="guide-sommaire-open" onClick={toggleSidebar} title="Afficher le sommaire (S)">
+          <PanelLeft size={14}/> <span>Sommaire</span>
+        </button>
+      )}
     </>
   );
 }
-

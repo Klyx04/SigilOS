@@ -46,7 +46,7 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **Confidentialité — fuite `user.name` (nom de compte Discord)** : ✅ **CORRIGÉ (09/08, branche `fix/display-name-server-pseudo`)** — l'affichage du nom de **compte** Discord d'**autres membres** (`user.name`, ex: `john_doe_2003`) est remplacé par le **pseudo serveur** (`discordNickname`) via `getDisplayName()`/`getGameDisplayName()` dans `src/lib/display-name.ts` (priorité : pseudo serveur → pseudo Dofus → "Membre"). **~27 fichiers** (server actions, API, composants client, God). Le `user.name` reste autorisé uniquement pour le user connecté lui-même (header/nav/profil) et les logs d'audit `actorName`. Commits : `d3517f6a`→`2936f67b`. Vérifs : tsc/lint/tests/build OK.
 
 ### ⚠️ Chantiers ouverts (à résoudre — NE PAS considérer la sécurité comme complète tant qu'ils ne sont pas faits)
-- **CSP nonce-based** : ✅ **DÉPLOYÉ (09/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. ✅ Auth WS **activée en beta puis prod** (WS_AUTH_ENABLED=true). **Reste** : confirmer aucune violation bloquante sur beta via `/api/csp-report` puis activer `CSP_ENFORCE=true` (beta, puis prod après 24-48h).
+- **CSP nonce-based** : ✅ **DÉPLOYÉ + ENFORCE (10/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, `CSP_ENFORCE=true` **activé sur beta PUIS prod** (0 violation bloquante), endpoint `/api/csp-report` + 16 tests. Auth WS **activée en beta puis prod** (WS_AUTH_ENABLED=true). **Chantier fermé.**
 - **Grafana** : mot de passe admin à vérifier (`GRAFANA_PASSWORD` dans `.env.prod`/`.env.beta` — sinon `admin/admin` par défaut).
 - ~~**Caddy rate-limit (F-14)**~~ : ✅ **FAIT (09/08, commit `cde708a7`)** — image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min/IP + burst 60/s) sur **routes publiques** uniquement (prod/beta/monitor), jamais une limitation fine du dashboard authentifié. **Fix Trivy DS-0002** (commit `fbc371e2`) : `USER caddy` non-root ajouté dans `Dockerfile.caddy`.
 - ~~**Zero Console Policy**~~ : ✅ **FAIT (09/08)** — 433 `console.*` → `logger` dans `src/server/actions/` (branche `feat/security-hardening-suite`, commits `4355d540` + `7dc0c01f`), logger tolérant, 126/126 tests, build OK. **Chantier fermé.**
@@ -74,7 +74,7 @@ Le détail complet des findings et remédiations est documenté **en local** (ho
 - Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`, posé par le proxy pour les JSON-LD).
 - Les violations sont **reportées** sur `/api/csp-report` (endpoint Zod + rate-limit + logger).
 - ⚠️ **Jamais `'unsafe-inline'`** dans `script-src` (en enforce). `style-src 'unsafe-inline'` est **conservé** (exigence Next.js).
-- 🔜 **À faire** : confirmer aucune violation bloquante en beta via `/api/csp-report`, puis `CSP_ENFORCE=true` sur beta → prod.
+- ✅ **CSP_ENFORCE activé sur BETA puis PROD (10/08)** : mode enforce, nonce par requête, **0 violation bloquante** collectée. Voir CONTEXT.md (section CSP nonce-based).
 
 ### Zero Console Policy
 Tous les `console.log` / `console.warn` / `console.error` sont **interdits** dans `src/server`. Utiliser le `logger` structuré (`@/lib/logger`).
@@ -83,10 +83,10 @@ Tous les `console.log` / `console.warn` / `console.error` sont **interdits** dan
 Le serveur WS (port 3001) est protégé par un rate-limit de connexion (défini dans `src/server/websocket/server.ts`) : **10 connexions / minute / IP**, enforcement Redis (fail-closed si Redis down).
 
 ### WebSocket Auth (F-08)
-- **Activée en beta (09/08)** via `WS_AUTH_ENABLED=true` dans `.env.beta`. Le serveur WS décode la session (AUTH_SECRET) et vérifie l'appartenance guilde à chaque connexion (fail-closed : refus si décodage échoue).
+- ✅ **Activée en beta PUIS PROD (09/08)** via `WS_AUTH_ENABLED=true` dans `.env.beta` et `.env.prod`. Le serveur WS décode la session (AUTH_SECRET) et vérifie l'appartenance guilde à chaque connexion (fail-closed : refus si décodage échoue).
 - **Kill-switch** : `WS_AUTH_ENABLED=false` + `docker compose restart ws-beta` → retour au mode permissif d'urgence (rollback immédiat sans redéploiement).
 - ⚠️ **Nécessite même `AUTH_SECRET` entre l'app et le WS** (déjà via le même `env_file`). En local dev, `WS_AUTH_ENABLED` absent = auth activée par défaut.
-- ✅ **Testé en réel sur beta (09/08)** : présence live, 0 unauthorized, révocation God live (popup + redirect). **Avant prod** : répliquer les tests.
+- ✅ **Testé en réel sur beta (09/08 PUIS 10/08)** : présence live, 0 unauthorized, révocation God live (popup + redirect), reconnexion/temps réel validés. **Activé et opérationnel sur beta + prod.**
 - ✅ **Session hardening (09/08)** : I-06 unifier Discord (bot = unique Gateway) · I-07 Redis séparé beta/prod · I-15 circuit breaker · F-14 Caddy rate-limit **déployé** · `app-prod` réparé (mot de passe DB encodé) + **rotation mdp DB prod** · CSP_ENFORCE beta activé. Détails : CONTEXT.md (Session hardening 09/08) + chantier God UX (sur branche, non merge).
 
 ### Réponse d'urgence (vulnérabilité)

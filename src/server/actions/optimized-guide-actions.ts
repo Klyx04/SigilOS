@@ -103,6 +103,31 @@ export async function getOptimizedGuides(guildId?: string) {
   return { success: true, guides };
 }
 
+/**
+ * (HUD guide) Liste LÉGÈRE des guides pour le sélecteur de guide.
+ * Même auth que getOptimizedGuides (admin = tous, membre = actifs), mais
+ * ne sélectionne que les champs nécessaires (pas les steps — payload léger).
+ */
+export async function getOptimizedGuidesLite(guildId?: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Non authentifié");
+
+  const isGod = await isSuperAdmin();
+  let isAdmin = isGod;
+  if (!isGod && guildId) {
+    const ctx = await getUserContext(guildId);
+    isAdmin = ctx.isAdmin;
+  }
+
+  const guides = await db.optimizedGuide.findMany({
+    where: isAdmin ? {} : { isActive: true },
+    select: { id: true, slug: true, name: true, displayMode: true, isActive: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return { success: true, guides };
+}
+
 export async function getOptimizedGuideDetail(slug: string, guildId: string, altPseudo?: string) {
 
   const ctx = await getUserContext(guildId);

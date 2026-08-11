@@ -1,18 +1,18 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose, LayoutGrid
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
 import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -474,7 +474,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
           {seq.subGuideRef}
         </div>
         <div className="sgc-info">
-          <span className="text-[9px] uppercase tracking-wider font-extrabold text-zinc-500 block mb-0.5">Sous-guide tactique</span>
           <span 
             className="sgc-name hover:text-emerald-400 transition-colors cursor-pointer"
             title={`Filtrer par le guide secondaire : ${seq.subGuideName}`}
@@ -1585,6 +1584,37 @@ export default function OptimizedGuideClient({
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleSidebar]);
 
+  // --- Selecteur de guide (HUD) ---------------------------------------------------
+  const router = useRouter();
+  const [guidesOpen, setGuidesOpen] = useState(false);
+  const [guidesList, setGuidesList] = useState<{ id: string; slug: string; name: string; displayMode?: string | null }[]>([]);
+  const [guidesLoaded, setGuidesLoaded] = useState(false);
+
+  useEffect(() => {
+    if (guidesLoaded) return;
+    let cancelled = false;
+    getOptimizedGuidesLite(guildId).then(res => {
+      if (cancelled || !res?.success) return;
+      setGuidesList((res.guides || []).filter((g: any) => g.slug !== guide.slug));
+      setGuidesLoaded(true);
+    }).catch(() => { /* non bloquant */ });
+    return () => { cancelled = true; };
+  }, [guildId, guide.slug, guidesLoaded]);
+
+  useEffect(() => {
+    if (!guidesOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setGuidesOpen(false); };
+    const onDocClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.('.guide-switcher')) setGuidesOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDocClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDocClick);
+    };
+  }, [guidesOpen]);
+
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
     setValidating(true);
@@ -1946,6 +1976,10 @@ export default function OptimizedGuideClient({
   }, [milestones, guildId, setCreateDjModal, setCreateUnpopulatedDjModal, setDungeonChoiceModal, setQuestChoiceModal, selected]);
 
 
+  // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
+  const activeSeq = selected
+    ? [...selected.sequences].sort((a, b) => a.order - b.order)[activeSeqIndex] || null
+    : null;
   const isCompleted = selected ? completedIds.has(selected.id) : false;
   const typeConf = selected ? (TYPE_CONFIG[selected.type] ?? TYPE_CONFIG.QUETE_SERIE) : TYPE_CONFIG.QUETE_SERIE;
 
@@ -2154,96 +2188,144 @@ export default function OptimizedGuideClient({
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
               className="guide-content"
             >
-              {/* Breadcrumb de progression sticky */}
-              <div className="guide-read-crumb">
-                <div className="guide-read-crumb-path">
-                  Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
-                  {selected.chapterLabel ? <><span className="sep"> · </span><span>{selected.chapterLabel}</span></> : null}
-                  <span className="sep"> · </span>
-                  <span className="here">{overallPct}% complété</span>
-                </div>
-                <div className="guide-read-crumb-bar"><div style={{ width: `${overallPct}%` }} /></div>
-                <span className="guide-read-crumb-pct">{overallPct}%</span>
-              </div>
-
-              {/* Guide name banner */}
-              <div className="guide-name-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-zinc-950/80 via-emerald-950/20 to-zinc-950/80 border border-emerald-500/20 shadow-2xl flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {/* Sommaire toggle */}
+              {/* HUD flottant — position & progression (mode focus) */}
+              <div className="guide-hud">
+                <div className="guide-hud-row">
                   <button
                     type="button"
                     className="guide-sommaire-btn"
                     onClick={toggleSidebar}
                     title={sidebarOpen ? "Masquer le sommaire (S)" : "Afficher le sommaire (S)"}
                   >
-                    {sidebarOpen ? <PanelLeftClose size={15}/> : <PanelLeft size={15}/>}
+                    {sidebarOpen ? <PanelLeftClose size={14}/> : <PanelLeft size={14}/>}
                     <span>Sommaire</span>
                   </button>
 
-                  <BookOpen size={14} className="text-emerald-400"/>
-                  <span className="guide-name-label font-black text-xs uppercase tracking-widest text-emerald-400">{guide.name}</span>
-                  <span className="guide-name-sep text-zinc-600">›</span>
-                  <span className="guide-name-step text-xs font-semibold text-zinc-300">{decodeTitle(selected.title)}</span>
-                  {bookmarkId === selected.id && (
-                    <span title="Votre position actuelle"><BookmarkCheck size={14} className="text-amber-400 ml-1.5"/></span>
-                  )}
+                  <div className="guide-hud-crumb">
+                    Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
+                    {activeSeq ? (
+                      <>
+                        <span className="sep"> · </span>
+                        <span className="gp">[{activeSeq.subGuideRef}] {activeSeq.subGuideName}</span>
+                      </>
+                    ) : null}
+                    <span className="sep"> · </span>
+                    <span className="here">{overallPct}% complété</span>
+                  </div>
+
+                  <div className="guide-hud-bar"><div style={{ width: overallPct + "%" }} /></div>
+                  <span className="guide-hud-pct">{overallPct}%</span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {/* Guild Presence Overview */}
-                  {uniqueGuildMembers.length > 0 && (
-                    <div className="flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
-                      <div className="flex -space-x-1.5 overflow-hidden">
-                        {uniqueGuildMembers.slice(0, 4).map((member) => (
-                          <div
-                            key={member.profileId}
-                            className="inline-block h-5 w-5 rounded-full ring-2 ring-zinc-950 bg-zinc-900 overflow-hidden"
-                            title={member.userName}
-                          >
-                            {member.userAvatar ? (
-                              <img src={member.userAvatar} alt={member.userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center text-[9px] font-bold text-zinc-400 bg-zinc-800">
-                                {member.userName.slice(0, 1).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                <div className="guide-hud-row guide-hud-actions">
+                  {/* Sélecteur de guide */}
+                  <div className="guide-switcher">
+                    <button
+                      type="button"
+                      className="guide-switcher-btn"
+                      onClick={() => setGuidesOpen(v => !v)}
+                      title="Changer de guide"
+                      aria-expanded={guidesOpen}
+                    >
+                      <BookOpen size={13}/>
+                      <span className="guide-switcher-label">{guide.name}</span>
+                      <ChevronDown size={12} className={"guide-switcher-chev" + (guidesOpen ? " open" : "")}/>
+                    </button>
+                    {guidesOpen && (
+                      <div className="guide-switcher-menu">
+                        <button
+                          type="button"
+                          className="guide-switcher-item"
+                          onClick={() => { setGuidesOpen(false); router.push("/dashboard/" + guildId + "/quetes-dofus"); }}
+                        >
+                          <LayoutGrid size={13}/>
+                          <span>Hub des guides</span>
+                        </button>
+                        {guidesList.map(g => {
+                          const isCurrent = g.slug === guide.slug;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              className={"guide-switcher-item" + (isCurrent ? " current" : "")}
+                              disabled={isCurrent}
+                              onClick={() => { setGuidesOpen(false); router.push("/dashboard/" + guildId + "/quetes-dofus/guide/" + g.slug); }}
+                            >
+                              <BookOpen size={13}/>
+                              <span className="truncate">{g.name}</span>
+                              {g.displayMode === "TIMELINE" && <span className="guide-switcher-tag">Timeline</span>}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <span className="text-[10px] font-bold text-zinc-400">
-                        {uniqueGuildMembers.length} {uniqueGuildMembers.length > 1 ? "membres" : "membre"}
-                      </span>
-                    </div>
+                    )}
+                  </div>
+
+                  <span className="guide-hud-title">{decodeTitle(selected.title)}</span>
+
+                  <div className="guide-hud-spacer" />
+
+                  {bookmarkId === selected.id && (
+                    <span className="guide-hud-bm" title="Votre position actuelle"><BookmarkCheck size={13} className="text-amber-400"/></span>
                   )}
 
-                  {/* Help Button */}
-                  <button 
-                    onClick={() => setIsHelpOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-emerald-300 text-[10px] font-black uppercase tracking-wider transition-all"
+                  {uniqueGuildMembers.length > 0 && (
+                    <button
+                      type="button"
+                      className="guide-hud-presence"
+                      onClick={() => setIsAllMembersModalOpen(true)}
+                      title="Voir la liste des membres suivant ce guide"
+                    >
+                      <div className="flex -space-x-1.5">
+                        {uniqueGuildMembers.slice(0, 4).map(m => (
+                          <span key={m.profileId} className="guide-hud-avatar">
+                            {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
+                          </span>
+                        ))},
+                      </div>
+                      <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
+                    onClick={() => setGlobalHideCompletedSteps(v => !v)}
+                    title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
                   >
-                    <HelpCircle size={12} />
-                    Comment utiliser ?
+                    {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
                   </button>
 
-                  {/* Signaler un bug / feedback */}
-                  <QuestFeedbackButton
-                    guildId={guildId}
-                    sourcePage={`guide:${guide.slug}`}
-                    targetSlug={guide.slug}
-                    compact
-                  />
+                  <button
+                    type="button"
+                    className="guide-hud-btn"
+                    onClick={() => setIsHelpOpen(true)}
+                    title="Comment utiliser ce guide ?"
+                  >
+                    <HelpCircle size={13}/>
+                  </button>
 
-                  {/* Ganymède Credit Link */}
+                  <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
+
                   <a
                     href="https://ganymede-app.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 hover:text-blue-200 text-[10px] font-black uppercase tracking-wider transition-all"
+                    className="guide-hud-credit"
                     title="Parcours et étapes issus de Ganymède"
                   >
-                    <img src="/assets/icons/ganymede.png" alt="Ganymède" className="w-3.5 h-3.5 rounded-sm object-contain" />
-                    <span>Ganymède ↗</span>
+                    <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
                   </a>
+
+                  <button
+                    type="button"
+                    className="guide-hud-btn guide-hud-btn-danger"
+                    onClick={handleResetGuide}
+                    disabled={validating}
+                    title="Réinitialiser TOUT le guide (progression remise à zéro)"
+                  >
+                    <RotateCcw size={13}/>
+                  </button>
                 </div>
               </div>
 
@@ -2252,9 +2334,6 @@ export default function OptimizedGuideClient({
                 <div className={`step-navigator ${activeGuideFilter ? "focused" : ""}`}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="step-nav-ref">
-                        {activeGuideFilter ? `📌 ${activeGuideFilter}` : `🗺️ ${guide.name}`}
-                      </span>
                       <div className="step-nav-controls">
                         <button className="nav-step-btn" onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs} title="Étape précédente">
                           <ChevronLeft size={16}/>
@@ -2374,24 +2453,13 @@ export default function OptimizedGuideClient({
                 const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
                 return (
                   <section className="subguides-section">
-                    {/* Explication pédagogique de la hiérarchie */}
-                    <div className="mb-6 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-xs text-indigo-200/90 leading-relaxed flex items-start gap-3">
-                      <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0">
-                        <Info className="w-4 h-4" />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold text-zinc-100">Comment suivre cette étape ?</span>
-                        <span>
-                          Cette étape de la quête principale nécessite d&apos;accomplir les instructions du sous-guide de terrain ci-dessous.
-                          {sortedSeqs.length > 1 && " L'étape étant longue, elle est découpée en plusieurs sous-guides accessibles via les onglets ci-dessous."}
-                          {" Cochez les étapes secondaires au fur et à mesure pour guider vos équipiers !"}
-                        </span>
-                      </div>
-                    </div>
+                    <p className="subguides-hint">
+                      Cette étape du guide principal se suit via le sous-guide ci-dessous : cochez chaque étape au fur et à mesure de votre progression.
+                    </p>
 
                     <div className="subguides-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <span>Instructions tactiques</span>
+                        <span>Sous-guide</span>
                         <span className="subguides-count">
                           Partie {activeSeqIndex + 1} / {sortedSeqs.length}
                         </span>
@@ -3614,12 +3682,6 @@ export default function OptimizedGuideClient({
       </Dialog>
       </div>
 
-      {/* Bouton rouvrir le sommaire (quand la sidebar est repliée) */}
-      {!sidebarOpen && (
-        <button className="guide-sommaire-open" onClick={toggleSidebar} title="Afficher le sommaire (S)">
-          <PanelLeft size={14}/> <span>Sommaire</span>
-        </button>
-      )}
     </>
   );
 }

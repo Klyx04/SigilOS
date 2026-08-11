@@ -608,3 +608,11 @@
 - **Branche `refonte-module-ganymede` poussée** (commits `36bf6a25`, `0b93d302`) → **PR vers `dev` à créer/merger** (le user solo peut s'auto-approuver sur `dev`).
 - **PR dependabot en cours** : `lodash` mergé ✅ · `undici` (sécurité) prête · `ws` (sécurité) en rebase.
 - **Prochaine session** : **continuer la refonte du guide complet Ganymède** (chantier ouvert — cf. `src/temp/memo-2026-08-10-module-ganymede.md`).
+
+
+## Mise a jour 11/08 (suite) - Triage CodeQL + corrections securite
+- Premier scan CodeQL : ~68 alertes. Triage des Critical :
+  - SSRF (16) : 15 faux positifs (hotes fixes). 1 vraie (`dofusbook-actions.ts:22`, URL utilisateur fetch avec redirect:follow, aucun garde) -> **CORRIGE** : export `assertSafeUrl` (image-downloader) + host allowlist d-bk.net/dofusbook.net + blocage IP internes/DNS rebinding.
+  - Uncontrolled command line (4) : reel mais admin-only -> **CORRIGE** : validation slug (regex) avant execAsync (`dofus-v3-actions.ts`, `dofus-quest-admin-actions.ts`).
+- Commit `aea3ac68` pousse sur `refonte-module-ganymede` (PR #451). tsc 0, eslint 0 erreur, tests 137/137.
+- Reste a trier (non bloquant, CodeQL non requis pour merge) : sanitization/double escaping, format string cache.ts, DOM XSS kama widgets, dist/*.js (build, ignorer).

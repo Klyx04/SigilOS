@@ -9,6 +9,7 @@ import { isSuperAdmin, canAccessBrick } from "./super-admin-actions";
 import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./audit-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { publishGuideEvent, parseStepKey } from "@/lib/guide-realtime";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -391,6 +392,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
   const milestoneWithSequences = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
     select: {
+      title: true,
       sequences: {
         select: { id: true }
       },
@@ -418,6 +420,17 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
       completedSteps,
     }
   });
+
+  // Temps réel (Phase E) : broadcast « jalon complété » — fail-closed, non bloquant.
+  if (isCompleted && milestoneWithSequences?.guide?.slug) {
+    await publishGuideEvent(guildId, milestoneWithSequences.guide.slug, {
+      type: "milestone:completed",
+      profileId,
+      userName: ctx.name || "Membre",
+      milestoneId,
+      milestoneTitle: milestoneWithSequences.title || "Jalon",
+    });
+  }
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -567,6 +580,14 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     }
   });
 
+  // Temps réel (Phase E) : on a besoin de l'état précédent pour diffuser
+  // uniquement les étapes NOUVELLEMENT cochées (jamais un snapshot complet).
+  const existingProgress = await db.playerGuideProgress.findUnique({
+    where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+    select: { completedSteps: true }
+  });
+  const previousKeys = new Set((existingProgress?.completedSteps as string[] | undefined) ?? []);
+
   // Exclude info_sequence from completion count (they are decorative banners, not checkable quests)
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
     Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
@@ -592,6 +613,40 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
       completedAt: isAllCompleted ? new Date() : null
     }
   });
+
+  // Temps réel (Phase E) : diff sur les étapes nouvellement cochées.
+  if (milestone?.guide?.slug) {
+    const addedByRef = new Map<string, string[]>();
+    completedSteps.forEach(k => {
+      if (previousKeys.has(k)) return;
+      const parsed = parseStepKey(k);
+      if (!parsed) return;
+      const list = addedByRef.get(parsed.subGuideRef) ?? [];
+      list.push(k);
+      addedByRef.set(parsed.subGuideRef, list);
+    });
+    for (const [subGuideRef, keys] of addedByRef) {
+      if (keys.length === 1) {
+        const parsed = parseStepKey(keys[0])!;
+        await publishGuideEvent(guildId, milestone.guide.slug, {
+          type: "step:validated",
+          profileId,
+          userName: ctx.name || "Membre",
+          userAvatar: ctx.image,
+          subGuideRef,
+          stepNumber: parsed.stepNumber,
+        });
+      } else {
+        await publishGuideEvent(guildId, milestone.guide.slug, {
+          type: "step:validated:batch",
+          profileId,
+          userName: ctx.name || "Membre",
+          subGuideRef,
+          count: keys.length,
+        });
+      }
+    }
+  }
 
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
@@ -631,6 +686,26 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
     where: { id: milestoneId },
     select: { guide: { select: { slug: true } } }
   });
+  // Temps réel (Phase E) : « J'en suis là » positionne le membre sur le jalon
+  // (presence:join) ; retirer le marque-page le retire (presence:leave).
+  if (milestone?.guide?.slug) {
+    if (stepKey) {
+      await publishGuideEvent(guildId, milestone.guide.slug, {
+        type: "presence:join",
+        profileId,
+        userName: ctx.name || "Membre",
+        userAvatar: ctx.image,
+        milestoneId,
+      });
+    } else {
+      await publishGuideEvent(guildId, milestone.guide.slug, {
+        type: "presence:leave",
+        profileId,
+        milestoneId,
+      });
+    }
+  }
+
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
   }

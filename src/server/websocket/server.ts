@@ -10,6 +10,7 @@ import { BombManager } from "../games/SigilBomb/BombManager";
 import { rateLimit } from "../../lib/ratelimit";
 import { getRushActiveMembers } from "../actions/rush-actions";
 import { logger as AppLogger } from "../../lib/logger";
+import { createGuidePresence } from "./guide-presence";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
@@ -238,6 +239,18 @@ subClient.on("message", (channel, message) => {
     }
 });
 
+// === GANYMEDE — présence temps réel du module guide (Phase E) ===
+// S'abonne à `guide:*` (events publiés par les server actions via
+// src/lib/guide-realtime.ts), gère le heartbeat de présence éphémère
+// (Set Redis EXPIRE 45s) et le batching (500ms) avant broadcast aux rooms
+// `guild:<guildId>:guide:<slug>`.
+const guidePresence = createGuidePresence({
+    io,
+    subClient,
+    wsAuthEnabled: WS_AUTH_ENABLED,
+    isMemberOfGuild,
+});
+
 // Gestionnaire global des connexions
 io.on("connection", (socket: Socket) => {
     let guildId = socket.handshake.query.guildId as string;
@@ -344,6 +357,19 @@ io.on("connection", (socket: Socket) => {
                 members: result.members,
             });
         }
+    });
+
+    // === GANYMEDE GUIDE PRESENCE ===
+    socket.on("guide:join", (data: { guildId?: string; guideSlug?: string }) => {
+        guidePresence.handleJoin(socket, data).catch(() => {});
+    });
+    socket.on("guide:leave", (data: { guildId?: string; guideSlug?: string }) => {
+        guidePresence.handleLeave(socket, data).catch(() => {});
+    });
+    socket.on("guide:heartbeat", (data: {
+        guildId?: string; guideSlug?: string; milestoneId?: string; userName?: string; userAvatar?: string;
+    }) => {
+        guidePresence.handleHeartbeat(socket, data).catch(() => {});
     });
 
     // Gestion de la déconnexion

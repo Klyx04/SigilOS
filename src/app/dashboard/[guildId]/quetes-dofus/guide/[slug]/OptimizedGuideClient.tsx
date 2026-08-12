@@ -8,7 +8,7 @@ import {
   CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost, Settings2, CircleHelp
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,12 +18,18 @@ import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { useGuidePresence } from "@/hooks/use-guide-presence";
+import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
+import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
+import GuideParticles from "@/components/dofus-quests/GuideParticles";
+import AlignmentModal from "@/components/dofus-quests/AlignmentModal";
+import { useTour } from "@/components/tour/tour-provider";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -101,6 +107,20 @@ type UniqueGuildMember = {
   currentMilestoneId: string | null;
   bookmarkedSteps: Map<string, string>; // milestoneId -> stepKey
 };
+
+// ─── Helpers sous-guides (validation en masse + masquage) ─────────────────────
+// Clés d'étapes d'un sous-guide à partir de ses bornes (stepFrom → stepTo).
+function buildSeqStepKeys(seq: Sequence): string[] {
+  if (!seq.stepFrom || !seq.stepTo) return [];
+  const keys: string[] = [];
+  for (let n = seq.stepFrom; n <= seq.stepTo; n++) keys.push(`${seq.subGuideRef}-${n}`);
+  return keys;
+}
+// Un sous-guide est « tout validé » quand toutes ses clés (bornes connues) sont cochées.
+function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>): boolean {
+  const keys = buildSeqStepKeys(seq);
+  return keys.length > 0 && keys.every(k => checkedSteps.has(k));
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const GP_PALETTE = [
@@ -320,7 +340,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -339,6 +359,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[],
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
+  onCompleteSubGuide?: (keys: string[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -399,33 +420,36 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
       const active: typeof map extends Map<string, { validated: any; active: infer A }> ? A : never[] = [];
 
       uniqueGuildMembers.forEach(member => {
-        const isMsCompleted = member.completedMilestoneIds.has(selectedMilestoneId);
-        let isPastMs = false;
-        if (member.currentMilestoneId) {
-          const memberActiveMs = milestones.find(m => m.id === member.currentMilestoneId);
-          if (memberActiveMs && memberActiveMs.order > selectedMs.order) isPastMs = true;
-        } else if (member.completedMilestoneIds.size > 0) {
-          isPastMs = true;
-        }
-        const isOnOrPastMs = isPastMs || isMsCompleted;
-        const explicitlyValidated = member.completedSteps.has(key);
-
-        if (explicitlyValidated || isOnOrPastMs) {
+        // « Validé » = l'étape est RÉELLEMENT cochée par le membre (clé `GPx-N`).
+        // On ne déduit JAMAIS une validation depuis un jalon complété ou passé :
+        // valider le jalon (ou être rendu plus loin) ne coche pas chaque étape
+        // de ses sous-guides — sinon « 1 membre » s'affiche partout sans clic.
+        if (member.completedSteps.has(key)) {
           (validated as any[]).push(member);
-        } else {
-          const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
-          if (bookmarkedStep) {
-            if (bookmarkedStep === key) (active as any[]).push(member);
-          } else if (member.currentMilestoneId === selectedMilestoneId) {
-            const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
-            if (firstIncompleteStep?.stepNumber === step.stepNumber) (active as any[]).push(member);
-          }
+          return;
         }
+        // « En cours » = le membre est positionné sur CE jalon :
+        //   - marque-page « J'en suis là » sur ce jalon → l'étape marquée ;
+        //   - sinon → sa première étape non cochée du sous-guide.
+        if (member.currentMilestoneId !== selectedMilestoneId) return;
+        const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
+        if (bookmarkedStep) {
+          if (bookmarkedStep === key) (active as any[]).push(member);
+          return;
+        }
+        const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
+        if (firstIncompleteStep?.stepNumber === step.stepNumber) (active as any[]).push(member);
       });
       map.set(key, { validated: validated as any, active: active as any });
     });
     return map;
   }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef]);
+
+  // Sous-guide 100 % validé + option « masquer » active → la carte disparaît.
+  const allStepsDone = loaded && steps.length > 0 && filteredSteps.length === 0;
+  if (allStepsDone && (hideCompletedLocal || hideCompletedGlobal)) {
+    return null;
+  }
 
   return (
     <div className="sgc" style={{"--sgc-color": color} as React.CSSProperties}>
@@ -481,9 +505,9 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
       </button>
 
       {/* Notes/flags */}
-      {(seq.note || seq.isResume) && (
+      {(seq.note || seq.isResume || (bookmarkStepKey && bookmarkStepKey.startsWith(`${seq.subGuideRef}-`))) && (
         <div className="sgc-flags">
-          {seq.isResume && (
+          {(seq.isResume || (bookmarkStepKey && bookmarkStepKey.startsWith(`${seq.subGuideRef}-`))) && (
             <button 
               className="sgc-flag resume cursor-pointer hover:bg-blue-500/20 hover:text-white transition-all transform hover:scale-105"
               onClick={(e) => {
@@ -538,7 +562,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
             ) : (
               <>
                 {/* Mode controls */}
-                <div className="sgc-controls">
+                <div className="sgc-controls" data-tour="guide-complete-subguide">
                   <button 
                     className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
@@ -546,6 +570,17 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                   >
                     {hideCompletedLocal || hideCompletedGlobal ? <Eye size={12}/> : <EyeOff size={12}/>}
                     <span>{hideCompletedLocal || hideCompletedGlobal ? `Afficher les étapes validées (${done})` : `Masquer les étapes validées (${done})`}</span>
+                  </button>
+                  <button
+                    className="sgc-ctrl-btn sgc-complete-subguide-btn"
+                    onClick={() => {
+                      const keys = steps.map(s => `${seq.subGuideRef}-${s.stepNumber}`);
+                      onCompleteSubGuide?.(keys);
+                    }}
+                    title="Valider toutes les étapes de ce sous-guide d'un coup"
+                  >
+                    <CheckCheck size={12}/>
+                    <span>Valider ce sous-guide</span>
                   </button>
                 </div>
 
@@ -647,7 +682,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -658,6 +693,8 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   onShowPresenceModal: (milestoneId: string, title: string) => void;
   onBookmark: (milestoneId: string) => void;
   onResetMilestone: (milestone: Milestone) => void;
+  checkedSteps?: Set<string>;
+  hideDoneSeqs?: boolean;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -753,8 +790,25 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                     </div>
                   )}
 
-                  {ms.sequences.length > 0 && (
-                    <span className="ms-seqs">{ms.sequences.length}</span>
+                  {(() => {
+                    const seqs = hideDoneSeqs && checkedSteps
+                      ? ms.sequences.filter(s => !isSeqFullyDone(s, checkedSteps))
+                      : ms.sequences;
+                    if (seqs.length === 0) return null;
+                    return (
+                      <span
+                        className="ms-seqs"
+                        title={`${seqs.length} sous-guide${seqs.length > 1 ? "s" : ""} : ${seqs.map(s => s.subGuideRef).join(" · ")}`}
+                      >
+                        {seqs.length} sous-guide{seqs.length > 1 ? "s" : ""}
+                      </span>
+                    );
+                  })()}
+
+                  {bookmarkId === ms.id && !isDone && (
+                    <span className="ms-you" title="Votre position sur ce guide">
+                      Vous êtes ici
+                    </span>
                   )}
 
                   <div className="flex items-center gap-1.5 ml-auto shrink-0">
@@ -852,7 +906,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
-  currentUserProfile, ocreStats
+  currentUserProfile, ocreStats, ocreMonsters = []
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
@@ -872,9 +926,16 @@ export default function OptimizedGuideClient({
     pseudoDofus?: string | null;
   };
   ocreStats?: { bosses?: { gathered?: number; total?: number }; archis?: { gathered?: number; total?: number }; progressPercent?: number; currentStep?: number; serverName?: string } | null;
+  ocreMonsters?: OcreMonsterLite[];
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
+
+  // Clés localStorage scopées par personnage : chaque mule garde sa propre
+  // position (le serveur sépare déjà les progressions via characterSlot).
+  const bookmarkStorageKey = `guide-bm-${guide.slug}-${selectedCharacter}`;
+  const bookmarkStepStorageKey = `guide-bm-step-${guide.slug}-${selectedCharacter}`;
+  const sessionStorageKey = `sigilos_session_${guildId}_${guide.id}_${selectedCharacter}`;
 
   const [milestones] = useState(() => initialMilestones);
   const [selected, setSelected] = useState<Milestone | null>(milestones[0] ?? null);
@@ -900,7 +961,7 @@ export default function OptimizedGuideClient({
   const [bookmarkStepKey, setBookmarkStepKey] = useState<string | null>(() => {
     const activeProgress = userProgress.find(p => p.milestoneId === selected?.id);
     if (activeProgress?.currentStep) return activeProgress.currentStep;
-    if (typeof window !== "undefined") return localStorage.getItem(`guide-bm-step-${guide.slug}`) ?? null;
+    if (typeof window !== "undefined") return localStorage.getItem(bookmarkStepStorageKey) ?? null;
     return null;
   });
 
@@ -910,22 +971,22 @@ export default function OptimizedGuideClient({
       const activeProgress = userProgress.find(p => p.milestoneId === selected.id);
       if (activeProgress?.currentStep) {
         setBookmarkStepKey(activeProgress.currentStep);
-        localStorage.setItem(`guide-bm-step-${guide.slug}`, activeProgress.currentStep);
+        localStorage.setItem(bookmarkStepStorageKey, activeProgress.currentStep);
       } else {
         setBookmarkStepKey(null);
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(bookmarkStepStorageKey);
       }
     }
-  }, [selected, userProgress, guide.slug]);
+  }, [selected, userProgress, guide.slug, bookmarkStepStorageKey]);
 
   const handleStepBookmark = useCallback((stepKey: string) => {
     setBookmarkStepKey(prev => {
       const next = prev === stepKey ? null : stepKey;
       if (next) {
-        localStorage.setItem(`guide-bm-step-${guide.slug}`, next);
+        localStorage.setItem(bookmarkStepStorageKey, next);
         toast.success("Position d'étape sauvegardée !");
       } else {
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(bookmarkStepStorageKey);
         toast.info("Marque-page d'étape retiré");
       }
 
@@ -959,6 +1020,8 @@ export default function OptimizedGuideClient({
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [isAllMembersModalOpen, setIsAllMembersModalOpen] = useState(false);
+  const [isOcreModalOpen, setIsOcreModalOpen] = useState(false);
+  const [isAlignModalOpen, setIsAlignModalOpen] = useState(false);
   // Initialize checkedSteps from userProgress on mount
   const [checkedSteps, setCheckedSteps] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -991,6 +1054,31 @@ export default function OptimizedGuideClient({
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
 
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
+  // Mode discret (Phase F) : masque la présence du membre courant (localStorage).
+  const [incognito, setIncognito] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem(`guide-incognito-${guildId}`) === "true"; } catch { return false; }
+  });
+  // Identité du membre courant (nom/avatar) pour le heartbeat de présence.
+  const [myIdentity, setMyIdentity] = useState<{ name?: string; image?: string }>({});
+  // Effet d'ambiance (particules) — désactivable (localStorage, défaut activé).
+  const [particlesEnabled, setParticlesEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem(`guide-particles-${guildId}`) !== "false"; } catch { return true; }
+  });
+
+  // ─── Guide tour (P2) : rejouable, dispo pour tous via le menu Options ───────
+  const { startTour } = useTour();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seenKey = "sigilos-tour-guide-seen";
+    if (localStorage.getItem(seenKey) === "true") return;
+    const t = setTimeout(() => {
+      localStorage.setItem(seenKey, "true");
+      startTour("guide");
+    }, 900);
+    return () => clearTimeout(t);
+  }, [startTour]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
   const [createUnpopulatedDjModal, setCreateUnpopulatedDjModal] = useState<{ isOpen: boolean; name: string; dofusdbId: number | null }>({ isOpen: false, name: "", dofusdbId: null });
@@ -1186,19 +1274,21 @@ export default function OptimizedGuideClient({
       if (ctx?.isAdmin) {
         setIsAdmin(true);
       }
+      // Identité du membre courant pour le heartbeat de présence (Phase F).
+      if (ctx?.name || ctx?.image) setMyIdentity({ name: ctx?.name, image: ctx?.image });
     });
   }, [guildId]);
 
   const [bookmarkId, setBookmarkId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem(`guide-bm-${guide.slug}`) ?? null;
+    if (typeof window !== "undefined") return localStorage.getItem(bookmarkStorageKey) ?? null;
     return null;
   });
 
   const handleBookmark = useCallback((milestoneId: string) => {
     const next = bookmarkId === milestoneId ? null : milestoneId;
     setBookmarkId(next);
-    if (next) { localStorage.setItem(`guide-bm-${guide.slug}`, next); toast.success("Position sauvegardée !"); }
-    else { localStorage.removeItem(`guide-bm-${guide.slug}`); toast.info("Marque-page supprimé"); }
+    if (next) { localStorage.setItem(bookmarkStorageKey, next); toast.success("Position sauvegardée !"); }
+    else { localStorage.removeItem(bookmarkStorageKey); toast.info("Marque-page supprimé"); }
   }, [bookmarkId, guide.slug]);
 
   const handleBackToMainGuideCurrentStep = useCallback(() => {
@@ -1227,7 +1317,7 @@ export default function OptimizedGuideClient({
   // Session tracking & Welcome Back Modal
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const key = `sigilos_session_${guildId}_${guide.id}`;
+    const key = sessionStorageKey;
     
     if (!initializedSessionRef.current) {
       initializedSessionRef.current = true;
@@ -1390,14 +1480,45 @@ export default function OptimizedGuideClient({
   // Presence mapping (maps milestone ID to members currently active there)
   const presenceMap = useMemo(() => {
     const map: Record<string, any[]> = {};
+    const seen = new Set<string>();
     uniqueGuildMembers.forEach(m => {
       if (m.currentMilestoneId) {
+        // Déduplication défensive par profileId.
+        if (seen.has(m.profileId)) return;
+        seen.add(m.profileId);
         if (!map[m.currentMilestoneId]) map[m.currentMilestoneId] = [];
         map[m.currentMilestoneId].push(m);
       }
     });
     return map;
   }, [uniqueGuildMembers]);
+
+  // ─── Temps réel (Phase F) : présence live du guide ──────────────────────────
+  const guideLive = useGuidePresence({
+    guildId,
+    guideSlug: guide.slug,
+    milestoneId: selected?.id ?? null,
+    userName: myIdentity.name,
+    userAvatar: myIdentity.image,
+    enabled: !incognito,
+  });
+
+  // Carte milestoneId → membres LIVE ; remplace presenceMap quand on est connecté.
+  const livePresenceMap = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    const seen = new Set<string>();
+    guideLive.presence.forEach(m => {
+      // Déduplication par profileId (2 connexions du même membre = 1 entrée).
+      if (seen.has(m.profileId)) return;
+      seen.add(m.profileId);
+      if (!map[m.milestoneId]) map[m.milestoneId] = [];
+      map[m.milestoneId].push(m);
+    });
+    return map;
+  }, [guideLive.presence]);
+
+  // Fail-soft : props serveur tant que le WS n'est pas connecté (jamais d'écran vide).
+  const effectivePresenceMap = guideLive.connectionStatus === "connected" ? livePresenceMap : presenceMap;
 
   // Build chapters
   const chapters = useMemo(() => {
@@ -1455,8 +1576,23 @@ export default function OptimizedGuideClient({
 
   // Removed JS-based layout DOM adjustment in favor of declarative <style> injection in render  // Guild members on current step
   const membersHere = useMemo(() =>
-    selected ? (presenceMap[selected.id] || []) : [],
-  [selected, presenceMap]);
+    selected ? (effectivePresenceMap[selected.id] || []) : [],
+  [selected, effectivePresenceMap]);
+
+  // Valider un SOUS-GUIDE d'un coup : coche toutes ses étapes + une seule persistance.
+  const handleCompleteSubGuide = useCallback((keys: string[]) => {
+    if (!selected || keys.length === 0) return;
+    setCheckedSteps(prev => {
+      const next = new Set(prev);
+      keys.forEach(k => next.add(k));
+      const milestoneKeys = Array.from(next).filter(k =>
+        selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+      );
+      updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
+      return next;
+    });
+    toast.success(`Sous-guide validé ✓ (${keys.length} étape${keys.length > 1 ? "s" : ""})`);
+  }, [selected, guildId]);
 
   const handleStepToggle = useCallback((ref: string, n: number) => {
     const key = `${ref}-${n}`;
@@ -1481,6 +1617,8 @@ export default function OptimizedGuideClient({
   const router = useRouter();
   const [tocOpen, setTocOpen] = useState(false);
   const [tocPinned, setTocPinned] = useState(false);
+  // Recherche dans le sommaire (titres de jalons + sous-guides).
+  const [tocSearchQuery, setTocSearchQuery] = useState("");
 
   // Écrans < 1200px : le rail épinglé se replie → le tiroir drawer reste le seul accès
   const [isNarrow, setIsNarrow] = useState(false);
@@ -1523,6 +1661,42 @@ export default function OptimizedGuideClient({
       return next;
     });
   }, [tocPinKey]);
+
+  // Résultats de recherche sommaire : match sur titre de jalon, chapitre et sous-guides.
+  const tocSearchResults = useMemo(() => {
+    const q = tocSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    const out: { ms: Milestone; chapterLabel: string }[] = [];
+    chapters.forEach(ch => {
+      ch.items.forEach(ms => {
+        const haystack = [
+          ms.title,
+          ms.chapterLabel,
+          ...ms.sequences.map(s => `${s.subGuideRef} ${s.subGuideName}`)
+        ].join(" ").toLowerCase();
+        if (haystack.includes(q)) out.push({ ms, chapterLabel: ch.label });
+      });
+    });
+    return out;
+  }, [tocSearchQuery, chapters]);
+
+  // Clic sur un résultat de recherche : ouvre le jalon + surbrillance dans le sommaire.
+  const handleTocSearchSelect = useCallback((ms: Milestone, pinned: boolean) => {
+    setSelected(ms);
+    setTocSearchQuery("");
+    if (!pinned) { setTocOpen(false); return; }
+    // Rail épinglé : surligner la ligne du jalon dans le sommaire.
+    setTimeout(() => {
+      const el = document.getElementById(`ms-row-${ms.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.style.transition = "background-color 0.5s";
+        const oldBg = el.style.backgroundColor;
+        el.style.backgroundColor = "rgba(212, 168, 83, 0.25)";
+        setTimeout(() => { el.style.backgroundColor = oldBg; }, 1500);
+      }
+    }, 200);
+  }, []);
 
   // --- Selecteur de guide (HUD) — déclaré ici car utilisé par la hiérarchie Échap --
   const [guidesOpen, setGuidesOpen] = useState(false);
@@ -1588,7 +1762,7 @@ export default function OptimizedGuideClient({
             sessionValidatedCountRef.current += 1;
             
             // Save to localStorage immediately
-            const key = `sigilos_session_${guildId}_${guide.id}`;
+            const key = sessionStorageKey;
             const stored = localStorage.getItem(key);
             if (stored) {
               try {
@@ -1634,7 +1808,7 @@ export default function OptimizedGuideClient({
           return next;
         });
         setBookmarkStepKey(null);
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(bookmarkStepStorageKey);
         toast.success("Jalon réinitialisé ↺", { description: selected.title });
       }
     } catch { toast.error("Erreur lors de la réinitialisation"); }
@@ -1656,9 +1830,9 @@ export default function OptimizedGuideClient({
         setCheckedSteps(new Set());
         setBookmarkId(null);
         setBookmarkStepKey(null);
-        localStorage.removeItem(`guide-bm-${guide.slug}`);
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
-        localStorage.removeItem(`sigilos_session_${guildId}_${guide.id}`);
+        localStorage.removeItem(bookmarkStorageKey);
+        localStorage.removeItem(bookmarkStepStorageKey);
+        localStorage.removeItem(sessionStorageKey);
         toast.success("Guide réinitialisé ↺", { description: "Toute votre progression a été effacée." });
       }
     } catch { toast.error("Erreur lors de la réinitialisation du guide"); }
@@ -1669,6 +1843,26 @@ export default function OptimizedGuideClient({
   const handleCompleteGuide = useCallback(() => {
     setIsCompleteGuideConfirmOpen(true);
   }, []);
+
+  // ─── Mode discret : ne plus émettre sa présence (reste récepteur) ────────────
+  const toggleIncognito = useCallback(() => {
+    setIncognito(prev => {
+      const next = !prev;
+      try { localStorage.setItem(`guide-incognito-${guildId}`, next ? "true" : "false"); } catch {}
+      if (next) toast.info("Mode discret activé — votre présence est masquée");
+      else toast.success("Mode discret désactivé");
+      return next;
+    });
+  }, [guildId]);
+
+  // ─── Effet d'ambiance : particules désactivables ─────────────────────────────
+  const toggleParticles = useCallback(() => {
+    setParticlesEnabled(prev => {
+      const next = !prev;
+      try { localStorage.setItem(`guide-particles-${guildId}`, next ? "true" : "false"); } catch {}
+      return next;
+    });
+  }, [guildId]);
 
   const confirmCompleteGuide = useCallback(async () => {
     setIsCompletingGuide(true);
@@ -1953,9 +2147,18 @@ export default function OptimizedGuideClient({
 
 
   // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
-  const activeSeq = selected
-    ? [...selected.sequences].sort((a, b) => a.order - b.order)[activeSeqIndex] || null
-    : null;
+  // Quand « masquer les étapes validées » est actif, les sous-guides 100 % validés
+  // (bornes connues) sont retirés de la pagination.
+  const visibleSeqs = useMemo(() => {
+    if (!selected) return [];
+    const sorted = [...selected.sequences].sort((a, b) => a.order - b.order);
+    return globalHideCompletedSteps ? sorted.filter(s => !isSeqFullyDone(s, checkedSteps)) : sorted;
+  }, [selected, globalHideCompletedSteps, checkedSteps]);
+  const activeSeq = selected ? visibleSeqs[activeSeqIndex] || visibleSeqs[0] || null : null;
+  // Borne l'index quand des sous-guides disparaissent (validés + masqués).
+  useEffect(() => {
+    if (activeSeqIndex >= visibleSeqs.length) setActiveSeqIndex(0);
+  }, [visibleSeqs.length, activeSeqIndex]);
   const isCompleted = selected ? completedIds.has(selected.id) : false;
   const typeConf = selected ? (TYPE_CONFIG[selected.type] ?? TYPE_CONFIG.QUETE_SERIE) : TYPE_CONFIG.QUETE_SERIE;
 
@@ -1985,15 +2188,56 @@ export default function OptimizedGuideClient({
           )}
         </div>
       </div>
+      <div className="toc-search">
+        <Search size={12} className="toc-search-icon"/>
+        <input
+          type="text"
+          className="toc-search-input"
+          placeholder="Rechercher un jalon ou un sous-guide…"
+          value={tocSearchQuery}
+          onChange={(e) => setTocSearchQuery(e.target.value)}
+          aria-label="Rechercher dans le sommaire"
+        />
+        {tocSearchQuery && (
+          <button type="button" className="toc-search-clear" onClick={() => setTocSearchQuery("")} aria-label="Effacer la recherche">
+            <X size={12}/>
+          </button>
+        )}
+      </div>
       {activeGuideFilter && (
         <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
           <BookOpenCheck size={12}/> ← Guide principal
         </button>
       )}
       <div className="sidebar-chapters toc-chapters">
-        {filteredChapters.length === 0 ? (
-          <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+        {tocSearchQuery.trim() ? (
+          tocSearchResults.length === 0 ? (
+            <div className="sidebar-empty"><Info size={14}/> Aucun jalon trouvé</div>
+          ) : (
+            tocSearchResults.map(({ ms, chapterLabel }) => {
+              const isDone = completedIds.has(ms.id);
+              return (
+                <div
+                  key={ms.id}
+                  className={`ms-row search-result${isDone ? " done" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleTocSearchSelect(ms, pinned)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTocSearchSelect(ms, pinned); } }}
+                >
+                  <div className="ms-state">
+                    {isDone ? <CheckCircle2 size={14} className="state-done"/> : <Circle size={14} className="state-todo"/>}
+                  </div>
+                  <span className="ms-title">{decodeTitle(ms.title)}</span>
+                  <span className="ms-seqs">{chapterLabel}</span>
+                </div>
+              );
+            })
+          )
         ) : (
+          filteredChapters.length === 0 ? (
+            <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+          ) : (
           filteredChapters.map((ch) => (
             <ChapterGroup
               key={ch.chapter}
@@ -2005,7 +2249,9 @@ export default function OptimizedGuideClient({
               onSelect={ms => { setSelected(ms); if (!pinned) setTocOpen(false); }}
               isOpen={openChapters[ch.chapter] ?? false}
               onToggle={(open) => handleToggleChapter(ch.chapter, open)}
-              presenceMap={presenceMap}
+              presenceMap={effectivePresenceMap}
+              checkedSteps={checkedSteps}
+              hideDoneSeqs={globalHideCompletedSteps}
               bookmarkId={bookmarkId}
               guildId={guildId}
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
@@ -2013,6 +2259,7 @@ export default function OptimizedGuideClient({
               onResetMilestone={handleResetMilestone}
             />
           ))
+          )
         )}
       </div>
     </>
@@ -2031,6 +2278,9 @@ export default function OptimizedGuideClient({
         }
       `}} />
       <div className={"guide-shell" + (tocPinned ? " toc-pinned" : "")}>
+
+      {/* Effet d'ambiance (particules) — désactivable via le menu Options */}
+      <GuideParticles active={particlesEnabled} />
 
       {/* ── Sommaire épinglé (rail fixe, visible tant que >=1200px) ── */}
       {tocPinned && (
@@ -2054,11 +2304,12 @@ export default function OptimizedGuideClient({
               className="guide-content"
             >
               {/* Barre sticky — sommaire, guide & progression */}
-              <div className="guide-hud">
+              <div className="guide-hud" data-tour="guide-hud">
                 <div className="guide-hud-row">
                   <Link
                     href={`/dashboard/${guildId}/quetes-dofus`}
                     className="hud-exit"
+                    data-tour="guide-hud-exit"
                     title="Quitter le guide (Échap)"
                     aria-label="Quitter le guide"
                   >
@@ -2068,6 +2319,7 @@ export default function OptimizedGuideClient({
                   <button
                     type="button"
                     className="guide-sommaire-btn"
+                    data-tour="guide-toc-btn"
                     onClick={toggleTocSide}
                     title="Ouvrir le sommaire (S)"
                   >
@@ -2147,7 +2399,7 @@ export default function OptimizedGuideClient({
                         type="button"
                         className="guide-hud-presence"
                         onClick={() => setIsAllMembersModalOpen(true)}
-                        title="Voir la liste des membres suivant ce guide"
+                        title={`${uniqueGuildMembers.length} membre${uniqueGuildMembers.length > 1 ? "s" : ""} de la guilde suivent ce guide — cliquer pour la liste`}
                       >
                         <div className="flex -space-x-1.5">
                           {uniqueGuildMembers.slice(0, 4).map(m => (
@@ -2157,25 +2409,71 @@ export default function OptimizedGuideClient({
                           ))}
                         </div>
                         <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
+                        <span className="guide-hud-presence-label">membre{uniqueGuildMembers.length > 1 ? "s" : ""}</span>
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
-                      onClick={() => setGlobalHideCompletedSteps(v => !v)}
-                      title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-                      aria-label={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-                    >
-                      {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
-                    </button>
-                    <button
-                      type="button"
-                      className="guide-hud-btn"
-                      onClick={() => setIsHelpOpen(true)}
-                      title="Comment utiliser ce guide ?"
-                    >
-                      <HelpCircle size={13}/>
-                    </button>
+                    {/* Menu Options : toutes les actions du guide regroupées (fini la rangée d'icônes) */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="guide-hud-btn guide-hud-menu-trigger"
+                          data-tour="guide-menu-trigger"
+                          title="Options du guide"
+                          aria-label="Options du guide"
+                        >
+                          <Settings2 size={13}/>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="guide-hud-menu">
+                        <DropdownMenuItem
+                          onClick={() => setGlobalHideCompletedSteps(v => !v)}
+                          className={globalHideCompletedSteps ? "current" : ""}
+                        >
+                          {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
+                          <span>{globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setIsHelpOpen(true)}
+                        >
+                          <HelpCircle size={13}/>
+                          <span>Comment utiliser ce guide ?</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={toggleIncognito}
+                          className={incognito ? "current" : ""}
+                        >
+                          <Ghost size={13}/>
+                          <span>{incognito ? "Désactiver le mode discret" : "Mode discret : masquer ma présence"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={toggleParticles}
+                          className={particlesEnabled ? "current" : ""}
+                        >
+                          <Sparkles size={13}/>
+                          <span>{particlesEnabled ? "Désactiver l'effet d'ambiance" : "Activer l'effet d'ambiance (particules)"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => startTour("guide")}
+                        >
+                          <CircleHelp size={13}/>
+                          <span>Revoir le guide tour</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator/>
+                        <DropdownMenuItem onClick={handleCompleteGuide} disabled={isCompletingGuide || validating}>
+                          <CheckCheck size={13}/>
+                          <span>Tout valider le guide d'un coup</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={handleResetGuide}
+                          disabled={validating}
+                          className="danger"
+                        >
+                          <RotateCcw size={13}/>
+                          <span>Réinitialiser le guide</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
                     <a
                       href="https://ganymede-app.com/"
@@ -2186,15 +2484,7 @@ export default function OptimizedGuideClient({
                     >
                       <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
                     </a>
-                    <button
-                      type="button"
-                      className="guide-hud-btn guide-hud-btn-danger"
-                      onClick={handleResetGuide}
-                      disabled={validating}
-                      title="Réinitialiser TOUT le guide (progression remise à zéro)"
-                    >
-                      <RotateCcw size={13}/>
-                    </button>
+                    {/* Reset guide déplacé dans le menu Options */}
                   </div>
                 </div>
 
@@ -2209,7 +2499,7 @@ export default function OptimizedGuideClient({
 
                 <div className="guide-hero-grid">
                   {/* Personnage actif */}
-                  <div className="guide-hero-card">
+                  <div className="guide-hero-card" data-tour="guide-hero-character">
                     <div className="guide-hero-card-icon class">
                       {(() => { const d = mainCharacter?.classe ? getClass(mainCharacter.classe) : null; return d ? <img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/> : <Crown className="w-5 h-5 text-amber-500"/>; })()}
                     </div>
@@ -2236,8 +2526,16 @@ export default function OptimizedGuideClient({
                     </div>
                   </div>
 
-                  {/* Alignement / Ordre */}
-                  <div className="guide-hero-card">
+                  {/* Alignement / Ordre — cliquable : ouvre l'édition */}
+                  <div
+                    className="guide-hero-card guide-hero-card-clickable"
+                    data-tour="guide-hero-align"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setIsAlignModalOpen(true)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsAlignModalOpen(true); } }}
+                    title="Modifier mon alignement / ordre"
+                  >
                     {(() => {
                       const { alignment, alignmentOrder, alignmentLevel } = currentUserProfile || {};
                       if (!alignment || alignment === "neutre") {
@@ -2288,12 +2586,12 @@ export default function OptimizedGuideClient({
                   </div>
 
                   {/* Métamob / Ocre */}
-                  <div className="guide-hero-card">
+                  <div className="guide-hero-card" data-tour="guide-hero-ocre">
                     <div className="guide-hero-card-icon ocre"><img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain"/></div>
                     <div className="text-left min-w-0 flex-1">
                       <p className="guide-hero-card-label">Metamob</p>
                       {currentUserProfile?.metamobPseudo ? (
-                        <Link href={"/dashboard/" + guildId + "/quete-ocre"} className="guide-hero-metamob-link">
+                        <button type="button" className="guide-hero-metamob-link" onClick={() => setIsOcreModalOpen(true)}>
                           {ocreStats ? (
                             <>
                               <span>Gardiens <span className="font-mono text-white">{ocreStats.bosses?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.bosses?.total ?? 51}</span></span></span>
@@ -2304,7 +2602,7 @@ export default function OptimizedGuideClient({
                             <span className="text-[10px] font-bold text-amber-400/80">Voir ma progression →</span>
                           )}
                           <ExternalLink size={12} className="text-amber-400/60 shrink-0"/>
-                        </Link>
+                        </button>
                       ) : (
                         <Link href={"/dashboard/" + guildId + "/profile"} className="guide-hero-link-btn amber">
                           <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain"/>
@@ -2398,8 +2696,16 @@ export default function OptimizedGuideClient({
 
               {/* Sub-guide cards (Paginated!) */}
               {selected.sequences.length > 0 && (() => {
-                const sortedSeqs = [...selected.sequences].sort((a,b) => a.order - b.order);
-                const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
+                if (visibleSeqs.length === 0) {
+                  return (
+                    <section className="subguides-section">
+                      <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                        <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
+                        <span>Tous les sous-guides de cette étape sont validés. 🎉</span>
+                      </div>
+                    </section>
+                  );
+                }
                 return (
                   <section className="subguides-section">
                     <p className="subguides-hint">
@@ -2410,7 +2716,7 @@ export default function OptimizedGuideClient({
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <span>Sous-guide</span>
                         <span className="subguides-count">
-                          Partie {activeSeqIndex + 1} / {sortedSeqs.length}
+                          Partie {activeSeqIndex + 1} / {visibleSeqs.length}
                         </span>
                       </div>
                       <button
@@ -2424,9 +2730,9 @@ export default function OptimizedGuideClient({
                     </div>
 
                     {/* Horizontal tabs pagination for quick selection */}
-                    {sortedSeqs.length > 1 && (
+                    {visibleSeqs.length > 1 && (
                       <div className="subguides-pagination-tabs">
-                        {sortedSeqs.map((seq, idx) => {
+                        {visibleSeqs.map((seq, idx) => {
                           const isActive = idx === activeSeqIndex;
                           return (
                             <button
@@ -2459,12 +2765,13 @@ export default function OptimizedGuideClient({
                           onSelectSubGuide={setActiveGuideFilter}
                           bookmarkStepKey={bookmarkStepKey}
                           onStepBookmark={handleStepBookmark}
+                          onCompleteSubGuide={handleCompleteSubGuide}
                         />
                       )}
                     </div>
 
                     {/* Bottom horizontal pagination controls */}
-                    {sortedSeqs.length > 1 && (
+                    {visibleSeqs.length > 1 && (
                       <div className="subguides-pagination-controls">
                         <button
                           className="subguide-pag-btn"
@@ -2474,12 +2781,12 @@ export default function OptimizedGuideClient({
                           <ChevronLeft size={12}/> Partie précédente
                         </button>
                         <span className="subguide-pag-indicator">
-                          Partie {activeSeqIndex + 1} sur {sortedSeqs.length}
+                          Partie {activeSeqIndex + 1} sur {visibleSeqs.length}
                         </span>
                         <button
                           className="subguide-pag-btn"
-                          disabled={activeSeqIndex === sortedSeqs.length - 1}
-                          onClick={() => setActiveSeqIndex(idx => Math.min(sortedSeqs.length - 1, idx + 1))}
+                          disabled={activeSeqIndex === visibleSeqs.length - 1}
+                          onClick={() => setActiveSeqIndex(idx => Math.min(visibleSeqs.length - 1, idx + 1))}
                         >
                           Partie suivante <ChevronRight size={12}/>
                         </button>
@@ -2500,7 +2807,7 @@ export default function OptimizedGuideClient({
 
 
               {/* Footer nav */}
-              <footer className="step-footer">
+              <footer className="step-footer" data-tour="guide-footer">
                 <div className="step-nav">
                   {prevMs && (
                     <button className="nav-btn prev" onClick={() => setSelected(prevMs)}>
@@ -2545,6 +2852,7 @@ export default function OptimizedGuideClient({
                       title="Réinitialiser ce jalon (étapes cochées et validation)"
                     >
                       <RotateCcw size={14}/>
+                      <span>Réinitialiser</span>
                     </button>
                   </div>
                   {nextMs && (
@@ -2560,6 +2868,30 @@ export default function OptimizedGuideClient({
         )}
         <CoordHoverMap containerRef={mainRef} guildId={guildId} />
       </main>
+
+      {/* Fil d'activité live (Phase F) — events step:validated / milestone:completed */}
+      <LiveActivityTicker events={guideLive.events} />
+
+      {/* Modale Mon Ocre : liste des Gardiens/Archis déjà en poche, zéro refetch API */}
+      <OcreProgressModal
+        open={isOcreModalOpen}
+        onOpenChange={setIsOcreModalOpen}
+        monsters={ocreMonsters}
+        bossCount={ocreStats?.bosses}
+        archiCount={ocreStats?.archis}
+        metamobPseudo={currentUserProfile?.metamobPseudo}
+        guildId={guildId}
+      />
+
+      {/* Modale Alignement / Ordre / Tranche */}
+      <AlignmentModal
+        open={isAlignModalOpen}
+        onOpenChange={setIsAlignModalOpen}
+        guildId={guildId}
+        alignment={currentUserProfile?.alignment}
+        alignmentOrder={currentUserProfile?.alignmentOrder}
+        alignmentLevel={currentUserProfile?.alignmentLevel}
+      />
 
       {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}
       {typeof document !== "undefined" && createPortal(
@@ -3437,7 +3769,7 @@ export default function OptimizedGuideClient({
           <ScrollArea className="max-h-[350px] pr-2 no-scrollbar">
             <div className="space-y-2 pb-2">
               {(() => {
-                const members = presenceModal ? (presenceMap[presenceModal.milestoneId] || []) : [];
+                const members = presenceModal ? (effectivePresenceMap[presenceModal.milestoneId] || []) : [];
                 if (members.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm">

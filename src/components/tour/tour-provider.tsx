@@ -35,6 +35,7 @@ export type TourPhase =
     | "minijeu"
     | "stats"
     | "presentation"
+    | "guide"
     | null;
 
 /**
@@ -46,6 +47,7 @@ export const MODULE_TOUR_PHASES = [
     "missions", "ladder", "songes", "ocre",
     "services", "donjons", "calendar", "sondages", "annuaire",
     "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
+    "guide",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -1001,6 +1003,68 @@ const QUETESDOFUS_STEPS: TourStep[] = [
     },
 ];
 
+/**
+ * Tour GUIDE — module guide plein écran (Ganymède).
+ * Rejouable à tout moment (membres comme admin) via le bouton du menu Options.
+ * Les data-tour sont posés sur les éléments stables du module guide.
+ */
+const GUIDE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="guide-hud"]',
+        title: "Le guide plein écran",
+        description: "Le guide occupe tout l'écran pour rester concentré. Ce bandeau te montre la phase, le sous-guide actif et ton pourcentage.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-hud-exit"]',
+        title: "Quitter le guide",
+        description: "Ce bouton rouge te ramène au module Quêtes Dofus. Ta progression est conservée et tu reprends où tu en étais.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-hero-character"]',
+        title: "Personnage actif",
+        description: "Choisis ton personnage principal ou une mule : chacun a sa propre progression, ses jalons et sa position.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-hero-align"]',
+        title: "Alignement & ordre",
+        description: "Clique pour renseigner ton alignement (Bonta / Brakmar), ton ordre et ta tranche.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-hero-ocre"]',
+        title: "Metamob / Ocre",
+        description: "Clique pour ouvrir ta collection : Gardiens et Archis déjà en poche ou manquants, avec recherche intégrée.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-toc-btn"]',
+        title: "Le sommaire",
+        description: "Ouvre le sommaire (touche S) : chapitres, jalons et sous-guides. La recherche trouve n'importe quel titre et t'y amène.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-menu-trigger"]',
+        title: "Options du guide",
+        description: "Toutes les actions regroupées : masquer les étapes validées, mode discret, aide, tout valider, réinitialiser…",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="guide-complete-subguide"]',
+        title: "Valider un sous-guide d'un coup",
+        description: "Ce bouton coche toutes les étapes du sous-guide en un clic. Avec « masquer les validés » actif, le sous-guide validé disparaît.",
+        placement: "top",
+    },
+    {
+        target: '[data-tour="guide-footer"]',
+        title: "Valider l'étape",
+        description: "En bas : valider l'étape courante, marquer ta position, tout valider le guide d'un coup, ou réinitialiser ce jalon.",
+        placement: "top",
+    },
+];
+
 const GALERIE_STEPS: TourStep[] = [
     {
         target: '[data-tour="galerie-header"]',
@@ -1258,6 +1322,7 @@ export function TourProvider({
     const sondagesSteps = applyFilters(SONDAGES_STEPS);
     const annuaireSteps = applyFilters(ANNUAIRE_STEPS);
     const quetesDofusSteps = applyFilters(QUETESDOFUS_STEPS);
+    const guideSteps = applyFilters(GUIDE_STEPS);
     const galerieSteps = applyFilters(GALERIE_STEPS);
     const ressourcesSteps = applyFilters(RESSOURCES_STEPS);
     const minijeuSteps = applyFilters(MINIJEU_STEPS);
@@ -1290,6 +1355,7 @@ export function TourProvider({
             case "sondages": return sondagesSteps;
             case "annuaire": return annuaireSteps;
             case "quetesDofus": return quetesDofusSteps;
+            case "guide": return guideSteps;
             case "galerie": return galerieSteps;
             case "ressources": return ressourcesSteps;
             case "minijeu": return minijeuSteps;
@@ -1490,6 +1556,9 @@ export function TourProvider({
                 break;
             case "presentation":
                 router.push(`/dashboard/${guildId}/presentation`);
+                break;
+            case "guide":
+                // Déjà sur la page du guide (le tour se lance depuis le module).
                 break;
             default:
                 break;

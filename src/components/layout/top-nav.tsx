@@ -165,6 +165,23 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     <LiveStreamBadge guildId={sidebarProps.guildId} />
                 </div>
 
+                {/* Events chip — OUTSIDE overflow-hidden pill so popover is not clipped */}
+                {eventsPromise ? (
+                    <Suspense fallback={null}>
+                        <DeferredEventChip
+                            eventsPromise={eventsPromise}
+                            guildId={sidebarProps.guildId}
+                            canViewCalendar={sidebarProps.user.canViewCalendar}
+                        />
+                    </Suspense>
+                ) : (
+                    <HeaderEventChip
+                        events={events}
+                        guildId={sidebarProps.guildId}
+                        canViewCalendar={sidebarProps.user.canViewCalendar}
+                    />
+                )}
+
                 <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
                     {/* 1. Smart Bar (Hidden on Mobile) */}
                     <div className="hidden sm:block border-r border-border">
@@ -174,24 +191,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         />
                     </div>
 
-                    {/* 2. Events chip — beside online profiles */}
-                    {eventsPromise ? (
-                        <Suspense fallback={null}>
-                            <DeferredEventChip
-                                eventsPromise={eventsPromise}
-                                guildId={sidebarProps.guildId}
-                                canViewCalendar={sidebarProps.user.canViewCalendar}
-                            />
-                        </Suspense>
-                    ) : (
-                        <HeaderEventChip
-                            events={events}
-                            guildId={sidebarProps.guildId}
-                            canViewCalendar={sidebarProps.user.canViewCalendar}
-                        />
-                    )}
-
-                    {/* 2. Interactive Tools */}
+                    {/* Interactive Tools */}
                     <div className="flex items-center px-1">
                         {roadmapEnabled && (
                             <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="Roadmap">

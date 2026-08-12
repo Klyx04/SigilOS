@@ -8,7 +8,7 @@ import {
   CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { useGuidePresence } from "@/hooks/use-guide-presence";
+import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -999,6 +1001,13 @@ export default function OptimizedGuideClient({
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
 
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
+  // Mode discret (Phase F) : masque la présence du membre courant (localStorage).
+  const [incognito, setIncognito] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem(`guide-incognito-${guildId}`) === "true"; } catch { return false; }
+  });
+  // Identité du membre courant (nom/avatar) pour le heartbeat de présence.
+  const [myIdentity, setMyIdentity] = useState<{ name?: string; image?: string }>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
   const [createUnpopulatedDjModal, setCreateUnpopulatedDjModal] = useState<{ isOpen: boolean; name: string; dofusdbId: number | null }>({ isOpen: false, name: "", dofusdbId: null });
@@ -1194,6 +1203,8 @@ export default function OptimizedGuideClient({
       if (ctx?.isAdmin) {
         setIsAdmin(true);
       }
+      // Identité du membre courant pour le heartbeat de présence (Phase F).
+      if (ctx?.name || ctx?.image) setMyIdentity({ name: ctx?.name, image: ctx?.image });
     });
   }, [guildId]);
 
@@ -1407,6 +1418,29 @@ export default function OptimizedGuideClient({
     return map;
   }, [uniqueGuildMembers]);
 
+  // ─── Temps réel (Phase F) : présence live du guide ──────────────────────────
+  const guideLive = useGuidePresence({
+    guildId,
+    guideSlug: guide.slug,
+    milestoneId: selected?.id ?? null,
+    userName: myIdentity.name,
+    userAvatar: myIdentity.image,
+    enabled: !incognito,
+  });
+
+  // Carte milestoneId → membres LIVE ; remplace presenceMap quand on est connecté.
+  const livePresenceMap = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    guideLive.presence.forEach(m => {
+      if (!map[m.milestoneId]) map[m.milestoneId] = [];
+      map[m.milestoneId].push(m);
+    });
+    return map;
+  }, [guideLive.presence]);
+
+  // Fail-soft : props serveur tant que le WS n'est pas connecté (jamais d'écran vide).
+  const effectivePresenceMap = guideLive.connectionStatus === "connected" ? livePresenceMap : presenceMap;
+
   // Build chapters
   const chapters = useMemo(() => {
     const map = new Map<number, { label: string; items: Milestone[] }>();
@@ -1463,8 +1497,8 @@ export default function OptimizedGuideClient({
 
   // Removed JS-based layout DOM adjustment in favor of declarative <style> injection in render  // Guild members on current step
   const membersHere = useMemo(() =>
-    selected ? (presenceMap[selected.id] || []) : [],
-  [selected, presenceMap]);
+    selected ? (effectivePresenceMap[selected.id] || []) : [],
+  [selected, effectivePresenceMap]);
 
   const handleStepToggle = useCallback((ref: string, n: number) => {
     const key = `${ref}-${n}`;
@@ -2013,7 +2047,7 @@ export default function OptimizedGuideClient({
               onSelect={ms => { setSelected(ms); if (!pinned) setTocOpen(false); }}
               isOpen={openChapters[ch.chapter] ?? false}
               onToggle={(open) => handleToggleChapter(ch.chapter, open)}
-              presenceMap={presenceMap}
+              presenceMap={effectivePresenceMap}
               bookmarkId={bookmarkId}
               guildId={guildId}
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
@@ -2183,6 +2217,20 @@ export default function OptimizedGuideClient({
                       title="Comment utiliser ce guide ?"
                     >
                       <HelpCircle size={13}/>
+                    </button>
+                    <button
+                      type="button"
+                      className={"guide-hud-btn" + (incognito ? " active" : "")}
+                      onClick={() => {
+                        const next = !incognito;
+                        setIncognito(next);
+                        try { localStorage.setItem(`guide-incognito-${guildId}`, next ? "true" : "false"); } catch {}
+                        if (next) toast.info("Mode discret activé — votre présence est masquée");
+                        else toast.success("Mode discret désactivé");
+                      }}
+                      title={incognito ? "Mode discret actif : votre présence est masquée" : "Mode discret : masquer ma présence"}
+                    >
+                      <Ghost size={13}/>
                     </button>
                     <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
                     <a
@@ -2569,6 +2617,9 @@ export default function OptimizedGuideClient({
         )}
         <CoordHoverMap containerRef={mainRef} guildId={guildId} />
       </main>
+
+      {/* Fil d'activité live (Phase F) — events step:validated / milestone:completed */}
+      <LiveActivityTicker events={guideLive.events} />
 
       {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}
       {typeof document !== "undefined" && createPortal(
@@ -3446,7 +3497,7 @@ export default function OptimizedGuideClient({
           <ScrollArea className="max-h-[350px] pr-2 no-scrollbar">
             <div className="space-y-2 pb-2">
               {(() => {
-                const members = presenceModal ? (presenceMap[presenceModal.milestoneId] || []) : [];
+                const members = presenceModal ? (effectivePresenceMap[presenceModal.milestoneId] || []) : [];
                 if (members.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm">

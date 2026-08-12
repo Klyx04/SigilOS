@@ -690,7 +690,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                       {renderStep(currentReadStep)}
                       <div className="sgc-read-nav">
                         <span className="sgc-read-progress">
-                          Étape {currentReadStep.stepNumber} / {readSteps[readSteps.length - 1].stepNumber}
+                          Sous-guide · Étape {currentReadStep.stepNumber} / {readSteps[readSteps.length - 1].stepNumber}
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -1672,36 +1672,39 @@ export default function OptimizedGuideClient({
   // Valider un SOUS-GUIDE d'un coup : coche toutes ses étapes + une seule persistance.
   const handleCompleteSubGuide = useCallback((keys: string[]) => {
     if (!selected || keys.length === 0) return;
-    setCheckedSteps(prev => {
-      const next = new Set(prev);
-      keys.forEach(k => next.add(k));
-      const milestoneKeys = Array.from(next).filter(k =>
-        selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
-      );
-      updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
-      return next;
-    });
+    const next = new Set(checkedSteps);
+    keys.forEach(k => next.add(k));
+    setCheckedSteps(next);
+    const milestoneKeys = Array.from(next).filter(k =>
+      selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+    );
+    // Valide côté serveur → si le jalon devient COMPLET, on le marque (le sommaire se met à jour).
+    updateStepProgress(guildId, selected.id, milestoneKeys).then(res => {
+      if (res?.success && (res as any).isCompleted) {
+        setCompletedIds(prev => (prev.has(selected.id) ? prev : new Set(prev).add(selected.id)));
+      }
+    }).catch(() => {});
     toast.success(`Sous-guide validé ✓ (${keys.length} étape${keys.length > 1 ? "s" : ""})`);
-  }, [selected, guildId]);
+  }, [selected, guildId, checkedSteps]);
 
   const handleStepToggle = useCallback((ref: string, n: number) => {
     const key = `${ref}-${n}`;
-    setCheckedSteps(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+    const next = new Set(checkedSteps);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setCheckedSteps(next);
 
-      // Persist to DB: gather all checked keys for the current milestone's sequences
-      if (selected) {
-        const milestoneKeys = Array.from(next).filter(k =>
-          selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
-        );
-        // Fire-and-forget: don't block UI
-        updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
-      }
-
-      return next;
-    });
-  }, [selected, guildId]);
+    if (selected) {
+      const milestoneKeys = Array.from(next).filter(k =>
+        selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+      );
+      // Fire-and-forget: don't block UI ; si le jalon devient COMPLET, on le marque.
+      updateStepProgress(guildId, selected.id, milestoneKeys).then(res => {
+        if (res?.success && (res as any).isCompleted) {
+          setCompletedIds(prev => (prev.has(selected.id) ? prev : new Set(prev).add(selected.id)));
+        }
+      }).catch(() => {});
+    }
+  }, [selected, guildId, checkedSteps]);
 
   // ─── Sommaire (tiroir TOC + rail épinglable, mode unique plein écran) ─────────
   const router = useRouter();
@@ -2727,6 +2730,26 @@ export default function OptimizedGuideClient({
 
               {/* Colonne de lecture 840px — le HUD et le hero restent pleine largeur */}
               <div className="guide-read-col">
+              {/* Navigation du guide principal (GP0) : étape précédente / suivante */}
+              <div className="guide-step-nav-top">
+                <button
+                  className={`nav-btn prev ${prevMs ? "" : "disabled"}`}
+                  onClick={() => prevMs && setSelected(prevMs)}
+                  disabled={!prevMs}
+                  title={prevMs ? `Étape précédente : ${prevMs.title}` : "Première étape du guide"}
+                >
+                  <ChevronLeft size={14}/> <span>Précédent</span>
+                </button>
+                <span className="step-nav-counter">Étape {selectedIdx + 1} / {flatList.length}</span>
+                <button
+                  className={`nav-btn next ${nextMs ? "" : "disabled"}`}
+                  onClick={() => nextMs && setSelected(nextMs)}
+                  disabled={!nextMs}
+                  title={nextMs ? `Étape suivante : ${nextMs.title}` : "Dernière étape du guide"}
+                >
+                  <span>Suivant</span> <ChevronRight size={14}/>
+                </button>
+              </div>
 
               {/* Step header with Navigator */}
               <header className="step-header">

@@ -568,6 +568,16 @@
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
 .guide-hud-tour-btn { color: var(--guide-gold); }
 .guide-hud-tour-btn:hover { color: #e8c97e; border-color: rgba(212, 168, 83, 0.4); background: rgba(212, 168, 83, 0.08); }
+/* Navigation du guide principal (GP0) — en tête du contenu de l'étape */
+.guide-step-nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0 0.75rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--guide-border);
+}
 
 /* ── Menu Options du guide (actions regroupées) ── */
 /* Fond OPAQUE (fini la transparence illisible) + ombre de profondeur. */

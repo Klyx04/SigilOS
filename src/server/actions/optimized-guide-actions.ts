@@ -597,7 +597,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     where: { id: milestoneId },
     select: {
       guide: { select: { slug: true } },
-      sequences: { select: { id: true, activityTags: true } }
+      sequences: { select: { id: true, subGuideRef: true, stepFrom: true, stepTo: true, activityTags: true } }
     }
   });
 
@@ -614,7 +614,36 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
   const regularSeqs = milestone?.sequences.filter(s => !isInfoSeq(s)) || [];
   const totalSeqCount = regularSeqs.length;
-  const isAllCompleted = totalSeqCount > 0 && regularSeqs.every(s => completedSteps.includes(s.id));
+
+  // Étapes réelles des sous-guides SANS bornes (stepFrom/stepTo) — nécessaires pour
+  // décider si toutes leurs étapes sont cochées (le jalon se complète alors automatiquement).
+  const unboundedRefs = [...new Set(regularSeqs.filter(s => !s.stepFrom || !s.stepTo).map(s => s.subGuideRef))];
+  const stepsByRef: Record<string, number[]> = {};
+  if (unboundedRefs.length > 0) {
+    const subGuides = await db.subGuideData.findMany({ where: { guideRef: { in: unboundedRefs } } });
+    for (const sg of subGuides) {
+      const arr = Array.isArray(sg.steps) ? (sg.steps as unknown[]) : [];
+      stepsByRef[sg.guideRef] = arr
+        .map((s: any) => s?.stepNumber)
+        .filter((n: unknown): n is number => typeof n === "number");
+    }
+  }
+
+  // Un jalon est COMPLÉTÉ quand toutes les étapes de tous ses sous-guides sont cochées
+  // (fix : on comparait des IDs de séquences aux clés des étapes → toujours faux → 0/N).
+  const checkedSet = new Set(completedSteps);
+  const isSeqFullyChecked = (seq: { subGuideRef: string; stepFrom?: number | null; stepTo?: number | null }): boolean => {
+    if (seq.stepFrom && seq.stepTo) {
+      for (let n = seq.stepFrom; n <= seq.stepTo; n++) {
+        if (!checkedSet.has(`${seq.subGuideRef}-${n}`)) return false;
+      }
+      return true;
+    }
+    const stepNumbers = stepsByRef[seq.subGuideRef];
+    if (!stepNumbers || stepNumbers.length === 0) return false;
+    return stepNumbers.every(n => checkedSet.has(`${seq.subGuideRef}-${n}`));
+  };
+  const isAllCompleted = totalSeqCount > 0 && regularSeqs.every(isSeqFullyChecked);
 
   const progress = await db.playerGuideProgress.upsert({
     where: {

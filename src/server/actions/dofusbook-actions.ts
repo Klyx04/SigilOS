@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import redis from "@/lib/redis";
 import { processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { assertSafeUrl } from "@/lib/image-downloader";
 
 const DOFUSBOOK_API = "https://www.dofusbook.net/api/stuffs/dofus/public/";
 const CACHE_TTL = 3600 * 24; // 24 hours
@@ -19,6 +20,18 @@ export async function getDofusbookId(url: string): Promise<string | null> {
 
         // 2. Short URL resolution (d-bk.net)
         if (url.includes("d-bk.net")) {
+            // 🔐 SSRF guard (F-03) : n'autoriser que d-bk.net / dofusbook.net en
+            // http(s) + bloquer IP internes et DNS rebinding via assertSafeUrl.
+            try {
+                const parsed = new URL(url);
+                const host = parsed.hostname.toLowerCase();
+                const allowedHost = host === "d-bk.net" || host.endsWith(".d-bk.net") ||
+                    host === "dofusbook.net" || host === "www.dofusbook.net" || host.endsWith(".dofusbook.net");
+                if (!allowedHost) throw new Error("Hôte Dofusbook non autorisé");
+                await assertSafeUrl(url);
+            } catch {
+                return null;
+            }
             const response = await fetch(url, {
                 method: "GET",
                 redirect: "follow",

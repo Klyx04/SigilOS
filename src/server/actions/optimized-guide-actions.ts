@@ -103,6 +103,31 @@ export async function getOptimizedGuides(guildId?: string) {
   return { success: true, guides };
 }
 
+/**
+ * (HUD guide) Liste LÉGÈRE des guides pour le sélecteur de guide.
+ * Même auth que getOptimizedGuides (admin = tous, membre = actifs), mais
+ * ne sélectionne que les champs nécessaires (pas les steps — payload léger).
+ */
+export async function getOptimizedGuidesLite(guildId?: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Non authentifié");
+
+  const isGod = await isSuperAdmin();
+  let isAdmin = isGod;
+  if (!isGod && guildId) {
+    const ctx = await getUserContext(guildId);
+    isAdmin = ctx.isAdmin;
+  }
+
+  const guides = await db.optimizedGuide.findMany({
+    where: isAdmin ? {} : { isActive: true },
+    select: { id: true, slug: true, name: true, displayMode: true, isActive: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return { success: true, guides };
+}
+
 export async function getOptimizedGuideDetail(slug: string, guildId: string, altPseudo?: string) {
 
   const ctx = await getUserContext(guildId);
@@ -454,6 +479,63 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
       where: { profileId, characterSlot, milestoneId: { in: milestoneIds } }
     });
   }
+
+  // Also look up guide slug for cache invalidation
+  const guide = await db.optimizedGuide.findUnique({
+    where: { id: guideId },
+    select: { slug: true }
+  });
+  if (guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+  }
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true };
+}
+
+/**
+ * Valide TOUT le guide d'un coup pour l'utilisateur courant :
+ * marque chaque milestone comme complété (isCompleted + completedSteps = toutes ses séquences).
+ * Miroir de `resetGuideProgress` — même auth/guild isolation, aucun autre comportement modifié.
+ */
+export async function completeGuideProgress(guildId: string, guideId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // Fetch all milestones with their sequences for this guide
+  const milestones = await db.guideMilestone.findMany({
+    where: { guideId },
+    select: {
+      id: true,
+      sequences: { select: { id: true } }
+    }
+  });
+
+  // Upsert each milestone as completed (batched in a single transaction)
+  await db.$transaction(
+    milestones.map((m) =>
+      db.playerGuideProgress.upsert({
+        where: {
+          profileId_milestoneId_characterSlot: { profileId, milestoneId: m.id, characterSlot }
+        },
+        update: {
+          isCompleted: true,
+          completedAt: new Date(),
+          completedSteps: m.sequences.map((s) => s.id)
+        },
+        create: {
+          profileId,
+          milestoneId: m.id,
+          characterSlot,
+          isCompleted: true,
+          completedAt: new Date(),
+          completedSteps: m.sequences.map((s) => s.id)
+        }
+      })
+    )
+  );
 
   // Also look up guide slug for cache invalidation
   const guide = await db.optimizedGuide.findUnique({

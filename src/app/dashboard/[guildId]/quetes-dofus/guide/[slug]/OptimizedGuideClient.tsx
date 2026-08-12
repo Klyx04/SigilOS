@@ -1480,8 +1480,12 @@ export default function OptimizedGuideClient({
   // Presence mapping (maps milestone ID to members currently active there)
   const presenceMap = useMemo(() => {
     const map: Record<string, any[]> = {};
+    const seen = new Set<string>();
     uniqueGuildMembers.forEach(m => {
       if (m.currentMilestoneId) {
+        // Déduplication défensive par profileId.
+        if (seen.has(m.profileId)) return;
+        seen.add(m.profileId);
         if (!map[m.currentMilestoneId]) map[m.currentMilestoneId] = [];
         map[m.currentMilestoneId].push(m);
       }
@@ -1502,7 +1506,11 @@ export default function OptimizedGuideClient({
   // Carte milestoneId → membres LIVE ; remplace presenceMap quand on est connecté.
   const livePresenceMap = useMemo(() => {
     const map: Record<string, any[]> = {};
+    const seen = new Set<string>();
     guideLive.presence.forEach(m => {
+      // Déduplication par profileId (2 connexions du même membre = 1 entrée).
+      if (seen.has(m.profileId)) return;
+      seen.add(m.profileId);
       if (!map[m.milestoneId]) map[m.milestoneId] = [];
       map[m.milestoneId].push(m);
     });

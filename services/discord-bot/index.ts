@@ -66,7 +66,9 @@ const client = new Client({
         // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
         // The bot must not need the right to read every keystroke/typing event.
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+    // Partials.GuildMember : indispensable pour que GuildMemberRemove fire
+    // même pour les membres qui n'étaient pas dans le cache (bot redémarré).
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember],
 });
 
 // ========================
@@ -422,7 +424,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
 
         if (!account) return;
 
-        // Archive profile
+        // Archive profile (30 days grace before hard delete)
         const result = await db.userProfile.updateMany({
             where: {
                 userId: account.userId,
@@ -433,6 +435,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                 status: 'ARCHIVED',
                 archivedAt: new Date(),
                 archiveReason: 'LEFT',
+                scheduledDeletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             },
         });
 
@@ -451,6 +454,40 @@ client.on(Events.GuildMemberRemove, async (member) => {
                     metadata: { discordUserId: member.user.id, username: member.user.tag },
                 },
             });
+
+            // 🔔 Lifecycle notification — embed dans le canal configuré par l'admin
+            try {
+                const guildFull = await db.guildConfig.findUnique({
+                    where: { id: guildConfig.id },
+                    select: { lifecycleNotifyChannelId: true, name: true }
+                });
+
+                if (guildFull?.lifecycleNotifyChannelId) {
+                    const channel = await client.channels.fetch(guildFull.lifecycleNotifyChannelId).catch(() => null);
+                    if (channel && channel.isTextBased() && 'send' in channel) {
+                        const displayName = member.nickname || member.user.displayName || member.user.username;
+                        await channel.send({
+                            embeds: [{
+                                title: '📤 Membre Parti (Discord)',
+                                description: `Le membre **${displayName}** a quitté le serveur Discord.`,
+                                color: 0xf59e0b, // Amber
+                                fields: [
+                                    { name: 'Nom Discord', value: `@${member.user.username}`, inline: true },
+                                    { name: 'Nouveau Statut', value: '**Archivé**', inline: true },
+                                    { name: 'Action effectuée par', value: '🤖 Bot Gateway (automatique)', inline: false },
+                                    { name: 'Rétention des données', value: 'Profil archivé 30 jours', inline: false },
+                                    { name: 'Guilde', value: guildFull.name || member.guild.name, inline: false },
+                                ],
+                                thumbnail: { url: member.user.displayAvatarURL({ size: 128 }) },
+                                footer: { text: `SigilOS · Lifecycle · ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` },
+                                timestamp: new Date().toISOString(),
+                            }]
+                        });
+                    }
+                }
+            } catch (notifErr) {
+                console.error('[Discord Bot] Failed to send lifecycle notification:', notifErr);
+            }
 
             console.log(`[Discord Bot] ✅ Archived profile for ${member.user.tag}`);
         }

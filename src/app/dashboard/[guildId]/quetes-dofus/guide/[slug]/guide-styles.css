@@ -124,13 +124,14 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.85rem;
+  padding: 0.7rem 0.8rem;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: background var(--guide-t-fast), border-color var(--guide-t-fast);
   text-align: left;
+  min-width: 0;
 }
 
 .chapter-header:hover {
@@ -154,6 +155,7 @@
 
 .chapter-label {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -210,6 +212,7 @@
   cursor: pointer;
   text-align: left;
   transition: all 0.15s;
+  min-width: 0;
 }
 
 .ms-row:hover {
@@ -303,6 +306,7 @@
 
 .ms-title {
   flex: 1;
+  min-width: 0;
   font-size: 0.75rem;
   font-weight: 600;
   color: #a1a1aa;
@@ -388,6 +392,12 @@
 .guide-content {
   padding: 2.5rem 2rem 5rem;
   width: 100%;
+}
+
+/* Colonne de lecture : seul le contenu narratif reste à 840px centré.
+   Le HUD et le bandeau héro occupent la pleine largeur du module. */
+.guide-read-col {
+  width: 100%;
   max-width: var(--guide-read-width);
   margin: 0 auto;
 }
@@ -413,6 +423,29 @@
   align-items: center;
   gap: 0.6rem;
   min-width: 0;
+}
+
+/* Bouton « Quitter » du HUD — seule sortie garantie en mode plein écran (V2) */
+.hud-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.5rem;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: color var(--guide-t-fast), border-color var(--guide-t-fast), background var(--guide-t-fast);
+}
+.hud-exit:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+  background: var(--guide-surface-2);
 }
 
 .guide-hud-crumb {
@@ -2350,6 +2383,79 @@
   flex-shrink: 0;
 }
 .toc-close:hover { color: #fff; border-color: rgba(255,255,255,0.2); background: var(--guide-surface-2); }
+
+/* Bouton épingler le sommaire (📌) — partagé drawer/rail */
+.toc-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.toc-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: 0.5rem;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  cursor: pointer;
+  transition: color var(--guide-t-fast), border-color var(--guide-t-fast), background var(--guide-t-fast);
+  flex-shrink: 0;
+}
+.toc-pin-btn:hover { color: #fff; border-color: rgba(255,255,255,0.2); background: var(--guide-surface-2); }
+.toc-pin-btn.active { color: var(--guide-gold); border-color: rgba(212, 168, 83, 0.4); background: var(--guide-gold-soft); }
+
+/* ── Rail épinglé (sommaire fixe, mode coordination) — V2 ── */
+.guide-shell.toc-pinned { display: flex; }
+.guide-shell.toc-pinned .toc-rail {
+  width: 340px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--guide-border);
+  background: #0b0c11; /* opaque — jamais de fond translucide sinon « bandeau fantôme » */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.guide-shell.toc-pinned .toc-rail .toc-chapters {
+  overflow-y: auto;
+  flex: 1;
+}
+.guide-shell.toc-pinned .guide-main { flex: 1; min-width: 0; }
+/* En plein écran, le rail épinglé reste une colonne fixe pleine hauteur */
+body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
+/* Sous 1200px : repli forcé du rail (comportement drawer), pas de colonne qui écrase la lecture */
+@media (max-width: 1200px) {
+  .guide-shell.toc-pinned .toc-rail { display: none; }
+}
+/* ── Garde-fou plein écran + rail épinglé (vient en dernier pour gagner en spécificité) ── */
+/* La media query responsive historique (flex-direction:column; height:auto) ne doit JAMAIS
+   casser le mode Guide Focus : le shell reste une rangée pleine hauteur, le main garde son scroll. */
+@media (max-width: 1200px) {
+  body.guide-fullscreen .guide-shell,
+  body.guide-fullscreen .guide-shell.toc-pinned {
+    flex-direction: row;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  body.guide-fullscreen .guide-main,
+  body.guide-fullscreen .guide-shell.toc-pinned .guide-main {
+    flex: 1;
+    height: auto;
+    overflow-y: auto;
+  }
+  body.guide-fullscreen .guide-content {
+    width: 100%;
+  }
+  body.guide-fullscreen .guide-read-col {
+    width: 100%;
+    max-width: var(--guide-read-width);
+    margin: 0 auto;
+  }
+}
 .toc-back-main {
   display: inline-flex;
   align-items: center;

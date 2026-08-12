@@ -8,7 +8,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -673,14 +673,10 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
         className={`chapter-header ${allDone ? "all-done" : ""} ${isChapterActive ? "active" : ""}`} 
         style={{
           "--accent-color": activeColor,
-          background: isChapterActive 
-            ? `linear-gradient(135deg, color-mix(in srgb, ${activeColor} 18%, transparent) 0%, rgba(255,255,255,0.02) 100%)` 
-            : undefined,
-          borderColor: isChapterActive ? `color-mix(in srgb, ${activeColor} 40%, transparent)` : undefined
         } as React.CSSProperties}
         onClick={() => onToggle(!isOpen)}
       >
-        <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "var(--accent-color)" : "#6366f1"}/>
+        <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "#d4a853" : "#3b82f6"}/>
         <div className="chapter-label">
           <span className="chapter-name">{label}</span>
           <div className="chapter-meta">
@@ -694,7 +690,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
             )}
           </div>
         </div>
-        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-indigo-300" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
+        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-[#d4a853]" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
       </button>
 
       <AnimatePresence>
@@ -1479,25 +1475,74 @@ export default function OptimizedGuideClient({
     });
   }, [selected, guildId]);
 
-  // ─── Sommaire (tiroir TOC, mode unique plein écran) ─────────────────────
+  // ─── Sommaire (tiroir TOC + rail épinglable, mode unique plein écran) ─────────
+  const router = useRouter();
   const [tocOpen, setTocOpen] = useState(false);
-  const toggleToc = useCallback(() => setTocOpen(v => !v), []);
+  const [tocPinned, setTocPinned] = useState(false);
 
-  // Raccourci clavier S : ouvrir/fermer le sommaire · Échap : fermer
+  // Écrans < 1200px : le rail épinglé se replie → le tiroir drawer reste le seul accès
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1200px)");
+    const update = () => setIsNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // Le tiroir n'est rendu que si le rail épinglé n'est pas déjà visible (large écran)
+  const drawerActive = tocOpen && (!tocPinned || isNarrow);
+
+  const toggleToc = useCallback(() => setTocOpen(v => !v), []);
+  // Ouverture intelligente : si le rail épinglé est visible (écran >= 1200px),
+  // le bouton Sommaire / la touche S n'ouvrent pas de tiroir superflu.
+  const toggleTocSide = useCallback(() => {
+    if (tocPinned && !isNarrow) return;
+    setTocOpen(v => !v);
+  }, [tocPinned, isNarrow]);
+
+  // Persistance du mode épinglé par guide (pattern guide-sommaire-{slug} existant)
+  const tocPinKey = `guide-toc-pinned-${guildId}-${guide.slug}`;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(tocPinKey);
+      if (stored === "true") setTocPinned(true);
+    } catch { /* localStorage indisponible → drawer par défaut */ }
+  }, [tocPinKey]);
+
+  const toggleTocPin = useCallback(() => {
+    setTocPinned(prev => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(tocPinKey, next ? "true" : "false");
+      } catch { /* non bloquant */ }
+      if (next) setTocOpen(false);
+      return next;
+    });
+  }, [tocPinKey]);
+
+  // --- Selecteur de guide (HUD) — déclaré ici car utilisé par la hiérarchie Échap --
+  const [guidesOpen, setGuidesOpen] = useState(false);
+
+  // Raccourci clavier S : ouvrir/fermer le sommaire · Échap : hiérarchie
+  // (1. ferme le sélecteur de guide 2. ferme le tiroir 3. quitte le module)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
-      if (e.key === "s" || e.key === "S") setTocOpen(v => !v);
-      if (e.key === "Escape") setTocOpen(false);
+      if (e.key === "s" || e.key === "S") { toggleTocSide(); }
+      if (e.key === "Escape") {
+        if (guidesOpen) { setGuidesOpen(false); return; }
+        if (drawerActive) { setTocOpen(false); return; }
+        router.push(`/dashboard/${guildId}/quetes-dofus`);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [guidesOpen, drawerActive, toggleTocSide, guildId, router]);
 
   // --- Selecteur de guide (HUD) ---------------------------------------------------
-  const router = useRouter();
-  const [guidesOpen, setGuidesOpen] = useState(false);
   const [guidesList, setGuidesList] = useState<{ id: string; slug: string; name: string; displayMode?: string | null }[]>([]);
   const [guidesLoaded, setGuidesLoaded] = useState(false);
 
@@ -1514,14 +1559,11 @@ export default function OptimizedGuideClient({
 
   useEffect(() => {
     if (!guidesOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setGuidesOpen(false); };
     const onDocClick = (e: MouseEvent) => {
       if (!(e.target as HTMLElement)?.closest?.('.guide-switcher')) setGuidesOpen(false);
     };
-    document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onDocClick);
     return () => {
-      document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onDocClick);
     };
   }, [guidesOpen]);
@@ -1896,6 +1938,65 @@ export default function OptimizedGuideClient({
   const isCompleted = selected ? completedIds.has(selected.id) : false;
   const typeConf = selected ? (TYPE_CONFIG[selected.type] ?? TYPE_CONFIG.QUETE_SERIE) : TYPE_CONFIG.QUETE_SERIE;
 
+  // ─── Contenu du sommaire (drawer OU rail épinglé) — un seul composant, deux conteneurs ───
+  const renderTocPanel = ({ pinned }: { pinned: boolean }) => (
+    <>
+      <div className="toc-header">
+        <div className="toc-title">
+          <span className="toc-title-label">Sommaire</span>
+          <span className="toc-title-name">{guide.name}</span>
+          <span className="toc-title-progress">{overallPct}% complété</span>
+        </div>
+        <div className="toc-header-actions">
+          <button
+            type="button"
+            className={"toc-pin-btn" + (pinned ? " active" : "")}
+            onClick={toggleTocPin}
+            title={pinned ? "Désépingler le sommaire" : "Épingler le sommaire (rail fixe)"}
+            aria-pressed={pinned}
+          >
+            {pinned ? <PinOff size={14}/> : <Pin size={14}/>}
+          </button>
+          {!pinned && (
+            <button type="button" className="toc-close" onClick={() => setTocOpen(false)} title="Fermer (S ou Échap)">
+              <X size={15}/>
+            </button>
+          )}
+        </div>
+      </div>
+      {activeGuideFilter && (
+        <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
+          <BookOpenCheck size={12}/> ← Guide principal
+        </button>
+      )}
+      <div className="sidebar-chapters toc-chapters">
+        {filteredChapters.length === 0 ? (
+          <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+        ) : (
+          filteredChapters.map((ch) => (
+            <ChapterGroup
+              key={ch.chapter}
+              chapter={ch.chapter}
+              label={ch.label}
+              milestones={ch.items}
+              selectedId={selected?.id}
+              completedIds={completedIds}
+              onSelect={ms => { setSelected(ms); if (!pinned) setTocOpen(false); }}
+              isOpen={openChapters[ch.chapter] ?? false}
+              onToggle={(open) => handleToggleChapter(ch.chapter, open)}
+              presenceMap={presenceMap}
+              bookmarkId={bookmarkId}
+              guildId={guildId}
+              onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
+              onBookmark={handleBookmark}
+              onResetMilestone={handleResetMilestone}
+            />
+          ))
+        )}
+      </div>
+    </>
+  );
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -1908,7 +2009,14 @@ export default function OptimizedGuideClient({
           display: none !important;
         }
       `}} />
-      <div className="guide-shell">
+      <div className={"guide-shell" + (tocPinned ? " toc-pinned" : "")}>
+
+      {/* ── Sommaire épinglé (rail fixe, visible tant que >=1200px) ── */}
+      {tocPinned && (
+        <aside className="toc-rail">
+          {renderTocPanel({ pinned: true })}
+        </aside>
+      )}
 
       {/* ── CENTER CONTENT ───────────────────────────────────────────────── */}
       <main className="guide-main" ref={mainRef}>
@@ -1927,10 +2035,19 @@ export default function OptimizedGuideClient({
               {/* Barre sticky — sommaire, guide & progression */}
               <div className="guide-hud">
                 <div className="guide-hud-row">
+                  <Link
+                    href={`/dashboard/${guildId}/quetes-dofus`}
+                    className="hud-exit"
+                    title="Quitter le guide (Échap)"
+                    aria-label="Quitter le guide"
+                  >
+                    <X size={14}/>
+                    <span>Quitter</span>
+                  </Link>
                   <button
                     type="button"
                     className="guide-sommaire-btn"
-                    onClick={toggleToc}
+                    onClick={toggleTocSide}
                     title="Ouvrir le sommaire (S)"
                   >
                     <PanelLeft size={14}/>
@@ -2187,6 +2304,9 @@ export default function OptimizedGuideClient({
                 </div>
               </div>
 
+              {/* Colonne de lecture 840px — le HUD et le hero restent pleine largeur */}
+              <div className="guide-read-col">
+
               {/* Step header with Navigator */}
               <header className="step-header">
                 <div className="step-meta-row">
@@ -2403,6 +2523,7 @@ export default function OptimizedGuideClient({
                   )}
                 </div>
               </footer>
+              </div>{/* /guide-read-col */}
             </motion.div>
           </AnimatePresence>
         )}
@@ -2413,7 +2534,7 @@ export default function OptimizedGuideClient({
       {typeof document !== "undefined" && createPortal(
         <>
           <AnimatePresence>
-            {tocOpen && (
+            {drawerActive && (
               <motion.div
                 className="toc-backdrop"
                 initial={{ opacity: 0 }}
@@ -2425,7 +2546,7 @@ export default function OptimizedGuideClient({
             )}
           </AnimatePresence>
           <AnimatePresence>
-            {tocOpen && (
+            {drawerActive && (
               <motion.aside
                 className="toc-drawer"
                 initial={{ x: -320, opacity: 0.6 }}
@@ -2433,46 +2554,7 @@ export default function OptimizedGuideClient({
                 exit={{ x: -320, opacity: 0.6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
               >
-                <div className="toc-header">
-                  <div className="toc-title">
-                    <span className="toc-title-label">Sommaire</span>
-                    <span className="toc-title-name">{guide.name}</span>
-                    <span className="toc-title-progress">{overallPct}% complété</span>
-                  </div>
-                  <button type="button" className="toc-close" onClick={() => setTocOpen(false)} title="Fermer (S ou Échap)">
-                    <X size={15}/>
-                  </button>
-                </div>
-                {activeGuideFilter && (
-                  <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
-                    <BookOpenCheck size={12}/> ← Guide principal
-                  </button>
-                )}
-                <div className="sidebar-chapters toc-chapters">
-                  {filteredChapters.length === 0 ? (
-                    <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
-                  ) : (
-                    filteredChapters.map((ch) => (
-                      <ChapterGroup
-                        key={ch.chapter}
-                        chapter={ch.chapter}
-                        label={ch.label}
-                        milestones={ch.items}
-                        selectedId={selected?.id}
-                        completedIds={completedIds}
-                        onSelect={ms => { setSelected(ms); setTocOpen(false); }}
-                        isOpen={openChapters[ch.chapter] ?? false}
-                        onToggle={(open) => handleToggleChapter(ch.chapter, open)}
-                        presenceMap={presenceMap}
-                        bookmarkId={bookmarkId}
-                        guildId={guildId}
-                        onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
-                        onBookmark={handleBookmark}
-                        onResetMilestone={handleResetMilestone}
-                      />
-                    ))
-                  )}
-                </div>
+                {renderTocPanel({ pinned: false })}
               </motion.aside>
             )}
           </AnimatePresence>

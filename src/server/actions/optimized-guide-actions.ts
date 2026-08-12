@@ -493,6 +493,63 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
 }
 
 /**
+ * Valide TOUT le guide d'un coup pour l'utilisateur courant :
+ * marque chaque milestone comme complété (isCompleted + completedSteps = toutes ses séquences).
+ * Miroir de `resetGuideProgress` — même auth/guild isolation, aucun autre comportement modifié.
+ */
+export async function completeGuideProgress(guildId: string, guideId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // Fetch all milestones with their sequences for this guide
+  const milestones = await db.guideMilestone.findMany({
+    where: { guideId },
+    select: {
+      id: true,
+      sequences: { select: { id: true } }
+    }
+  });
+
+  // Upsert each milestone as completed (batched in a single transaction)
+  await db.$transaction(
+    milestones.map((m) =>
+      db.playerGuideProgress.upsert({
+        where: {
+          profileId_milestoneId_characterSlot: { profileId, milestoneId: m.id, characterSlot }
+        },
+        update: {
+          isCompleted: true,
+          completedAt: new Date(),
+          completedSteps: m.sequences.map((s) => s.id)
+        },
+        create: {
+          profileId,
+          milestoneId: m.id,
+          characterSlot,
+          isCompleted: true,
+          completedAt: new Date(),
+          completedSteps: m.sequences.map((s) => s.id)
+        }
+      })
+    )
+  );
+
+  // Also look up guide slug for cache invalidation
+  const guide = await db.optimizedGuide.findUnique({
+    where: { id: guideId },
+    select: { slug: true }
+  });
+  if (guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+  }
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true };
+}
+
+/**
  * Met à jour les étapes individuelles cochées pour un milestone.
  */
 export async function updateStepProgress(guildId: string, milestoneId: string, completedSteps: string[], altPseudo?: string) {

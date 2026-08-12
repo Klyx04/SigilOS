@@ -1299,7 +1299,7 @@
 .validate-btn {
   background: #10b981;
   color: #fff;
-  border: 1px solid rgba(16, 185, 129, 0.5);
+  border: 1px solid #10b981;
   border-radius: 0.6rem;
   font-weight: 800;
   font-size: 0.85rem;
@@ -1309,21 +1309,55 @@
   justify-content: center;
   gap: 0.5rem;
   cursor: pointer;
+  box-shadow: none;
   transition: background var(--guide-t-fast), color var(--guide-t-fast), border-color var(--guide-t-fast);
 }
 
 .validate-btn:hover:not(:disabled) {
   background: #059669;
+  border-color: #059669;
+}
+
+.validate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .validate-btn.validated {
   background: var(--guide-green-soft);
   color: var(--guide-green);
-  border-color: rgba(16, 185, 129, 0.3);
+  border-color: rgba(16, 185, 129, 0.45);
 }
 
 .validate-btn.validated:hover {
   background: rgba(16, 185, 129, 0.18);
+}
+
+/* Bouton « Tout valider » — action en masse, hiérarchie secondaire par rapport à Valider l'étape */
+.complete-all-btn {
+  background: transparent;
+  color: var(--guide-green);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 0.6rem;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 0.7rem 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--guide-t-fast), color var(--guide-t-fast), border-color var(--guide-t-fast);
+}
+.complete-all-btn:hover:not(:disabled) {
+  background: var(--guide-green-soft);
+  border-color: rgba(16, 185, 129, 0.65);
+  color: #34d399;
+}
+.complete-all-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .bookmark-btn {
@@ -2134,16 +2168,19 @@
   align-items: center;
   justify-content: center;
   cursor: pointer !important;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   color: #10b981;
   background: rgba(16, 185, 129, 0.04);
   border: 1px solid rgba(16, 185, 129, 0.15);
   align-self: flex-start;
   margin-top: 0.15rem;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .sgc-step-check { width: 44px; height: 44px; }
 }
 
 .sgc-step-check:hover {

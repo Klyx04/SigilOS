@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
+  CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
   Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff
@@ -13,7 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, completeGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
 import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -542,10 +542,10 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                   <button 
                     className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
-                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes terminées de ce sous-guide"}
+                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes validées de ce sous-guide"}
                   >
-                    <EyeOff size={12}/>
-                    <span>Cacher validées ({done})</span>
+                    {hideCompletedLocal || hideCompletedGlobal ? <Eye size={12}/> : <EyeOff size={12}/>}
+                    <span>{hideCompletedLocal || hideCompletedGlobal ? `Afficher les étapes validées (${done})` : `Masquer les étapes validées (${done})`}</span>
                   </button>
                 </div>
 
@@ -1022,6 +1022,8 @@ export default function OptimizedGuideClient({
 
   const [isResetMilestoneConfirmOpen, setIsResetMilestoneConfirmOpen] = useState(false);
   const [isResetGuideConfirmOpen, setIsResetGuideConfirmOpen] = useState(false);
+  const [isCompleteGuideConfirmOpen, setIsCompleteGuideConfirmOpen] = useState(false);
+  const [isCompletingGuide, setIsCompletingGuide] = useState(false);
 
   const handleShowStepPresenceModal = useCallback((
     stepNumber: number,
@@ -1663,6 +1665,25 @@ export default function OptimizedGuideClient({
     finally { setValidating(false); }
   }, [guildId, guide.id, guide.slug, altPseudo]);
 
+  // ─── Valider TOUT le guide d'un coup ─────────────────────────────────────────
+  const handleCompleteGuide = useCallback(() => {
+    setIsCompleteGuideConfirmOpen(true);
+  }, []);
+
+  const confirmCompleteGuide = useCallback(async () => {
+    setIsCompletingGuide(true);
+    setIsCompleteGuideConfirmOpen(false);
+    try {
+      const res = await completeGuideProgress(guildId, guide.id, altPseudo);
+      if ((res as any).success) {
+        // Tous les jalons complétés côté client (le serveur a persisté chaque milestone)
+        setCompletedIds(new Set(milestones.map(m => m.id)));
+        toast.success("Guide validé 🎉", { description: "Tous les jalons sont maintenant complétés." });
+      }
+    } catch { toast.error("Erreur lors de la validation du guide"); }
+    finally { setIsCompletingGuide(false); }
+  }, [guildId, guide.id, altPseudo, milestones]);
+
   const handleInteractiveClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
 
@@ -2143,6 +2164,7 @@ export default function OptimizedGuideClient({
                       className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
                       onClick={() => setGlobalHideCompletedSteps(v => !v)}
                       title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
+                      aria-label={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
                     >
                       {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
                     </button>
@@ -2394,10 +2416,10 @@ export default function OptimizedGuideClient({
                       <button
                         className={`global-hide-steps-btn ${globalHideCompletedSteps ? "active" : ""}`}
                         onClick={() => setGlobalHideCompletedSteps(v => !v)}
-                        title={globalHideCompletedSteps ? "Afficher toutes les étapes validées" : "Masquer globalement toutes les étapes validées"}
+                        title={globalHideCompletedSteps ? "Afficher toutes les étapes validées" : "Masquer toutes les étapes validées"}
                       >
                         {globalHideCompletedSteps ? <Eye size={11}/> : <EyeOff size={11}/>}
-                        <span>{globalHideCompletedSteps ? "Afficher les validées" : "Cacher les validées"}</span>
+                        <span>{globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}</span>
                       </button>
                     </div>
 
@@ -2492,6 +2514,15 @@ export default function OptimizedGuideClient({
                       title="Aller directement à une étape précise"
                     >
                       <ListTree size={14}/> <span>Aller à…</span>
+                    </button>
+                    <button
+                      className="complete-all-btn"
+                      onClick={handleCompleteGuide}
+                      disabled={isCompletingGuide || validating}
+                      title="Valider tous les jalons du guide d'un coup"
+                    >
+                      {isCompletingGuide ? <Loader2 size={14} className="animate-spin"/> : <CheckCheck size={14}/>}
+                      <span>Tout valider</span>
                     </button>
                     <button
                       className={`validate-btn ${isCompleted ? "validated" : ""}`}
@@ -3626,7 +3657,7 @@ export default function OptimizedGuideClient({
         <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-500 flex items-center gap-2">
-              <RotateCcw size={14} className="animate-pulse" />
+              <RotateCcw size={14}/>
               Réinitialisation Totale
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
@@ -3648,9 +3679,46 @@ export default function OptimizedGuideClient({
             </button>
             <button
               onClick={confirmResetGuide}
-              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer"
+              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all cursor-pointer"
             >
               Tout effacer
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Complete Entire Guide Confirmation Modal */}
+      <Dialog open={isCompleteGuideConfirmOpen} onOpenChange={setIsCompleteGuideConfirmOpen}>
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-emerald-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
+              <CheckCheck size={14}/>
+              Validation Totale
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
+              {guide.name}
+            </div>
+          </DialogHeader>
+          <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
+            <p>Valider d'un coup tous les jalons de ce guide ?</p>
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-bold">
+              ✅ Tous les jalons seront marqués complétés pour ce personnage. Les étapes individuelles des sous-guides restent cochables manuellement si besoin.
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setIsCompleteGuideConfirmOpen(false)}
+              className="py-2.5 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmCompleteGuide}
+              disabled={isCompletingGuide}
+              className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-xs transition-all cursor-pointer"
+            >
+              {isCompletingGuide ? <Loader2 size={14} className="animate-spin inline-block mr-1"/> : null}
+              Tout valider
             </button>
           </div>
         </DialogContent>

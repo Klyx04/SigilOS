@@ -25,6 +25,22 @@
   --guide-t-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --guide-t-med: 190ms cubic-bezier(0.25, 0.8, 0.25, 1);
   --guide-read-width: 840px;
+
+  /* ═══ Échelle z-index unifiée (audit modules guides) ═══
+     Plus aucun nombre magique à 6 chiffres. Chaque couche flottante
+     pioche ici. Ordre : contenu → sidebar → HUD sticky → dropdowns →
+     nav flottante → live ticker → TOC (backdrop/drawer) → modales → toasts. */
+  --z-content: 1;
+  --z-sidebar: 10;
+  --z-sticky-hud: 30;
+  --z-dropdown: 40;
+  --z-floating-nav: 50;
+  --z-live-ticker: 60;
+  --z-toc-backdrop: 69;
+  --z-toc-drawer: 70;
+  --z-modal: 80;
+  --z-tooltip: 85;
+  --z-toast: 90;
 }
 
 /* ── Shell & Layout ── */
@@ -70,7 +86,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 10;
+  z-index: var(--z-sidebar);
 }
 
 .sidebar-chapters {
@@ -381,7 +397,7 @@
 .guide-hud {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: var(--z-sticky-hud);
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -540,7 +556,7 @@
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 0;
-  z-index: 60;
+  z-index: var(--z-dropdown);
   min-width: 260px;
   max-width: 320px;
   max-height: 320px;
@@ -1183,7 +1199,7 @@
 .member-avatar:first-child { margin-left: 0; }
 .member-avatar:hover {
   transform: scale(1.22);
-  z-index: 10;
+  z-index: var(--z-content);
   border-color: #3b82f6;
 }
 .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -1197,7 +1213,7 @@
   margin-top: 4rem;
   background: linear-gradient(to top, #09090b 70%, transparent);
   border-top: none;
-  z-index: 50;
+  z-index: var(--z-floating-nav);
   pointer-events: none;
 }
 
@@ -1438,7 +1454,7 @@
   inset: 0;
   background: rgba(0,0,0,0.8);
   backdrop-filter: blur(4px);
-  z-index: 100;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2166,7 +2182,7 @@
   overflow: hidden;
   transition: transform 0.2s ease;
   cursor: pointer;
-  z-index: 1;
+  z-index: var(--z-content);
 }
 
 .ms-member-avatar:first-child {
@@ -2175,7 +2191,7 @@
 
 .ms-member-avatar:hover {
   transform: scale(1.25);
-  z-index: 10;
+  z-index: var(--z-content);
   border-color: #3b82f6;
 }
 
@@ -2199,7 +2215,7 @@
   font-weight: 800;
   color: #a1a1aa;
   overflow: hidden;
-  z-index: 1;
+  z-index: var(--z-content);
 }
 
 /* ── Quest Hub Embedded Overrides ── */
@@ -2269,7 +2285,7 @@
 .toc-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: var(--z-toc-backdrop);
   background: rgba(0, 0, 0, 0.55);
 }
 .toc-drawer {
@@ -2277,7 +2293,7 @@
   top: 0;
   left: 0;
   bottom: 0;
-  z-index: 71;
+  z-index: var(--z-toc-drawer);
   width: min(360px, 88vw);
   display: flex;
   flex-direction: column;
@@ -2593,7 +2609,7 @@
   border-radius: 0.75rem;
   padding: 0.4rem;
   box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-  z-index: 100;
+  z-index: var(--z-modal);
 }
 .gch-opt {
   display: flex;

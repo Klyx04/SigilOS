@@ -2512,7 +2512,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85"
+            className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center p-4 bg-black/85"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -2542,8 +2542,8 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
             onClick={() => setDungeonChoiceModal(null)}
           >
             <motion.div
@@ -2716,8 +2716,8 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
             onClick={() => setQuestChoiceModal(null)}
           >
             <motion.div
@@ -2901,7 +2901,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90"
+            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/90"
             onClick={() => setImageModal(null)}
           >
             <motion.div
@@ -3491,7 +3491,7 @@ export default function OptimizedGuideClient({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed bottom-24 right-6 z-[60] p-3 rounded-full bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)] hover:bg-emerald-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center border border-emerald-400/20"
+            className="fixed bottom-24 right-6 z-[var(--z-floating-nav)] p-3 rounded-full bg-emerald-500 text-black hover:bg-emerald-400 transition-all cursor-pointer flex items-center justify-center border border-emerald-400/20"
             title="Remonter en haut de page"
           >
             <ChevronUp className="w-5 h-5" />

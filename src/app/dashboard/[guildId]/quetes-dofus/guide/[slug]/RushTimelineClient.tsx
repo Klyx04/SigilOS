@@ -74,16 +74,12 @@ const DOFUS_DEFS = [
 function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:string}){
   const isPurple = colorStyle === "purple", isAmber = colorStyle === "amber";
   const borderCol = isPurple ? "border-purple-500/40" : isAmber ? "border-amber-500/40" : "border-emerald-500/40";
-  const bgGrad = isPurple 
-    ? "from-purple-950/30 via-zinc-950/80 to-zinc-950/90" 
-    : isAmber 
-    ? "from-amber-950/30 via-zinc-950/80 to-zinc-950/90" 
-    : "from-emerald-950/30 via-zinc-950/80 to-zinc-950/90";
+  const bgFlat = isPurple ? "bg-purple-950/20" : isAmber ? "bg-amber-950/20" : "bg-emerald-950/20";
   const icon = isPurple ? "👿" : isAmber ? "💡" : "✨";
   const parts = renderContentWithCoords(text);
 
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderCol} bg-gradient-to-r ${bgGrad} border border-y-white/5 border-r-white/5 shadow-lg my-2 backdrop-blur-md`}>
+    <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderCol} ${bgFlat} border border-y-white/5 border-r-white/5 my-2`}>
       <div className="mt-0.5 shrink-0 text-sm">{icon}</div>
       <div className="text-xs text-zinc-200 leading-relaxed font-medium">{parts}</div>
     </div>
@@ -584,32 +580,23 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
 
         {/* Inner content */}
         <div className="relative flex flex-col items-center gap-5 py-8 px-6 text-center">
-          {/* Dofus icon — large glowing egg */}
+          {/* Dofus icon — large egg */}
           {dofusInfo && (
             <div className="relative group">
-              {/* Outer glow ring */}
-              <div className="absolute inset-0 rounded-full animate-pulse" style={{
-                boxShadow: `0 0 40px ${color}40, 0 0 80px ${color}20`,
-                background: `radial-gradient(circle, ${color}20 0%, transparent 70%)`,
-              }} />
               {/* Icon container */}
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 flex items-center justify-center p-2 animate-in zoom-in duration-500 group-hover:scale-105 transition-transform"
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 flex items-center justify-center p-2"
                 style={{
                   borderColor: `${color}50`,
                   background: `radial-gradient(circle at 40% 40%, ${color}30 0%, rgba(0,0,0,0.8) 80%)`,
-                  boxShadow: `inset 0 0 30px ${color}20, 0 0 40px ${color}30`,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={dofusInfo.imageUrl}
                   alt={dofusInfo.label}
-                  className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(0,0,0,0.8)] scale-110"
+                  className="w-full h-full object-contain scale-110"
                 />
               </div>
-              {/* Sparkles around icon */}
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full" style={{ background: color, boxShadow: `0 0 10px ${color}` }} />
-              <div className="absolute -bottom-0.5 -left-0.5 w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
             </div>
           )}
 
@@ -906,7 +893,7 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
   const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="w-3.5 h-3.5 text-amber-500"/>:<Users className="w-3.5 h-3.5 text-blue-400"/>;
   const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 backdrop-blur-md border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 backdrop-blur-xl border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1343,7 +1330,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             <h2 className="text-2xl sm:text-3xl font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>{guide.name}</h2>
             {guide.description&&<p className="text-xs sm:text-sm text-zinc-400 mt-1.5 max-w-xl leading-relaxed">{guide.description}</p>}
           </div>
-          <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.6)] flex-shrink-0"/>
+          <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain flex-shrink-0"/>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
@@ -1381,7 +1368,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;const editBtn=<button type="button" onClick={openAlignEdit} title="Modifier l'alignement" className="p-1 rounded-lg hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-400 transition-all shrink-0"><Pencil className="w-3.5 h-3.5"/></button>;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div>{editBtn}</>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 text-[8px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-[8px] font-bold text-zinc-400 italic">— {trancheTitle}</span>}</div></div>{editBtn}</>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-[9px] font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div>{editBtn}</>;})()}</div>
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-              <img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+              <img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain" />
             </div>
             <div className="text-left min-w-0 flex-1">
               <p className="text-[8px] font-black text-amber-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Metamob</p>
@@ -1518,7 +1505,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarkedMsId={bookmarkedMsId} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults}/>)}</div>}
     {/* ── Navigation flottante ───────────────────────────────────────────── */}
     {typeof document !== 'undefined' && createPortal(
-      <div className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl backdrop-blur-md"
+      <div className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl"
         style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
         <button onClick={scrollToTop} disabled={!showScrollTop}
@@ -1544,7 +1531,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
     {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})}/>}
-    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
+    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
@@ -1633,7 +1620,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         {alignEditStep==="alignment"&&(
           <div className="grid grid-cols-3 gap-3">
             {ALIGNMENTS.map(align=>(
-              <button key={align.id} type="button" onClick={()=>{setAlignEditAlignment(align.id);if(align.id==="neutre"){setAlignEditOrder(null);setAlignEditLevel(0);}else setAlignEditStep("order");}} className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${alignEditAlignment===align.id?"border-emerald-500/60 bg-emerald-500/10":"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
+              <button key={align.id} type="button" onClick={()=>{setAlignEditAlignment(align.id);if(align.id==="neutre"){setAlignEditOrder(null);setAlignEditLevel(0);}else setAlignEditStep("order");}} className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all ${alignEditAlignment===align.id?"border-emerald-500/60 bg-emerald-500/10":"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center border overflow-hidden ${align.id==="bontarien"?"bg-blue-500/20 border-blue-500/30":align.id==="brakmarien"?"bg-red-500/20 border-red-500/30":"bg-zinc-800 border-zinc-700"}`}>
                   <img src={align.icon} alt={align.name} className="w-8 h-8 object-contain"/>
                 </div>
@@ -1649,7 +1636,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               const isSel=alignEditOrder===order.id;
               const ib=alignEditAlignment==="bontarien";
               return(
-                <button key={order.id} type="button" onClick={()=>{setAlignEditOrder(order.id);setAlignEditStep("tranche");}} className={`relative flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${isSel?(ib?"border-blue-500/60 bg-blue-500/10":"border-red-500/60 bg-red-500/10"):"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
+                <button key={order.id} type="button" onClick={()=>{setAlignEditOrder(order.id);setAlignEditStep("tranche");}} className={`relative flex items-center gap-4 p-4 rounded-2xl border transition-all ${isSel?(ib?"border-blue-500/60 bg-blue-500/10":"border-red-500/60 bg-red-500/10"):"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
                   <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
                     <img src={order.icon} alt={order.name} className="w-9 h-9 object-contain p-1"/>
                   </div>
@@ -1669,7 +1656,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                 const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;
                 const title=orderData?.levels?.[lvl]||"";
                 return(
-                  <button key={lvl} type="button" onClick={()=>setAlignEditLevel(lvl)} className={`flex items-center gap-4 px-4 py-3 rounded-xl border-2 transition-all text-left ${isSel?"border-amber-500 bg-amber-500/15 shadow-[0_0_12px_rgba(245,158,11,0.15)]":"border-zinc-800/60 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-900"}`}>
+                  <button key={lvl} type="button" onClick={()=>setAlignEditLevel(lvl)} className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all text-left ${isSel?"border-amber-500 bg-amber-500/15":"border-zinc-800/60 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-900"}`}>
                     <span className={`text-sm font-black w-8 shrink-0 ${isSel?"text-amber-400":"text-zinc-500"}`}>{">"}{lvl}</span>
                     <span className={`text-xs font-bold flex-1 ${isSel?"text-white":"text-zinc-400"}`}>{title}</span>
                     {isSel&&<Check className="w-4 h-4 text-amber-400 shrink-0"/>}

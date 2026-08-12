@@ -2753,6 +2753,14 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   color: #fbbf24;
   text-decoration: none;
   transition: color var(--guide-t-fast);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
 }
 .guide-hero-metamob-link:hover { color: #fde68a; }
 
@@ -2816,6 +2824,69 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 }
 .toc-search-icon { color: var(--guide-text-faint); flex-shrink: 0; }
 .toc-search-input {
+
+/* ── Modale Mon Ocre (Gardiens / Archis) ── */
+.ocre-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--guide-t-fast);
+}
+.ocre-tab.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.35);
+  color: #fbbf24;
+}
+.ocre-tab-count { font-size: 0.6rem; font-weight: 900; opacity: 0.7; }
+.ocre-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.015);
+  border: 1px solid transparent;
+}
+.ocre-row.owned { background: rgba(16,185,129,0.04); border-color: rgba(16,185,129,0.12); }
+.ocre-row-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 0.45rem;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.ocre-row-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: var(--guide-text-dim);
+}
+.ocre-row-name { font-size: 0.76rem; font-weight: 800; color: #e4e4e7; }
+.ocre-row-zone { font-size: 0.62rem; color: var(--guide-text-faint); }
+.ocre-state {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 900;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ocre-state.possede { color: #34d399; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
+.ocre-state.doublon { color: #fbbf24; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+.ocre-state.manquant { color: var(--guide-text-faint); background: rgba(255,255,255,0.03); border: 1px solid var(--guide-border); }
+
   flex: 1;
   min-width: 0;
   background: transparent;

@@ -8,12 +8,12 @@ import {
     ChevronRight,
     Menu,
     Home,
-    Calendar,
     Rocket,
     Shield,
     MessageSquare
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
+import { HeaderEventChip } from "./header-event-chip";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { FeedBell } from "@/components/notifications/feed-bell";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -80,48 +80,13 @@ interface TopNavProps {
     roadmapEnabled?: boolean;
 }
 
-function NextEventPill({ eventsPromise, events, guildId, canViewCalendar }: {
-    eventsPromise?: Promise<UpcomingEvent[]>;
-    events: UpcomingEvent[];
-    guildId: string;
-    canViewCalendar: boolean;
-}) {
-    if (eventsPromise) {
-        return (
-            <Suspense fallback={null}>
-                <DeferredNextEventPill eventsPromise={eventsPromise} guildId={guildId} canViewCalendar={canViewCalendar} />
-            </Suspense>
-        );
-    }
-    return <EventPillInner events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
-}
-
-function DeferredNextEventPill({ eventsPromise, guildId, canViewCalendar }: {
+function DeferredEventChip({ eventsPromise, guildId, canViewCalendar }: {
     eventsPromise: Promise<UpcomingEvent[]>;
     guildId: string;
     canViewCalendar: boolean;
 }) {
     const events = use(eventsPromise);
-    return <EventPillInner events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
-}
-
-function EventPillInner({ events, guildId, canViewCalendar }: {
-    events: UpcomingEvent[];
-    guildId: string;
-    canViewCalendar: boolean;
-}) {
-    const next = events[0];
-    if (!next) return null;
-    return (
-        <Link
-            href={canViewCalendar ? `/dashboard/${guildId}/calendar` : "#"}
-            className="hidden lg:flex items-center gap-2 h-9 px-3 text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors shrink-0"
-            title={next.title}
-        >
-            <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-xs font-medium truncate max-w-[140px]">{next.title}</span>
-        </Link>
-    );
+    return <HeaderEventChip events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
 }
 
 export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadmapEnabled = false }: TopNavProps) {
@@ -200,6 +165,23 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     <LiveStreamBadge guildId={sidebarProps.guildId} />
                 </div>
 
+                {/* Events chip — OUTSIDE overflow-hidden pill so popover is not clipped */}
+                {eventsPromise ? (
+                    <Suspense fallback={null}>
+                        <DeferredEventChip
+                            eventsPromise={eventsPromise}
+                            guildId={sidebarProps.guildId}
+                            canViewCalendar={sidebarProps.user.canViewCalendar}
+                        />
+                    </Suspense>
+                ) : (
+                    <HeaderEventChip
+                        events={events}
+                        guildId={sidebarProps.guildId}
+                        canViewCalendar={sidebarProps.user.canViewCalendar}
+                    />
+                )}
+
                 <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
                     {/* 1. Smart Bar (Hidden on Mobile) */}
                     <div className="hidden sm:block border-r border-border">
@@ -209,15 +191,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         />
                     </div>
 
-                    {/* 2. Next Event Pilulier */}
-                    <NextEventPill
-                        eventsPromise={eventsPromise}
-                        events={events}
-                        guildId={sidebarProps.guildId}
-                        canViewCalendar={sidebarProps.user.canViewCalendar}
-                    />
-
-                    {/* 2. Interactive Tools */}
+                    {/* Interactive Tools */}
                     <div className="flex items-center px-1">
                         {roadmapEnabled && (
                             <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="Roadmap">

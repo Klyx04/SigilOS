@@ -66,7 +66,9 @@ const client = new Client({
         // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
         // The bot must not need the right to read every keystroke/typing event.
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+    // Partials.GuildMember : indispensable pour que GuildMemberRemove fire
+    // même pour les membres qui n'étaient pas dans le cache (bot redémarré).
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember],
 });
 
 // ========================
@@ -422,7 +424,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
 
         if (!account) return;
 
-        // Archive profile
+        // Archive profile (30 days grace before hard delete)
         const result = await db.userProfile.updateMany({
             where: {
                 userId: account.userId,
@@ -433,6 +435,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                 status: 'ARCHIVED',
                 archivedAt: new Date(),
                 archiveReason: 'LEFT',
+                scheduledDeletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             },
         });
 

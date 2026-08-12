@@ -123,6 +123,7 @@ interface ProfileBentoGridProps {
     welcomeBadgeName?: string | null;
     isSuperAdmin?: boolean;
     hasAbsenceChannel?: boolean;
+    initialTab?: string;
 }
 
 export function ProfileBentoGrid({
@@ -141,10 +142,11 @@ export function ProfileBentoGrid({
     welcomeBadgeName,
     isSuperAdmin = false,
     hasAbsenceChannel = false,
+    initialTab: initialTabProp,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
     const searchParams = useSearchParams();
-    const initialTab = searchParams.get("tab") || "overview";
+    const initialTab = initialTabProp || searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
 
     const { tourPhase, currentStep } = useTour();

@@ -11,11 +11,15 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ProfileTourReplayButton } from "@/components/profile/profile-tour-replay-button";
 import { UserCircle } from "lucide-react";
 
-export default async function ProfilePage({ params }: { params: Promise<{ guildId: string }> }) {
+export default async function ProfilePage({ params, searchParams }: {
+    params: Promise<{ guildId: string }>;
+    searchParams: Promise<{ tab?: string }>;
+}) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
+    const { tab: initialTab } = await searchParams;
 
     // Fetch all data in parallel to avoid waterfalls
     const [userContext, profileResponse, statsResponse, guildConfig] = await Promise.all([
@@ -82,6 +86,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                 </div>
 
                 <ProfileBentoGrid
+                    initialTab={initialTab}
                     profile={{
                         id: profile.id,
                         userId: profile.userId,

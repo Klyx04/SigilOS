@@ -1579,6 +1579,16 @@
   color: #34d399;
   border-color: rgba(16, 185, 129, 0.55);
 }
+/* Bouton « Vue lecture » — accent bleu distinct (coords/infos), jamais vert (valider) */
+.sgc-read-toggle-btn {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+.sgc-read-toggle-btn:hover { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border-color: rgba(59, 130, 246, 0.55); }
+.sgc-read-toggle-btn.active { background: rgba(59, 130, 246, 0.18); border-color: #3b82f6; color: #93c5fd; }
+/* Bouton « Masquer les étapes validées » — état actif ambre (distinct du vert Valider) */
+.sgc-hide-steps-btn.active { background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; color: #fbbf24; }
 
 .map-overlay {
   position: fixed;
@@ -2621,6 +2631,14 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
+}
+/* Navigation ‹ › dans la liste (mode principal) : une étape à la fois par défilement */
+.sgc-step-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 /* ── Boutons footer stables (pas de décalage au toggle) ── */

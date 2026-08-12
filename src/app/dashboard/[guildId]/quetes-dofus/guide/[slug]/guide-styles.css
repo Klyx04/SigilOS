@@ -2834,6 +2834,18 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border-radius: 999px;
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--guide-border);
+
+/* ── Effet d'ambiance (particules, désactivable) ── */
+.guide-particles {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-content);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
   color: var(--guide-text-dim);
   font-size: 0.68rem;
   font-weight: 800;

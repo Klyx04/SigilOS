@@ -230,7 +230,7 @@
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0;
+  opacity: 0.55;
   transform: scale(0.9);
 }
 
@@ -245,7 +245,7 @@
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0;
+  opacity: 0.55;
   transform: scale(0.9);
 }
 
@@ -340,6 +340,22 @@
   color: #a1a1aa;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ms-you {
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ms-optional {
@@ -2201,18 +2217,11 @@
   min-width: 1.6rem;
   height: 1.6rem;
   border-radius: 50%;
-  cursor: pointer !important;
   transition: all 0.2s;
   user-select: none;
   align-self: flex-start;
   margin-top: 0.2rem;
   flex-shrink: 0;
-}
-
-.sgc-step-num:hover {
-  background: rgba(59, 130, 246, 0.14) !important;
-  color: #93c5fd !important;
-  border-color: rgba(59, 130, 246, 0.4) !important;
 }
 
 .sgc-step.done .sgc-step-check {

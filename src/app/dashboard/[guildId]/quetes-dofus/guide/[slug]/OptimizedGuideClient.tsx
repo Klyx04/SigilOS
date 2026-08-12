@@ -399,28 +399,25 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
       const active: typeof map extends Map<string, { validated: any; active: infer A }> ? A : never[] = [];
 
       uniqueGuildMembers.forEach(member => {
-        const isMsCompleted = member.completedMilestoneIds.has(selectedMilestoneId);
-        let isPastMs = false;
-        if (member.currentMilestoneId) {
-          const memberActiveMs = milestones.find(m => m.id === member.currentMilestoneId);
-          if (memberActiveMs && memberActiveMs.order > selectedMs.order) isPastMs = true;
-        } else if (member.completedMilestoneIds.size > 0) {
-          isPastMs = true;
-        }
-        const isOnOrPastMs = isPastMs || isMsCompleted;
-        const explicitlyValidated = member.completedSteps.has(key);
-
-        if (explicitlyValidated || isOnOrPastMs) {
+        // « Validé » = l'étape est RÉELLEMENT cochée par le membre (clé `GPx-N`).
+        // On ne déduit JAMAIS une validation depuis un jalon complété ou passé :
+        // valider le jalon (ou être rendu plus loin) ne coche pas chaque étape
+        // de ses sous-guides — sinon « 1 membre » s'affiche partout sans clic.
+        if (member.completedSteps.has(key)) {
           (validated as any[]).push(member);
-        } else {
-          const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
-          if (bookmarkedStep) {
-            if (bookmarkedStep === key) (active as any[]).push(member);
-          } else if (member.currentMilestoneId === selectedMilestoneId) {
-            const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
-            if (firstIncompleteStep?.stepNumber === step.stepNumber) (active as any[]).push(member);
-          }
+          return;
         }
+        // « En cours » = le membre est positionné sur CE jalon :
+        //   - marque-page « J'en suis là » sur ce jalon → l'étape marquée ;
+        //   - sinon → sa première étape non cochée du sous-guide.
+        if (member.currentMilestoneId !== selectedMilestoneId) return;
+        const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
+        if (bookmarkedStep) {
+          if (bookmarkedStep === key) (active as any[]).push(member);
+          return;
+        }
+        const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
+        if (firstIncompleteStep?.stepNumber === step.stepNumber) (active as any[]).push(member);
       });
       map.set(key, { validated: validated as any, active: active as any });
     });
@@ -481,9 +478,9 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
       </button>
 
       {/* Notes/flags */}
-      {(seq.note || seq.isResume) && (
+      {(seq.note || seq.isResume || (bookmarkStepKey && bookmarkStepKey.startsWith(`${seq.subGuideRef}-`))) && (
         <div className="sgc-flags">
-          {seq.isResume && (
+          {(seq.isResume || (bookmarkStepKey && bookmarkStepKey.startsWith(`${seq.subGuideRef}-`))) && (
             <button 
               className="sgc-flag resume cursor-pointer hover:bg-blue-500/20 hover:text-white transition-all transform hover:scale-105"
               onClick={(e) => {
@@ -754,7 +751,18 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                   )}
 
                   {ms.sequences.length > 0 && (
-                    <span className="ms-seqs">{ms.sequences.length}</span>
+                    <span
+                      className="ms-seqs"
+                      title={`${ms.sequences.length} sous-guide${ms.sequences.length > 1 ? "s" : ""} : ${ms.sequences.map(s => s.subGuideRef).join(" · ")}`}
+                    >
+                      {ms.sequences.length} sous-guide{ms.sequences.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+
+                  {bookmarkId === ms.id && !isDone && (
+                    <span className="ms-you" title="Votre position sur ce guide">
+                      Vous êtes ici
+                    </span>
                   )}
 
                   <div className="flex items-center gap-1.5 ml-auto shrink-0">
@@ -2545,6 +2553,7 @@ export default function OptimizedGuideClient({
                       title="Réinitialiser ce jalon (étapes cochées et validation)"
                     >
                       <RotateCcw size={14}/>
+                      <span>Réinitialiser</span>
                     </button>
                   </div>
                   {nextMs && (

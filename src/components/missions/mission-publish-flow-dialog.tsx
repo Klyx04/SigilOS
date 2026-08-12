@@ -19,7 +19,9 @@ import {
     ChevronRight,
     Rocket,
     Save,
-    Sparkles
+    Sparkles,
+    RefreshCw,
+    Bell
 } from "lucide-react";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { publishMissionsToDiscord } from "@/server/actions/mission-actions";
@@ -35,11 +37,11 @@ interface MissionPublishFlowDialogProps {
     missionsCount: number;
     onConfirm: () => Promise<{ success: boolean; error?: string }>;
     isDiscordConfigured?: boolean;
-    // Redéploiement : le pool est déjà publié → on n'envoie PAS de nouvelle notif/embed Discord
+    /** Redéploiement : le pool est déjà publié → on propose le choix reping/silencieux */
     isRepublish?: boolean;
 }
 
-type Step = "CONFIRM" | "DISCORD_PING";
+type Step = "CONFIRM" | "REPUBLISH_CHOICE" | "DISCORD_PING";
 type PingType = "EVERYONE" | "ROLE" | "NONE";
 
 export function MissionPublishFlowDialog({
@@ -60,19 +62,18 @@ export function MissionPublishFlowDialog({
     const [isSaving, setIsSaving] = useState(false);
     const [isPublishingDiscord, setIsPublishingDiscord] = useState(false);
 
+    // Reset state and pre-load roles on open
     useEffect(() => {
         if (isOpen) {
             setStep("CONFIRM");
             setPingType("NONE");
             setSelectedRoleIds([]);
             setIsLoadingRoles(true);
-            // Apply the admin's ping whitelist (legacy allowedPingRoleIds) — same for
-            // members and admins. (ignoreWhitelist is only used in admin settings panels.)
             getDiscordRolesAction(guildId, { context: "missions" }).then(res => {
                 if (res.success && res.roles) {
                     const filtered = res.roles.filter(r => r.name !== "@everyone");
                     setRoles(filtered);
-                    // Auto-fill all whitelisted ping roles (they come pre-filtered by context)
+                    // Auto-select all whitelisted ping roles
                     if (filtered.length > 0) {
                         setSelectedRoleIds(filtered.map(r => r.id));
                         setPingType("ROLE");
@@ -85,40 +86,41 @@ export function MissionPublishFlowDialog({
 
     const isPoolComplete = missionPool === 'CLASSIQUES' ? missionsCount === 12 : missionsCount >= 1;
 
+    // Step 1 → save → then branch based on isRepublish
     const handleSaveAndNext = async () => {
         if (!isPoolComplete) return;
         setIsSaving(true);
         const res = await onConfirm();
         setIsSaving(false);
-        
+
         if (res.success) {
-            // Redéploiement : sauvegarde silencieuse, pas de re-notification Discord
             if (isRepublish) {
-                toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques mises à jour !" : "Missions spéciales mises à jour !");
-                onOpenChange(false);
-                return;
-            }
-            if (!isDiscordConfigured) {
+                // Redéploiement : propose le choix avant de (re)notifier
+                setStep("REPUBLISH_CHOICE");
+            } else if (!isDiscordConfigured) {
                 toast.success("Publication terminée !");
                 onOpenChange(false);
             } else {
+                // 1er déploiement avec Discord configuré → étape ping
                 setStep("DISCORD_PING");
             }
+        } else {
+            toast.error(res.error || "Erreur lors de la publication.");
         }
     };
 
+    // Send Discord notification
     const handleFinalize = async (skipDiscord = false) => {
         if (skipDiscord) {
-            toast.success("Publication terminée !");
+            toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques mises à jour !" : "Missions spéciales mises à jour !");
             onOpenChange(false);
             return;
         }
 
         setIsPublishingDiscord(true);
-        // Multi-rôles : passes the selected role IDs array to the server action
         const res = await publishMissionsToDiscord(guildId, pingType, pingType === "ROLE" ? selectedRoleIds : null);
         setIsPublishingDiscord(false);
-        
+
         if (res.success) {
             toast.success("Publication terminée et annonce Discord envoyée !");
             onOpenChange(false);
@@ -130,36 +132,45 @@ export function MissionPublishFlowDialog({
     const toggleRole = (roleId: string) => {
         setSelectedRoleIds(prev => {
             const next = prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId];
-            // If at least one role selected, switch to ROLE ping mode
             if (next.length > 0) setPingType("ROLE");
             return next;
         });
     };
 
+    // Step progress: CONFIRM=1/3, REPUBLISH_CHOICE=2/3, DISCORD_PING=3/3
+    // For first publish (no REPUBLISH_CHOICE): CONFIRM=1/2, DISCORD_PING=2/2
+    const progressWidth = isRepublish
+        ? step === "CONFIRM" ? "w-1/3" : step === "REPUBLISH_CHOICE" ? "w-2/3" : "w-full"
+        : step === "CONFIRM" ? "w-1/2" : "w-full";
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md bg-zinc-950 border-white/10 shadow-2xl rounded-3xl p-0 overflow-hidden outline-none">
-                
+
                 {/* STEP INDICATOR */}
                 <div className="flex h-1 bg-white/5">
-                    <div className={cn("h-full bg-indigo-500 transition-all duration-500", step === "CONFIRM" ? "w-1/2" : "w-full")} />
+                    <div className={cn("h-full bg-indigo-500 transition-all duration-500", progressWidth)} />
                 </div>
 
                 {/* CONTENT AREA */}
                 <div className="p-6">
-                    {step === "CONFIRM" ? (
+
+                    {/* ── STEP 1 : CONFIRM ─────────────────────────────── */}
+                    {step === "CONFIRM" && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
                                     <div className="p-2 bg-amber-500/20 rounded-xl text-amber-500">
                                         {missionPool === 'SPECIALES' ? <Sparkles className="w-5 h-5" /> : <Save className="w-5 h-5" />}
                                     </div>
-                                    Publication Hebdomadaire
+                                    {isRepublish ? "Modifier les missions" : "Publication Hebdomadaire"}
                                 </DialogTitle>
                                 <DialogDescription className="text-zinc-500 text-sm mt-2">
-                                    {missionPool === 'CLASSIQUES'
-                                        ? "Annonce automatique des 12 missions de la semaine."
-                                        : "Annonce automatique des missions spéciales de la semaine."}
+                                    {isRepublish
+                                        ? "Les missions seront mises à jour en base. Vous pourrez ensuite choisir de notifier ou non la guilde."
+                                        : missionPool === 'CLASSIQUES'
+                                            ? "Annonce automatique des 12 missions de la semaine."
+                                            : "Annonce automatique des missions spéciales de la semaine."}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -185,29 +196,29 @@ export function MissionPublishFlowDialog({
                                         {isPoolComplete ? <Check className="w-4 h-4 text-emerald-500" /> : <AlertTriangle className="w-4 h-4 text-rose-500" />}
                                     </div>
                                 </div>
-                                
+
                                 {!isPoolComplete && (
                                     <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2 text-[10px] text-rose-400 font-bold leading-tight">
                                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                                        {missionPool === 'CLASSIQUES' 
-                                            ? "ERREUR : Les 12 missions classiques doivent être configurées pour permettre la publication hebdomadaire." 
+                                        {missionPool === 'CLASSIQUES'
+                                            ? "ERREUR : Les 12 missions classiques doivent être configurées pour permettre la publication hebdomadaire."
                                             : "ERREUR : Configurez au moins une mission spéciale avant de publier."}
                                     </div>
                                 )}
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <Button 
-                                    onClick={handleSaveAndNext} 
+                                <Button
+                                    onClick={handleSaveAndNext}
                                     disabled={isSaving || !isPoolComplete}
                                     className={cn(
                                         "h-12 font-black rounded-2xl shadow-xl transition-all",
-                                        isPoolComplete 
-                                            ? "bg-white text-black hover:bg-zinc-200 shadow-white/5" 
+                                        isPoolComplete
+                                            ? "bg-white text-black hover:bg-zinc-200 shadow-white/5"
                                             : "bg-zinc-900 text-zinc-700 cursor-not-allowed grayscale"
                                     )}
                                 >
-                                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "PUBLIER & CONTINUER"}
+                                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : (isRepublish ? "SAUVEGARDER & CONTINUER" : "PUBLIER & CONTINUER")}
                                     {!isSaving && <ChevronRight className="w-5 h-5 ml-2" />}
                                 </Button>
                                 <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-zinc-500 hover:text-white h-10 font-bold">
@@ -215,7 +226,80 @@ export function MissionPublishFlowDialog({
                                 </Button>
                             </div>
                         </div>
-                    ) : (
+                    )}
+
+                    {/* ── STEP 2 : REPUBLISH CHOICE ────────────────────── */}
+                    {step === "REPUBLISH_CHOICE" && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+                                    <div className="p-2 bg-amber-500/20 rounded-xl text-amber-500">
+                                        <RefreshCw className="w-5 h-5" />
+                                    </div>
+                                    Missions mises à jour
+                                </DialogTitle>
+                                <DialogDescription className="text-zinc-500 text-sm mt-2">
+                                    Les missions ont été sauvegardées. Souhaitez-vous notifier à nouveau la guilde sur Discord ?
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {/* Warning: re-ping info */}
+                            {isDiscordConfigured && (
+                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2 text-[10px] text-amber-400 font-bold leading-tight">
+                                    <Bell className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                    <span>
+                                        En choisissant <span className="text-white">"Modifier en pingant"</span>, un nouveau message Discord sera envoyé et les rôles sélectionnés seront notifiés à nouveau.
+                                    </span>
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-3">
+                                {/* Silent save */}
+                                <button
+                                    onClick={() => handleFinalize(true)}
+                                    className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border border-white/10 bg-zinc-900 hover:bg-white/5 transition-all text-left group"
+                                >
+                                    <div className="p-2 rounded-xl bg-zinc-800 group-hover:bg-zinc-700 transition-colors">
+                                        <BellOff className="w-5 h-5 text-zinc-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-black text-white">Modifier sans reping</p>
+                                        <p className="text-[10px] text-zinc-500 mt-0.5">Sauvegarde silencieuse — aucune notification Discord.</p>
+                                    </div>
+                                </button>
+
+                                {/* With re-ping */}
+                                {isDiscordConfigured ? (
+                                    <button
+                                        onClick={() => setStep("DISCORD_PING")}
+                                        className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all text-left group"
+                                    >
+                                        <div className="p-2 rounded-xl bg-indigo-500/20 group-hover:bg-indigo-500/30 transition-colors">
+                                            <Send className="w-5 h-5 text-indigo-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-indigo-300">Modifier en pingant</p>
+                                            <p className="text-[10px] text-indigo-400/60 mt-0.5">Envoie une nouvelle annonce Discord avec ping de rôle.</p>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-indigo-500 ml-auto shrink-0" />
+                                    </button>
+                                ) : (
+                                    <div className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border border-white/5 bg-zinc-900/50 opacity-40 cursor-not-allowed">
+                                        <div className="p-2 rounded-xl bg-zinc-800">
+                                            <Send className="w-5 h-5 text-zinc-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-zinc-500">Modifier en pingant</p>
+                                            <p className="text-[10px] text-zinc-600 mt-0.5">Discord non configuré — option indisponible.</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── STEP 3 : DISCORD PING ────────────────────────── */}
+                    {step === "DISCORD_PING" && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
@@ -225,7 +309,9 @@ export function MissionPublishFlowDialog({
                                     Annonce Discord
                                 </DialogTitle>
                                 <DialogDescription className="text-zinc-500 text-sm mt-2">
-                                    Missions sauvegardées avec succès ! Souhaitez-vous notifier la guilde ?
+                                    {isRepublish
+                                        ? "Missions mises à jour ! Choisissez comment notifier la guilde."
+                                        : "Missions sauvegardées avec succès ! Souhaitez-vous notifier la guilde ?"}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -296,15 +382,15 @@ export function MissionPublishFlowDialog({
                             </div>
 
                             <div className="flex flex-col gap-2 pt-2">
-                                <Button 
-                                    onClick={() => handleFinalize(false)} 
+                                <Button
+                                    onClick={() => handleFinalize(false)}
                                     disabled={isPublishingDiscord}
                                     className="bg-indigo-600 hover:bg-indigo-500 text-white h-12 font-black rounded-2xl shadow-xl shadow-indigo-500/20"
                                 >
                                     {isPublishingDiscord ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Rocket className="w-5 h-5 mr-2" />}
-                                    FINALISER & ENVOYER
+                                    FINALISER &amp; ENVOYER
                                 </Button>
-                                <button 
+                                <button
                                     onClick={() => handleFinalize(true)}
                                     className="h-10 text-xs font-bold text-zinc-600 hover:text-rose-400 transition-colors uppercase tracking-wider"
                                 >

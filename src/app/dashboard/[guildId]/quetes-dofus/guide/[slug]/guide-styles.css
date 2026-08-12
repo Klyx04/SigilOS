@@ -1552,6 +1552,18 @@
   color: #10b981;
 }
 
+/* Bouton « Valider ce sous-guide » — action primaire du sous-guide */
+.sgc-complete-subguide-btn {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+.sgc-complete-subguide-btn:hover {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.55);
+}
+
 .map-overlay {
   position: fixed;
   inset: 0;

@@ -107,6 +107,20 @@ type UniqueGuildMember = {
   bookmarkedSteps: Map<string, string>; // milestoneId -> stepKey
 };
 
+// ─── Helpers sous-guides (validation en masse + masquage) ─────────────────────
+// Clés d'étapes d'un sous-guide à partir de ses bornes (stepFrom → stepTo).
+function buildSeqStepKeys(seq: Sequence): string[] {
+  if (!seq.stepFrom || !seq.stepTo) return [];
+  const keys: string[] = [];
+  for (let n = seq.stepFrom; n <= seq.stepTo; n++) keys.push(`${seq.subGuideRef}-${n}`);
+  return keys;
+}
+// Un sous-guide est « tout validé » quand toutes ses clés (bornes connues) sont cochées.
+function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>): boolean {
+  const keys = buildSeqStepKeys(seq);
+  return keys.length > 0 && keys.every(k => checkedSteps.has(k));
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const GP_PALETTE = [
   "#3b82f6","#8b5cf6","#ec4899","#f59e0b","#10b981",
@@ -325,7 +339,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -344,6 +358,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[],
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
+  onCompleteSubGuide?: (keys: string[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -428,6 +443,12 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     });
     return map;
   }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef]);
+
+  // Sous-guide 100 % validé + option « masquer » active → la carte disparaît.
+  const allStepsDone = loaded && steps.length > 0 && filteredSteps.length === 0;
+  if (allStepsDone && (hideCompletedLocal || hideCompletedGlobal)) {
+    return null;
+  }
 
   return (
     <div className="sgc" style={{"--sgc-color": color} as React.CSSProperties}>
@@ -549,6 +570,17 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                     {hideCompletedLocal || hideCompletedGlobal ? <Eye size={12}/> : <EyeOff size={12}/>}
                     <span>{hideCompletedLocal || hideCompletedGlobal ? `Afficher les étapes validées (${done})` : `Masquer les étapes validées (${done})`}</span>
                   </button>
+                  <button
+                    className="sgc-ctrl-btn sgc-complete-subguide-btn"
+                    onClick={() => {
+                      const keys = steps.map(s => `${seq.subGuideRef}-${s.stepNumber}`);
+                      onCompleteSubGuide?.(keys);
+                    }}
+                    title="Valider toutes les étapes de ce sous-guide d'un coup"
+                  >
+                    <CheckCheck size={12}/>
+                    <span>Valider ce sous-guide</span>
+                  </button>
                 </div>
 
                 <div className="sgc-step-list">
@@ -649,7 +681,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -660,6 +692,8 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   onShowPresenceModal: (milestoneId: string, title: string) => void;
   onBookmark: (milestoneId: string) => void;
   onResetMilestone: (milestone: Milestone) => void;
+  checkedSteps?: Set<string>;
+  hideDoneSeqs?: boolean;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -755,14 +789,20 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                     </div>
                   )}
 
-                  {ms.sequences.length > 0 && (
-                    <span
-                      className="ms-seqs"
-                      title={`${ms.sequences.length} sous-guide${ms.sequences.length > 1 ? "s" : ""} : ${ms.sequences.map(s => s.subGuideRef).join(" · ")}`}
-                    >
-                      {ms.sequences.length} sous-guide{ms.sequences.length > 1 ? "s" : ""}
-                    </span>
-                  )}
+                  {(() => {
+                    const seqs = hideDoneSeqs && checkedSteps
+                      ? ms.sequences.filter(s => !isSeqFullyDone(s, checkedSteps))
+                      : ms.sequences;
+                    if (seqs.length === 0) return null;
+                    return (
+                      <span
+                        className="ms-seqs"
+                        title={`${seqs.length} sous-guide${seqs.length > 1 ? "s" : ""} : ${seqs.map(s => s.subGuideRef).join(" · ")}`}
+                      >
+                        {seqs.length} sous-guide{seqs.length > 1 ? "s" : ""}
+                      </span>
+                    );
+                  })()}
 
                   {bookmarkId === ms.id && !isDone && (
                     <span className="ms-you" title="Votre position sur ce guide">
@@ -1517,6 +1557,21 @@ export default function OptimizedGuideClient({
     selected ? (effectivePresenceMap[selected.id] || []) : [],
   [selected, effectivePresenceMap]);
 
+  // Valider un SOUS-GUIDE d'un coup : coche toutes ses étapes + une seule persistance.
+  const handleCompleteSubGuide = useCallback((keys: string[]) => {
+    if (!selected || keys.length === 0) return;
+    setCheckedSteps(prev => {
+      const next = new Set(prev);
+      keys.forEach(k => next.add(k));
+      const milestoneKeys = Array.from(next).filter(k =>
+        selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+      );
+      updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
+      return next;
+    });
+    toast.success(`Sous-guide validé ✓ (${keys.length} étape${keys.length > 1 ? "s" : ""})`);
+  }, [selected, guildId]);
+
   const handleStepToggle = useCallback((ref: string, n: number) => {
     const key = `${ref}-${n}`;
     setCheckedSteps(prev => {
@@ -2070,9 +2125,18 @@ export default function OptimizedGuideClient({
 
 
   // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
-  const activeSeq = selected
-    ? [...selected.sequences].sort((a, b) => a.order - b.order)[activeSeqIndex] || null
-    : null;
+  // Quand « masquer les étapes validées » est actif, les sous-guides 100 % validés
+  // (bornes connues) sont retirés de la pagination.
+  const visibleSeqs = useMemo(() => {
+    if (!selected) return [];
+    const sorted = [...selected.sequences].sort((a, b) => a.order - b.order);
+    return globalHideCompletedSteps ? sorted.filter(s => !isSeqFullyDone(s, checkedSteps)) : sorted;
+  }, [selected, globalHideCompletedSteps, checkedSteps]);
+  const activeSeq = selected ? visibleSeqs[activeSeqIndex] || visibleSeqs[0] || null : null;
+  // Borne l'index quand des sous-guides disparaissent (validés + masqués).
+  useEffect(() => {
+    if (activeSeqIndex >= visibleSeqs.length) setActiveSeqIndex(0);
+  }, [visibleSeqs.length, activeSeqIndex]);
   const isCompleted = selected ? completedIds.has(selected.id) : false;
   const typeConf = selected ? (TYPE_CONFIG[selected.type] ?? TYPE_CONFIG.QUETE_SERIE) : TYPE_CONFIG.QUETE_SERIE;
 
@@ -2164,6 +2228,8 @@ export default function OptimizedGuideClient({
               isOpen={openChapters[ch.chapter] ?? false}
               onToggle={(open) => handleToggleChapter(ch.chapter, open)}
               presenceMap={effectivePresenceMap}
+              checkedSteps={checkedSteps}
+              hideDoneSeqs={globalHideCompletedSteps}
               bookmarkId={bookmarkId}
               guildId={guildId}
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
@@ -2598,8 +2664,16 @@ export default function OptimizedGuideClient({
 
               {/* Sub-guide cards (Paginated!) */}
               {selected.sequences.length > 0 && (() => {
-                const sortedSeqs = [...selected.sequences].sort((a,b) => a.order - b.order);
-                const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
+                if (visibleSeqs.length === 0) {
+                  return (
+                    <section className="subguides-section">
+                      <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                        <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
+                        <span>Tous les sous-guides de cette étape sont validés. 🎉</span>
+                      </div>
+                    </section>
+                  );
+                }
                 return (
                   <section className="subguides-section">
                     <p className="subguides-hint">
@@ -2610,7 +2684,7 @@ export default function OptimizedGuideClient({
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <span>Sous-guide</span>
                         <span className="subguides-count">
-                          Partie {activeSeqIndex + 1} / {sortedSeqs.length}
+                          Partie {activeSeqIndex + 1} / {visibleSeqs.length}
                         </span>
                       </div>
                       <button
@@ -2624,9 +2698,9 @@ export default function OptimizedGuideClient({
                     </div>
 
                     {/* Horizontal tabs pagination for quick selection */}
-                    {sortedSeqs.length > 1 && (
+                    {visibleSeqs.length > 1 && (
                       <div className="subguides-pagination-tabs">
-                        {sortedSeqs.map((seq, idx) => {
+                        {visibleSeqs.map((seq, idx) => {
                           const isActive = idx === activeSeqIndex;
                           return (
                             <button
@@ -2659,12 +2733,13 @@ export default function OptimizedGuideClient({
                           onSelectSubGuide={setActiveGuideFilter}
                           bookmarkStepKey={bookmarkStepKey}
                           onStepBookmark={handleStepBookmark}
+                          onCompleteSubGuide={handleCompleteSubGuide}
                         />
                       )}
                     </div>
 
                     {/* Bottom horizontal pagination controls */}
-                    {sortedSeqs.length > 1 && (
+                    {visibleSeqs.length > 1 && (
                       <div className="subguides-pagination-controls">
                         <button
                           className="subguide-pag-btn"
@@ -2674,12 +2749,12 @@ export default function OptimizedGuideClient({
                           <ChevronLeft size={12}/> Partie précédente
                         </button>
                         <span className="subguide-pag-indicator">
-                          Partie {activeSeqIndex + 1} sur {sortedSeqs.length}
+                          Partie {activeSeqIndex + 1} sur {visibleSeqs.length}
                         </span>
                         <button
                           className="subguide-pag-btn"
-                          disabled={activeSeqIndex === sortedSeqs.length - 1}
-                          onClick={() => setActiveSeqIndex(idx => Math.min(sortedSeqs.length - 1, idx + 1))}
+                          disabled={activeSeqIndex === visibleSeqs.length - 1}
+                          onClick={() => setActiveSeqIndex(idx => Math.min(visibleSeqs.length - 1, idx + 1))}
                         >
                           Partie suivante <ChevronRight size={12}/>
                         </button>

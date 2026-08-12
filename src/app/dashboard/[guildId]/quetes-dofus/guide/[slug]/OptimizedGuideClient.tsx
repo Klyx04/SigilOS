@@ -8,7 +8,7 @@ import {
   CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost, Settings2
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost, Settings2, CircleHelp
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +29,7 @@ import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import AlignmentModal from "@/components/dofus-quests/AlignmentModal";
+import { useTour } from "@/components/tour/tour-provider";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -561,7 +562,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
             ) : (
               <>
                 {/* Mode controls */}
-                <div className="sgc-controls">
+                <div className="sgc-controls" data-tour="guide-complete-subguide">
                   <button 
                     className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
@@ -1065,6 +1066,19 @@ export default function OptimizedGuideClient({
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(`guide-particles-${guildId}`) !== "false"; } catch { return true; }
   });
+
+  // ─── Guide tour (P2) : rejouable, dispo pour tous via le menu Options ───────
+  const { startTour } = useTour();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seenKey = "sigilos-tour-guide-seen";
+    if (localStorage.getItem(seenKey) === "true") return;
+    const t = setTimeout(() => {
+      localStorage.setItem(seenKey, "true");
+      startTour("guide");
+    }, 900);
+    return () => clearTimeout(t);
+  }, [startTour]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
   const [createUnpopulatedDjModal, setCreateUnpopulatedDjModal] = useState<{ isOpen: boolean; name: string; dofusdbId: number | null }>({ isOpen: false, name: "", dofusdbId: null });
@@ -2282,11 +2296,12 @@ export default function OptimizedGuideClient({
               className="guide-content"
             >
               {/* Barre sticky — sommaire, guide & progression */}
-              <div className="guide-hud">
+              <div className="guide-hud" data-tour="guide-hud">
                 <div className="guide-hud-row">
                   <Link
                     href={`/dashboard/${guildId}/quetes-dofus`}
                     className="hud-exit"
+                    data-tour="guide-hud-exit"
                     title="Quitter le guide (Échap)"
                     aria-label="Quitter le guide"
                   >
@@ -2296,6 +2311,7 @@ export default function OptimizedGuideClient({
                   <button
                     type="button"
                     className="guide-sommaire-btn"
+                    data-tour="guide-toc-btn"
                     onClick={toggleTocSide}
                     title="Ouvrir le sommaire (S)"
                   >
@@ -2394,6 +2410,7 @@ export default function OptimizedGuideClient({
                         <button
                           type="button"
                           className="guide-hud-btn guide-hud-menu-trigger"
+                          data-tour="guide-menu-trigger"
                           title="Options du guide"
                           aria-label="Options du guide"
                         >
@@ -2427,6 +2444,12 @@ export default function OptimizedGuideClient({
                         >
                           <Sparkles size={13}/>
                           <span>{particlesEnabled ? "Désactiver l'effet d'ambiance" : "Activer l'effet d'ambiance (particules)"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => startTour("guide")}
+                        >
+                          <CircleHelp size={13}/>
+                          <span>Revoir le guide tour</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator/>
                         <DropdownMenuItem onClick={handleCompleteGuide} disabled={isCompletingGuide || validating}>
@@ -2468,7 +2491,7 @@ export default function OptimizedGuideClient({
 
                 <div className="guide-hero-grid">
                   {/* Personnage actif */}
-                  <div className="guide-hero-card">
+                  <div className="guide-hero-card" data-tour="guide-hero-character">
                     <div className="guide-hero-card-icon class">
                       {(() => { const d = mainCharacter?.classe ? getClass(mainCharacter.classe) : null; return d ? <img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/> : <Crown className="w-5 h-5 text-amber-500"/>; })()}
                     </div>
@@ -2498,6 +2521,7 @@ export default function OptimizedGuideClient({
                   {/* Alignement / Ordre — cliquable : ouvre l'édition */}
                   <div
                     className="guide-hero-card guide-hero-card-clickable"
+                    data-tour="guide-hero-align"
                     role="button"
                     tabIndex={0}
                     onClick={() => setIsAlignModalOpen(true)}
@@ -2554,7 +2578,7 @@ export default function OptimizedGuideClient({
                   </div>
 
                   {/* Métamob / Ocre */}
-                  <div className="guide-hero-card">
+                  <div className="guide-hero-card" data-tour="guide-hero-ocre">
                     <div className="guide-hero-card-icon ocre"><img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain"/></div>
                     <div className="text-left min-w-0 flex-1">
                       <p className="guide-hero-card-label">Metamob</p>
@@ -2775,7 +2799,7 @@ export default function OptimizedGuideClient({
 
 
               {/* Footer nav */}
-              <footer className="step-footer">
+              <footer className="step-footer" data-tour="guide-footer">
                 <div className="step-nav">
                   {prevMs && (
                     <button className="nav-btn prev" onClick={() => setSelected(prevMs)}>

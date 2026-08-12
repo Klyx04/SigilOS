@@ -192,7 +192,7 @@ export default function CoordHoverMap({ containerRef, guildId }: CoordHoverMapPr
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="fixed z-[999999] pointer-events-auto select-none"
+                className="fixed z-[var(--z-tooltip)] pointer-events-auto select-none"
                 style={{ top: position.top, left: position.left, width: POPOVER_WIDTH }}
                 onMouseEnter={() => {
                   if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);

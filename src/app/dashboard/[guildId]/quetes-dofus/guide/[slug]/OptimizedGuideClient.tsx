@@ -27,6 +27,7 @@ import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
+import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -1017,6 +1018,11 @@ export default function OptimizedGuideClient({
   });
   // Identité du membre courant (nom/avatar) pour le heartbeat de présence.
   const [myIdentity, setMyIdentity] = useState<{ name?: string; image?: string }>({});
+  // Effet d'ambiance (particules) — désactivable (localStorage, défaut activé).
+  const [particlesEnabled, setParticlesEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem(`guide-particles-${guildId}`) !== "false"; } catch { return true; }
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
   const [createUnpopulatedDjModal, setCreateUnpopulatedDjModal] = useState<{ isOpen: boolean; name: string; dofusdbId: number | null }>({ isOpen: false, name: "", dofusdbId: null });
@@ -1770,6 +1776,15 @@ export default function OptimizedGuideClient({
     });
   }, [guildId]);
 
+  // ─── Effet d'ambiance : particules désactivables ─────────────────────────────
+  const toggleParticles = useCallback(() => {
+    setParticlesEnabled(prev => {
+      const next = !prev;
+      try { localStorage.setItem(`guide-particles-${guildId}`, next ? "true" : "false"); } catch {}
+      return next;
+    });
+  }, [guildId]);
+
   const confirmCompleteGuide = useCallback(async () => {
     setIsCompletingGuide(true);
     setIsCompleteGuideConfirmOpen(false);
@@ -2174,6 +2189,9 @@ export default function OptimizedGuideClient({
       `}} />
       <div className={"guide-shell" + (tocPinned ? " toc-pinned" : "")}>
 
+      {/* Effet d'ambiance (particules) — désactivable via le menu Options */}
+      <GuideParticles active={particlesEnabled} />
+
       {/* ── Sommaire épinglé (rail fixe, visible tant que >=1200px) ── */}
       {tocPinned && (
         <aside className="toc-rail">
@@ -2334,6 +2352,13 @@ export default function OptimizedGuideClient({
                         >
                           <Ghost size={13}/>
                           <span>{incognito ? "Désactiver le mode discret" : "Mode discret : masquer ma présence"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={toggleParticles}
+                          className={particlesEnabled ? "current" : ""}
+                        >
+                          <Sparkles size={13}/>
+                          <span>{particlesEnabled ? "Désactiver l'effet d'ambiance" : "Activer l'effet d'ambiance (particules)"}</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator/>
                         <DropdownMenuItem onClick={handleCompleteGuide} disabled={isCompletingGuide || validating}>

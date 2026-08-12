@@ -566,6 +566,8 @@
 .guide-hud-btn.active { color: var(--guide-green); border-color: rgba(16,185,129,0.35); background: var(--guide-green-soft); }
 .guide-hud-btn-danger { color: var(--guide-red); }
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
+.guide-hud-tour-btn { color: var(--guide-gold); }
+.guide-hud-tour-btn:hover { color: #e8c97e; border-color: rgba(212, 168, 83, 0.4); background: rgba(212, 168, 83, 0.08); }
 
 /* ── Menu Options du guide (actions regroupées) ── */
 /* Fond OPAQUE (fini la transparence illisible) + ombre de profondeur. */
@@ -1114,7 +1116,6 @@
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.08);
   border-left-color: #10b981;
-  transform: translateX(6px);
 }
 
 .sgc-step.done .sgc-step-content {
@@ -2576,14 +2577,9 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .toc-chapters::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
 /* ── Pied d'étape sous-guide : présence discrète (pas d'avatars) ── */
-.sgc-step-footer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.45rem;
-}
 .sgc-step-presence-btn {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
   gap: 0.3rem;
   padding: 0.22rem 0.5rem;
@@ -2598,6 +2594,34 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   width: fit-content;
 }
 .sgc-step-presence-btn:hover { color: var(--guide-blue); border-color: rgba(59,130,246,0.4); background: var(--guide-blue-soft); }
+/* ── Vue lecture (sous-guide) : une étape à la fois + navigation ‹ › ── */
+.sgc-read-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.sgc-read-progress {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--guide-text-dim);
+}
+.sgc-read-next {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+.sgc-read-next:hover {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.55);
+}
+.sgc-ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 /* ── Boutons footer stables (pas de décalage au toggle) ── */
 .jump-btn {

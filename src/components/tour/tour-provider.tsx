@@ -1005,7 +1005,7 @@ const QUETESDOFUS_STEPS: TourStep[] = [
 
 /**
  * Tour GUIDE — module guide plein écran (Ganymède).
- * Rejouable à tout moment (membres comme admin) via le bouton du menu Options.
+ * Rejouable à tout moment (membres comme admin) via le bouton du bandeau du haut.
  * Les data-tour sont posés sur les éléments stables du module guide.
  */
 const GUIDE_STEPS: TourStep[] = [

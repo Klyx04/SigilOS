@@ -546,6 +546,7 @@
 }
 .guide-hud-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .guide-hud-presence-count { font-size: 0.66rem; font-weight: 900; color: var(--guide-text-dim); }
+.guide-hud-presence-label { font-size: 0.62rem; font-weight: 800; color: var(--guide-text-dim); white-space: nowrap; }
 
 .guide-hud-btn {
   display: inline-flex;
@@ -564,6 +565,25 @@
 .guide-hud-btn.active { color: var(--guide-green); border-color: rgba(16,185,129,0.35); background: var(--guide-green-soft); }
 .guide-hud-btn-danger { color: var(--guide-red); }
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
+
+/* ── Menu Options du guide (actions regroupées) ── */
+.guide-hud-menu {
+  min-width: 240px;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  border-radius: 0.75rem;
+  padding: 0.35rem;
+  z-index: var(--z-dropdown);
+}
+.guide-hud-menu [role="menuitem"] {
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--guide-text-dim);
+  cursor: pointer;
+}
+.guide-hud-menu [role="menuitem"].current { color: var(--guide-green); }
+.guide-hud-menu [role="menuitem"].danger { color: var(--guide-red); }
 
 .guide-hud-credit {
   display: inline-flex;
@@ -1349,14 +1369,14 @@
   background: rgba(16, 185, 129, 0.18);
 }
 
-/* Bouton « Tout valider » — action en masse, hiérarchie secondaire par rapport à Valider l'étape */
+/* Bouton « Tout valider » — action primaire bien visible (fini l'outline discret) */
 .complete-all-btn {
-  background: transparent;
-  color: var(--guide-green);
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: #10b981;
+  color: #fff;
+  border: 1px solid #10b981;
   border-radius: 0.6rem;
   font-weight: 800;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   padding: 0.7rem 1.1rem;
   display: flex;
   align-items: center;
@@ -1364,12 +1384,12 @@
   gap: 0.45rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--guide-t-fast), color var(--guide-t-fast), border-color var(--guide-t-fast);
+  box-shadow: none;
+  transition: background var(--guide-t-fast), border-color var(--guide-t-fast);
 }
 .complete-all-btn:hover:not(:disabled) {
-  background: var(--guide-green-soft);
-  border-color: rgba(16, 185, 129, 0.65);
-  color: #34d399;
+  background: #059669;
+  border-color: #059669;
 }
 .complete-all-btn:disabled {
   opacity: 0.5;

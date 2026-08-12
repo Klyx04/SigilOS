@@ -10,6 +10,7 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { publishGuideEvent, parseStepKey } from "@/lib/guide-realtime";
+import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers } from "@/lib/guide-progress-helpers";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -300,25 +301,45 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
 
   const guide = await db.optimizedGuide.findUnique({
     where: { slug },
-    select: { id: true }
+    select: {
+      id: true,
+      milestones: { select: { id: true, order: true }, orderBy: { order: "asc" } },
+    },
   });
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
-  // Récupérer toutes les progressions des membres pour ce guide (avec isolation de guilde)
-  const allProgress = await db.playerGuideProgress.findMany({
+  // Phase I — Agrégation serveur (AUDIT-MILITAIRE §2.1) : select chirurgical au lieu
+  // du `include profile { include user }` qui sérialisait profil + user complets
+  // (5 000 à 15 000 lignes) vers le client. On renvoie uniquement :
+  //   - allProgress        : lignes allégées (shape client inchangée) ;
+  //   - uniqueGuildMembers : membres agrégés par profileId ;
+  //   - presenceMap        : carte milestoneId → membres présents.
+  const rawRows = await db.playerGuideProgress.findMany({
     where: {
       milestone: { guideId: guide.id },
       profile: { guild: { discordGuildId: guildId } }
     },
-    include: {
+    select: {
+      profileId: true,
+      milestoneId: true,
+      isCompleted: true,
+      completedSteps: true,
+      currentStep: true,
       profile: {
-        include: { user: true }
-      }
-    }
+        select: {
+          pseudoDofus: true,
+          user: { select: { name: true, image: true } },
+        },
+      },
+    },
   });
 
-  return { success: true, allProgress };
+  const allProgress = buildGuildProgressRows(rawRows);
+  const uniqueGuildMembers = buildUniqueGuildMembers(allProgress, guide.milestones);
+  const presenceMap = buildPresenceMap(uniqueGuildMembers);
+
+  return { success: true, allProgress, uniqueGuildMembers, presenceMap };
 }
 
 /**

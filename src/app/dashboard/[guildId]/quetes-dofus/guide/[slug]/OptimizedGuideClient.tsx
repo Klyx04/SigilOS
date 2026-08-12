@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, completeGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
 import CoordHoverMap from "./CoordHoverMap";
+import type { GuideProgressMember, GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
@@ -906,12 +907,15 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
-  currentUserProfile, ocreStats, ocreMonsters = []
+  currentUserProfile, ocreStats, ocreMonsters = [],
+  serverUniqueGuildMembers, serverPresenceMap
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
   userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[]; currentStep?: string | null }[];
   guildProgress: GuildMember[];
+  serverUniqueGuildMembers?: GuideProgressMember[];
+  serverPresenceMap?: GuidePresenceMap;
   guildId: string;
   selectedCharacter?: string;
   mainCharacter?: { pseudo: string; classe?: string | null };
@@ -1383,6 +1387,21 @@ export default function OptimizedGuideClient({
 
   // Unique Guild Members logic (aggregates multiple playerGuideProgress rows per profileId)
   const uniqueGuildMembers = useMemo(() => {
+    // Phase I (AUDIT-MILITAIRE §2.1) : agrégats pré-calculés côté serveur.
+    // Conversion arrays → Set/Map pour préserver les consommateurs existants.
+    // Fallback historique si les agrégats sont absents (ancien payload).
+    if (Array.isArray(serverUniqueGuildMembers) && serverUniqueGuildMembers.length > 0) {
+      return serverUniqueGuildMembers.map(m => ({
+        profileId: m.profileId,
+        userName: m.userName,
+        userAvatar: m.userAvatar,
+        profileSlug: m.profileSlug,
+        completedSteps: new Set(m.completedSteps),
+        completedMilestoneIds: new Set(m.completedMilestoneIds),
+        currentMilestoneId: m.currentMilestoneId,
+        bookmarkedSteps: new Map(m.bookmarkedSteps.map(b => [b.milestoneId, b.stepKey])),
+      }));
+    }
     const map = new Map<string, {
       profileId: string;
       userName: string;
@@ -1475,10 +1494,14 @@ export default function OptimizedGuideClient({
         bookmarkedSteps: m.bookmarkedSteps
       };
     });
-  }, [guildProgress, milestones]);
+  }, [guildProgress, milestones, serverUniqueGuildMembers]);
 
   // Presence mapping (maps milestone ID to members currently active there)
   const presenceMap = useMemo(() => {
+    // Phase I : carte pré-calculée côté serveur quand disponible (shape identique).
+    if (serverPresenceMap && Object.keys(serverPresenceMap).length > 0) {
+      return serverPresenceMap;
+    }
     const map: Record<string, any[]> = {};
     const seen = new Set<string>();
     uniqueGuildMembers.forEach(m => {
@@ -1491,7 +1514,7 @@ export default function OptimizedGuideClient({
       }
     });
     return map;
-  }, [uniqueGuildMembers]);
+  }, [uniqueGuildMembers, serverPresenceMap]);
 
   // ─── Temps réel (Phase F) : présence live du guide ──────────────────────────
   const guideLive = useGuidePresence({

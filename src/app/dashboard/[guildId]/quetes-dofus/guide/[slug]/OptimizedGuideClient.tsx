@@ -2512,7 +2512,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -2838,7 +2838,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -2901,7 +2901,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90"
             onClick={() => setImageModal(null)}
           >
             <motion.div
@@ -2931,7 +2931,7 @@ export default function OptimizedGuideClient({
 
       {/* Modern Milestone Selection Modal */}
       <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
-        <DialogContent className="max-w-xl bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-xl bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500">
               Navigation rapide
@@ -3160,7 +3160,7 @@ export default function OptimizedGuideClient({
         open={stepPresenceModal?.isOpen ?? false} 
         onOpenChange={(open) => setStepPresenceModal(prev => prev ? { ...prev, isOpen: open } : null)}
       >
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
@@ -3310,7 +3310,7 @@ export default function OptimizedGuideClient({
         open={presenceModal?.isOpen ?? false} 
         onOpenChange={(open) => setPresenceModal(prev => prev ? { ...prev, isOpen: open } : null)}
       >
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
@@ -3374,7 +3374,7 @@ export default function OptimizedGuideClient({
       </Dialog>
       {/* All Guild Members Tracking Guide Modal */}
       <Dialog open={isAllMembersModalOpen} onOpenChange={setIsAllMembersModalOpen}>
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-blue-400" />
@@ -3444,7 +3444,7 @@ export default function OptimizedGuideClient({
         open={isHelpOpen} 
         onOpenChange={setIsHelpOpen}
       >
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
               <BookOpen size={14} />
@@ -3501,7 +3501,7 @@ export default function OptimizedGuideClient({
 
       {/* Custom Reset Milestone Confirmation Modal */}
       <Dialog open={isResetMilestoneConfirmOpen} onOpenChange={setIsResetMilestoneConfirmOpen}>
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/20 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/20 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-400 flex items-center gap-2">
               <RotateCcw size={14} className="animate-spin-slow" />
@@ -3541,7 +3541,7 @@ export default function OptimizedGuideClient({
 
       {/* Custom Reset Entire Guide Confirmation Modal */}
       <Dialog open={isResetGuideConfirmOpen} onOpenChange={setIsResetGuideConfirmOpen}>
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-500 flex items-center gap-2">
               <RotateCcw size={14} className="animate-pulse" />

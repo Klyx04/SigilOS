@@ -65,7 +65,7 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
                         variant="outline" 
                         role="combobox"
                         aria-expanded={false}
-                        className="bg-zinc-950/60 backdrop-blur-md border-white/5 hover:border-emerald-500/20 text-white justify-between min-w-[200px] transition-all rounded-xl h-10 px-3 cursor-pointer"
+                        className="bg-zinc-950/60 border-white/5 hover:border-emerald-500/20 text-white justify-between min-w-[200px] transition-all rounded-xl h-10 px-3 cursor-pointer"
                         disabled={isPending}
                     >
                         <div className="flex items-center gap-2 truncate">
@@ -81,7 +81,7 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform opacity-30 ${isPending ? 'animate-pulse' : ''}`} />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-zinc-950/95 backdrop-blur-xl border-white/5 text-white min-w-[200px] rounded-xl p-1.5 shadow-2xl z-[100]">
+                <DropdownMenuContent align="end" className="bg-zinc-950/95 border-white/5 text-white min-w-[200px] rounded-xl p-1.5 shadow-2xl z-[100]">
                     <DropdownMenuItem 
                         onClick={() => handleSelect("PRINCIPAL")}
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter === "PRINCIPAL" ? "bg-white/5 text-emerald-400" : "hover:bg-white/5"}`}

@@ -886,6 +886,12 @@ export default function OptimizedGuideClient({
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
 
+  // Clés localStorage scopées par personnage : chaque mule garde sa propre
+  // position (le serveur sépare déjà les progressions via characterSlot).
+  const bookmarkStorageKey = `guide-bm-${guide.slug}-${selectedCharacter}`;
+  const bookmarkStepStorageKey = `guide-bm-step-${guide.slug}-${selectedCharacter}`;
+  const sessionStorageKey = `sigilos_session_${guildId}_${guide.id}_${selectedCharacter}`;
+
   const [milestones] = useState(() => initialMilestones);
   const [selected, setSelected] = useState<Milestone | null>(milestones[0] ?? null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(
@@ -910,7 +916,7 @@ export default function OptimizedGuideClient({
   const [bookmarkStepKey, setBookmarkStepKey] = useState<string | null>(() => {
     const activeProgress = userProgress.find(p => p.milestoneId === selected?.id);
     if (activeProgress?.currentStep) return activeProgress.currentStep;
-    if (typeof window !== "undefined") return localStorage.getItem(`guide-bm-step-${guide.slug}`) ?? null;
+    if (typeof window !== "undefined") return localStorage.getItem(bookmarkStepStorageKey) ?? null;
     return null;
   });
 
@@ -920,22 +926,22 @@ export default function OptimizedGuideClient({
       const activeProgress = userProgress.find(p => p.milestoneId === selected.id);
       if (activeProgress?.currentStep) {
         setBookmarkStepKey(activeProgress.currentStep);
-        localStorage.setItem(`guide-bm-step-${guide.slug}`, activeProgress.currentStep);
+        localStorage.setItem(bookmarkStepStorageKey, activeProgress.currentStep);
       } else {
         setBookmarkStepKey(null);
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(bookmarkStepStorageKey);
       }
     }
-  }, [selected, userProgress, guide.slug]);
+  }, [selected, userProgress, guide.slug, bookmarkStepStorageKey]);
 
   const handleStepBookmark = useCallback((stepKey: string) => {
     setBookmarkStepKey(prev => {
       const next = prev === stepKey ? null : stepKey;
       if (next) {
-        localStorage.setItem(`guide-bm-step-${guide.slug}`, next);
+        localStorage.setItem(bookmarkStepStorageKey, next);
         toast.success("Position d'étape sauvegardée !");
       } else {
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(bookmarkStepStorageKey);
         toast.info("Marque-page d'étape retiré");
       }
 
@@ -1209,15 +1215,15 @@ export default function OptimizedGuideClient({
   }, [guildId]);
 
   const [bookmarkId, setBookmarkId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem(`guide-bm-${guide.slug}`) ?? null;
+    if (typeof window !== "undefined") return localStorage.getItem(bookmarkStorageKey) ?? null;
     return null;
   });
 
   const handleBookmark = useCallback((milestoneId: string) => {
     const next = bookmarkId === milestoneId ? null : milestoneId;
     setBookmarkId(next);
-    if (next) { localStorage.setItem(`guide-bm-${guide.slug}`, next); toast.success("Position sauvegardée !"); }
-    else { localStorage.removeItem(`guide-bm-${guide.slug}`); toast.info("Marque-page supprimé"); }
+    if (next) { localStorage.setItem(bookmarkStorageKey, next); toast.success("Position sauvegardée !"); }
+    else { localStorage.removeItem(bookmarkStorageKey); toast.info("Marque-page supprimé"); }
   }, [bookmarkId, guide.slug]);
 
   const handleBackToMainGuideCurrentStep = useCallback(() => {
@@ -1246,7 +1252,7 @@ export default function OptimizedGuideClient({
   // Session tracking & Welcome Back Modal
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const key = `sigilos_session_${guildId}_${guide.id}`;
+    const key = sessionStorageKey;
     
     if (!initializedSessionRef.current) {
       initializedSessionRef.current = true;
@@ -1630,7 +1636,7 @@ export default function OptimizedGuideClient({
             sessionValidatedCountRef.current += 1;
             
             // Save to localStorage immediately
-            const key = `sigilos_session_${guildId}_${guide.id}`;
+            const key = sessionStorageKey;
             const stored = localStorage.getItem(key);
             if (stored) {
               try {
@@ -1676,7 +1682,7 @@ export default function OptimizedGuideClient({
           return next;
         });
         setBookmarkStepKey(null);
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(bookmarkStepStorageKey);
         toast.success("Jalon réinitialisé ↺", { description: selected.title });
       }
     } catch { toast.error("Erreur lors de la réinitialisation"); }
@@ -1698,9 +1704,9 @@ export default function OptimizedGuideClient({
         setCheckedSteps(new Set());
         setBookmarkId(null);
         setBookmarkStepKey(null);
-        localStorage.removeItem(`guide-bm-${guide.slug}`);
-        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
-        localStorage.removeItem(`sigilos_session_${guildId}_${guide.id}`);
+        localStorage.removeItem(bookmarkStorageKey);
+        localStorage.removeItem(bookmarkStepStorageKey);
+        localStorage.removeItem(sessionStorageKey);
         toast.success("Guide réinitialisé ↺", { description: "Toute votre progression a été effacée." });
       }
     } catch { toast.error("Erreur lors de la réinitialisation du guide"); }

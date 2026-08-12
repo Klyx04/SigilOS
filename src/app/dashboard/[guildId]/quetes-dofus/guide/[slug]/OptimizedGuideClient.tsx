@@ -26,6 +26,7 @@ import { fixBrokenImages } from "@/lib/ganymede-parser";
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
+import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -862,7 +863,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
-  currentUserProfile, ocreStats
+  currentUserProfile, ocreStats, ocreMonsters = []
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
@@ -882,6 +883,7 @@ export default function OptimizedGuideClient({
     pseudoDofus?: string | null;
   };
   ocreStats?: { bosses?: { gathered?: number; total?: number }; archis?: { gathered?: number; total?: number }; progressPercent?: number; currentStep?: number; serverName?: string } | null;
+  ocreMonsters?: OcreMonsterLite[];
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -975,6 +977,7 @@ export default function OptimizedGuideClient({
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [isAllMembersModalOpen, setIsAllMembersModalOpen] = useState(false);
+  const [isOcreModalOpen, setIsOcreModalOpen] = useState(false);
   // Initialize checkedSteps from userProgress on mount
   const [checkedSteps, setCheckedSteps] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -2456,7 +2459,7 @@ export default function OptimizedGuideClient({
                     <div className="text-left min-w-0 flex-1">
                       <p className="guide-hero-card-label">Metamob</p>
                       {currentUserProfile?.metamobPseudo ? (
-                        <Link href={"/dashboard/" + guildId + "/quete-ocre"} className="guide-hero-metamob-link">
+                        <button type="button" className="guide-hero-metamob-link" onClick={() => setIsOcreModalOpen(true)}>
                           {ocreStats ? (
                             <>
                               <span>Gardiens <span className="font-mono text-white">{ocreStats.bosses?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.bosses?.total ?? 51}</span></span></span>
@@ -2467,7 +2470,7 @@ export default function OptimizedGuideClient({
                             <span className="text-[10px] font-bold text-amber-400/80">Voir ma progression →</span>
                           )}
                           <ExternalLink size={12} className="text-amber-400/60 shrink-0"/>
-                        </Link>
+                        </button>
                       ) : (
                         <Link href={"/dashboard/" + guildId + "/profile"} className="guide-hero-link-btn amber">
                           <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain"/>
@@ -2727,6 +2730,17 @@ export default function OptimizedGuideClient({
 
       {/* Fil d'activité live (Phase F) — events step:validated / milestone:completed */}
       <LiveActivityTicker events={guideLive.events} />
+
+      {/* Modale Mon Ocre : liste des Gardiens/Archis déjà en poche, zéro refetch API */}
+      <OcreProgressModal
+        open={isOcreModalOpen}
+        onOpenChange={setIsOcreModalOpen}
+        monsters={ocreMonsters}
+        bossCount={ocreStats?.bosses}
+        archiCount={ocreStats?.archis}
+        metamobPseudo={currentUserProfile?.metamobPseudo}
+        guildId={guildId}
+      />
 
       {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}
       {typeof document !== "undefined" && createPortal(

@@ -17,6 +17,7 @@ import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
 import { createAuditLog } from "./audit-actions";
 import { fetchGuildBans } from "@/server/discord";
+import { sendLifecycleNotification } from "./lifecycle-actions";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -327,6 +328,14 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                             where: { provider: "discord" },
                             select: { providerAccountId: true }
                         }
+                    },
+                    select: {
+                        name: true,
+                        image: true,
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true }
+                        }
                     }
                 }
             }
@@ -353,6 +362,9 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                         }
                     });
 
+                    // 🔔 Lifecycle notification (embed Discord)
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)").catch(() => null);
+
                     await createAuditLog({
                         guildId: discordGuildId,
                         actorUserId: "SYSTEM",
@@ -375,6 +387,9 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                             scheduledDeletion: twelveMonthsFromNow
                         }
                     });
+
+                    // 🔔 Lifecycle notification (embed Discord)
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)").catch(() => null);
 
                     // 📝 Audit Log (Internal/Cron)
                     await createAuditLog({

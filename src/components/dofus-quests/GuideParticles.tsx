@@ -10,13 +10,17 @@ type Particle = {
   opacity: number;
   phase: number;
   speed: number;
+  color: string;
 };
 
+const COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#a78bfa"];
+
 /**
- * Effet d'ambiance du guide : fines braises dorées qui montent lentement.
- * - Canvas léger, ~36 particules desktop / 18 mobile, opacité faible.
- * - Désactivable (toggle du menu Options) + respecte prefers-reduced-motion.
- * - pointer-events none, mix-blend-mode screen : ne bloque jamais la lecture.
+ * Effet d'ambiance du guide — braises Dofus (or / émeraude / saphir) + halos doux.
+ * Performance avant tout :
+ *  - zéro shadowBlur (très coûteux), halos pré-rendus offscreen (drawImage léger),
+ *  - ~52 particules desktop / 24 mobile, devicePixelRatio plafonné à 2,
+ *  - pointer-events none, respecte prefers-reduced-motion, désactivable (menu Options).
  */
 export default function GuideParticles({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -37,15 +41,29 @@ export default function GuideParticles({ active }: { active: boolean }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let particles: Particle[] = [];
 
+    // Halo doré pré-rendu (dégradé radial) — créé UNE fois, dessiné via drawImage (léger).
+    const halo = document.createElement("canvas");
+    halo.width = 96;
+    halo.height = 96;
+    const hctx = halo.getContext("2d");
+    if (hctx) {
+      const g = hctx.createRadialGradient(48, 48, 4, 48, 48, 48);
+      g.addColorStop(0, "rgba(251, 191, 36, 0.28)");
+      g.addColorStop(1, "rgba(251, 191, 36, 0)");
+      hctx.fillStyle = g;
+      hctx.fillRect(0, 0, 96, 96);
+    }
+
     const spawn = (): Particle => ({
       x: Math.random() * w,
-      y: h + 10 + Math.random() * h,
-      r: 0.8 + Math.random() * 1.1,
-      vy: 0.15 + Math.random() * 0.35,
-      vx: (Math.random() - 0.5) * 0.15,
-      opacity: 0.06 + Math.random() * 0.14,
+      y: h + 20 + Math.random() * h,
+      r: 0.9 + Math.random() * 1.7,
+      vy: 0.18 + Math.random() * 0.5,
+      vx: (Math.random() - 0.5) * 0.22,
+      opacity: 0.07 + Math.random() * 0.2,
       phase: Math.random() * Math.PI * 2,
-      speed: 0.004 + Math.random() * 0.008,
+      speed: 0.005 + Math.random() * 0.01,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
     });
 
     const resize = () => {
@@ -56,7 +74,7 @@ export default function GuideParticles({ active }: { active: boolean }) {
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = w < 768 ? 18 : 36;
+      const count = w < 768 ? 24 : 52;
       particles = Array.from({ length: count }, spawn);
     };
     resize();
@@ -64,18 +82,25 @@ export default function GuideParticles({ active }: { active: boolean }) {
 
     const tick = (now: number) => {
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "#fbbf24";
+      ctx.globalCompositeOperation = "screen";
       for (const p of particles) {
         p.y -= p.vy;
-        p.x += p.vx;
-        if (p.y < -10) Object.assign(p, spawn());
-        const o = p.opacity * (0.6 + 0.4 * Math.sin(now * p.speed + p.phase));
+        p.x += p.vx + Math.sin(now * 0.0004 + p.phase) * 0.09;
+        if (p.y < -18) Object.assign(p, spawn());
+        const o = p.opacity * (0.55 + 0.45 * Math.sin(now * p.speed + p.phase));
+        if (o <= 0.02) continue;
         ctx.globalAlpha = Math.max(0, o);
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
+        // Halo doux uniquement sur les grosses braises (immersion, coût maîtrisé).
+        if (p.r > 2.1) {
+          ctx.drawImage(halo, p.x - 36, p.y - 36, 72, 72);
+        }
       }
       ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

@@ -376,11 +376,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
 
   // Hide state
   const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
-  // Vue « lecture » : une étape à la fois + navigation ‹ › (au lieu du déroulé vertical).
-  const [readingMode, setReadingMode] = useState(false);
+  // Vue « lecture » (seule vue du sous-guide) : une étape à la fois + navigation ‹ ›.
   const [readIndex, setReadIndex] = useState(0);
-  const [stepNavIndex, setStepNavIndex] = useState(0);
-  const stepListRef = useRef<HTMLDivElement>(null);
 
   const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
   const total = steps.length;
@@ -461,49 +458,17 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     return map;
   }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef]);
 
-  // Vue lecture : étape unique + navigation ‹ ›.
-  const readSteps = steps;
+  // Vue lecture (seule vue) : étapes filtrées une à une + navigation ‹ ›.
+  const readSteps = filteredSteps;
   const safeReadIndex = readSteps.length === 0 ? 0 : Math.min(readIndex, readSteps.length - 1);
   const currentReadStep = readSteps[safeReadIndex] ?? null;
-  // Navigation « ‹ › » dans la liste (mode principal) : l'étape visible est suivie
-  // via IntersectionObserver ; les flèches défilent vers l'étape précédente/suivante.
-  const goToStep = useCallback((idx: number) => {
-    const safe = Math.max(0, Math.min(filteredSteps.length - 1, idx));
-    const step = filteredSteps[safe];
-    if (!step) return;
-    setStepNavIndex(safe);
-    document.getElementById(`sgc-step-${seq.subGuideRef}-${step.stepNumber}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [filteredSteps, seq.subGuideRef]);
-
-  useEffect(() => {
-    const el = stepListRef.current;
-    if (!el || filteredSteps.length === 0) return;
-    const domSteps = Array.from(el.querySelectorAll<HTMLElement>(".sgc-step"));
-    if (domSteps.length === 0) return;
-    const observer = new IntersectionObserver((entries) => {
-      let best: Element | null = null;
-      let bestRatio = 0;
-      for (const entry of entries) {
-        if (entry.isIntersecting && entry.intersectionRatio > bestRatio) {
-          bestRatio = entry.intersectionRatio;
-          best = entry.target;
-        }
-      }
-      if (best) {
-        const idx = domSteps.indexOf(best as HTMLElement);
-        if (idx >= 0 && idx < filteredSteps.length) setStepNavIndex(idx);
-      }
-    }, { threshold: [0.1, 0.3, 0.6] });
-    domSteps.forEach(s => observer.observe(s));
-    return () => observer.disconnect();
-  }, [filteredSteps.length, readingMode]);
 
   const handleReadToggle = (ref: string, n: number) => {
     const key = `${ref}-${n}`;
     const wasChecked = checkedSteps.has(key);
     onStepToggle(ref, n);
     // Vue lecture : après avoir coché l'étape, on avance vers la suivante non cochée.
-    if (readingMode && !wasChecked) {
+    if (!wasChecked) {
       const nextIdx = readSteps.findIndex((s, i) => i > safeReadIndex && !checkedSteps.has(`${ref}-${s.stepNumber}`));
       if (nextIdx >= 0) setReadIndex(nextIdx);
     }
@@ -544,7 +509,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
             onClick={onInteractiveClick}
             {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
         </div>
-        {/* Bulles de présence : EN HAUT de l'étape (à droite) — plus en bas. */}
+        {/* Bulles profils : EN HAUT à droite de l'étape — clic → modale. */}
         {presenceCount > 0 && (
           <button
             type="button"
@@ -560,8 +525,15 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
               );
             }}
           >
-            <Users size={11}/>
-            <span>{presenceCount} {presenceCount > 1 ? "membres" : "membre"}</span>
+            <span className="sgc-step-presence-avatars">
+              {[...validatedMembers, ...activeMembers].slice(0, 3).map((m) => (
+                <span key={m.profileId} className="sgc-step-presence-avatar">
+                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
+                </span>
+              ))}
+              {presenceCount > 3 && <span className="sgc-step-presence-more">+{presenceCount - 3}</span>}
+            </span>
+            <span className="sgc-step-presence-count">{presenceCount}</span>
           </button>
         )}
       </div>
@@ -705,83 +677,46 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                     <CheckCheck size={12}/>
                     <span>Valider ce sous-guide</span>
                   </button>
-                  <button
-                    className={`sgc-ctrl-btn sgc-read-toggle-btn ${readingMode ? "active" : ""}`}
-                    onClick={() => { setReadingMode(v => !v); setReadIndex(0); }}
-                    title="Vue lecture : une étape à la fois avec navigation Suivant ›"
-                  >
-                    {readingMode ? <LayoutGrid size={12}/> : <BookOpen size={12}/>}
-                    <span>{readingMode ? "Vue liste" : "Vue lecture"}</span>
-                  </button>
                 </div>
 
-                <div className="sgc-step-list" ref={stepListRef}>
-                  {readingMode ? (
-                    currentReadStep ? (
-                      <>
-                        {renderStep(currentReadStep)}
-                        <div className="sgc-read-nav">
-                          <span className="sgc-read-progress">
-                            Étape {currentReadStep.stepNumber} / {readSteps[readSteps.length - 1].stepNumber}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              className="sgc-ctrl-btn"
-                              disabled={safeReadIndex === 0}
-                              onClick={() => setReadIndex(safeReadIndex - 1)}
-                            >
-                              <ChevronLeft size={12}/> Précédent
-                            </button>
-                            <button
-                              type="button"
-                              className="sgc-ctrl-btn sgc-read-next"
-                              disabled={safeReadIndex >= readSteps.length - 1}
-                              onClick={() => setReadIndex(safeReadIndex + 1)}
-                            >
-                              Suivant <ChevronRight size={12}/>
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
-                        <Loader2 size={24} className="mx-auto mb-2 text-emerald-500 animate-spin" />
-                        <span>Chargement des étapes…</span>
-                      </div>
-                    )
-                  ) : filteredSteps.length === 0 ? (
+                <div className="sgc-step-list">
+                  {filteredSteps.length === 0 ? (
                     <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
                       <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
                       <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
                     </div>
-                  ) : (
+                  ) : currentReadStep ? (
                     <>
-                      {filteredSteps.map(step => renderStep(step))}
-                      {filteredSteps.length > 0 && (
-                        <div className="sgc-step-nav">
+                      {renderStep(currentReadStep)}
+                      <div className="sgc-read-nav">
+                        <span className="sgc-read-progress">
+                          Étape {currentReadStep.stepNumber} / {readSteps[readSteps.length - 1].stepNumber}
+                        </span>
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             className="sgc-ctrl-btn"
-                            disabled={stepNavIndex === 0}
-                            onClick={() => goToStep(stepNavIndex - 1)}
+                            disabled={safeReadIndex === 0}
+                            onClick={() => setReadIndex(safeReadIndex - 1)}
                           >
                             <ChevronLeft size={12}/> Précédent
                           </button>
-                          <span className="sgc-read-progress">
-                            Étape {filteredSteps[stepNavIndex]?.stepNumber ?? "–"} / {filteredSteps[filteredSteps.length - 1]?.stepNumber ?? "–"}
-                          </span>
                           <button
                             type="button"
                             className="sgc-ctrl-btn sgc-read-next"
-                            disabled={stepNavIndex >= filteredSteps.length - 1}
-                            onClick={() => goToStep(stepNavIndex + 1)}
+                            disabled={safeReadIndex >= readSteps.length - 1}
+                            onClick={() => setReadIndex(safeReadIndex + 1)}
                           >
                             Suivant <ChevronRight size={12}/>
                           </button>
                         </div>
-                      )}
+                      </div>
                     </>
+                  ) : (
+                    <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                      <Loader2 size={24} className="mx-auto mb-2 text-emerald-500 animate-spin" />
+                      <span>Chargement des étapes…</span>
+                    </div>
                   )}
                 </div>
               </>
@@ -2976,12 +2911,11 @@ export default function OptimizedGuideClient({
               {/* Footer nav */}
               <footer className="step-footer" data-tour="guide-footer">
                 <div className="step-nav">
-                  {prevMs && (
-                    <button className="nav-btn prev" onClick={() => setSelected(prevMs)}>
-                      <ChevronLeft size={14}/> <span className="nav-label">Précédent</span>
-                    </button>
-                  )}
+                  <button className={`nav-btn prev ${prevMs ? "" : "disabled"}`} onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs}>
+                    <ChevronLeft size={14}/> <span className="nav-label">Précédent</span>
+                  </button>
                   <div className="step-actions">
+                    <span className="step-nav-counter">Étape {selectedIdx + 1} / {flatList.length}</span>
                     <button
                       className="jump-btn"
                       onClick={() => setIsMilestoneModalOpen(true)}
@@ -3022,11 +2956,9 @@ export default function OptimizedGuideClient({
                       <span>Réinitialiser</span>
                     </button>
                   </div>
-                  {nextMs && (
-                    <button className="nav-btn next" onClick={() => setSelected(nextMs)}>
-                      <span className="nav-label">Suivant</span> <ArrowRight size={14}/>
-                    </button>
-                  )}
+                  <button className={`nav-btn next ${nextMs ? "" : "disabled"}`} onClick={() => nextMs && setSelected(nextMs)} disabled={!nextMs}>
+                    <span className="nav-label">Suivant</span> <ArrowRight size={14}/>
+                  </button>
                 </div>
               </footer>
               </div>{/* /guide-read-col */}

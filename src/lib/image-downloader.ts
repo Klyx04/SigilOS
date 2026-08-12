@@ -45,7 +45,7 @@ function isPrivateIp(ip: string): boolean {
 }
 
 /** Non-blocking DNS (ssrf): validate protocol + resolve & reject internal IPs. */
-async function assertSafeUrl(rawUrl: string): Promise<void> {
+export async function assertSafeUrl(rawUrl: string): Promise<void> {
   let u: URL;
   try {
     u = new URL(rawUrl);

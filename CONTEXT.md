@@ -104,22 +104,31 @@
 - **Périmètre (fichiers)** : parser `src/lib/ganymede-parser.ts` · actions `optimized-guide-actions.ts` · rendu `OptimizedGuideClient.tsx` + `guide-styles.css` · `RushTimelineClient.tsx` (sylvestre, **non touché**) · onglet/admin `OptimizedGuideTab.tsx` / `god/dofus-guides/` (phase 6 séparée).
 - **Direction design 2026 « moins IA » appliquée** : palette disciplinée **doré = fil de quête · emerald = progression · rouge = danger · bleu = coords/infos**, zéro glow, typo ≥11px, motion ≤200ms, colonne lecture 840px + breadcrumb sticky.
 
-### 🎯 Architecture finale (décision user 10/08) — **mode unique « Guide Focus »**
-- **Un seul mode** plein écran (plus de bascule). **Mode mission supprimé** (overlay, CTA, état, CSS — nettoyé).
-- **Sidebar → sommaire repliable** : `sidebarOpen` (localStorage `guide-sommaire-{slug}`), bouton « Sommaire » (PanelLeft) + raccourci `S`, bouton flottant « Sommaire » quand repliée, contenu élargi plein écran.
-- **Bouton « Signaler un bug » restauré** (`QuestFeedbackButton`, `sourcePage=guide:<slug>`).
-- **Popin sociale 3ᵉ niveau** conservée (qui a validé / qui est dessus + « Demander de l'aide ») sur les étapes des cartes sous-guide accordéon.
-- **Par-Dofus gardé** (10/08) : refonte zero-glow `DofusQuestHub.tsx` + **fix hydration `<button>` imbriqués** dans `DofusTimelineQuest.tsx` (2 endroits → `<span role=button>`).
+### 🎯 Architecture finale — mode unique « Guide Focus » plein écran (refonte complète 10-12/08)
+- **Un seul mode** : le guide occupe tout l'écran. Mode mission supprimé. **Chrome app masqué** (`body.guide-fullscreen` → cache sidebar/topnav/footer via `globals.css`, `.guide-shell` = `position:fixed; inset:0; height:100dvh`).
+- **Vue de base supprimée** (fini « Hub / X/Y complétées / % / Rechercher / Suivi de guilde ») : plus de sidebar.
+- **Mini-bar sticky** (`guide-hud`) : bouton **✕ Quitter** (sortie garantie) · Sommaire (bouton + raccourci `S`) · sélecteur de guide (`getOptimizedGuidesLite`) · `Phase X · [GPx] nom · Z%` · barre dorée.
+- **Tiroir Sommaire (TOC)** : chapitres/jalons, rendu en `createPortal(document.body)` (passe AU-DESSUS de la navbar app), fermeture `S`/Échap. **Épinglable** en rail fixe 340px (bouton 📌, localStorage `guide-toc-pinned-{guildId}-{slug}`, repli < 1200px).
+- **Hiérarchie Échap** : 1) ferme le sélecteur de guide 2) ferme le tiroir 3) quitte le module.
+- **Bandeau héro style rush sylvestre** (`guide-hero`, **pleine largeur**) : grand bouton « Quêtes Dofus », 4 cartes — **Personnage Actif** (`GuideCharDropdown` : mules/classe) · **Alignement/Ordre** (`getAlignment`/`ORDERS`, badge tranche) · **Métamob/Ocre** (`ocreStats` : Gardiens X/51 · Archis X/286 + lien `quete-ocre` ou « Lier Metamob ») · **Progression** (% + barre). La **lecture seule** reste en colonne 840px centrée (`.guide-read-col`).
+- **Étapes des sous-guides en liste** (plus de focus une-à-la-une), avatars Discord remplacés par un compteur « N membres » discret, popin sociale 3ᵉ niveau conservée, « Signaler un bug » restauré.
+- **Boutons dé-glowés** (directives design system) : `nav-btn`/`validate-btn`/`bookmark-btn` sans glow/pilule/translateY, footer stable (`min-width`).
+- **Par-Dofus gardé** (10/08) : refonte zero-glow `DofusQuestHub.tsx` + fix hydration `<button>` imbriqués dans `DofusTimelineQuest.tsx`.
 
-### Commits clés (poussés, ~10 sur la branche)
-`631ae4c8` tokens · `46aa6378` nettoyage AI slop · `5c1e6dc2` mode mission · `ef1dd0ce` lecture · `e5578ac3` entraide/reward/tags · `f15f766e` par-Dofus + fix hydration · `767f7839` focus · `3a175e93` désencombrement · `9e15d73b` mode unique Guide Focus (+ mission supprimée) · `e3660144` **fix corruption encodage UTF-8** (mojibake Ganymède/›/🗺️ via PowerShell — attention : Windows PowerShell 5.1 `Get-Content` lit en ANSI, utiliser `[IO.File]::ReadAllText/WriteAllText` UTF-8 ou l'outil éditeur).
+### Commits clés (refonte complète, poussés)
+Anciens : `631ae4c8` tokens · `46aa6378` nettoyage AI slop · `5c1e6dc2` mode mission · `ef1dd0ce` lecture · `e5578ac3` entraide/reward/tags · `f15f766e` par-Dofus + fix hydration · `767f7839` focus · `3a175e93` désencombrement · `9e15d73b` mode unique Guide Focus · `e3660144` fix encodage UTF-8 (mojibake).
+Session 11/08 : `36bf6a25` hover carte `CoordHoverMap` + suppression bandeaux positions · `0b93d302` pin supply-chain CI · `908582ea` CONTEXT · `aea3ac68` CodeQL SSRF/command-injection.
+Refonte finale : `4a2d8e04` HUD flottant + sélecteur guide + nettoyage · `d5a2b83e` suppression sidebar + tiroir sommaire + étapes en liste + sélecteur personnage · `8aeb9e9e` tiroir TOC en portal + plein écran app + boutons dé-glowés · `f6fa41c1` bandeau style sylvestre + aération.
+Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` **AI slop unifié Ganymède+Rush** (zéro glow/blur/translateY/pulse) · `0dd86d03` **échelle z-index unifiée** (tokens `--z-*`, retrait `z-[999999]`) · `0231ac9a` **V2** (bouton Quitter HUD + Échap hiérarchisé + sommaire épinglable + hero pleine largeur + plein écran `100dvh`) · `f6aa862b` **3 chantiers UX** (valider tout le guide d'un coup `completeGuideProgress` + libellés unifiés « Masquer/Afficher les étapes validées » + bouton valider/étape agrandi).
 
 ### ⚠️ Restant / à savoir
-- **PR `refonte-module-ganymede` → `dev`** pas encore créée.
-- **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : **fichiers absents côté serveur** (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
-- **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` (~ligne 1286) — correctif = composant enfant sous Suspense (option).
+- **PR `refonte-module-ganymede` → `dev`** à merger (auto-approbation solo sur `dev`).
+- **Reste à faire (12/08, mémo dédiée)** : **E** couche temps réel Redis/WS (`guide:${guildId}:${slug}`, heartbeat 45s, batching, room guide) · **F** hook `use-guide-presence` + LiveActivityTicker + mode discret · **G** portages UX croisés (recherche/aide/prérequis Rush→Ganymède ; CoordHoverMap→Rush) · **H** réduction de boutons (HUD minimal + ⌘K) · **I** agrégation serveur `getGuildOptimizedGuideProgress` · **J** finalisation + PR. *(Fait 12/08 : valider tout le guide d'un coup, libellés unifiés, boutons valider/étape.)*
+- **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : fichiers absents côté serveur (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
+- **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` — correctif = composant enfant sous Suspense (option).
 - **Leaflet `_leaflet_pos`** (`map-viewer.tsx`) : pré-existant, map détachée/cleanup.
-- **Rush sylvestre** : **NE PAS toucher**. Admin/composer : PR dédiée (phase 6).
+- **Rush sylvestre** : nettoyage AI slop + z-index faits (12/08) ; reste portage `CoordHoverMap`, réduction boutons, temps réel partagé (phases E→H). **Ne pas fusionner les deux modules** (différenciateurs préservés). Admin/composer (`OptimizedGuideAdminClient`, `OptimizedGuideTab`, `god/dofus-guides`) : **phase 6 dédiée** (réimport à la volée déjà fonctionnel).
+- Mémo à jour : `src/temp/memo-2026-08-12-refonte-ganymede-rush.md` (source de vérité session en cours) + `src/temp/memo-2026-08-10-module-ganymede.md` (historique 10-12/08).
 
 ---
 
@@ -608,3 +617,11 @@
 - **Branche `refonte-module-ganymede` poussée** (commits `36bf6a25`, `0b93d302`) → **PR vers `dev` à créer/merger** (le user solo peut s'auto-approuver sur `dev`).
 - **PR dependabot en cours** : `lodash` mergé ✅ · `undici` (sécurité) prête · `ws` (sécurité) en rebase.
 - **Prochaine session** : **continuer la refonte du guide complet Ganymède** (chantier ouvert — cf. `src/temp/memo-2026-08-10-module-ganymede.md`).
+
+
+## Mise a jour 11/08 (suite) - Triage CodeQL + corrections securite
+- Premier scan CodeQL : ~68 alertes. Triage des Critical :
+  - SSRF (16) : 15 faux positifs (hotes fixes). 1 vraie (`dofusbook-actions.ts:22`, URL utilisateur fetch avec redirect:follow, aucun garde) -> **CORRIGE** : export `assertSafeUrl` (image-downloader) + host allowlist d-bk.net/dofusbook.net + blocage IP internes/DNS rebinding.
+  - Uncontrolled command line (4) : reel mais admin-only -> **CORRIGE** : validation slug (regex) avant execAsync (`dofus-v3-actions.ts`, `dofus-quest-admin-actions.ts`).
+- Commit `aea3ac68` pousse sur `refonte-module-ganymede` (PR #451). tsc 0, eslint 0 erreur, tests 137/137.
+- Reste a trier (non bloquant, CodeQL non requis pour merge) : sanitization/double escaping, format string cache.ts, DOM XSS kama widgets, dist/*.js (build, ignorer).

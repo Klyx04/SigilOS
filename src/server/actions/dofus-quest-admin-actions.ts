@@ -609,6 +609,9 @@ export async function pumpQuestsFromDofusDB(
 }
 
 export async function compileDofusChain(slug: string): Promise<ActionResponse<{ log: string }>> {
+    if (!/^[a-z0-9][a-z0-9-]*$/i.test(slug)) {
+        return { success: false, error: "Slug invalide" };
+    }
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 

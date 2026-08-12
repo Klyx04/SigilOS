@@ -1,25 +1,29 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
+  CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, PanelLeftClose
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, completeGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
 import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
+import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -342,9 +346,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   const [loaded, setLoaded] = useState(false);
   const color = getGPColor(seq.subGuideRef);
 
-  // Focus & Hide state
-  const readMode = true;
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  // Hide state
   const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
 
   const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
@@ -372,44 +374,12 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     }
   }, [expanded, loaded, loading, load]);
 
-  // Set initial focus mode index to the first unchecked step
-  useEffect(() => {
-    if (steps.length > 0) {
-      const firstUnchecked = steps.findIndex(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
-      if (firstUnchecked !== -1) {
-        setCurrentStepIndex(firstUnchecked);
-      } else {
-        setCurrentStepIndex(0);
-      }
-    }
-  }, [steps, seq.subGuideRef]);
-
-  // Clamp currentStepIndex within bounds of filteredSteps
-  useEffect(() => {
-    if (currentStepIndex >= filteredSteps.length && filteredSteps.length > 0) {
-      setCurrentStepIndex(filteredSteps.length - 1);
-    }
-  }, [filteredSteps.length, currentStepIndex]);
 
   const handleExpand = () => {
     if (!expanded) load();
     setExpanded(v => !v);
   };
 
-  const handleStepCheckToggle = (stepNumber: number, stepIndex: number) => {
-    const key = `${seq.subGuideRef}-${stepNumber}`;
-    const isNowChecked = !checkedSteps.has(key);
-    onStepToggle(seq.subGuideRef, stepNumber);
-
-    const isHidingCompleted = hideCompletedLocal || hideCompletedGlobal;
-    if (isNowChecked) {
-      if (!isHidingCompleted && stepIndex < filteredSteps.length - 1) {
-        setTimeout(() => {
-          setCurrentStepIndex(stepIndex + 1);
-        }, 400);
-      }
-    }
-  };
 
   // ─── Pre-compute step presence (memoized) ─────────────────────────────────
   // This avoids O(steps × members) computation inside filteredSteps.map().
@@ -474,7 +444,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
           {seq.subGuideRef}
         </div>
         <div className="sgc-info">
-          <span className="text-[9px] uppercase tracking-wider font-extrabold text-zinc-500 block mb-0.5">Sous-guide tactique</span>
           <span 
             className="sgc-name hover:text-emerald-400 transition-colors cursor-pointer"
             title={`Filtrer par le guide secondaire : ${seq.subGuideName}`}
@@ -573,171 +542,81 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                   <button 
                     className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
-                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes terminées de ce sous-guide"}
+                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes validées de ce sous-guide"}
                   >
-                    <EyeOff size={12}/>
-                    <span>Cacher validées ({done})</span>
+                    {hideCompletedLocal || hideCompletedGlobal ? <Eye size={12}/> : <EyeOff size={12}/>}
+                    <span>{hideCompletedLocal || hideCompletedGlobal ? `Afficher les étapes validées (${done})` : `Masquer les étapes validées (${done})`}</span>
                   </button>
                 </div>
 
-                {(() => {
-                  const step = filteredSteps[currentStepIndex];
-                  if (!step) {
-                    return (
-                      <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
-                        <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500 animate-bounce" />
-                        <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
-                      </div>
-                    );
-                  }
-
-                  const key = `${seq.subGuideRef}-${step.stepNumber}`;
-                  const checked = checkedSteps.has(key);
-
-                  // ── O(1) presence lookup from pre-computed map ──
-                  const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
-
-                  return (
-                    <div className="sgc-focus-wrap" id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}>
-                      <div className="sgc-focus-header">
-                        <button 
-                          className="sgc-focus-nav-btn"
-                          disabled={currentStepIndex === 0}
-                          onClick={() => setCurrentStepIndex(prev => Math.max(0, prev - 1))}
-                        >
-                          <ChevronLeft size={16}/>
-                        </button>
-                        
-                        {/* Interactive Step Input selector */}
-                        <div className="flex items-center gap-1">
-                          <span className="text-[11px] text-zinc-400 font-bold">Étape</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={steps.length}
-                            value={step.stepNumber}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              if (!isNaN(val) && val >= 1 && val <= steps.length) {
-                                // Find index of this step in filtered steps
-                                const targetIdx = filteredSteps.findIndex(s => s.stepNumber === val);
-                                if (targetIdx !== -1) {
-                                  setCurrentStepIndex(targetIdx);
-                                } else {
-                                  // Fallback to closest step if filtered out (e.g. completed)
-                                  const rawIdx = steps.findIndex(s => s.stepNumber === val);
-                                  if (rawIdx !== -1) {
-                                    // Turn off hiding local to let user see it
-                                    setHideCompletedLocal(false);
-                                    setTimeout(() => {
-                                      setCurrentStepIndex(rawIdx);
-                                    }, 10);
-                                  }
-                                }
-                              }
-                            }}
-                            className="w-12 bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-center text-xs font-black text-emerald-400 outline-none focus:border-emerald-500 transition-colors"
-                            title="Entrez un numéro d'étape pour y aller directement"
-                          />
-                          <span className="text-[10px] text-zinc-500 font-semibold">
-                            / {steps.length}
-                          </span>
-                        </div>
-
-                        <button 
-                          className="sgc-focus-nav-btn"
-                          disabled={currentStepIndex === filteredSteps.length - 1}
-                          onClick={() => setCurrentStepIndex(prev => Math.min(filteredSteps.length - 1, prev + 1))}
-                        >
-                          <ChevronRight size={16}/>
-                        </button>
-                      </div>
-
-                      <div className={`sgc-step sgc-step-focus ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
-                        <div className="sgc-step-check" 
-                          onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
-                          {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
-                        </div>
-                        <button
-                          className="sgc-step-bookmark-btn"
-                          title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onStepBookmark(key);
-                          }}
-                        >
-                          {bookmarkStepKey === key ? (
-                            <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
-                          ) : (
-                            <Bookmark size={18} />
-                          )}
-                        </button>
-                        <span className="sgc-step-num">
-                          {step.stepNumber}
-                        </span>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <div className="sgc-step-content ganymade-step-text"
-                            onClick={onInteractiveClick}
-                            {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                          {(validatedMembers.length > 0 || activeMembers.length > 0) && (
-                            <div 
-                              role="button"
-                              tabIndex={0}
-                              className="sgc-step-presence cursor-pointer hover:opacity-80 active:scale-95 transition-all select-none"
-                              title="Cliquer pour voir la liste des membres ayant validé ou en cours sur cette étape"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onShowStepPresenceModal(
-                                  step.stepNumber,
-                                  step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                  validatedMembers,
-                                  activeMembers
-                                );
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  onShowStepPresenceModal(
-                                    step.stepNumber,
-                                    step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                    validatedMembers,
-                                    activeMembers
-                                  );
-                                }
-                              }}
-                            >
-                              {validatedMembers.slice(0, 5).map(m => (
-                                <div
-                                  key={`val-${m.profileId}`}
-                                  className="sgc-step-presence-avatar validated"
-                                  title={`✅ ${m.userName} — a validé cette étape`}
-                                >
-                                  {m.userAvatar
-                                    ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                                    : m.userName.charAt(0).toUpperCase()}
-                                </div>
-                              ))}
-                              {activeMembers.slice(0, 3).map(m => (
-                                <div
-                                  key={`act-${m.profileId}`}
-                                  className="sgc-step-presence-avatar active"
-                                  title={`📍 ${m.userName} — rendu à cette étape`}
-                                >
-                                  {m.userAvatar
-                                    ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                                    : m.userName.charAt(0).toUpperCase()}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          {/* Coords & Travel Roadmap Checks Section (supprimé — remplacé par le hover carte CoordHoverMap) */}
-                        </div>
-                      </div>
+                <div className="sgc-step-list">
+                  {filteredSteps.length === 0 ? (
+                    <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                      <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
+                      <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
                     </div>
-                  );
-                })()}
+                  ) : (
+                    filteredSteps.map((step) => {
+                      const key = `${seq.subGuideRef}-${step.stepNumber}`;
+                      const checked = checkedSteps.has(key);
+                      const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
+                      const presenceCount = validatedMembers.length + activeMembers.length;
+                      return (
+                        <div
+                          key={key}
+                          id={`sgc-step-${key}`}
+                          className={`sgc-step ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}
+                        >
+                          <div className="sgc-step-check" onClick={() => onStepToggle(seq.subGuideRef, step.stepNumber)}>
+                            {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
+                          </div>
+                          <button
+                            className="sgc-step-bookmark-btn"
+                            title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onStepBookmark(key);
+                            }}
+                          >
+                            {bookmarkStepKey === key ? (
+                              <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
+                            ) : (
+                              <Bookmark size={18} />
+                            )}
+                          </button>
+                          <span className="sgc-step-num">{step.stepNumber}</span>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <div className="sgc-step-content ganymade-step-text"
+                              onClick={onInteractiveClick}
+                              {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
+                            <div className="sgc-step-footer">
+                              {presenceCount > 0 && (
+                                <button
+                                  type="button"
+                                  className="sgc-step-presence-btn"
+                                  title="Voir qui a validé ou est en cours sur cette étape"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onShowStepPresenceModal(
+                                      step.stepNumber,
+                                      step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                      validatedMembers,
+                                      activeMembers
+                                    );
+                                  }}
+                                >
+                                  <Users size={11}/>
+                                  <span>{presenceCount} {presenceCount > 1 ? "membres" : "membre"}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </>
             )}
           </motion.div>
@@ -794,14 +673,10 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
         className={`chapter-header ${allDone ? "all-done" : ""} ${isChapterActive ? "active" : ""}`} 
         style={{
           "--accent-color": activeColor,
-          background: isChapterActive 
-            ? `linear-gradient(135deg, color-mix(in srgb, ${activeColor} 18%, transparent) 0%, rgba(255,255,255,0.02) 100%)` 
-            : undefined,
-          borderColor: isChapterActive ? `color-mix(in srgb, ${activeColor} 40%, transparent)` : undefined
         } as React.CSSProperties}
         onClick={() => onToggle(!isOpen)}
       >
-        <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "var(--accent-color)" : "#6366f1"}/>
+        <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "#d4a853" : "#3b82f6"}/>
         <div className="chapter-label">
           <span className="chapter-name">{label}</span>
           <div className="chapter-meta">
@@ -815,7 +690,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
             )}
           </div>
         </div>
-        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-indigo-300" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
+        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-[#d4a853]" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
       </button>
 
       <AnimatePresence>
@@ -921,12 +796,65 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   );
 }
 
+// ─── Sélecteur de personnage (bandeau, style rush sylvestre) ─────────────────
+function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: {
+  selectedCharacter: string;
+  mainPseudo: string;
+  mainClass?: string | null;
+  mules?: { pseudo: string; classe?: string | null; level?: number | null }[];
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const handleSelect = (char: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (char === "PRINCIPAL") params.delete("character");
+    else params.set("character", char);
+    router.push(pathname + "?" + params.toString());
+  };
+  const currentLabel = selectedCharacter === "PRINCIPAL" ? mainPseudo : selectedCharacter;
+  const selClass = selectedCharacter === "PRINCIPAL" ? mainClass : (mules || []).find(m => m.pseudo === selectedCharacter)?.classe || null;
+  const selIcon = selClass
+    ? (() => { const d = getClass(selClass); return d ? <img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/> : null; })()
+    : selectedCharacter === "PRINCIPAL" ? <Crown className="w-3.5 h-3.5 text-amber-500"/> : <Users className="w-3.5 h-3.5 text-blue-400"/>;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={false} className="gch-trigger">
+          <div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div>
+          <ChevronDown className="w-3 h-3 opacity-30 shrink-0"/>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="gch-content">
+        <DropdownMenuItem onClick={() => handleSelect("PRINCIPAL")} className={"gch-opt" + (selectedCharacter === "PRINCIPAL" ? " current" : "")}>
+          <div className="gch-opt-icon principal">{mainClass ? (() => { const d = getClass(mainClass); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Crown className="w-3 h-3 text-amber-500"/>}</div>
+          <div className="flex flex-col text-left">
+            <span className="text-xs font-bold">{mainPseudo}</span>
+            <span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass || "Principal"}</span>
+          </div>
+        </DropdownMenuItem>
+        {(mules || []).length > 0 && <div className="h-px bg-white/5 my-1" />}
+        {(mules || []).map(mule => (
+          <DropdownMenuItem key={mule.pseudo} onClick={() => handleSelect(mule.pseudo)} className={"gch-opt" + (selectedCharacter === mule.pseudo ? " current" : "")}>
+            <div className="gch-opt-icon mule">{mule.classe ? (() => { const d = getClass(mule.classe); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Users className="w-3 h-3 text-blue-400"/>}</div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold">{mule.pseudo}</span>
+              <span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level || 200} {mule.classe ? "• " + mule.classe : ""}</span>
+            </div>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
-  selectedCharacter = "PRINCIPAL", mainCharacter, mules = []
+  selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
+  currentUserProfile, ocreStats
 }: {
-  guide: { id: string; name: string; slug: string };
+  guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
   userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[]; currentStep?: string | null }[];
   guildProgress: GuildMember[];
@@ -934,6 +862,16 @@ export default function OptimizedGuideClient({
   selectedCharacter?: string;
   mainCharacter?: { pseudo: string; classe?: string | null };
   mules?: { pseudo: string; classe?: string | null; level?: number | null }[];
+  currentUserProfile?: {
+    alignment?: string | null;
+    alignmentOrder?: string | null;
+    alignmentLevel?: number;
+    altPseudos?: any[];
+    dofusClass?: string | null;
+    metamobPseudo?: string | null;
+    pseudoDofus?: string | null;
+  };
+  ocreStats?: { bosses?: { gathered?: number; total?: number }; archis?: { gathered?: number; total?: number }; progressPercent?: number; currentStep?: number; serverName?: string } | null;
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -944,6 +882,12 @@ export default function OptimizedGuideClient({
     new Set(userProgress.filter(p => p.isCompleted).map(p => p.milestoneId))
   );
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // Mode plein écran : masque sidebar/topnav/footer de l'app (pattern map-fullscreen)
+  useEffect(() => {
+    document.body.classList.add("guide-fullscreen");
+    return () => document.body.classList.remove("guide-fullscreen");
+  }, []);
 
   const [openChapters, setOpenChapters] = useState<Record<number, boolean>>(() => {
     const initial: Record<number, boolean> = {};
@@ -996,19 +940,6 @@ export default function OptimizedGuideClient({
     });
   }, [guide.slug, selected, guildId]);
 
-  const handleCollapseAll = useCallback(() => {
-    setOpenChapters({});
-    toast.info("Tous les chapitres ont été réduits");
-  }, []);
-
-  const handleExpandAll = useCallback(() => {
-    const all: Record<number, boolean> = {};
-    initialMilestones.forEach(m => {
-      all[m.chapter] = true;
-    });
-    setOpenChapters(all);
-    toast.success("Tous les chapitres ont été développés");
-  }, [initialMilestones]);
 
   const handleToggleChapter = useCallback((chapterNum: number, open: boolean) => {
     setOpenChapters(prev => ({
@@ -1038,7 +969,6 @@ export default function OptimizedGuideClient({
     });
     return initial;
   });
-  const [search, setSearch] = useState("");
   const [validating, setValidating] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -1059,8 +989,7 @@ export default function OptimizedGuideClient({
   
   const [activeSeqIndex, setActiveSeqIndex] = useState(0);
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
-  const [hideCompleted, setHideCompleted] = useState(false);
-  const [legendOpen, setLegendOpen] = useState(false);
+
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
@@ -1093,6 +1022,8 @@ export default function OptimizedGuideClient({
 
   const [isResetMilestoneConfirmOpen, setIsResetMilestoneConfirmOpen] = useState(false);
   const [isResetGuideConfirmOpen, setIsResetGuideConfirmOpen] = useState(false);
+  const [isCompleteGuideConfirmOpen, setIsCompleteGuideConfirmOpen] = useState(false);
+  const [isCompletingGuide, setIsCompletingGuide] = useState(false);
 
   const handleShowStepPresenceModal = useCallback((
     stepNumber: number,
@@ -1484,10 +1415,6 @@ export default function OptimizedGuideClient({
   const filteredChapters = useMemo(() => {
     let list = chapters;
 
-    if (hideCompleted) {
-      list = list.map(ch => ({ ...ch, items: ch.items.filter(m => !completedIds.has(m.id)) })).filter(ch => ch.items.length > 0);
-    }
-
     if (activeGuideFilter) {
       list = list.map(ch => ({
         ...ch,
@@ -1495,19 +1422,8 @@ export default function OptimizedGuideClient({
       })).filter(ch => ch.items.length > 0);
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.map(ch => ({
-        ...ch,
-        items: ch.items.filter(m =>
-          m.title.toLowerCase().includes(q) ||
-          m.sequences.some(s => s.subGuideName.toLowerCase().includes(q))
-        )
-      })).filter(ch => ch.items.length > 0);
-    }
-
     return list;
-  }, [chapters, search, activeGuideFilter, hideCompleted, completedIds]);
+  }, [chapters, activeGuideFilter]);
 
   // Overall progress
   const totalDone = completedIds.size;
@@ -1561,29 +1477,100 @@ export default function OptimizedGuideClient({
     });
   }, [selected, guildId]);
 
-  // ─── Sommaire / sidebar repliable (mode unique plein écran) ─────────────
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    try { return localStorage.getItem(`guide-sommaire-${guide.slug}`) !== "0"; } catch { return true; }
-  });
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen(prev => {
+  // ─── Sommaire (tiroir TOC + rail épinglable, mode unique plein écran) ─────────
+  const router = useRouter();
+  const [tocOpen, setTocOpen] = useState(false);
+  const [tocPinned, setTocPinned] = useState(false);
+
+  // Écrans < 1200px : le rail épinglé se replie → le tiroir drawer reste le seul accès
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1200px)");
+    const update = () => setIsNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // Le tiroir n'est rendu que si le rail épinglé n'est pas déjà visible (large écran)
+  const drawerActive = tocOpen && (!tocPinned || isNarrow);
+
+  const toggleToc = useCallback(() => setTocOpen(v => !v), []);
+  // Ouverture intelligente : si le rail épinglé est visible (écran >= 1200px),
+  // le bouton Sommaire / la touche S n'ouvrent pas de tiroir superflu.
+  const toggleTocSide = useCallback(() => {
+    if (tocPinned && !isNarrow) return;
+    setTocOpen(v => !v);
+  }, [tocPinned, isNarrow]);
+
+  // Persistance du mode épinglé par guide (pattern guide-sommaire-{slug} existant)
+  const tocPinKey = `guide-toc-pinned-${guildId}-${guide.slug}`;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(tocPinKey);
+      if (stored === "true") setTocPinned(true);
+    } catch { /* localStorage indisponible → drawer par défaut */ }
+  }, [tocPinKey]);
+
+  const toggleTocPin = useCallback(() => {
+    setTocPinned(prev => {
       const next = !prev;
-      try { localStorage.setItem(`guide-sommaire-${guide.slug}`, next ? "1" : "0"); } catch { /* ignore */ }
+      try {
+        window.localStorage.setItem(tocPinKey, next ? "true" : "false");
+      } catch { /* non bloquant */ }
+      if (next) setTocOpen(false);
       return next;
     });
-  }, [guide.slug]);
+  }, [tocPinKey]);
 
-  // Raccourci clavier S : ouvrir/fermer le sommaire
+  // --- Selecteur de guide (HUD) — déclaré ici car utilisé par la hiérarchie Échap --
+  const [guidesOpen, setGuidesOpen] = useState(false);
+
+  // Raccourci clavier S : ouvrir/fermer le sommaire · Échap : hiérarchie
+  // (1. ferme le sélecteur de guide 2. ferme le tiroir 3. quitte le module)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
-      if (e.key === "s" || e.key === "S") toggleSidebar();
+      if (e.key === "s" || e.key === "S") { toggleTocSide(); }
+      if (e.key === "Escape") {
+        if (guidesOpen) { setGuidesOpen(false); return; }
+        if (drawerActive) { setTocOpen(false); return; }
+        router.push(`/dashboard/${guildId}/quetes-dofus`);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [toggleSidebar]);
+  }, [guidesOpen, drawerActive, toggleTocSide, guildId, router]);
+
+  // --- Selecteur de guide (HUD) ---------------------------------------------------
+  const [guidesList, setGuidesList] = useState<{ id: string; slug: string; name: string; displayMode?: string | null }[]>([]);
+  const [guidesLoaded, setGuidesLoaded] = useState(false);
+
+  useEffect(() => {
+    if (guidesLoaded) return;
+    let cancelled = false;
+    getOptimizedGuidesLite(guildId).then(res => {
+      if (cancelled || !res?.success) return;
+      setGuidesList((res.guides || []).filter((g: any) => g.slug !== guide.slug));
+      setGuidesLoaded(true);
+    }).catch(() => { /* non bloquant */ });
+    return () => { cancelled = true; };
+  }, [guildId, guide.slug, guidesLoaded]);
+
+  useEffect(() => {
+    if (!guidesOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.('.guide-switcher')) setGuidesOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+    };
+  }, [guidesOpen]);
+
+
 
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
@@ -1677,6 +1664,25 @@ export default function OptimizedGuideClient({
     } catch { toast.error("Erreur lors de la réinitialisation du guide"); }
     finally { setValidating(false); }
   }, [guildId, guide.id, guide.slug, altPseudo]);
+
+  // ─── Valider TOUT le guide d'un coup ─────────────────────────────────────────
+  const handleCompleteGuide = useCallback(() => {
+    setIsCompleteGuideConfirmOpen(true);
+  }, []);
+
+  const confirmCompleteGuide = useCallback(async () => {
+    setIsCompletingGuide(true);
+    setIsCompleteGuideConfirmOpen(false);
+    try {
+      const res = await completeGuideProgress(guildId, guide.id, altPseudo);
+      if ((res as any).success) {
+        // Tous les jalons complétés côté client (le serveur a persisté chaque milestone)
+        setCompletedIds(new Set(milestones.map(m => m.id)));
+        toast.success("Guide validé 🎉", { description: "Tous les jalons sont maintenant complétés." });
+      }
+    } catch { toast.error("Erreur lors de la validation du guide"); }
+    finally { setIsCompletingGuide(false); }
+  }, [guildId, guide.id, altPseudo, milestones]);
 
   const handleInteractiveClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -1946,8 +1952,71 @@ export default function OptimizedGuideClient({
   }, [milestones, guildId, setCreateDjModal, setCreateUnpopulatedDjModal, setDungeonChoiceModal, setQuestChoiceModal, selected]);
 
 
+  // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
+  const activeSeq = selected
+    ? [...selected.sequences].sort((a, b) => a.order - b.order)[activeSeqIndex] || null
+    : null;
   const isCompleted = selected ? completedIds.has(selected.id) : false;
   const typeConf = selected ? (TYPE_CONFIG[selected.type] ?? TYPE_CONFIG.QUETE_SERIE) : TYPE_CONFIG.QUETE_SERIE;
+
+  // ─── Contenu du sommaire (drawer OU rail épinglé) — un seul composant, deux conteneurs ───
+  const renderTocPanel = ({ pinned }: { pinned: boolean }) => (
+    <>
+      <div className="toc-header">
+        <div className="toc-title">
+          <span className="toc-title-label">Sommaire</span>
+          <span className="toc-title-name">{guide.name}</span>
+          <span className="toc-title-progress">{overallPct}% complété</span>
+        </div>
+        <div className="toc-header-actions">
+          <button
+            type="button"
+            className={"toc-pin-btn" + (pinned ? " active" : "")}
+            onClick={toggleTocPin}
+            title={pinned ? "Désépingler le sommaire" : "Épingler le sommaire (rail fixe)"}
+            aria-pressed={pinned}
+          >
+            {pinned ? <PinOff size={14}/> : <Pin size={14}/>}
+          </button>
+          {!pinned && (
+            <button type="button" className="toc-close" onClick={() => setTocOpen(false)} title="Fermer (S ou Échap)">
+              <X size={15}/>
+            </button>
+          )}
+        </div>
+      </div>
+      {activeGuideFilter && (
+        <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
+          <BookOpenCheck size={12}/> ← Guide principal
+        </button>
+      )}
+      <div className="sidebar-chapters toc-chapters">
+        {filteredChapters.length === 0 ? (
+          <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+        ) : (
+          filteredChapters.map((ch) => (
+            <ChapterGroup
+              key={ch.chapter}
+              chapter={ch.chapter}
+              label={ch.label}
+              milestones={ch.items}
+              selectedId={selected?.id}
+              completedIds={completedIds}
+              onSelect={ms => { setSelected(ms); if (!pinned) setTocOpen(false); }}
+              isOpen={openChapters[ch.chapter] ?? false}
+              onToggle={(open) => handleToggleChapter(ch.chapter, open)}
+              presenceMap={presenceMap}
+              bookmarkId={bookmarkId}
+              guildId={guildId}
+              onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
+              onBookmark={handleBookmark}
+              onResetMilestone={handleResetMilestone}
+            />
+          ))
+        )}
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -1961,184 +2030,14 @@ export default function OptimizedGuideClient({
           display: none !important;
         }
       `}} />
-      <div className={`guide-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
+      <div className={"guide-shell" + (tocPinned ? " toc-pinned" : "")}>
 
-      {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
-      <aside className="guide-sidebar">
-
-        {/* ── Compact Header ── */}
-        <div className="sidebar-compact-header">
-          <Link href={`/dashboard/${guildId}/quetes-dofus`} className="sb-back-btn group">
-            <ChevronLeft size={11} className="group-hover:-translate-x-0.5 transition-transform"/>
-            <span>Hub</span>
-          </Link>
-          <div className="sb-guide-meta">
-            <span className="sb-guide-name" title={guide.name}>{guide.name}</span>
-            <span className="sb-guide-stats">{totalDone}/{totalMs} complétées</span>
-          </div>
-          <div className="sb-ring-wrap">
-            <ProgressRing pct={overallPct} size={38} stroke={3} color="#10b981"/>
-            <span className="sb-ring-pct">{overallPct}%</span>
-          </div>
-        </div>
-
-        {/* ── Compact Toolbar ── */}
-        <div className="sidebar-toolbar">
-          {/* Search */}
-          <div className="sb-search">
-            <Search size={11} className="sb-search-icon"/>
-            <input
-              className="sb-search-input"
-              placeholder="Rechercher une étape…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="sb-search-clear"><X size={10}/></button>
-            )}
-          </div>
-
-          {/* Actions row */}
-          <div className="sb-actions-row">
-            {/* Hide completed */}
-            <button
-              className={`sb-action-btn sb-action-btn-hide-completed ${hideCompleted ? "active" : ""}`}
-              onClick={() => setHideCompleted(v => !v)}
-              title={hideCompleted ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-            >
-              {hideCompleted ? <Eye size={13}/> : <EyeOff size={13}/>}
-            </button>
-
-            {/* Collapse all */}
-            <button className="sb-action-btn sb-action-btn-collapse" onClick={handleCollapseAll} title="Réduire tous les chapitres">
-              <ChevronDown size={13} style={{ transform: "rotate(180deg)" }}/>
-            </button>
-
-            {/* Expand all */}
-            <button className="sb-action-btn sb-action-btn-expand" onClick={handleExpandAll} title="Développer tous les chapitres">
-              <ChevronDown size={13}/>
-            </button>
-
-            {/* Legend toggle */}
-            <button
-              className={`sb-action-btn sb-action-btn-legend ${legendOpen ? "active" : ""}`}
-              onClick={() => setLegendOpen(v => !v)}
-              title="Légende des indicateurs"
-            >
-              <HelpCircle size={13}/>
-            </button>
-
-            {/* Reset entire guide progress */}
-            <button
-              className="sb-action-btn sb-action-btn-reset text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
-              onClick={handleResetGuide}
-              title="Réinitialiser TOUT le guide (progression remise à zéro)"
-              disabled={validating}
-            >
-              <RotateCcw size={13}/>
-            </button>
-
-          </div>
-
-          {/* Guild radar mini — only if members */}
-          {guildProgress.length > 0 && (
-            <button 
-              onClick={() => setIsAllMembersModalOpen(true)}
-              className="sb-radar-chip w-full hover:bg-white/5 border border-white/5 hover:border-white/10 rounded-xl transition-all p-2 text-left flex flex-col gap-1 cursor-pointer"
-              title="Voir la liste des membres"
-            >
-              <div className="flex items-center gap-1.5 text-blue-400">
-                <Users size={12} className="shrink-0"/>
-                <span className="text-[11px] font-black uppercase tracking-wider">Suivi de guilde</span>
-              </div>
-              <div className="text-[10px] text-zinc-400 font-medium">
-                <strong>{uniqueGuildMembers.length}</strong> {uniqueGuildMembers.length > 1 ? "membres suivent" : "membre suit"} ce guide.
-              </div>
-              {Object.keys(presenceMap).length > 0 && (
-                <div className="text-[9px] text-zinc-500">
-                  Répartis sur <strong>{Object.keys(presenceMap).length}</strong> jalon{Object.keys(presenceMap).length > 1 ? "s" : ""} différent{Object.keys(presenceMap).length > 1 ? "s" : ""} du parcours.
-                </div>
-              )}
-              <div className="text-[9px] text-indigo-400 mt-0.5 underline font-bold">
-                Afficher les membres →
-              </div>
-            </button>
-          )}
-
-          {/* Back to main guide (only when filter active) */}
-          {activeGuideFilter && (
-            <button
-              onClick={handleBackToMainGuideCurrentStep}
-              className="sb-back-main-btn"
-              title="Retourner à votre position du guide principal"
-            >
-              <BookOpenCheck size={10}/>
-              <span>← Guide principal</span>
-            </button>
-          )}
-
-          {/* Legend panel */}
-          <AnimatePresence initial={false}>
-            {legendOpen && (
-              <motion.div
-                className="sb-legend-panel"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <div className="sb-legend-row">
-                  <Bookmark size={10} className="text-amber-500 fill-amber-500/20 shrink-0"/>
-                  <span><strong className="text-amber-400">J&apos;en suis là</strong> — Position courante (sans valider)</span>
-                </div>
-                <div className="sb-legend-row">
-                  <CheckCircle2 size={10} className="text-emerald-500 shrink-0"/>
-                  <span><strong className="text-emerald-400">Validée</strong> — Étape terminée</span>
-                </div>
-                <div className="sb-legend-row">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)] shrink-0"/>
-                  <span><strong className="text-blue-400">Sélectionnée</strong> — Vue active</span>
-                </div>
-                <div className="sb-legend-row">
-                  <Circle size={10} className="text-zinc-600 shrink-0"/>
-                  <span><strong>À faire</strong> — Non commencée</span>
-                </div>
-                <div className="sb-legend-row">
-                  <Users size={10} className="text-blue-400 shrink-0"/>
-                  <span><strong>Guilde</strong> — Membres positionnés ici</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Chapter list */}
-        <div className="sidebar-chapters">
-          {filteredChapters.length === 0 ? (
-            <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
-          ) : (
-            filteredChapters.map((ch, idx) => (
-              <ChapterGroup
-                key={ch.chapter}
-                chapter={ch.chapter}
-                label={ch.label}
-                milestones={ch.items}
-                selectedId={selected?.id}
-                completedIds={completedIds}
-                onSelect={ms => setSelected(ms)}
-                isOpen={openChapters[ch.chapter] ?? false}
-                onToggle={(open) => handleToggleChapter(ch.chapter, open)}
-                presenceMap={presenceMap}
-                bookmarkId={bookmarkId}
-                guildId={guildId}
-                onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
-                onBookmark={handleBookmark}
-                onResetMilestone={handleResetMilestone}
-              />
-            ))
-          )}
-        </div>
-      </aside>
+      {/* ── Sommaire épinglé (rail fixe, visible tant que >=1200px) ── */}
+      {tocPinned && (
+        <aside className="toc-rail">
+          {renderTocPanel({ pinned: true })}
+        </aside>
+      )}
 
       {/* ── CENTER CONTENT ───────────────────────────────────────────────── */}
       <main className="guide-main" ref={mainRef}>
@@ -2154,162 +2053,291 @@ export default function OptimizedGuideClient({
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
               className="guide-content"
             >
-              {/* Breadcrumb de progression sticky */}
-              <div className="guide-read-crumb">
-                <div className="guide-read-crumb-path">
-                  Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
-                  {selected.chapterLabel ? <><span className="sep"> · </span><span>{selected.chapterLabel}</span></> : null}
-                  <span className="sep"> · </span>
-                  <span className="here">{overallPct}% complété</span>
-                </div>
-                <div className="guide-read-crumb-bar"><div style={{ width: `${overallPct}%` }} /></div>
-                <span className="guide-read-crumb-pct">{overallPct}%</span>
-              </div>
-
-              {/* Guide name banner */}
-              <div className="guide-name-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-zinc-950/80 via-emerald-950/20 to-zinc-950/80 border border-emerald-500/20 shadow-2xl flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {/* Sommaire toggle */}
+              {/* Barre sticky — sommaire, guide & progression */}
+              <div className="guide-hud">
+                <div className="guide-hud-row">
+                  <Link
+                    href={`/dashboard/${guildId}/quetes-dofus`}
+                    className="hud-exit"
+                    title="Quitter le guide (Échap)"
+                    aria-label="Quitter le guide"
+                  >
+                    <X size={14}/>
+                    <span>Quitter</span>
+                  </Link>
                   <button
                     type="button"
                     className="guide-sommaire-btn"
-                    onClick={toggleSidebar}
-                    title={sidebarOpen ? "Masquer le sommaire (S)" : "Afficher le sommaire (S)"}
+                    onClick={toggleTocSide}
+                    title="Ouvrir le sommaire (S)"
                   >
-                    {sidebarOpen ? <PanelLeftClose size={15}/> : <PanelLeft size={15}/>}
+                    <PanelLeft size={14}/>
                     <span>Sommaire</span>
                   </button>
 
-                  <BookOpen size={14} className="text-emerald-400"/>
-                  <span className="guide-name-label font-black text-xs uppercase tracking-widest text-emerald-400">{guide.name}</span>
-                  <span className="guide-name-sep text-zinc-600">›</span>
-                  <span className="guide-name-step text-xs font-semibold text-zinc-300">{decodeTitle(selected.title)}</span>
-                  {bookmarkId === selected.id && (
-                    <span title="Votre position actuelle"><BookmarkCheck size={14} className="text-amber-400 ml-1.5"/></span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Guild Presence Overview */}
-                  {uniqueGuildMembers.length > 0 && (
-                    <div className="flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
-                      <div className="flex -space-x-1.5 overflow-hidden">
-                        {uniqueGuildMembers.slice(0, 4).map((member) => (
-                          <div
-                            key={member.profileId}
-                            className="inline-block h-5 w-5 rounded-full ring-2 ring-zinc-950 bg-zinc-900 overflow-hidden"
-                            title={member.userName}
-                          >
-                            {member.userAvatar ? (
-                              <img src={member.userAvatar} alt={member.userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center text-[9px] font-bold text-zinc-400 bg-zinc-800">
-                                {member.userName.slice(0, 1).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                  <div className="guide-switcher">
+                    <button
+                      type="button"
+                      className="guide-switcher-btn"
+                      onClick={() => setGuidesOpen(v => !v)}
+                      title="Changer de guide"
+                      aria-expanded={guidesOpen}
+                    >
+                      <BookOpen size={13}/>
+                      <span className="guide-switcher-label">{guide.name}</span>
+                      <ChevronDown size={12} className={"guide-switcher-chev" + (guidesOpen ? " open" : "")}/>
+                    </button>
+                    {guidesOpen && (
+                      <div className="guide-switcher-menu">
+                        <button
+                          type="button"
+                          className="guide-switcher-item"
+                          onClick={() => { setGuidesOpen(false); router.push("/dashboard/" + guildId + "/quetes-dofus"); }}
+                        >
+                          <LayoutGrid size={13}/>
+                          <span>Hub des guides</span>
+                        </button>
+                        {guidesList.map(g => {
+                          const isCurrent = g.slug === guide.slug;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              className={"guide-switcher-item" + (isCurrent ? " current" : "")}
+                              disabled={isCurrent}
+                              onClick={() => { setGuidesOpen(false); router.push("/dashboard/" + guildId + "/quetes-dofus/guide/" + g.slug); }}
+                            >
+                              <BookOpen size={13}/>
+                              <span className="truncate">{g.name}</span>
+                              {g.displayMode === "TIMELINE" && <span className="guide-switcher-tag">Timeline</span>}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <span className="text-[10px] font-bold text-zinc-400">
-                        {uniqueGuildMembers.length} {uniqueGuildMembers.length > 1 ? "membres" : "membre"}
-                      </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  {/* Help Button */}
-                  <button 
-                    onClick={() => setIsHelpOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-emerald-300 text-[10px] font-black uppercase tracking-wider transition-all"
-                  >
-                    <HelpCircle size={12} />
-                    Comment utiliser ?
-                  </button>
+                  <div className="guide-hud-crumb">
+                    Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
+                    {activeSeq ? (
+                      <>
+                        <span className="sep"> · </span>
+                        <span className="gp">[{activeSeq.subGuideRef}] {activeSeq.subGuideName}</span>
+                      </>
+                    ) : null}
+                    <span className="sep"> · </span>
+                    <span className="here">{overallPct}% complété</span>
+                  </div>
 
-                  {/* Signaler un bug / feedback */}
-                  <QuestFeedbackButton
-                    guildId={guildId}
-                    sourcePage={`guide:${guide.slug}`}
-                    targetSlug={guide.slug}
-                    compact
-                  />
-
-                  {/* Ganymède Credit Link */}
-                  <a
-                    href="https://ganymede-app.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 hover:text-blue-200 text-[10px] font-black uppercase tracking-wider transition-all"
-                    title="Parcours et étapes issus de Ganymède"
-                  >
-                    <img src="/assets/icons/ganymede.png" alt="Ganymède" className="w-3.5 h-3.5 rounded-sm object-contain" />
-                    <span>Ganymède ↗</span>
-                  </a>
+                  <div className="guide-hud-bar"><div style={{ width: overallPct + "%" }} /></div>
+                  <span className="guide-hud-pct">{overallPct}%</span>
                 </div>
               </div>
 
+              {/* Bandeau contexte (style rush sylvestre) */}
+              <div className="guide-hero">
+                <div className="guide-hero-top">
+                  <Link href={"/dashboard/" + guildId + "/quetes-dofus"} className="guide-hero-back">
+                    <ChevronLeft size={16} className="guide-hero-back-icon"/>
+                    <span>Quêtes Dofus</span>
+                  </Link>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {uniqueGuildMembers.length > 0 && (
+                      <button
+                        type="button"
+                        className="guide-hud-presence"
+                        onClick={() => setIsAllMembersModalOpen(true)}
+                        title="Voir la liste des membres suivant ce guide"
+                      >
+                        <div className="flex -space-x-1.5">
+                          {uniqueGuildMembers.slice(0, 4).map(m => (
+                            <span key={m.profileId} className="guide-hud-avatar">
+                              {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                        <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
+                      onClick={() => setGlobalHideCompletedSteps(v => !v)}
+                      title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
+                      aria-label={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
+                    >
+                      {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
+                    </button>
+                    <button
+                      type="button"
+                      className="guide-hud-btn"
+                      onClick={() => setIsHelpOpen(true)}
+                      title="Comment utiliser ce guide ?"
+                    >
+                      <HelpCircle size={13}/>
+                    </button>
+                    <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
+                    <a
+                      href="https://ganymede-app.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="guide-hud-credit"
+                      title="Parcours et étapes issus de Ganymède"
+                    >
+                      <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
+                    </a>
+                    <button
+                      type="button"
+                      className="guide-hud-btn guide-hud-btn-danger"
+                      onClick={handleResetGuide}
+                      disabled={validating}
+                      title="Réinitialiser TOUT le guide (progression remise à zéro)"
+                    >
+                      <RotateCcw size={13}/>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="guide-hero-title">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles size={14} className="text-emerald-400"/>
+                    <span className="guide-hero-eyebrow">Guide de Progression Complet</span>
+                  </div>
+                  <h1 className="guide-hero-name">{guide.name}</h1>
+                  {guide.description && <p className="guide-hero-desc">{guide.description}</p>}
+                </div>
+
+                <div className="guide-hero-grid">
+                  {/* Personnage actif */}
+                  <div className="guide-hero-card">
+                    <div className="guide-hero-card-icon class">
+                      {(() => { const d = mainCharacter?.classe ? getClass(mainCharacter.classe) : null; return d ? <img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/> : <Crown className="w-5 h-5 text-amber-500"/>; })()}
+                    </div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="guide-hero-card-label">Personnage Actif</p>
+                      {mainCharacter?.pseudo ? (
+                        <div className="flex items-center gap-1.5">
+                          <GuideCharDropdown selectedCharacter={selectedCharacter} mainPseudo={mainCharacter.pseudo} mainClass={mainCharacter.classe} mules={mules} />
+                          <button
+                            type="button"
+                            onClick={handleResetMilestone}
+                            disabled={validating}
+                            title="Réinitialiser ce jalon (étapes cochées et validation)"
+                            className="flex items-center justify-center p-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-colors shrink-0"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5"/>
+                          </button>
+                        </div>
+                      ) : (
+                        <Link href={"/dashboard/" + guildId + "/profile"} className="guide-hero-link-btn">
+                          <Pencil size={12}/> Lier mon pseudo <ExternalLink size={12}/>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Alignement / Ordre */}
+                  <div className="guide-hero-card">
+                    {(() => {
+                      const { alignment, alignmentOrder, alignmentLevel } = currentUserProfile || {};
+                      if (!alignment || alignment === "neutre") {
+                        return (
+                          <>
+                            <div className="guide-hero-card-icon align neutral"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div>
+                            <div className="text-left min-w-0 flex-1">
+                              <p className="guide-hero-card-label">Alignement</p>
+                              <p className="guide-hero-card-value dim">{!alignment ? "Non défini" : "Neutre"}</p>
+                            </div>
+                          </>
+                        );
+                      }
+                      const ad = getAlignment(alignment);
+                      const ords = (ORDERS as unknown as Record<string, any[]>)[alignment.toLowerCase()] || [];
+                      const od = alignmentOrder ? ords.find((o: any) => o.id === alignmentOrder) : null;
+                      if (od) {
+                        const isBonta = alignment === "bontarien";
+                        const trancheTitle = alignmentLevel && alignmentLevel > 0 ? (od as any).levels?.[alignmentLevel as number] || "" : "";
+                        return (
+                          <>
+                            <div className={"guide-hero-card-icon align " + (isBonta ? "bonta" : "brak")}>
+                              <img src={od.icon} alt="" className="w-5 h-5 object-contain"/>
+                            </div>
+                            <div className="text-left min-w-0 flex-1">
+                              <p className="guide-hero-card-label">Ordre</p>
+                              <p className={"guide-hero-card-value " + (isBonta ? "bonta" : "brak")}>{od.name}</p>
+                              {(alignmentLevel ?? 0) > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  <span className="guide-hero-tranche">Tranche {alignmentLevel}</span>
+                                  {trancheTitle && <span className="guide-hero-tranche-title">{trancheTitle}</span>}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <div className="guide-hero-card-icon align neutral"><img src={ad?.icon || "/ordres/neutre.png"} alt="" className="w-5 h-5 object-contain"/></div>
+                          <div className="text-left min-w-0 flex-1">
+                            <p className="guide-hero-card-label">Alignement</p>
+                            <p className="guide-hero-card-value dim">{ad?.name || alignment}</p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Métamob / Ocre */}
+                  <div className="guide-hero-card">
+                    <div className="guide-hero-card-icon ocre"><img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain"/></div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="guide-hero-card-label">Metamob</p>
+                      {currentUserProfile?.metamobPseudo ? (
+                        <Link href={"/dashboard/" + guildId + "/quete-ocre"} className="guide-hero-metamob-link">
+                          {ocreStats ? (
+                            <>
+                              <span>Gardiens <span className="font-mono text-white">{ocreStats.bosses?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.bosses?.total ?? 51}</span></span></span>
+                              <span className="text-zinc-600">·</span>
+                              <span>Archis <span className="font-mono text-white">{ocreStats.archis?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.archis?.total ?? 286}</span></span></span>
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-400/80">Voir ma progression →</span>
+                          )}
+                          <ExternalLink size={12} className="text-amber-400/60 shrink-0"/>
+                        </Link>
+                      ) : (
+                        <Link href={"/dashboard/" + guildId + "/profile"} className="guide-hero-link-btn amber">
+                          <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain"/>
+                          Lier Metamob
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ma progression */}
+                  <div className="guide-hero-card">
+                    <div className="guide-hero-card-icon progress"><ProgressRing pct={overallPct} size={30} stroke={3} color="#10b981"/></div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="guide-hero-card-label">Progression</p>
+                      <p className="guide-hero-card-value">{overallPct}% <span className="text-zinc-500 font-mono text-[10px]">({totalDone}/{totalMs})</span></p>
+                      <div className="guide-hero-bar"><div style={{ width: overallPct + "%" }}/></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Colonne de lecture 840px — le HUD et le hero restent pleine largeur */}
+              <div className="guide-read-col">
+
               {/* Step header with Navigator */}
               <header className="step-header">
-                <div className={`step-navigator ${activeGuideFilter ? "focused" : ""}`}>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="step-nav-ref">
-                        {activeGuideFilter ? `📌 ${activeGuideFilter}` : `🗺️ ${guide.name}`}
-                      </span>
-                      <div className="step-nav-controls">
-                        <button className="nav-step-btn" onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs} title="Étape précédente">
-                          <ChevronLeft size={16}/>
-                        </button>
-                        
-                        <button
-                          onClick={() => setIsMilestoneModalOpen(true)}
-                          className="flex items-center justify-between gap-2 px-3 py-1.5 bg-zinc-950/80 border border-white/10 rounded-lg text-xs text-white font-bold hover:bg-zinc-900 hover:border-emerald-500/50 transition-all max-w-[150px] sm:max-w-[200px] cursor-pointer"
-                          title="Aller directement à une étape précise"
-                        >
-                          <span className="truncate">
-                            {selectedIdx !== -1 ? selectedIdx + 1 : 1}. {decodeTitle(selected.title)}
-                          </span>
-                          <ChevronDown size={12} className="text-zinc-500 shrink-0" />
-                        </button>
-
-                        <button className="nav-step-btn" onClick={() => nextMs && setSelected(nextMs)} disabled={!nextMs} title="Étape suivante">
-                          <ChevronRight size={16}/>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        className={`validate-btn-compact ${isCompleted ? "validated" : ""}`}
-                        onClick={handleToggleMs} disabled={validating}>
-                        {validating ? <Loader2 size={12} className="animate-spin"/> :
-                          isCompleted ? <><CheckCircle2 size={12}/> Validée</> : <><Flag size={12}/> Valider</>}
-                      </button>
-                      <button
-                        className={`bookmark-btn-compact ${bookmarkId === selected.id ? "active" : ""}`}
-                        onClick={() => handleBookmark(selected.id)}
-                        title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis là"}
-                      >
-                        {bookmarkId === selected.id ? <BookmarkCheck size={12} className="text-amber-500"/> : <Bookmark size={12}/>}
-                      </button>
-                      <button
-                        className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
-                        onClick={handleResetMilestone}
-                        disabled={validating}
-                        title="Réinitialiser ce jalon (étapes cochées et validation)"
-                      >
-                        <RotateCcw size={12} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="step-meta-row mt-3">
-                    <span className="step-phase-badge">Phase {selected.chapter > 0 ? selected.chapter : "Intro"}</span>
-                    <span className="step-type-badge"
-                      style={{ background: typeConf.bg, color: typeConf.color, borderColor: typeConf.color + "40" }}>
-                      {typeConf.label}
-                    </span>
-                    {selected.isOptional && <span className="step-optional-badge">Bonus</span>}
-                  </div>
+                <div className="step-meta-row">
+                  <span className="step-phase-badge">Phase {selected.chapter > 0 ? selected.chapter : "Intro"}</span>
+                  <span className="step-type-badge"
+                    style={{ background: typeConf.bg, color: typeConf.color, borderColor: typeConf.color + "40" }}>
+                    {typeConf.label}
+                  </span>
+                  {selected.isOptional && <span className="step-optional-badge">Bonus</span>}
                 </div>
 
                 <h1 className="step-title">{decodeTitle(selected.title)}</h1>
@@ -2318,7 +2346,7 @@ export default function OptimizedGuideClient({
                 {/* Step presence banner */}
                 {membersHere.length > 0 && (
                   <div 
-                    className="step-presence-banner flex items-center justify-between p-3.5 mt-4 rounded-2xl bg-zinc-950/40 border border-white/5 backdrop-blur-md cursor-pointer hover:bg-zinc-950/60 hover:border-emerald-500/30 transition-all select-none group"
+                    className="step-presence-banner flex items-center justify-between p-3.5 mt-4 rounded-xl bg-zinc-950/40 border border-white/5 cursor-pointer hover:bg-zinc-950/60 hover:border-emerald-500/30 transition-colors select-none group"
                     onClick={() => setPresenceModal({ isOpen: true, milestoneId: selected.id, milestoneTitle: selected.title })}
                   >
                     <div className="flex items-center gap-3">
@@ -2374,24 +2402,13 @@ export default function OptimizedGuideClient({
                 const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
                 return (
                   <section className="subguides-section">
-                    {/* Explication pédagogique de la hiérarchie */}
-                    <div className="mb-6 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-xs text-indigo-200/90 leading-relaxed flex items-start gap-3">
-                      <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0">
-                        <Info className="w-4 h-4" />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold text-zinc-100">Comment suivre cette étape ?</span>
-                        <span>
-                          Cette étape de la quête principale nécessite d&apos;accomplir les instructions du sous-guide de terrain ci-dessous.
-                          {sortedSeqs.length > 1 && " L'étape étant longue, elle est découpée en plusieurs sous-guides accessibles via les onglets ci-dessous."}
-                          {" Cochez les étapes secondaires au fur et à mesure pour guider vos équipiers !"}
-                        </span>
-                      </div>
-                    </div>
+                    <p className="subguides-hint">
+                      Cette étape du guide principal se suit via le sous-guide ci-dessous : cochez chaque étape au fur et à mesure de votre progression.
+                    </p>
 
                     <div className="subguides-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <span>Instructions tactiques</span>
+                        <span>Sous-guide</span>
                         <span className="subguides-count">
                           Partie {activeSeqIndex + 1} / {sortedSeqs.length}
                         </span>
@@ -2399,10 +2416,10 @@ export default function OptimizedGuideClient({
                       <button
                         className={`global-hide-steps-btn ${globalHideCompletedSteps ? "active" : ""}`}
                         onClick={() => setGlobalHideCompletedSteps(v => !v)}
-                        title={globalHideCompletedSteps ? "Afficher toutes les étapes validées" : "Masquer globalement toutes les étapes validées"}
+                        title={globalHideCompletedSteps ? "Afficher toutes les étapes validées" : "Masquer toutes les étapes validées"}
                       >
                         {globalHideCompletedSteps ? <Eye size={11}/> : <EyeOff size={11}/>}
-                        <span>{globalHideCompletedSteps ? "Afficher les validées" : "Cacher les validées"}</span>
+                        <span>{globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}</span>
                       </button>
                     </div>
 
@@ -2492,6 +2509,22 @@ export default function OptimizedGuideClient({
                   )}
                   <div className="step-actions">
                     <button
+                      className="jump-btn"
+                      onClick={() => setIsMilestoneModalOpen(true)}
+                      title="Aller directement à une étape précise"
+                    >
+                      <ListTree size={14}/> <span>Aller à…</span>
+                    </button>
+                    <button
+                      className="complete-all-btn"
+                      onClick={handleCompleteGuide}
+                      disabled={isCompletingGuide || validating}
+                      title="Valider tous les jalons du guide d'un coup"
+                    >
+                      {isCompletingGuide ? <Loader2 size={14} className="animate-spin"/> : <CheckCheck size={14}/>}
+                      <span>Tout valider</span>
+                    </button>
+                    <button
                       className={`validate-btn ${isCompleted ? "validated" : ""}`}
                       onClick={handleToggleMs} disabled={validating}>
                       {validating ? <Loader2 size={14} className="animate-spin"/> :
@@ -2505,6 +2538,14 @@ export default function OptimizedGuideClient({
                       {bookmarkId === selected.id ? <BookmarkCheck size={14}/> : <Bookmark size={14}/>}
                       <span>{bookmarkId === selected.id ? "Ma position" : "J'en suis là"}</span>
                     </button>
+                    <button
+                      className="jump-btn reset"
+                      onClick={handleResetMilestone}
+                      disabled={validating}
+                      title="Réinitialiser ce jalon (étapes cochées et validation)"
+                    >
+                      <RotateCcw size={14}/>
+                    </button>
                   </div>
                   {nextMs && (
                     <button className="nav-btn next" onClick={() => setSelected(nextMs)}>
@@ -2513,11 +2554,44 @@ export default function OptimizedGuideClient({
                   )}
                 </div>
               </footer>
+              </div>{/* /guide-read-col */}
             </motion.div>
           </AnimatePresence>
         )}
         <CoordHoverMap containerRef={mainRef} guildId={guildId} />
       </main>
+
+      {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}
+      {typeof document !== "undefined" && createPortal(
+        <>
+          <AnimatePresence>
+            {drawerActive && (
+              <motion.div
+                className="toc-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setTocOpen(false)}
+              />
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {drawerActive && (
+              <motion.aside
+                className="toc-drawer"
+                initial={{ x: -320, opacity: 0.6 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -320, opacity: 0.6 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+              >
+                {renderTocPanel({ pinned: false })}
+              </motion.aside>
+            )}
+          </AnimatePresence>
+        </>,
+        document.body
+      )}
 
       <DjPostCreateModal
         guildId={guildId}
@@ -2551,7 +2625,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+            className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center p-4 bg-black/85"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -2581,8 +2655,8 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
             onClick={() => setDungeonChoiceModal(null)}
           >
             <motion.div
@@ -2755,8 +2829,8 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
             onClick={() => setQuestChoiceModal(null)}
           >
             <motion.div
@@ -2877,7 +2951,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -2940,7 +3014,7 @@ export default function OptimizedGuideClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/90"
             onClick={() => setImageModal(null)}
           >
             <motion.div
@@ -2970,7 +3044,7 @@ export default function OptimizedGuideClient({
 
       {/* Modern Milestone Selection Modal */}
       <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
-        <DialogContent className="max-w-xl bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-xl bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500">
               Navigation rapide
@@ -3199,7 +3273,7 @@ export default function OptimizedGuideClient({
         open={stepPresenceModal?.isOpen ?? false} 
         onOpenChange={(open) => setStepPresenceModal(prev => prev ? { ...prev, isOpen: open } : null)}
       >
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
@@ -3349,7 +3423,7 @@ export default function OptimizedGuideClient({
         open={presenceModal?.isOpen ?? false} 
         onOpenChange={(open) => setPresenceModal(prev => prev ? { ...prev, isOpen: open } : null)}
       >
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
@@ -3413,7 +3487,7 @@ export default function OptimizedGuideClient({
       </Dialog>
       {/* All Guild Members Tracking Guide Modal */}
       <Dialog open={isAllMembersModalOpen} onOpenChange={setIsAllMembersModalOpen}>
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-blue-400" />
@@ -3483,7 +3557,7 @@ export default function OptimizedGuideClient({
         open={isHelpOpen} 
         onOpenChange={setIsHelpOpen}
       >
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
               <BookOpen size={14} />
@@ -3530,7 +3604,7 @@ export default function OptimizedGuideClient({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed bottom-24 right-6 z-[60] p-3 rounded-full bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)] hover:bg-emerald-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center border border-emerald-400/20"
+            className="fixed bottom-24 right-6 z-[var(--z-floating-nav)] p-3 rounded-full bg-emerald-500 text-black hover:bg-emerald-400 transition-all cursor-pointer flex items-center justify-center border border-emerald-400/20"
             title="Remonter en haut de page"
           >
             <ChevronUp className="w-5 h-5" />
@@ -3540,7 +3614,7 @@ export default function OptimizedGuideClient({
 
       {/* Custom Reset Milestone Confirmation Modal */}
       <Dialog open={isResetMilestoneConfirmOpen} onOpenChange={setIsResetMilestoneConfirmOpen}>
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/20 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/20 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-400 flex items-center gap-2">
               <RotateCcw size={14} className="animate-spin-slow" />
@@ -3580,10 +3654,10 @@ export default function OptimizedGuideClient({
 
       {/* Custom Reset Entire Guide Confirmation Modal */}
       <Dialog open={isResetGuideConfirmOpen} onOpenChange={setIsResetGuideConfirmOpen}>
-        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-500 flex items-center gap-2">
-              <RotateCcw size={14} className="animate-pulse" />
+              <RotateCcw size={14}/>
               Réinitialisation Totale
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
@@ -3605,21 +3679,52 @@ export default function OptimizedGuideClient({
             </button>
             <button
               onClick={confirmResetGuide}
-              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer"
+              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all cursor-pointer"
             >
               Tout effacer
             </button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Custom Complete Entire Guide Confirmation Modal */}
+      <Dialog open={isCompleteGuideConfirmOpen} onOpenChange={setIsCompleteGuideConfirmOpen}>
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-emerald-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
+              <CheckCheck size={14}/>
+              Validation Totale
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
+              {guide.name}
+            </div>
+          </DialogHeader>
+          <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
+            <p>Valider d'un coup tous les jalons de ce guide ?</p>
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-bold">
+              ✅ Tous les jalons seront marqués complétés pour ce personnage. Les étapes individuelles des sous-guides restent cochables manuellement si besoin.
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setIsCompleteGuideConfirmOpen(false)}
+              className="py-2.5 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmCompleteGuide}
+              disabled={isCompletingGuide}
+              className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-xs transition-all cursor-pointer"
+            >
+              {isCompletingGuide ? <Loader2 size={14} className="animate-spin inline-block mr-1"/> : null}
+              Tout valider
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       </div>
 
-      {/* Bouton rouvrir le sommaire (quand la sidebar est repliée) */}
-      {!sidebarOpen && (
-        <button className="guide-sommaire-open" onClick={toggleSidebar} title="Afficher le sommaire (S)">
-          <PanelLeft size={14}/> <span>Sommaire</span>
-        </button>
-      )}
     </>
   );
 }

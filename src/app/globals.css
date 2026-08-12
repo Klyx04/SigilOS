@@ -680,8 +680,20 @@ html {
 body.map-fullscreen .dashboard-sidebar,
 body.map-fullscreen .dashboard-topnav,
 body.map-fullscreen .dashboard-footer,
-body.map-fullscreen .dashboard-tour {
+body.map-fullscreen .dashboard-tour,
+body.guide-fullscreen .dashboard-sidebar,
+body.guide-fullscreen .dashboard-topnav,
+body.guide-fullscreen .dashboard-footer,
+body.guide-fullscreen .dashboard-tour {
   display: none !important;
+}
+body.guide-fullscreen .guide-shell {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  flex-direction: row;
+  overflow: hidden;
 }
 #worldmap-page.worldmap-fullscreen,
 #mini-games-page.worldmap-fullscreen,

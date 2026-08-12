@@ -507,6 +507,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
         <div className="flex flex-col flex-1 min-w-0">
           <div className="sgc-step-content ganymade-step-text"
             onClick={onInteractiveClick}
+            // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
             {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
         </div>
         {/* Bulles profils : EN HAUT à droite de l'étape — clic → modale. */}

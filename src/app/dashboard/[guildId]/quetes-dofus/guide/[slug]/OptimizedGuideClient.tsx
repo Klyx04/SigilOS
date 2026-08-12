@@ -8,7 +8,7 @@ import {
   CheckCircle2, Circle, CheckCheck, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, PanelLeft, LayoutGrid, ListTree, Pencil, Sparkles, Pin, PinOff, Ghost, Settings2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,7 +18,7 @@ import CoordHoverMap from "./CoordHoverMap";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/security";
@@ -1718,6 +1718,17 @@ export default function OptimizedGuideClient({
     setIsCompleteGuideConfirmOpen(true);
   }, []);
 
+  // ─── Mode discret : ne plus émettre sa présence (reste récepteur) ────────────
+  const toggleIncognito = useCallback(() => {
+    setIncognito(prev => {
+      const next = !prev;
+      try { localStorage.setItem(`guide-incognito-${guildId}`, next ? "true" : "false"); } catch {}
+      if (next) toast.info("Mode discret activé — votre présence est masquée");
+      else toast.success("Mode discret désactivé");
+      return next;
+    });
+  }, [guildId]);
+
   const confirmCompleteGuide = useCallback(async () => {
     setIsCompletingGuide(true);
     setIsCompleteGuideConfirmOpen(false);
@@ -2195,7 +2206,7 @@ export default function OptimizedGuideClient({
                         type="button"
                         className="guide-hud-presence"
                         onClick={() => setIsAllMembersModalOpen(true)}
-                        title="Voir la liste des membres suivant ce guide"
+                        title={`${uniqueGuildMembers.length} membre${uniqueGuildMembers.length > 1 ? "s" : ""} de la guilde suivent ce guide — cliquer pour la liste`}
                       >
                         <div className="flex -space-x-1.5">
                           {uniqueGuildMembers.slice(0, 4).map(m => (
@@ -2205,39 +2216,57 @@ export default function OptimizedGuideClient({
                           ))}
                         </div>
                         <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
+                        <span className="guide-hud-presence-label">membre{uniqueGuildMembers.length > 1 ? "s" : ""}</span>
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className={"guide-hud-btn" + (globalHideCompletedSteps ? " active" : "")}
-                      onClick={() => setGlobalHideCompletedSteps(v => !v)}
-                      title={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-                      aria-label={globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}
-                    >
-                      {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
-                    </button>
-                    <button
-                      type="button"
-                      className="guide-hud-btn"
-                      onClick={() => setIsHelpOpen(true)}
-                      title="Comment utiliser ce guide ?"
-                    >
-                      <HelpCircle size={13}/>
-                    </button>
-                    <button
-                      type="button"
-                      className={"guide-hud-btn" + (incognito ? " active" : "")}
-                      onClick={() => {
-                        const next = !incognito;
-                        setIncognito(next);
-                        try { localStorage.setItem(`guide-incognito-${guildId}`, next ? "true" : "false"); } catch {}
-                        if (next) toast.info("Mode discret activé — votre présence est masquée");
-                        else toast.success("Mode discret désactivé");
-                      }}
-                      title={incognito ? "Mode discret actif : votre présence est masquée" : "Mode discret : masquer ma présence"}
-                    >
-                      <Ghost size={13}/>
-                    </button>
+                    {/* Menu Options : toutes les actions du guide regroupées (fini la rangée d'icônes) */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="guide-hud-btn"
+                          title="Options du guide"
+                          aria-label="Options du guide"
+                        >
+                          <Settings2 size={13}/>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="guide-hud-menu">
+                        <DropdownMenuItem
+                          onClick={() => setGlobalHideCompletedSteps(v => !v)}
+                          className={globalHideCompletedSteps ? "current" : ""}
+                        >
+                          {globalHideCompletedSteps ? <Eye size={13}/> : <EyeOff size={13}/>}
+                          <span>{globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setIsHelpOpen(true)}
+                        >
+                          <HelpCircle size={13}/>
+                          <span>Comment utiliser ce guide ?</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={toggleIncognito}
+                          className={incognito ? "current" : ""}
+                        >
+                          <Ghost size={13}/>
+                          <span>{incognito ? "Désactiver le mode discret" : "Mode discret : masquer ma présence"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator/>
+                        <DropdownMenuItem onClick={handleCompleteGuide} disabled={isCompletingGuide || validating}>
+                          <CheckCheck size={13}/>
+                          <span>Tout valider le guide d'un coup</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={handleResetGuide}
+                          disabled={validating}
+                          className="danger"
+                        >
+                          <RotateCcw size={13}/>
+                          <span>Réinitialiser le guide</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
                     <a
                       href="https://ganymede-app.com/"
@@ -2248,15 +2277,7 @@ export default function OptimizedGuideClient({
                     >
                       <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
                     </a>
-                    <button
-                      type="button"
-                      className="guide-hud-btn guide-hud-btn-danger"
-                      onClick={handleResetGuide}
-                      disabled={validating}
-                      title="Réinitialiser TOUT le guide (progression remise à zéro)"
-                    >
-                      <RotateCcw size={13}/>
-                    </button>
+                    {/* Reset guide déplacé dans le menu Options */}
                   </div>
                 </div>
 

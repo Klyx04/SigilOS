@@ -93,13 +93,20 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     const key = presenceKey(guildId, guideSlug);
     const raw = await redis.smembers(key);
     const now = Date.now();
-    const entries: PresenceEntry[] = [];
+    const byProfile = new Map<string, PresenceEntry>();
     const stale: string[] = [];
     for (const item of raw) {
       try {
         const entry = JSON.parse(item) as PresenceEntry;
-        if (now - entry.lastSeen > PRESENCE_TTL_SECONDS * 1000) stale.push(item);
-        else entries.push(entry);
+        if (now - entry.lastSeen > PRESENCE_TTL_SECONDS * 1000) {
+          stale.push(item);
+        } else {
+          // Un membre peut avoir plusieurs connexions (2 onglets, mobile + desktop) :
+          // le Set Redis contient alors plusieurs entrées pour le même profileId
+          // (lastSeen différent). On garde la DERNIÈRE pour ne jamais dédoublonner
+          // un membre dans la facepile / les modales de présence.
+          byProfile.set(entry.profileId, entry);
+        }
       } catch {
         stale.push(item);
       }
@@ -107,7 +114,7 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     if (stale.length > 0) {
       await redis.srem(key, ...stale).catch(() => {});
     }
-    return entries;
+    return Array.from(byProfile.values());
   }
 
   async function touchPresence(guildId: string, guideSlug: string, entry: Omit<PresenceEntry, "lastSeen">) {

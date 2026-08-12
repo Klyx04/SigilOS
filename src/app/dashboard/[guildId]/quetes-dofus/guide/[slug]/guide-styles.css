@@ -230,7 +230,7 @@
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0;
+  opacity: 0.55;
   transform: scale(0.9);
 }
 
@@ -245,7 +245,7 @@
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0;
+  opacity: 0.55;
   transform: scale(0.9);
 }
 
@@ -340,6 +340,22 @@
   color: #a1a1aa;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ms-you {
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ms-optional {
@@ -426,15 +442,16 @@
 }
 
 /* Bouton « Quitter » du HUD — seule sortie garantie en mode plein écran (V2) */
+/* Colorisé en rouge discret : on sait qu'on quitte le module. */
 .hud-exit {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.7rem;
   border-radius: 0.5rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  color: var(--guide-text-dim);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
   font-size: 0.72rem;
   font-weight: 800;
   cursor: pointer;
@@ -443,9 +460,9 @@
   transition: color var(--guide-t-fast), border-color var(--guide-t-fast), background var(--guide-t-fast);
 }
 .hud-exit:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.25);
-  background: var(--guide-surface-2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.14);
 }
 
 .guide-hud-crumb {
@@ -530,6 +547,7 @@
 }
 .guide-hud-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .guide-hud-presence-count { font-size: 0.66rem; font-weight: 900; color: var(--guide-text-dim); }
+.guide-hud-presence-label { font-size: 0.62rem; font-weight: 800; color: var(--guide-text-dim); white-space: nowrap; }
 
 .guide-hud-btn {
   display: inline-flex;
@@ -548,6 +566,39 @@
 .guide-hud-btn.active { color: var(--guide-green); border-color: rgba(16,185,129,0.35); background: var(--guide-green-soft); }
 .guide-hud-btn-danger { color: var(--guide-red); }
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
+
+/* ── Menu Options du guide (actions regroupées) ── */
+/* Fond OPAQUE (fini la transparence illisible) + ombre de profondeur. */
+.guide-hud-menu {
+  min-width: 240px;
+  background: #14161f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  padding: 0.35rem;
+  z-index: var(--z-dropdown);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.guide-hud-menu [role="menuitem"] {
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--guide-text-dim);
+  cursor: pointer;
+}
+.guide-hud-menu [role="menuitem"].current { color: var(--guide-green); }
+.guide-hud-menu [role="menuitem"].danger { color: var(--guide-red); }
+
+/* Bouton « Options » : distinct (doré) pour qu'on le repère */
+.guide-hud-menu-trigger {
+  background: rgba(212, 168, 83, 0.1);
+  border-color: rgba(212, 168, 83, 0.3);
+  color: #d4a853;
+}
+.guide-hud-menu-trigger:hover {
+  background: rgba(212, 168, 83, 0.16);
+  color: #fbbf24;
+  border-color: rgba(212, 168, 83, 0.45);
+}
 
 .guide-hud-credit {
   display: inline-flex;
@@ -1333,14 +1384,14 @@
   background: rgba(16, 185, 129, 0.18);
 }
 
-/* Bouton « Tout valider » — action en masse, hiérarchie secondaire par rapport à Valider l'étape */
+/* Bouton « Tout valider » — action primaire bien visible (fini l'outline discret) */
 .complete-all-btn {
-  background: transparent;
-  color: var(--guide-green);
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: #10b981;
+  color: #fff;
+  border: 1px solid #10b981;
   border-radius: 0.6rem;
   font-weight: 800;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   padding: 0.7rem 1.1rem;
   display: flex;
   align-items: center;
@@ -1348,12 +1399,12 @@
   gap: 0.45rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--guide-t-fast), color var(--guide-t-fast), border-color var(--guide-t-fast);
+  box-shadow: none;
+  transition: background var(--guide-t-fast), border-color var(--guide-t-fast);
 }
 .complete-all-btn:hover:not(:disabled) {
-  background: var(--guide-green-soft);
-  border-color: rgba(16, 185, 129, 0.65);
-  color: #34d399;
+  background: #059669;
+  border-color: #059669;
 }
 .complete-all-btn:disabled {
   opacity: 0.5;
@@ -1514,6 +1565,18 @@
   background: rgba(16, 185, 129, 0.1);
   border-color: #10b981;
   color: #10b981;
+}
+
+/* Bouton « Valider ce sous-guide » — action primaire du sous-guide */
+.sgc-complete-subguide-btn {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+.sgc-complete-subguide-btn:hover {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.55);
 }
 
 .map-overlay {
@@ -2201,18 +2264,11 @@
   min-width: 1.6rem;
   height: 1.6rem;
   border-radius: 50%;
-  cursor: pointer !important;
   transition: all 0.2s;
   user-select: none;
   align-self: flex-start;
   margin-top: 0.2rem;
   flex-shrink: 0;
-}
-
-.sgc-step-num:hover {
-  background: rgba(59, 130, 246, 0.14) !important;
-  color: #93c5fd !important;
-  border-color: rgba(59, 130, 246, 0.4) !important;
 }
 
 .sgc-step.done .sgc-step-check {
@@ -2724,6 +2780,14 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   color: #fbbf24;
   text-decoration: none;
   transition: color var(--guide-t-fast);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
 }
 .guide-hero-metamob-link:hover { color: #fde68a; }
 
@@ -2775,5 +2839,228 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 1px solid var(--guide-border);
   flex-shrink: 0;
 }
+
+/* ── Recherche dans le sommaire ── */
+.toc-search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  margin: 0.5rem 0.75rem 0.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--guide-border);
+  border-radius: 0.6rem;
+}
+.toc-search-icon { color: var(--guide-text-faint); flex-shrink: 0; }
+.toc-search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e4e4e7;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.toc-search-input::placeholder { color: var(--guide-text-faint); }
+.toc-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: 0.35rem;
+  background: transparent;
+  border: none;
+  color: var(--guide-text-faint);
+  cursor: pointer;
+}
+.toc-search-clear:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.ms-row.search-result { gap: 0.5rem; }
+.ms-row.search-result .ms-title { font-size: 0.75rem; }
+
+/* ── Modale Mon Ocre (Gardiens / Archis) ── */
+.ocre-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--guide-t-fast);
+}
+.ocre-tab.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.35);
+  color: #fbbf24;
+}
+.ocre-tab-count { font-size: 0.6rem; font-weight: 900; opacity: 0.7; }
+
+/* ── Édition Alignement / Ordre (modale) ── */
+.guide-hero-card-clickable {
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
+}
+.guide-hero-card-clickable:hover {
+  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.02);
+}
+
+.align-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.6rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--guide-t-fast);
+}
+.align-opt.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.4);
+  color: #fbbf24;
+}
+.align-tranche {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.align-tranche.active {
+  background: rgba(16,185,129,0.12);
+  border-color: rgba(16,185,129,0.35);
+  color: #34d399;
+}
+.align-cancel {
+  padding: 0.5rem 1rem;
+  border-radius: 0.6rem;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.align-cancel:hover { color: #fff; }
+.align-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: 0.6rem;
+  background: #10b981;
+  border: 1px solid #10b981;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.align-save:hover:not(:disabled) { background: #059669; }
+.align-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Effet d'ambiance (particules, désactivable) ──
+   PAS de mix-blend-mode : un canvas fixed plein écran + blend-mode se
+   compose en fond noir opaque sur certains GPU et masque tout le contenu. */
+.guide-particles {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-content);
+  pointer-events: none;
+  opacity: 0.85;
+}
+.ocre-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.015);
+  border: 1px solid transparent;
+}
+.ocre-row.owned { background: rgba(16,185,129,0.04); border-color: rgba(16,185,129,0.12); }
+.ocre-row-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 0.45rem;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.ocre-row-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: var(--guide-text-dim);
+}
+.ocre-row-name { font-size: 0.76rem; font-weight: 800; color: #e4e4e7; }
+.ocre-row-zone { font-size: 0.62rem; color: var(--guide-text-faint); }
+.ocre-state {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 900;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ocre-state.possede { color: #34d399; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
+.ocre-state.doublon { color: #fbbf24; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+.ocre-state.manquant { color: var(--guide-text-faint); background: rgba(255,255,255,0.03); border: 1px solid var(--guide-border); }
+
 .gch-opt-icon.principal { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); }
 .gch-opt-icon.mule { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); }
+
+/* ── LiveActivityTicker (Phase F) — zéro glow ── */
+.guide-live-ticker {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  width: min(320px, calc(100vw - 2.5rem));
+  pointer-events: none;
+}
+
+.guide-live-line {
+  background: var(--guide-surface);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #d1d5db;
+  box-shadow: none;
+  opacity: 0.95;
+}
+
+.guide-live-line.milestone {
+  border-color: rgba(212, 168, 83, 0.35);
+  color: #f5d78e;
+}
+.guide-live-line.presence {
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+

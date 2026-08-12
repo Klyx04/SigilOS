@@ -92,6 +92,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     let ocreStats: any = null;
     let capturedOcreMonsterIds: number[] = [];
     let capturedMonsterNames: string[] = [];
+    let ocreMonsters: any[] = [];
     if (userProfile.metamobPseudo) {
         try {
             const { getMyOcreProgress } = await import("@/server/actions/ocre-actions");
@@ -107,6 +108,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 // Build lists of captured monster IDs and names for dungeon detection
                 const monsters = ocreRes.data.monsters;
                 if (Array.isArray(monsters)) {
+                    ocreMonsters = monsters;
                     const captured = monsters.filter((m: any) => m.owned != null && m.owned > 0);
                     capturedOcreMonsterIds = captured.map((m: any) => m.id);
                     capturedMonsterNames = captured
@@ -164,6 +166,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                         </div>
                 ) : (
                     <OptimizedGuideClient
+                        key={character}
                         guide={guide}
                         milestones={guide.milestones as any}
                         userProgress={guide.milestones.flatMap((m: any) => m.playerProgress || [])}
@@ -185,6 +188,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             pseudoDofus: userProfile.pseudoDofus,
                         }}
                         ocreStats={ocreStats}
+                        ocreMonsters={ocreMonsters}
                     />
                 )}
             </Suspense>

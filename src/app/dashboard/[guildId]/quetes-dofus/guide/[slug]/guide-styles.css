@@ -442,15 +442,16 @@
 }
 
 /* Bouton « Quitter » du HUD — seule sortie garantie en mode plein écran (V2) */
+/* Colorisé en rouge discret : on sait qu'on quitte le module. */
 .hud-exit {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.7rem;
   border-radius: 0.5rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  color: var(--guide-text-dim);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
   font-size: 0.72rem;
   font-weight: 800;
   cursor: pointer;
@@ -459,9 +460,9 @@
   transition: color var(--guide-t-fast), border-color var(--guide-t-fast), background var(--guide-t-fast);
 }
 .hud-exit:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.25);
-  background: var(--guide-surface-2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.14);
 }
 
 .guide-hud-crumb {
@@ -567,13 +568,15 @@
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
 
 /* ── Menu Options du guide (actions regroupées) ── */
+/* Fond OPAQUE (fini la transparence illisible) + ombre de profondeur. */
 .guide-hud-menu {
   min-width: 240px;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
+  background: #14161f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.75rem;
   padding: 0.35rem;
   z-index: var(--z-dropdown);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
 .guide-hud-menu [role="menuitem"] {
   gap: 0.6rem;
@@ -584,6 +587,18 @@
 }
 .guide-hud-menu [role="menuitem"].current { color: var(--guide-green); }
 .guide-hud-menu [role="menuitem"].danger { color: var(--guide-red); }
+
+/* Bouton « Options » : distinct (doré) pour qu'on le repère */
+.guide-hud-menu-trigger {
+  background: rgba(212, 168, 83, 0.1);
+  border-color: rgba(212, 168, 83, 0.3);
+  color: #d4a853;
+}
+.guide-hud-menu-trigger:hover {
+  background: rgba(212, 168, 83, 0.16);
+  color: #fbbf24;
+  border-color: rgba(212, 168, 83, 0.45);
+}
 
 .guide-hud-credit {
   display: inline-flex;

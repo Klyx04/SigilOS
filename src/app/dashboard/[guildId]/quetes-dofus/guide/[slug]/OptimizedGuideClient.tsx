@@ -2393,7 +2393,7 @@ export default function OptimizedGuideClient({
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="guide-hud-btn"
+                          className="guide-hud-btn guide-hud-menu-trigger"
                           title="Options du guide"
                           aria-label="Options du guide"
                         >

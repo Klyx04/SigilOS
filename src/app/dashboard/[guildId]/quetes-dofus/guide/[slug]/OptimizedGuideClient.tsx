@@ -28,6 +28,7 @@ import { useGuidePresence } from "@/hooks/use-guide-presence";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
+import AlignmentModal from "@/components/dofus-quests/AlignmentModal";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -979,6 +980,7 @@ export default function OptimizedGuideClient({
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [isAllMembersModalOpen, setIsAllMembersModalOpen] = useState(false);
   const [isOcreModalOpen, setIsOcreModalOpen] = useState(false);
+  const [isAlignModalOpen, setIsAlignModalOpen] = useState(false);
   // Initialize checkedSteps from userProgress on mount
   const [checkedSteps, setCheckedSteps] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -2427,8 +2429,15 @@ export default function OptimizedGuideClient({
                     </div>
                   </div>
 
-                  {/* Alignement / Ordre */}
-                  <div className="guide-hero-card">
+                  {/* Alignement / Ordre — cliquable : ouvre l'édition */}
+                  <div
+                    className="guide-hero-card guide-hero-card-clickable"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setIsAlignModalOpen(true)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsAlignModalOpen(true); } }}
+                    title="Modifier mon alignement / ordre"
+                  >
                     {(() => {
                       const { alignment, alignmentOrder, alignmentLevel } = currentUserProfile || {};
                       if (!alignment || alignment === "neutre") {
@@ -2765,6 +2774,16 @@ export default function OptimizedGuideClient({
         archiCount={ocreStats?.archis}
         metamobPseudo={currentUserProfile?.metamobPseudo}
         guildId={guildId}
+      />
+
+      {/* Modale Alignement / Ordre / Tranche */}
+      <AlignmentModal
+        open={isAlignModalOpen}
+        onOpenChange={setIsAlignModalOpen}
+        guildId={guildId}
+        alignment={currentUserProfile?.alignment}
+        alignmentOrder={currentUserProfile?.alignmentOrder}
+        alignmentLevel={currentUserProfile?.alignmentLevel}
       />
 
       {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}

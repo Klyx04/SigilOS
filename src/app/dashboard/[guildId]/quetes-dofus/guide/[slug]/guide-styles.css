@@ -2836,6 +2836,79 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 1px solid var(--guide-border);
 
 /* ── Effet d'ambiance (particules, désactivable) ── */
+
+/* ── Édition Alignement / Ordre (modale) ── */
+.guide-hero-card-clickable {
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
+}
+.guide-hero-card-clickable:hover {
+  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.02);
+}
+.align-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.6rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--guide-t-fast);
+}
+.align-opt.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.4);
+  color: #fbbf24;
+}
+.align-tranche {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.align-tranche.active {
+  background: rgba(16,185,129,0.12);
+  border-color: rgba(16,185,129,0.35);
+  color: #34d399;
+}
+.align-cancel {
+  padding: 0.5rem 1rem;
+  border-radius: 0.6rem;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.align-cancel:hover { color: #fff; }
+.align-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: 0.6rem;
+  background: #10b981;
+  border: 1px solid #10b981;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.align-save:hover:not(:disabled) { background: #059669; }
+.align-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
 .guide-particles {
   position: fixed;
   inset: 0;

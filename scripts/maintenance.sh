@@ -141,7 +141,31 @@ else
     }
 fi
 
-# 6. Audit Final
+# 6. Sync des départs Discord (Filet de sécurité bot Gateway)
+# Rattrape les départs/kicks/bans manqués par le bot Discord
+# si celui-ci était down ou redémarrait au moment de l'event.
+# ──────────────────────────────────────────────────────────────
+# Pour une détection plus rapide (recommandé : toutes les 30 min),
+# ajouter cette ligne dans le crontab du VPS (crontab -e) :
+#   */30 * * * * curl -s -H "x-cron-secret: $CRON_SECRET" "${APP_URL}/api/cron/sync-members" > /dev/null 2>&1
+# ──────────────────────────────────────────────────────────────
+echo "🔄 Sync des départs Discord..."
+APP_URL="${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}"
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    SYNC_RESPONSE=$(curl -s -o /tmp/sync-members-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/sync-members")
+    if [ "$SYNC_RESPONSE" -eq 200 ]; then
+        ARCHIVED=$(cat /tmp/sync-members-response.json | grep -o '"totalArchived":[0-9]*' | grep -o '[0-9]*' || echo "?")
+        echo "✅ Sync membres terminé — $ARCHIVED profil(s) archivé(s)"
+    else
+        echo "⚠️  Sync membres : HTTP $SYNC_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Sync membres ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
+# 7. Audit Final
 echo "🩺 Lancement de l'audit de santé..."
 bash "$(dirname "$0")/audit.sh"
 

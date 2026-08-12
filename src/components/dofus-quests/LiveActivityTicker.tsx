@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GuideRealtimeEvent } from "@/lib/guide-realtime";
 
-type TickerLine = { id: number; text: string; kind: "step" | "milestone" };
+type TickerLine = { id: number; text: string; kind: "step" | "milestone" | "presence" };
 
 let lineId = 0;
 const LINE_TTL_MS = 4000;
@@ -16,8 +16,13 @@ function eventToText(e: GuideRealtimeEvent): string | null {
       return `${e.userName} a validé ${e.count} étapes dans ${e.subGuideRef}`;
     case "milestone:completed":
       return `${e.userName} a validé le jalon « ${e.milestoneTitle} »`;
+    case "presence:join":
+      // milestoneId vide = arrivée sur le guide (les bookmarks de jalon ne notifient pas).
+      return e.milestoneId ? null : `${e.userName} est arrivé sur le guide`;
+    case "presence:leave":
+      return e.milestoneId ? null : `${e.userName ?? "Un membre"} a quitté le guide`;
     default:
-      return null; // presence:join/leave → pas d'activité à afficher
+      return null;
   }
 }
 
@@ -42,7 +47,14 @@ export default function LiveActivityTicker({ events }: { events: GuideRealtimeEv
     const toAdd: TickerLine[] = [];
     fresh.forEach(e => {
       const text = eventToText(e);
-      if (text) toAdd.push({ id: ++lineId, text, kind: e.type === "milestone:completed" ? "milestone" : "step" });
+      if (text) {
+        const kind = e.type === "milestone:completed"
+          ? "milestone"
+          : (e.type === "presence:join" || e.type === "presence:leave")
+            ? "presence"
+            : "step";
+        toAdd.push({ id: ++lineId, text, kind });
+      }
     });
     if (toAdd.length === 0) return;
 

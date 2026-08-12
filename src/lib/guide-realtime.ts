@@ -17,7 +17,7 @@ import { logger } from "@/lib/logger";
 /** Contrat de payload temps réel du guide (Phase 4 — GUIDE-DEMARRAGE). */
 export type GuideRealtimeEvent =
   | { type: "presence:join"; profileId: string; userName: string; userAvatar?: string; milestoneId: string }
-  | { type: "presence:leave"; profileId: string; milestoneId: string }
+  | { type: "presence:leave"; profileId: string; userName?: string; milestoneId: string }
   | { type: "step:validated"; profileId: string; userName: string; userAvatar?: string; subGuideRef: string; stepNumber: number; stepTitle?: string }
   | { type: "step:validated:batch"; profileId: string; userName: string; subGuideRef: string; count: number }
   | { type: "milestone:completed"; profileId: string; userName: string; milestoneId: string; milestoneTitle: string };

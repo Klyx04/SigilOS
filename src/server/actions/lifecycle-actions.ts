@@ -160,8 +160,9 @@ const LIFECYCLE_TITLES: Record<LifecycleEventType, string> = {
  * Helper to send lifecycle notifications to the configured Discord channel
  * Supports: LEFT, BANNED, ARCHIVED, DELETED, REACTIVATED
  * Shows: who did it, when, discord pseudo, avatar link, action type
+ * Exported for use by internal cron/sync systems.
  */
-async function sendLifecycleNotification(
+export async function sendLifecycleNotification(
     guildId: string, 
     profile: any, 
     type: LifecycleEventType, 

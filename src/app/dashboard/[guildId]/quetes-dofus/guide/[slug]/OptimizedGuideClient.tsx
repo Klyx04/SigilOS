@@ -1529,6 +1529,8 @@ export default function OptimizedGuideClient({
   const router = useRouter();
   const [tocOpen, setTocOpen] = useState(false);
   const [tocPinned, setTocPinned] = useState(false);
+  // Recherche dans le sommaire (titres de jalons + sous-guides).
+  const [tocSearchQuery, setTocSearchQuery] = useState("");
 
   // Écrans < 1200px : le rail épinglé se replie → le tiroir drawer reste le seul accès
   const [isNarrow, setIsNarrow] = useState(false);
@@ -1571,6 +1573,42 @@ export default function OptimizedGuideClient({
       return next;
     });
   }, [tocPinKey]);
+
+  // Résultats de recherche sommaire : match sur titre de jalon, chapitre et sous-guides.
+  const tocSearchResults = useMemo(() => {
+    const q = tocSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    const out: { ms: Milestone; chapterLabel: string }[] = [];
+    chapters.forEach(ch => {
+      ch.items.forEach(ms => {
+        const haystack = [
+          ms.title,
+          ms.chapterLabel,
+          ...ms.sequences.map(s => `${s.subGuideRef} ${s.subGuideName}`)
+        ].join(" ").toLowerCase();
+        if (haystack.includes(q)) out.push({ ms, chapterLabel: ch.label });
+      });
+    });
+    return out;
+  }, [tocSearchQuery, chapters]);
+
+  // Clic sur un résultat de recherche : ouvre le jalon + surbrillance dans le sommaire.
+  const handleTocSearchSelect = useCallback((ms: Milestone, pinned: boolean) => {
+    setSelected(ms);
+    setTocSearchQuery("");
+    if (!pinned) { setTocOpen(false); return; }
+    // Rail épinglé : surligner la ligne du jalon dans le sommaire.
+    setTimeout(() => {
+      const el = document.getElementById(`ms-row-${ms.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.style.transition = "background-color 0.5s";
+        const oldBg = el.style.backgroundColor;
+        el.style.backgroundColor = "rgba(212, 168, 83, 0.25)";
+        setTimeout(() => { el.style.backgroundColor = oldBg; }, 1500);
+      }
+    }, 200);
+  }, []);
 
   // --- Selecteur de guide (HUD) — déclaré ici car utilisé par la hiérarchie Échap --
   const [guidesOpen, setGuidesOpen] = useState(false);
@@ -2044,15 +2082,56 @@ export default function OptimizedGuideClient({
           )}
         </div>
       </div>
+      <div className="toc-search">
+        <Search size={12} className="toc-search-icon"/>
+        <input
+          type="text"
+          className="toc-search-input"
+          placeholder="Rechercher un jalon ou un sous-guide…"
+          value={tocSearchQuery}
+          onChange={(e) => setTocSearchQuery(e.target.value)}
+          aria-label="Rechercher dans le sommaire"
+        />
+        {tocSearchQuery && (
+          <button type="button" className="toc-search-clear" onClick={() => setTocSearchQuery("")} aria-label="Effacer la recherche">
+            <X size={12}/>
+          </button>
+        )}
+      </div>
       {activeGuideFilter && (
         <button type="button" className="toc-back-main" onClick={handleBackToMainGuideCurrentStep}>
           <BookOpenCheck size={12}/> ← Guide principal
         </button>
       )}
       <div className="sidebar-chapters toc-chapters">
-        {filteredChapters.length === 0 ? (
-          <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+        {tocSearchQuery.trim() ? (
+          tocSearchResults.length === 0 ? (
+            <div className="sidebar-empty"><Info size={14}/> Aucun jalon trouvé</div>
+          ) : (
+            tocSearchResults.map(({ ms, chapterLabel }) => {
+              const isDone = completedIds.has(ms.id);
+              return (
+                <div
+                  key={ms.id}
+                  className={`ms-row search-result${isDone ? " done" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleTocSearchSelect(ms, pinned)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTocSearchSelect(ms, pinned); } }}
+                >
+                  <div className="ms-state">
+                    {isDone ? <CheckCircle2 size={14} className="state-done"/> : <Circle size={14} className="state-todo"/>}
+                  </div>
+                  <span className="ms-title">{decodeTitle(ms.title)}</span>
+                  <span className="ms-seqs">{chapterLabel}</span>
+                </div>
+              );
+            })
+          )
         ) : (
+          filteredChapters.length === 0 ? (
+            <div className="sidebar-empty"><Info size={14}/> Aucun résultat</div>
+          ) : (
           filteredChapters.map((ch) => (
             <ChapterGroup
               key={ch.chapter}
@@ -2072,6 +2151,7 @@ export default function OptimizedGuideClient({
               onResetMilestone={handleResetMilestone}
             />
           ))
+          )
         )}
       </div>
     </>

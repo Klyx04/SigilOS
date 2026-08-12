@@ -43,7 +43,7 @@ export default function GuideParticles({ active }: { active: boolean }) {
       r: 0.8 + Math.random() * 1.1,
       vy: 0.15 + Math.random() * 0.35,
       vx: (Math.random() - 0.5) * 0.15,
-      opacity: 0.1 + Math.random() * 0.18,
+      opacity: 0.06 + Math.random() * 0.14,
       phase: Math.random() * Math.PI * 2,
       speed: 0.004 + Math.random() * 0.008,
     });

@@ -2810,6 +2810,8 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   height: 26px;
   border-radius: 0.5rem;
   border: 1px solid var(--guide-border);
+  flex-shrink: 0;
+}
 
 /* ── Recherche dans le sommaire ── */
 .toc-search {
@@ -2824,6 +2826,30 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 }
 .toc-search-icon { color: var(--guide-text-faint); flex-shrink: 0; }
 .toc-search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e4e4e7;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.toc-search-input::placeholder { color: var(--guide-text-faint); }
+.toc-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: 0.35rem;
+  background: transparent;
+  border: none;
+  color: var(--guide-text-faint);
+  cursor: pointer;
+}
+.toc-search-clear:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.ms-row.search-result { gap: 0.5rem; }
+.ms-row.search-result .ms-title { font-size: 0.75rem; }
 
 /* ── Modale Mon Ocre (Gardiens / Archis) ── */
 .ocre-tab {
@@ -2834,8 +2860,18 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border-radius: 999px;
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--guide-border);
-
-/* ── Effet d'ambiance (particules, désactivable) ── */
+  color: var(--guide-text-dim);
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--guide-t-fast);
+}
+.ocre-tab.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.35);
+  color: #fbbf24;
+}
+.ocre-tab-count { font-size: 0.6rem; font-weight: 900; opacity: 0.7; }
 
 /* ── Édition Alignement / Ordre (modale) ── */
 .guide-hero-card-clickable {
@@ -2846,6 +2882,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border-color: rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.02);
 }
+
 .align-opt {
   display: inline-flex;
   align-items: center;
@@ -2909,6 +2946,9 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .align-save:hover:not(:disabled) { background: #059669; }
 .align-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* ── Effet d'ambiance (particules, désactivable) ──
+   PAS de mix-blend-mode : un canvas fixed plein écran + blend-mode se
+   compose en fond noir opaque sur certains GPU et masque tout le contenu. */
 .guide-particles {
   position: fixed;
   inset: 0;
@@ -2916,21 +2956,8 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   height: 100%;
   z-index: var(--z-content);
   pointer-events: none;
-  mix-blend-mode: screen;
+  opacity: 0.85;
 }
-
-  color: var(--guide-text-dim);
-  font-size: 0.68rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all var(--guide-t-fast);
-}
-.ocre-tab.active {
-  background: rgba(245,158,11,0.12);
-  border-color: rgba(245,158,11,0.35);
-  color: #fbbf24;
-}
-.ocre-tab-count { font-size: 0.6rem; font-weight: 900; opacity: 0.7; }
 .ocre-row {
   display: flex;
   align-items: center;
@@ -2972,33 +2999,6 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .ocre-state.doublon { color: #fbbf24; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
 .ocre-state.manquant { color: var(--guide-text-faint); background: rgba(255,255,255,0.03); border: 1px solid var(--guide-border); }
 
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #e4e4e7;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-.toc-search-input::placeholder { color: var(--guide-text-faint); }
-.toc-search-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.2rem;
-  border-radius: 0.35rem;
-  background: transparent;
-  border: none;
-  color: var(--guide-text-faint);
-  cursor: pointer;
-}
-.toc-search-clear:hover { color: #fff; background: rgba(255,255,255,0.08); }
-.ms-row.search-result { gap: 0.5rem; }
-.ms-row.search-result .ms-title { font-size: 0.75rem; }
-
-  flex-shrink: 0;
-}
 .gch-opt-icon.principal { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); }
 .gch-opt-icon.mule { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); }
 

@@ -162,6 +162,19 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     }
     socket.join(guideRoom(data.guildId, data.guideSlug));
     logger.info(`[GuidePresence] 👥 ${socket.id} rejoint ${guideRoom(data.guildId, data.guideSlug)}`);
+    // Notif d'arrivée sur le guide (milestoneId vide = arrivée, pas une position de jalon).
+    if (wsAuthEnabled && userId) {
+      const identity = await resolveActiveProfileIdentity(userId, data.guildId);
+      if (identity) {
+        queueEvent(guideRoom(data.guildId, data.guideSlug), {
+          type: "presence:join",
+          profileId: identity.profileId,
+          userName: identity.userName,
+          userAvatar: identity.userAvatar,
+          milestoneId: "",
+        });
+      }
+    }
     // État présent initial (snapshot) pour le nouveau venu uniquement
     const members = await getPresenceMembers(data.guildId, data.guideSlug);
     socket.emit("guide:presence:update", {
@@ -171,10 +184,23 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     });
   }
 
-  function handleLeave(socket: Socket, data: GuideJoinData) {
+  async function handleLeave(socket: Socket, data: GuideJoinData) {
     if (!data.guildId || !data.guideSlug) return;
     socket.leave(guideRoom(data.guildId, data.guideSlug));
     logger.info(`[GuidePresence] 🚪 ${socket.id} quitte ${guideRoom(data.guildId, data.guideSlug)}`);
+    // Notif de départ du guide (milestoneId vide = départ du guide).
+    const userId = socket.data.userId as string | undefined;
+    if (wsAuthEnabled && userId) {
+      const identity = await resolveActiveProfileIdentity(userId, data.guildId);
+      if (identity) {
+        queueEvent(guideRoom(data.guildId, data.guideSlug), {
+          type: "presence:leave",
+          profileId: identity.profileId,
+          userName: identity.userName,
+          milestoneId: "",
+        });
+      }
+    }
   }
 
   async function handleHeartbeat(socket: Socket, data: GuideHeartbeatData) {
@@ -217,6 +243,33 @@ async function resolveActiveProfileId(userId: string, discordGuildId: string): P
       select: { id: true },
     });
     return profile?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Résout l'identité d'affichage (profileId + nom + avatar) d'un membre ACTIF. */
+async function resolveActiveProfileIdentity(
+  userId: string,
+  discordGuildId: string
+): Promise<{ profileId: string; userName: string; userAvatar?: string } | null> {
+  try {
+    const { db } = await import("../../lib/prisma");
+    const profile = await db.userProfile.findFirst({
+      where: { status: "ACTIVE", userId, guild: { discordGuildId } },
+      select: {
+        id: true,
+        pseudoDofus: true,
+        discordNickname: true,
+        user: { select: { name: true, image: true } },
+      },
+    });
+    if (!profile) return null;
+    return {
+      profileId: profile.id,
+      userName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
+      userAvatar: profile.user?.image || undefined,
+    };
   } catch {
     return null;
   }

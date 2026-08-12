@@ -3059,4 +3059,8 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border-color: rgba(212, 168, 83, 0.35);
   color: #f5d78e;
 }
+.guide-live-line.presence {
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
 

@@ -364,7 +364,7 @@ io.on("connection", (socket: Socket) => {
         guidePresence.handleJoin(socket, data).catch(() => {});
     });
     socket.on("guide:leave", (data: { guildId?: string; guideSlug?: string }) => {
-        guidePresence.handleLeave(socket, data);
+        guidePresence.handleLeave(socket, data).catch(() => {});
     });
     socket.on("guide:heartbeat", (data: {
         guildId?: string; guideSlug?: string; milestoneId?: string; userName?: string; userAvatar?: string;

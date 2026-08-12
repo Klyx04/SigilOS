@@ -117,10 +117,15 @@ function buildSeqStepKeys(seq: Sequence): string[] {
   for (let n = seq.stepFrom; n <= seq.stepTo; n++) keys.push(`${seq.subGuideRef}-${n}`);
   return keys;
 }
-// Un sous-guide est « tout validé » quand toutes ses clés (bornes connues) sont cochées.
-function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>): boolean {
+// Un sous-guide est « tout validé » quand toutes ses clés sont cochées.
+// Bornes connues (stepFrom→stepTo) : on dérive les clés. Bornes inconnues :
+// on compare avec les étapes réellement chargées du sous-guide (refStepsByRef).
+function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>, refStepsByRef?: Record<string, number[]>): boolean {
   const keys = buildSeqStepKeys(seq);
-  return keys.length > 0 && keys.every(k => checkedSteps.has(k));
+  if (keys.length > 0) return keys.every(k => checkedSteps.has(k));
+  const stepNumbers = refStepsByRef?.[seq.subGuideRef];
+  if (!stepNumbers || stepNumbers.length === 0) return false;
+  return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -341,7 +346,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide, onStepsLoaded }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -361,6 +366,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
   onCompleteSubGuide?: (keys: string[]) => void;
+  onStepsLoaded?: (ref: string, stepNumbers: number[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -373,6 +379,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   // Vue « lecture » : une étape à la fois + navigation ‹ › (au lieu du déroulé vertical).
   const [readingMode, setReadingMode] = useState(false);
   const [readIndex, setReadIndex] = useState(0);
+  const [stepNavIndex, setStepNavIndex] = useState(0);
+  const stepListRef = useRef<HTMLDivElement>(null);
 
   const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
   const total = steps.length;
@@ -388,10 +396,14 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     setLoading(true);
     try {
       const res = await getSubGuideSteps(seq.subGuideRef, seq.stepFrom, seq.stepTo);
-      if (res.success) setSteps((res as any).steps || []);
+      const loadedSteps: SubStep[] = (res as any).steps || [];
+      if (res.success) setSteps(loadedSteps);
+      // Remonte les étapes chargées au parent → le sommaire peut masquer les
+      // sous-guides sans bornes (stepFrom/stepTo) 100 % validés.
+      if (res.success && loadedSteps.length > 0) onStepsLoaded?.(seq.subGuideRef, loadedSteps.map(s => s.stepNumber));
     } catch { /* silent */ }
     finally { setLoading(false); setLoaded(true); }
-  }, [seq.subGuideRef, seq.stepFrom, seq.stepTo, loaded]);
+  }, [seq.subGuideRef, seq.stepFrom, seq.stepTo, loaded, onStepsLoaded]);
 
   useEffect(() => {
     if (expanded && !loaded && !loading) {
@@ -453,6 +465,38 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   const readSteps = steps;
   const safeReadIndex = readSteps.length === 0 ? 0 : Math.min(readIndex, readSteps.length - 1);
   const currentReadStep = readSteps[safeReadIndex] ?? null;
+  // Navigation « ‹ › » dans la liste (mode principal) : l'étape visible est suivie
+  // via IntersectionObserver ; les flèches défilent vers l'étape précédente/suivante.
+  const goToStep = useCallback((idx: number) => {
+    const safe = Math.max(0, Math.min(filteredSteps.length - 1, idx));
+    const step = filteredSteps[safe];
+    if (!step) return;
+    setStepNavIndex(safe);
+    document.getElementById(`sgc-step-${seq.subGuideRef}-${step.stepNumber}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [filteredSteps, seq.subGuideRef]);
+
+  useEffect(() => {
+    const el = stepListRef.current;
+    if (!el || filteredSteps.length === 0) return;
+    const domSteps = Array.from(el.querySelectorAll<HTMLElement>(".sgc-step"));
+    if (domSteps.length === 0) return;
+    const observer = new IntersectionObserver((entries) => {
+      let best: Element | null = null;
+      let bestRatio = 0;
+      for (const entry of entries) {
+        if (entry.isIntersecting && entry.intersectionRatio > bestRatio) {
+          bestRatio = entry.intersectionRatio;
+          best = entry.target;
+        }
+      }
+      if (best) {
+        const idx = domSteps.indexOf(best as HTMLElement);
+        if (idx >= 0 && idx < filteredSteps.length) setStepNavIndex(idx);
+      }
+    }, { threshold: [0.1, 0.3, 0.6] });
+    domSteps.forEach(s => observer.observe(s));
+    return () => observer.disconnect();
+  }, [filteredSteps.length, readingMode]);
 
   const handleReadToggle = (ref: string, n: number) => {
     const key = `${ref}-${n}`;
@@ -643,7 +687,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                 {/* Mode controls */}
                 <div className="sgc-controls" data-tour="guide-complete-subguide">
                   <button 
-                    className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
+                    className={`sgc-ctrl-btn sgc-hide-steps-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
                     title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes validées de ce sous-guide"}
                   >
@@ -662,7 +706,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                     <span>Valider ce sous-guide</span>
                   </button>
                   <button
-                    className={`sgc-ctrl-btn ${readingMode ? "active" : ""}`}
+                    className={`sgc-ctrl-btn sgc-read-toggle-btn ${readingMode ? "active" : ""}`}
                     onClick={() => { setReadingMode(v => !v); setReadIndex(0); }}
                     title="Vue lecture : une étape à la fois avec navigation Suivant ›"
                   >
@@ -671,7 +715,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                   </button>
                 </div>
 
-                <div className="sgc-step-list">
+                <div className="sgc-step-list" ref={stepListRef}>
                   {readingMode ? (
                     currentReadStep ? (
                       <>
@@ -712,7 +756,32 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                       <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
                     </div>
                   ) : (
-                    filteredSteps.map(step => renderStep(step))
+                    <>
+                      {filteredSteps.map(step => renderStep(step))}
+                      {filteredSteps.length > 0 && (
+                        <div className="sgc-step-nav">
+                          <button
+                            type="button"
+                            className="sgc-ctrl-btn"
+                            disabled={stepNavIndex === 0}
+                            onClick={() => goToStep(stepNavIndex - 1)}
+                          >
+                            <ChevronLeft size={12}/> Précédent
+                          </button>
+                          <span className="sgc-read-progress">
+                            Étape {filteredSteps[stepNavIndex]?.stepNumber ?? "–"} / {filteredSteps[filteredSteps.length - 1]?.stepNumber ?? "–"}
+                          </span>
+                          <button
+                            type="button"
+                            className="sgc-ctrl-btn sgc-read-next"
+                            disabled={stepNavIndex >= filteredSteps.length - 1}
+                            onClick={() => goToStep(stepNavIndex + 1)}
+                          >
+                            Suivant <ChevronRight size={12}/>
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </>
@@ -745,7 +814,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs, refStepsByRef }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -758,6 +827,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   onResetMilestone: (milestone: Milestone) => void;
   checkedSteps?: Set<string>;
   hideDoneSeqs?: boolean;
+  refStepsByRef?: Record<string, number[]>;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -855,7 +925,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 
                   {(() => {
                     const seqs = hideDoneSeqs && checkedSteps
-                      ? ms.sequences.filter(s => !(isDone || isSeqFullyDone(s, checkedSteps)))
+                      ? ms.sequences.filter(s => !(isDone || isSeqFullyDone(s, checkedSteps, refStepsByRef)))
                       : ms.sequences;
                     if (seqs.length === 0) return null;
                     return (
@@ -2231,6 +2301,11 @@ export default function OptimizedGuideClient({
   }, [milestones, guildId, setCreateDjModal, setCreateUnpopulatedDjModal, setDungeonChoiceModal, setQuestChoiceModal, selected]);
 
 
+  // Étapes chargées par sous-guide (masquage au sommaire des sous-guides sans bornes validés).
+  const [refStepsByRef, setRefStepsByRef] = useState<Record<string, number[]>>({});
+  const reportRefSteps = useCallback((ref: string, nums: number[]) => {
+    setRefStepsByRef(prev => (prev[ref] ? prev : { ...prev, [ref]: nums }));
+  }, []);
   // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
   // Quand « masquer les étapes validées » est actif, les sous-guides 100 % validés
   // (bornes connues) sont retirés de la pagination.
@@ -2238,8 +2313,8 @@ export default function OptimizedGuideClient({
     if (!selected) return [];
     const sorted = [...selected.sequences].sort((a, b) => a.order - b.order);
     const selectedDone = completedIds.has(selected.id);
-    return globalHideCompletedSteps ? sorted.filter(s => !(selectedDone || isSeqFullyDone(s, checkedSteps))) : sorted;
-  }, [selected, globalHideCompletedSteps, checkedSteps, completedIds]);
+    return globalHideCompletedSteps ? sorted.filter(s => !(selectedDone || isSeqFullyDone(s, checkedSteps, refStepsByRef))) : sorted;
+  }, [selected, globalHideCompletedSteps, checkedSteps, completedIds, refStepsByRef]);
   const activeSeq = selected ? visibleSeqs[activeSeqIndex] || visibleSeqs[0] || null : null;
   // Borne l'index quand des sous-guides disparaissent (validés + masqués).
   useEffect(() => {
@@ -2338,6 +2413,7 @@ export default function OptimizedGuideClient({
               presenceMap={effectivePresenceMap}
               checkedSteps={checkedSteps}
               hideDoneSeqs={globalHideCompletedSteps}
+              refStepsByRef={refStepsByRef}
               bookmarkId={bookmarkId}
               guildId={guildId}
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
@@ -2856,6 +2932,7 @@ export default function OptimizedGuideClient({
                           bookmarkStepKey={bookmarkStepKey}
                           onStepBookmark={handleStepBookmark}
                           onCompleteSubGuide={handleCompleteSubGuide}
+                          onStepsLoaded={reportRefSteps}
                         />
                       )}
                     </div>

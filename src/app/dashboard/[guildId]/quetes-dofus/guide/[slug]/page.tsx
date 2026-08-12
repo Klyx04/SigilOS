@@ -164,6 +164,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                         </div>
                 ) : (
                     <OptimizedGuideClient
+                        key={character}
                         guide={guide}
                         milestones={guide.milestones as any}
                         userProgress={guide.milestones.flatMap((m: any) => m.playerProgress || [])}

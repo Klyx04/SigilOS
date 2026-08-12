@@ -625,3 +625,66 @@ Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` 
   - Uncontrolled command line (4) : reel mais admin-only -> **CORRIGE** : validation slug (regex) avant execAsync (`dofus-v3-actions.ts`, `dofus-quest-admin-actions.ts`).
 - Commit `aea3ac68` pousse sur `refonte-module-ganymede` (PR #451). tsc 0, eslint 0 erreur, tests 137/137.
 - Reste a trier (non bloquant, CodeQL non requis pour merge) : sanitization/double escaping, format string cache.ts, DOM XSS kama widgets, dist/*.js (build, ignorer).
+
+---
+
+## 🧭 Session 12/08/2026 — Fixes UX + Archivage Discord (branche `fix/debug-amelio`)
+
+> **Branche** : `fix/debug-amelio` → PR vers `dev` (mergée). **Commits** : `1f64507e`, `577b1e97`, `15b52fdb`, `89d527b1`, `d0533af8`, `9bd6e825`.
+
+### ✅ Fix 1 — Chip Événements Header non-cliquable (overflow clippé)
+
+- **Problème** : la popover de la chip événements était clippée par le `overflow-hidden` du header → non cliquable.
+- **Fix** (`top-nav.tsx`) : chip déplacée hors du conteneur `overflow-hidden`, popover libre dans le DOM.
+- **Comportement** : 1 événement → ouvre `EventDetailModal` directement ; N événements → ouvre une liste cliquable (chaque item ouvre la modale).
+
+### ✅ Fix 2 — Bouton Réglages du profil ouvre directement l'onglet Settings
+
+- **Problème** : clic sur « Réglages » dans le dropdown du profil ouvrait le profil sur l'onglet Général.
+- **Fix** (`top-nav.tsx` + page profil) : ajout de `?tab=settings` dans le lien → détection côté serveur via `searchParams` → onglet Réglages actif immédiatement.
+
+### ✅ Fix 3 — Flux de déploiement Missions (1er déploiement + re-déploiement)
+
+- **Problème** : au 1er déploiement, pas d'étape de ping Discord (pourtant des rôles étaient définis). Au re-déploiement, pas de choix entre reping ou silencieux.
+- **Fix** (`mission-publish-flow-dialog.tsx`) :
+  - **1er déploiement** : étape `DISCORD_PING` avec rôles pré-cochés (issus de la config admin).
+  - **Re-déploiement** : nouvelle étape `REPUBLISH_CHOICE` → « Modifier sans reping » (silencieux) OU « Modifier en pingant » (ouvre la modale de ping).
+
+### ✅ Fix 4 — Archivage automatique lors des départs Discord (bot + cron)
+
+**Cause racine** : le bot Discord (discord.js, conteneur séparé) manque les events `GuildMemberRemove` quand il crash/redémarre. Discord ne rejoue pas les events manqués.
+
+- **Bot** (`services/discord-bot/index.ts`) :
+  - Ajout de `Partials.GuildMember` → events fiables même pour membres non cachés (bot redémarré).
+  - Ajout de `scheduledDeletion: +30j` à l'archivage.
+  - Ajout de l'envoi direct d'un embed Discord dans `lifecycleNotifyChannelId` après chaque archivage (`GuildMemberRemove`).
+
+- **Cron safety net** (`src/app/api/cron/sync-members/route.ts`) — **NOUVEAU** :
+  - Endpoint `/api/cron/sync-members` protégé par `x-cron-secret`.
+  - Appelle `syncAllGuilds()` : cross-check membres Discord vs profils actifs en DB, archive les absents, réactive les retours.
+  - Intégré dans `scripts/maintenance.sh` (nightly 4h00).
+  - **Cron VPS toutes les 30min** à ajouter : `*/30 * * * * curl -s -H "x-cron-secret: SECRET" "https://beta.sigilos.fr/api/cron/sync-members" >> .../logs/sync-members.log 2>&1`
+
+### ✅ Fix 5 — Embeds lifecycle envoyés sur départs/bans automatiques
+
+- **Problème** : `sendLifecycleNotification` n'était appelée que sur les actions manuelles (admin archive/delete). Les départs automatiques (bot ou cron sync) n'envoyaient aucun embed.
+- **Fix** :
+  - `lifecycle-actions.ts` : `sendLifecycleNotification` **exportée** (auparavant privée).
+  - `sync-actions.ts` : import + appel après chaque archivage LEFT/BANNED dans `syncMembershipStatusInternal`. User select enrichi avec `name` + `image`.
+  - Bot : embed direct via `client.channels.fetch(lifecycleNotifyChannelId)` après archivage dans `GuildMemberRemove`.
+- **Couverture complète** :
+  - ✅ Auto-archive depuis le profil utilisateur → embed `ARCHIVED`
+  - ✅ Admin archive/supprime → embed `ARCHIVED`/`DELETED`
+  - ✅ GDPR deletion → embed `DELETED`
+  - ✅ Départ Discord (bot temps réel) → embed `LEFT`
+  - ✅ Départ Discord (cron sync fallback) → embed `LEFT`
+  - ✅ Ban Discord (cron sync) → embed `BANNED`
+  - ✅ Réactivation admin → embed `REACTIVATED`
+  - ✅ AuditLog créé pour chaque action, cloison par guilde garantie.
+
+### 📋 Rappels actions VPS post-déploiement
+
+1. `./scripts/deploy.sh beta` (rebuild app + bot Discord)
+2. `crontab -e` → ajouter la ligne `*/30 * * * *` sync-members (cf. ci-dessus)
+3. Vérifier que `lifecycleNotifyChannelId` est configuré dans **Admin → Settings → Notifications** de chaque guilde
+

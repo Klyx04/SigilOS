@@ -684,7 +684,7 @@ body.map-fullscreen .dashboard-tour,
 body.guide-fullscreen .dashboard-sidebar,
 body.guide-fullscreen .dashboard-topnav,
 body.guide-fullscreen .dashboard-footer,
-body.guide-fullscreen .dashboard-tour {
+body.guide-fullscreen .support-orb {
   display: none !important;
 }
 body.guide-fullscreen .guide-shell {

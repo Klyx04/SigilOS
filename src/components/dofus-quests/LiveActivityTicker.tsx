@@ -11,11 +11,11 @@ const MAX_VISIBLE = 3;
 function eventToText(e: GuideRealtimeEvent): string | null {
   switch (e.type) {
     case "step:validated":
-      return `${e.userName} a validé ${e.subGuideRef} · étape ${e.stepNumber}`;
+      return `${e.userName} a coché l'étape ${e.stepNumber} de [${e.subGuideRef}]`;
     case "step:validated:batch":
-      return `${e.userName} a validé ${e.count} étapes dans ${e.subGuideRef}`;
+      return `${e.userName} a coché ${e.count} étapes de [${e.subGuideRef}]`;
     case "milestone:completed":
-      return `${e.userName} a validé le jalon « ${e.milestoneTitle} »`;
+      return `${e.userName} a terminé le jalon « ${e.milestoneTitle} »`;
     case "presence:join":
       // milestoneId vide = arrivée sur le guide (les bookmarks de jalon ne notifient pas).
       return e.milestoneId ? null : `${e.userName} est arrivé sur le guide`;
@@ -81,7 +81,7 @@ export default function LiveActivityTicker({ events }: { events: GuideRealtimeEv
   return (
     <div className="guide-live-ticker" aria-live="polite" aria-label="Activité du guide en direct">
       {lines.map(l => (
-        <div key={l.id} className={`guide-live-line${l.kind === "milestone" ? " milestone" : ""}`}>
+        <div key={l.id} className={`guide-live-line${l.kind === "step" ? " step" : ""}${l.kind === "milestone" ? " milestone" : ""}${l.kind === "presence" ? " presence" : ""}`}>
           {l.text}
         </div>
       ))}

@@ -54,18 +54,18 @@
 }
 
 
-/* Bouton « Sommaire » dans le bandeau (ouvre/ferme la sidebar) */
+/* Bouton « Sommaire » dans le bandeau (ouvre/ferme la sidebar) — accent indigo bien visible */
 .guide-sommaire-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
+  padding: 0.45rem 0.75rem;
   border-radius: 0.6rem;
-  background: var(--guide-surface-2);
-  border: 1px solid var(--guide-border);
-  color: var(--guide-text-dim);
-  font-size: 0.7rem;
-  font-weight: 800;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #c4b5fd;
+  font-size: 0.72rem;
+  font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -73,10 +73,53 @@
   white-space: nowrap;
 }
 .guide-sommaire-btn:hover {
-  color: #fff;
-  border-color: rgba(16,185,129,0.4);
-  background: var(--guide-green-soft);
+  color: #ddd6fe;
+  border-color: rgba(139, 92, 246, 0.65);
+  background: rgba(139, 92, 246, 0.22);
 }
+.guide-sommaire-kbd {
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 0.05rem 0.32rem;
+  border-radius: 0.3rem;
+  background: rgba(139, 92, 246, 0.22);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  color: #ddd6fe;
+  line-height: 1.2;
+}
+
+/* Bandeau « Retour au guide précédent » (navigation croisée entre guides) */
+.guide-return-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.9rem;
+  margin-bottom: 1rem;
+  border-radius: 0.7rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+.guide-return-banner button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.55rem;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
+  white-space: nowrap;
+}
+.guide-return-banner button:hover { border-color: rgba(59, 130, 246, 0.8); background: rgba(59, 130, 246, 0.3); }
 
 /* ── Sidebar ── */
 .guide-sidebar {
@@ -441,6 +484,7 @@
   align-items: center;
   gap: 0.6rem;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 /* Bouton « Quitter » du HUD — seule sortie garantie en mode plein écran (V2) */
@@ -525,10 +569,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.25rem 0.5rem 0.25rem 0.35rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  border-radius: 999px;
+  padding: 0.35rem 0.6rem;
+  background: var(--guide-surface-2);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
 }
@@ -551,20 +595,85 @@
 .guide-hud-presence-count { font-size: 0.66rem; font-weight: 900; color: var(--guide-text-dim); }
 .guide-hud-presence-label { font-size: 0.62rem; font-weight: 800; color: var(--guide-text-dim); white-space: nowrap; }
 
+/* ── Présence « en ligne » du bandeau — style Rush Live (13/08) ── */
+.guide-live-presence {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
+}
+.guide-live-presence:hover { background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.45); }
+.guide-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #34d399;
+  flex-shrink: 0;
+}
+.guide-live-label {
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #34d399;
+  white-space: nowrap;
+}
+.guide-live-count {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e4e4e7;
+  white-space: nowrap;
+}
+.guide-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.5rem;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #d4d4d8;
+  max-width: 130px;
+  overflow: hidden;
+}
+.guide-live-chip > span:not(.guide-live-me) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guide-live-chip img {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.guide-live-me { color: #34d399; font-weight: 900; flex-shrink: 0; }
+
 .guide-hud-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.55rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  border-radius: 0.55rem;
-  color: var(--guide-text-dim);
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--guide-surface-2);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 0.6rem;
+  color: #e4e4e7;
+  font-size: 0.72rem;
+  font-weight: 800;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
 }
-.guide-hud-btn:hover { color: #fff; border-color: rgba(255,255,255,0.22); background: var(--guide-surface-2); }
+.guide-hud-btn:hover { color: #fff; border-color: rgba(255,255,255,0.32); background: var(--guide-surface); }
 .guide-hud-btn.active { color: var(--guide-green); border-color: rgba(16,185,129,0.35); background: var(--guide-green-soft); }
 .guide-hud-btn-danger { color: var(--guide-red); }
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
@@ -617,17 +726,46 @@
 .guide-hud-credit {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.38rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  border-radius: 0.55rem;
-  color: var(--guide-text-dim);
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.6rem;
+  color: #fff;
   text-decoration: none;
   transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
 }
-.guide-hud-credit:hover { border-color: rgba(59,130,246,0.4); background: var(--guide-blue-soft); }
-.guide-hud-credit img { width: 15px; height: 15px; object-fit: contain; border-radius: 3px; }
+.guide-hud-credit:hover { border-color: rgba(59, 130, 246, 0.55); background: rgba(59, 130, 246, 0.15); }
+.guide-hud-credit-fav {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.guide-hud-credit-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  text-align: left;
+}
+.guide-hud-credit-eyebrow {
+  font-size: 0.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #93c5fd;
+}
+.guide-hud-credit-name {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* Bouton « Signaler » uniformisé avec le reste du HUD (fini le dégradé rose) */
+.guide-hud-feedback-btn { color: #f87171; }
+.guide-hud-feedback-btn:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
 
 /* Sélecteur de guide */
 .guide-switcher { position: relative; }
@@ -862,6 +1000,7 @@
 .subguides-label {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   font-size: 0.8rem;
@@ -1599,8 +1738,6 @@
 }
 .sgc-read-toggle-btn:hover { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border-color: rgba(59, 130, 246, 0.55); }
 .sgc-read-toggle-btn.active { background: rgba(59, 130, 246, 0.18); border-color: #3b82f6; color: #93c5fd; }
-/* Bouton « Masquer les étapes validées » — état actif ambre (distinct du vert Valider) */
-.sgc-hide-steps-btn.active { background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; color: #fbbf24; }
 
 .map-overlay {
   position: fixed;
@@ -2710,6 +2847,37 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   white-space: nowrap;
   margin-right: 0.5rem;
 }
+/* Numéro d'étape cliquable → saisie directe (chiffres uniquement) */
+.step-nav-jump {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2em;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.4rem;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  font-size: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  line-height: 1.3;
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast), color var(--guide-t-fast);
+}
+.step-nav-jump:hover { border-color: rgba(59, 130, 246, 0.7); background: rgba(59, 130, 246, 0.22); color: #fff; }
+.step-nav-jump-input {
+  width: 3.2em;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.4rem;
+  background: var(--guide-surface);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  color: #fff;
+  font-size: inherit;
+  font-weight: 900;
+  text-align: center;
+  outline: none;
+}
+.step-nav-jump-input:focus { border-color: #60a5fa; outline: 2px solid rgba(59, 130, 246, 0.4); outline-offset: 1px; }
 .jump-btn.reset { min-width: 42px; width: 42px; color: var(--guide-red); background: var(--guide-red-soft); border-color: rgba(239,68,68,0.2); }
 .jump-btn.reset:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); }
 .validate-btn { min-width: 150px; }
@@ -2778,8 +2946,13 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   grid-template-columns: repeat(4, 1fr);
   gap: 0.9rem;
 }
-@media (max-width: 1100px) { .guide-hero-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1280px) { .guide-hero-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .guide-hero-grid { grid-template-columns: 1fr; } }
+/* Responsivité petits écrans — hero + lecture (13/08) */
+@media (max-width: 700px) {
+  .guide-hero { padding: 1.25rem 1rem; gap: 1.25rem; }
+  .guide-content { padding: 1.25rem 1rem 4rem; }
+}
 .guide-hero-card {
   display: flex;
   align-items: center;
@@ -2789,6 +2962,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 1px solid var(--guide-border);
   border-radius: 1rem;
   min-width: 0;
+  overflow: hidden;
 }
 .guide-hero-card-icon {
   display: flex;
@@ -2898,6 +3072,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   font-size: 0.72rem;
   font-weight: 900;
   cursor: pointer;
+  overflow: hidden;
 }
 .gch-trigger:hover { border-color: rgba(16,185,129,0.4); }
 .gch-content {
@@ -3122,10 +3297,13 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .gch-opt-icon.mule { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); }
 
 /* ── LiveActivityTicker (Phase F) — zéro glow ── */
+/* Position : milieu-droit (légèrement sous le centre, retour user 13/08) */
 .guide-live-ticker {
   position: fixed;
-  bottom: 1.25rem;
+  top: 60%;
+  transform: translateY(-50%);
   right: 1.25rem;
+  bottom: auto;
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
@@ -3150,6 +3328,10 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .guide-live-line.milestone {
   border-color: rgba(212, 168, 83, 0.35);
   color: #f5d78e;
+}
+.guide-live-line.step {
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
 }
 .guide-live-line.presence {
   border-color: rgba(59, 130, 246, 0.35);

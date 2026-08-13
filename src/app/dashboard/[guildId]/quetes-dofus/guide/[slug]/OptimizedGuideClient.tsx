@@ -2730,10 +2730,13 @@ export default function OptimizedGuideClient({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="guide-hud-btn guide-hud-credit"
-                      title="Parcours et étapes issus de Ganymède"
+                      title="Parcours et étapes issus de Ganymède — visiter leur site"
                     >
-                      <img src="/assets/icons/ganymede.png" alt=""/>
-                      <span>Ganymède</span>
+                      <img className="guide-hud-credit-fav" src="/assets/icons/ganymede.png" alt="Ganymède"/>
+                      <span className="guide-hud-credit-text">
+                        <span className="guide-hud-credit-eyebrow">Parcours</span>
+                        <span className="guide-hud-credit-name">Ganymède ↗</span>
+                      </span>
                     </a>
                     {/* Reset guide déplacé dans le menu Options */}
                   </div>

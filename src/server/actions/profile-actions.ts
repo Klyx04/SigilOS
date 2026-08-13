@@ -1068,6 +1068,7 @@ const AltPseudoObjectSchema = z.object({
     level: z.number().min(0).max(200).optional(),
     alignment: z.string().nullable().optional(),
     alignmentOrder: z.string().nullable().optional(),
+    alignmentLevel: z.number().min(0).max(100).optional(),
 });
 
 const UpdateAltPseudosSchema = z.object({
@@ -1149,6 +1150,76 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
     } catch (error: unknown) {
         logger.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR", { error });
         return { success: false, error: "Erreur serveur critique" };
+    }
+}
+
+const UpdateMuleAlignmentSchema = z.object({
+    guildId: z.string(),
+    pseudo: z.string()
+        .min(2, "Pseudo trop court")
+        .max(20, "Pseudo trop long"),
+    alignment: z.string().nullable(),
+    alignmentOrder: z.string().nullable(),
+    alignmentLevel: z.number().min(0).max(100),
+});
+
+/**
+ * Met à jour l'alignement d'UNE mule (altPseudos du profil).
+ * Utilisé par les modules guide (Ganymède / Rush Sylvestre) quand on édite
+ * l'alignement d'une mule : la donnée vit dans le MÊME tableau `altPseudos`
+ * que le profil perso → la synchro est parfaite dans les deux sens.
+ */
+export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = UpdateMuleAlignmentSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, pseudo, alignment, alignmentOrder, alignmentLevel } = validation.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { id: true, altPseudos: true }
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const alts = Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [];
+        const idx = alts.findIndex((m: any) => m.pseudo === pseudo);
+        if (idx === -1) return { success: false, error: `La mule "${pseudo}" est introuvable sur votre profil.` };
+
+        const isNeutre = !alignment || alignment === "neutre";
+        alts[idx] = {
+            ...alts[idx],
+            alignment: alignment || "neutre",
+            alignmentOrder: isNeutre ? null : alignmentOrder,
+            alignmentLevel: isNeutre ? 0 : alignmentLevel,
+        };
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: { altPseudos: alts as any, userUpdatedAt: new Date() }
+        });
+
+        // 🛡️ Invalider le cache pour que le guide et le profil lisent la nouvelle valeur
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Mule Alignment Error", { error });
+        return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
 

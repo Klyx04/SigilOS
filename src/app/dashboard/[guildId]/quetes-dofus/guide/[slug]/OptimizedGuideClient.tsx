@@ -1080,6 +1080,24 @@ export default function OptimizedGuideClient({
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
 
+  // Alignement/ordre/tranche du PERSONNAGE résolu (mule sélectionnée OU perso principal)
+  // → le bandeau + la modale Alignement reflètent la bonne entité (synchro profil via altPseudos).
+  const resolvedCharInfo = useMemo(() => {
+    if (selectedCharacter === "PRINCIPAL") {
+      return {
+        alignment: currentUserProfile?.alignment ?? null,
+        alignmentOrder: currentUserProfile?.alignmentOrder ?? null,
+        alignmentLevel: currentUserProfile?.alignmentLevel ?? 0,
+      };
+    }
+    const mule = currentUserProfile?.altPseudos?.find((m: any) => m.pseudo === selectedCharacter);
+    return {
+      alignment: mule?.alignment ?? null,
+      alignmentOrder: mule?.alignmentOrder ?? null,
+      alignmentLevel: mule?.alignmentLevel ?? 0,
+    };
+  }, [selectedCharacter, currentUserProfile]);
+
   // Clés localStorage scopées par personnage : chaque mule garde sa propre
   // position (le serveur sépare déjà les progressions via characterSlot).
   const bookmarkStorageKey = `guide-bm-${guide.slug}-${selectedCharacter}`;
@@ -2868,7 +2886,7 @@ export default function OptimizedGuideClient({
                     title="Modifier mon alignement / ordre"
                   >
                     {(() => {
-                      const { alignment, alignmentOrder, alignmentLevel } = currentUserProfile || {};
+                      const { alignment, alignmentOrder, alignmentLevel } = resolvedCharInfo;
                       if (!alignment || alignment === "neutre") {
                         return (
                           <>
@@ -3296,9 +3314,10 @@ export default function OptimizedGuideClient({
         open={isAlignModalOpen}
         onOpenChange={setIsAlignModalOpen}
         guildId={guildId}
-        alignment={currentUserProfile?.alignment}
-        alignmentOrder={currentUserProfile?.alignmentOrder}
-        alignmentLevel={currentUserProfile?.alignmentLevel}
+        mulePseudo={altPseudo || null}
+        alignment={resolvedCharInfo.alignment}
+        alignmentOrder={resolvedCharInfo.alignmentOrder}
+        alignmentLevel={resolvedCharInfo.alignmentLevel}
       />
 
       {/* ── Tiroir Sommaire (TOC) — porté dans document.body pour passer AU-DESSUS de la navbar app ── */}

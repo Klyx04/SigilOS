@@ -1758,6 +1758,30 @@ export default function OptimizedGuideClient({
   const prevMs = selectedIdx > 0 ? flatList[selectedIdx - 1] : null;
   const nextMs = selectedIdx < flatList.length - 1 ? flatList[selectedIdx + 1] : null;
 
+  // ─── Saisie directe d'un numéro d'étape (guide principal GP0) ─────────────────
+  // Chiffres uniquement (sanitisé), borné [1..flatList.length], Entrée = aller,
+  // Échap = annuler. Réutilise jumpMode/jumpInput (déjà déclarés).
+  const startJump = useCallback(() => {
+    setJumpInput(String(Math.max(selectedIdx, 0) + 1));
+    setJumpMode(true);
+  }, [selectedIdx]);
+  const handleJumpInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setJumpInput(e.target.value.replace(/\D/g, "").slice(0, 4));
+  }, []);
+  const applyJump = useCallback(() => {
+    setJumpMode(false);
+    if (flatList.length === 0) return;
+    const n = parseInt(jumpInput, 10);
+    if (Number.isNaN(n) || n < 1) return;
+    const idx = Math.min(Math.max(n - 1, 0), flatList.length - 1);
+    const target = flatList[idx];
+    if (target && target.id !== selected?.id) setSelected(target);
+  }, [jumpInput, flatList, selected?.id]);
+  const handleJumpInputKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.preventDefault(); applyJump(); }
+    else if (e.key === "Escape") setJumpMode(false);
+  }, [applyJump]);
+
   // Scroll to top on milestone change
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }, [selected?.id]);
 
@@ -2916,7 +2940,34 @@ export default function OptimizedGuideClient({
                 >
                   <ChevronLeft size={14}/> <span>Précédent</span>
                 </button>
-                <span className="step-nav-counter">Étape {selectedIdx + 1} / {flatList.length}</span>
+                <span className="step-nav-counter">
+                  Étape{" "}
+                  {jumpMode ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={jumpInput}
+                      onChange={handleJumpInputChange}
+                      onKeyDown={handleJumpInputKey}
+                      onBlur={applyJump}
+                      className="step-nav-jump-input"
+                      aria-label="Numéro d'étape"
+                      title="Entrée pour aller à l'étape"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="step-nav-jump"
+                      onClick={startJump}
+                      title="Taper un numéro d'étape (chiffres uniquement)"
+                    >
+                      {Math.max(selectedIdx + 1, 1)}
+                    </button>
+                  )}{" "}
+                  / {flatList.length}
+                </span>
                 <button
                   className={`nav-btn next ${nextMs ? "" : "disabled"}`}
                   onClick={() => nextMs && setSelected(nextMs)}

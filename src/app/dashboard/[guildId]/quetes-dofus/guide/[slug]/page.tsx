@@ -175,6 +175,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             ocreStats={ocreStats}
                             capturedOcreMonsterIds={Array.from(capturedOcreMonsterIds)}
                             capturedMonsterNames={capturedMonsterNames}
+                            fromSlug={fromSlug}
+                            fromTitle={fromTitle}
                         />
                         </div>
                         </div>

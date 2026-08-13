@@ -65,11 +65,11 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                     <div className="space-y-5">
                         <div className="space-y-2">
                             <h1 className="text-3xl font-black text-white tracking-tight font-heading">
-                                {rateLimited ? "Vérification..." : "Accès Restreint"}
+                                {rateLimited ? "Vérification indisponible" : "Accès Restreint"}
                             </h1>
                             <p className="text-zinc-400 text-sm leading-relaxed">
                                 {rateLimited
-                                    ? "Synchronisation des accès en cours, patientez quelques secondes."
+                                    ? "L'API Discord est temporairement saturée (trop de requêtes). La vérification de vos accès reprendra automatiquement dans quelques instants."
                                     : "Votre compte Discord n'est associé à aucune guilde active sur SigilOS."}
                             </p>
                         </div>

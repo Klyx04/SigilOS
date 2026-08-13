@@ -198,6 +198,28 @@ Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` 
 
 ---
 
+## 🧭 Suivi de chantier — Session debug 13/08 (accès candidat, bouton Synchroniser, portail) — FAIT sur `fix/access-sync-portal`
+
+> **Branche** : `fix/access-sync-portal` (base = `origin/dev` 5858a376) → PR vers `dev` (2 commits : `88c99b64` + `7d01ba61`). **Mémo** : `src/temp/memo-2026-08-13-debug-acces-candidat.md` (gitignoré). Outil diagnostic : `src/temp/diagnostic-arrivee-candidat.ts` (hors git). **Module guide CLOS — non touché.**
+
+### 🎯 Audit « un candidat s'est-il connecté ? » — Verdict
+- **Login = appartenance, PAS de rôle** (`auth.ts` signIn) : tout membre d'une guilde `guildConfig`/`allowedGuild` active obtient une session. → un candidat « Candidat » PEUT se connecter instantanément (c'est la vraie raison du « l'infra est très vif »). Le staff n'a donc pas halluciné sur la session/le portail.
+- **Données protégées (fail-closed)** : `getUserContext` → `canViewDashboard` bloque sans `DASHBOARD_LOGIN`/admin/owner/mapping → `AccessDenied`, aucun module accessible.
+- **⚠️ Notif d'arrivée = preuve de passage du gatekeeper** : `sendWelcomeNotifications` n'est déclenchée QUE lors de la **création du profil** (membre autorisé). Si l'embed Discord « NOUVELLE ARRIVÉE » est parti → le user était **autorisé à ce moment** (rôle mappé / admin / owner), OU source manuelle/welcome natif Discord. Preuve dispo : `AuditLog PLATFORM_ARRIVAL.newValue.roleName`.
+
+### ✅ Fix 1 (`88c99b64`) — Bouton « Je viens de rejoindre (Synchroniser) » réellement utile
+- **Bug racine** : `revalidateUserContext` invalidait le cache membre Discord (`member:{guildId}:{discordId}`) avec `session.user.id` (**UUID interne**) → `key.includes()` ne matchait jamais → rôle octroyé ignoré jusqu'au TTL 15s. Fix : `session.user.discordId` (snowflake) + `roles:{guildId}` + résolution id interne `guildConfig` pour le `profileCache`.
+- `getGuildsSeparated` : type `GuildPortalItem` (`hasAccess`/`accessLabel`). **+4 tests** → 155/155.
+
+### ✅ Fix 2 (`7d01ba61`) — UI honnête
+- Portail `/dashboard` + drawer : « Rôle d'accès requis » (ambre) au lieu de « Accès Membre »/« Membre Actif » trompeurs pour un candidat.
+- Page « Vérification » : l'état 429 dit désormais « API Discord temporairement saturée » (plus de faux « Synchronisation des accès en cours »).
+
+### 🔜 Reste
+- Lancer `diagnostic-arrivee-candidat.ts` sur **beta/prod** pour trancher le rôle exact du user (PLATFORM_ARRIVAL.roleName). Décision produit en attente : durcir le `signIn` par rôle (déconseillé — coût multi-guilde, données déjà protégées).
+
+---
+
 ## 🧭 Suivi de chantier courant (Évol 4 — God evolutions)
 
 > **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).

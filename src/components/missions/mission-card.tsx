@@ -746,6 +746,14 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 );
             }
             if (payload.eventType === 'OBJECTIF' || payload.description) {
+                if (payload.eventType === 'OBJECTIF') {
+                    return (
+                        <span className="flex items-start gap-2">
+                            <Image src="/exclamation.png" alt="Objectif manuel" width={18} height={18} className="object-contain shrink-0 mt-0.5" loading="lazy" />
+                            <span>{payload.description || "Compléter l'objectif manuel demandé."}</span>
+                        </span>
+                    );
+                }
                 return <>{payload.description || "Participer à l'événement."}</>;
             }
             if (payload.eventType === 'MONSTRE_SPECIAL' && payload.monsterName) {

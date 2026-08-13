@@ -96,6 +96,14 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
         const actorName = profileId ? ctx.name ?? "Un administrateur" : undefined;
         await sendLifecycleNotification(guildId, updatedProfile, "ARCHIVED", actorName);
 
+        // ── Chantier #31 : fermer le contenu publié par le membre archivé + embeds Discord ──
+        await closeMemberPublishedContent(
+            guildId,
+            targetProfileId,
+            updatedProfile.userId,
+            profileId ? "ADMIN_ARCHIVED" : "USER_LEAVE"
+        );
+
         // Invalidate Redis cache to prevent stale restricted access
         await invalidateUserContextCache(
             updatedProfile.userId, 
@@ -321,6 +329,10 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
 
         const targetUserId = target.userId;
         const hasOtherProfiles = target.user.profiles.length > 1;
+
+        // ── Chantier #31 : fermer le contenu publié (posts DJ + runs songes) + supprimer
+        // les embeds Discord AVANT de supprimer le profil (les posts cascade au delete).
+        await closeMemberPublishedContent(guildId, profileId, targetUserId, "MEMBER_DELETED");
 
         // 1. Delete the UserProfile — cascades to all guild-scoped data
         await db.userProfile.delete({ where: { id: profileId } });
@@ -816,6 +828,9 @@ export async function syncGuildMembers(discordGuildId: string) {
                         logger.error("[GuildMemberBan] tombstone on Discord ban failed:", banErr);
                     }
 
+                    // ── Chantier #31 : fermer le contenu publié du membre banni (posts DJ + runs songes) ──
+                    await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "BANNED (Discord)");
+
                     // 🔔 Lifecycle Notification
                     await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)");
 
@@ -850,6 +865,9 @@ export async function syncGuildMembers(discordGuildId: string) {
                             scheduledDeletion: twelveMonthsFromNow
                         }
                     });
+
+                    // ── Chantier #31 : fermer le contenu publié du membre parti (posts DJ + runs songes) ──
+                    await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "LEFT");
 
                     // 🔔 Lifecycle Notification
                     await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)");
@@ -1199,4 +1217,69 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
         logger.error("[liftGuildMemberBan] error:", e);
         return { success: false, error: "Database error" };
     }
+}
+
+/**
+ * Ferme TOUT le contenu publié par un membre exclu (archivé / banni / supprimé) :
+ * - Posts DJ & quêtes en cours (OPEN/FULL) → CLOSED + suppression de l'embed Discord
+ * - Runs songes en cours (leader) → ABANDONED + suppression de l'embed Discord
+ * Best-effort et non bloquant. Aucune auto-expiration temporelle : un post ne se ferme
+ * que si son émetteur quitte le dashboard (chantier #31).
+ */
+export async function closeMemberPublishedContent(
+    guildId: string,
+    profileId: string,
+    userId: string,
+    reason: string
+): Promise<{ dj: number; runs: number }> {
+    const closed = { dj: 0, runs: 0 };
+    try {
+        // 1. Posts DJ / quêtes actifs du membre → CLOSED
+        const djPosts = await (db as any).djSearchPost.findMany({
+            where: { profileId, status: { in: ["OPEN", "FULL"] } },
+            select: { id: true, discordChannelId: true, discordMessageId: true }
+        });
+        if (djPosts.length > 0) {
+            await (db as any).djSearchPost.updateMany({
+                where: { id: { in: djPosts.map((p: any) => p.id) } },
+                data: { status: "CLOSED", closedAt: new Date() }
+            });
+            closed.dj = djPosts.length;
+        }
+
+        // 2. Runs songes en cours dont le membre est leader → ABANDONED
+        // (DreamRun.guildId stocke le discordGuildId — voir getUnifiedActiveGroups)
+        const dreamRuns = await db.dreamRun.findMany({
+            where: { guildId, leaderId: userId, status: { in: ["RECRUITING", "IN_PROGRESS"] } },
+            select: { id: true, discordChannelId: true, discordMessageId: true }
+        });
+        if (dreamRuns.length > 0) {
+            await db.dreamRun.updateMany({
+                where: { id: { in: dreamRuns.map(r => r.id) } },
+                data: { status: "ABANDONED", completedAt: new Date() }
+            });
+            closed.runs = dreamRuns.length;
+        }
+
+        // 3. Suppression des embeds Discord (best-effort, jamais bloquant)
+        if (closed.dj > 0 || closed.runs > 0) {
+            const { deleteChannelMessage } = await import("@/server/discord");
+            const deleteTasks: Promise<unknown>[] = [];
+            for (const p of djPosts) {
+                if (p.discordChannelId && p.discordMessageId) {
+                    deleteTasks.push(deleteChannelMessage(p.discordChannelId, p.discordMessageId).catch(() => false));
+                }
+            }
+            for (const r of dreamRuns) {
+                if (r.discordChannelId && r.discordMessageId) {
+                    deleteTasks.push(deleteChannelMessage(r.discordChannelId, r.discordMessageId).catch(() => false));
+                }
+            }
+            await Promise.allSettled(deleteTasks);
+            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes`);
+        }
+    } catch (e) {
+        logger.error("[closeMemberPublishedContent] error:", e);
+    }
+    return closed;
 }

@@ -23,6 +23,17 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 📍 État git — fin de session 13/08/2026
+
+- **`origin/dev` = `8d1f7e90`** (merge **PR #463**) — contient cumulé : guide GP9/GP9B (#460) · access-sync (#461) · **fix CI GHCR + 4 chantiers « arrivée » (#463)**.
+- **Déployé beta** (`./scripts/deploy-cd.sh beta` ✅ — 6 conteneurs Healthy, migrations OK, uploads migrés). Les images `latest` correspondent au build du merge #463 — ✅ à confirmer une fois le **run Actions `8d1f7e90` vert**.
+- **PR #462 (hotfix CI séparé) : FERMÉE** — redondante (fix retry GHCR identique déjà inclus via #463).
+- Branches restantes utiles : `main`, `dev`, `fix/access-sync-portal` (mergée), `fix/ci-ghcr-rate-limit` (redondante, supprimable), `refonte/arrivee-changelog-tour` (mergée), `fix/guide-gp9-alignment-refs` (mergée), `fix/debug-amelio` (historique).
+- ⚠️ **Incident CI 13/08** : **secondary rate limit GHCR (403)** sur le push de `sigilos-worker-beta` → corrigé dans `.github/workflows/deploy.yml` (retry_push 3× backoff 60/120 s + `sleep 10` entre images + `timeout-minutes` 45).
+- ⚠️ **Outil diagnostic candidat** : `src/temp/diagnostic-arrivee-candidat.ts` (hors git) — à lancer sur beta/prod pour trancher `PLATFORM_ARRIVAL.roleName` du user concerné.
+
+---
+
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 
 > Tous les commits poussés sur `feat/deploy-clean-pro` (PR à merger vers `dev`). Détail complet : `src/temp/memo-2026-08-10-worldmap-jeux-429-suite.md`.
@@ -198,9 +209,9 @@ Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` 
 
 ---
 
-## 🧭 Suivi de chantier — Session debug 13/08 (accès candidat, bouton Synchroniser, portail) — FAIT sur `fix/access-sync-portal`
+## 🧭 Suivi de chantier — Session debug 13/08 (accès candidat, bouton Synchroniser, portail) — MERGÉE (PR #461, merge `11f1d71c`) + déployée beta
 
-> **Branche** : `fix/access-sync-portal` (base = `origin/dev` 5858a376) → PR vers `dev` (2 commits : `88c99b64` + `7d01ba61`). **Mémo** : `src/temp/memo-2026-08-13-debug-acces-candidat.md` (gitignoré). Outil diagnostic : `src/temp/diagnostic-arrivee-candidat.ts` (hors git). **Module guide CLOS — non touché.**
+> **Branche** : `fix/access-sync-portal` (2 commits : `88c99b64` + `7d01ba61`) → **MERGÉE dans `origin/dev` via PR #461 (merge `11f1d71c`)** + déployée beta. **Mémo** : `src/temp/memo-2026-08-13-debug-acces-candidat.md` (gitignoré). Outil diagnostic : `src/temp/diagnostic-arrivee-candidat.ts` (hors git). **Module guide CLOS — non touché.**
 
 ### 🎯 Audit « un candidat s'est-il connecté ? » — Verdict
 - **Login = appartenance, PAS de rôle** (`auth.ts` signIn) : tout membre d'une guilde `guildConfig`/`allowedGuild` active obtient une session. → un candidat « Candidat » PEUT se connecter instantanément (c'est la vraie raison du « l'infra est très vif »). Le staff n'a donc pas halluciné sur la session/le portail.
@@ -220,9 +231,9 @@ Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` 
 
 ---
 
-## 🧭 Suivi de chantier — Session 13/08 (arrivée : changelog, activités obligatoires, God changelog, tour navbar) — FAIT sur `refonte/arrivee-changelog-tour`
+## 🧭 Suivi de chantier — Session 13/08 (arrivée : changelog, activités obligatoires, God changelog, tour navbar) — MERGÉE + DÉPLOYÉE (PR #463, merge `8d1f7e90`)
 
-> **Branche** : `refonte/arrivee-changelog-tour` (base = `origin/dev` 11f1d71c) → PR vers `dev`. **4 chantiers en 3 commits** : `da72df08` (changelog user) · `97df0fff` (onboarding+tour) · `78661947` (God changelog). Contient aussi le fix CI `6a7222f1`. **Module guide GANYMEDE toujours CLOS.**
+> **Branche** : `refonte/arrivee-changelog-tour` → **MERGÉE dans `origin/dev` via PR #463 (merge `8d1f7e90`)** + **déployée beta** (`deploy-cd.sh beta` ✅, 6 conteneurs Healthy, migrations OK, uploads migrés). **4 chantiers en 3 commits** : `da72df08` (changelog user) · `97df0fff` (onboarding+tour) · `78661947` (God changelog). Contient aussi le fix CI `6a7222f1`. **PR #462 (hotfix CI séparé) FERMÉE — redondante** (fix identique déjà inclus via #463). **Module guide GANYMEDE toujours CLOS.**
 
 ### ✅ Chantier 1 — Le changelog ne pollue plus les nouveaux
 - **Cause** : `checkChangelogVisibility` affichait la dernière release à tout user dont `lastSeenChangelogId !== latest.id` → un **nouvel arrivant** (null) recevait le popup au-dessus de l'onboarding/tour. + `getLatestChangelogEntry` ne filtrait pas `isInternal` → entrées internes auto-affichées.

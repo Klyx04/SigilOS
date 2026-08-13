@@ -867,9 +867,11 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                     return (
                       <span
                         className="ms-seqs"
-                        title={`${seqs.length} sous-guide${seqs.length > 1 ? "s" : ""} : ${seqs.map(s => s.subGuideRef).join(" · ")}`}
+                        title={seqs.map(s => `[${s.subGuideRef}] ${s.subGuideName}`).join("\n")}
                       >
-                        {seqs.length} sous-guide{seqs.length > 1 ? "s" : ""}
+                        {seqs.length === 1
+                          ? seqs[0].subGuideRef
+                          : `${seqs.length} guides`}
                       </span>
                     );
                   })()}

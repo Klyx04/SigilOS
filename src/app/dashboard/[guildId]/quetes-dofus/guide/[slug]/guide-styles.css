@@ -526,10 +526,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.55rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  border-radius: 0.55rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--guide-surface-2);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 0.6rem;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
 }
@@ -556,16 +556,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.55rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  border-radius: 0.55rem;
-  color: var(--guide-text-dim);
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--guide-surface-2);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 0.6rem;
+  color: #e4e4e7;
+  font-size: 0.72rem;
+  font-weight: 800;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
 }
-.guide-hud-btn:hover { color: #fff; border-color: rgba(255,255,255,0.22); background: var(--guide-surface-2); }
+.guide-hud-btn:hover { color: #fff; border-color: rgba(255,255,255,0.32); background: var(--guide-surface); }
 .guide-hud-btn.active { color: var(--guide-green); border-color: rgba(16,185,129,0.35); background: var(--guide-green-soft); }
 .guide-hud-btn-danger { color: var(--guide-red); }
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
@@ -619,10 +621,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.4rem 0.55rem;
-  background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  border-radius: 0.55rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--guide-surface-2);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 0.6rem;
   color: var(--guide-text-dim);
   font-size: 0.72rem;
   font-weight: 800;
@@ -3135,10 +3137,13 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .gch-opt-icon.mule { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); }
 
 /* ── LiveActivityTicker (Phase F) — zéro glow ── */
+/* Position : milieu de l'écran, bordure droite (retour user 13/08) */
 .guide-live-ticker {
   position: fixed;
-  bottom: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
   right: 1.25rem;
+  bottom: auto;
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;

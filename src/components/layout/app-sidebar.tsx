@@ -401,6 +401,24 @@ export function AppSidebar({
                     )
                 )}
 
+                {userGuilds.length === 1 && (
+                    <div
+                        className="w-full flex items-center gap-2 h-11 px-2 rounded-xl bg-muted/40 border border-border/40"
+                        title={guildData.name}
+                    >
+                        <Avatar className="h-6 w-6 rounded-lg border border-border/20 shrink-0">
+                            <AvatarImage src={guildData.iconUrl || undefined} />
+                            <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
+                                {guildData.name?.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="text-[13px] font-semibold text-muted-foreground truncate min-w-0 flex-1">
+                            {guildData.name}
+                        </span>
+                        <Shield className="h-3 w-3 text-primary/60 shrink-0" />
+                    </div>
+                )}
+
 
             </div>
 

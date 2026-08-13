@@ -552,6 +552,69 @@
 .guide-hud-presence-count { font-size: 0.66rem; font-weight: 900; color: var(--guide-text-dim); }
 .guide-hud-presence-label { font-size: 0.62rem; font-weight: 800; color: var(--guide-text-dim); white-space: nowrap; }
 
+/* ── Présence « en ligne » du bandeau — style Rush Live (13/08) ── */
+.guide-live-presence {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
+}
+.guide-live-presence:hover { background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.45); }
+.guide-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #34d399;
+  flex-shrink: 0;
+}
+.guide-live-label {
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #34d399;
+  white-space: nowrap;
+}
+.guide-live-count {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e4e4e7;
+  white-space: nowrap;
+}
+.guide-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.5rem;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #d4d4d8;
+  max-width: 130px;
+  overflow: hidden;
+}
+.guide-live-chip > span:not(.guide-live-me) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guide-live-chip img {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.guide-live-me { color: #34d399; font-weight: 900; flex-shrink: 0; }
+
 .guide-hud-btn {
   display: inline-flex;
   align-items: center;

@@ -1686,6 +1686,23 @@ export default function OptimizedGuideClient({
   // Fail-soft : props serveur tant que le WS n'est pas connecté (jamais d'écran vide).
   const effectivePresenceMap = guideLive.connectionStatus === "connected" ? livePresenceMap : presenceMap;
 
+  // Présence « en ligne » du bandeau (style Rush Live) : LIVE si WS connecté, sinon
+  // snapshot serveur des membres qui suivent le guide (fail-soft).
+  const livePresenceMembers = useMemo(() => {
+    const src = guideLive.connectionStatus === "connected" && guideLive.presence.length > 0
+      ? guideLive.presence
+      : uniqueGuildMembers.map(m => ({ profileId: m.profileId, userName: m.userName, userAvatar: m.userAvatar }));
+    const seen = new Set<string>();
+    return src.filter(m => {
+      if (!m.profileId || seen.has(m.profileId)) return false;
+      seen.add(m.profileId);
+      return true;
+    });
+  }, [guideLive.connectionStatus, guideLive.presence, uniqueGuildMembers]);
+  const isLiveMe = (m: { profileId: string; userName: string; userAvatar?: string }) =>
+    (!!myIdentity.name && m.userName === myIdentity.name) ||
+    (!!myIdentity.image && !!m.userAvatar && m.userAvatar === myIdentity.image);
+
   // Build chapters
   const chapters = useMemo(() => {
     const map = new Map<number, { label: string; items: Milestone[] }>();
@@ -2618,23 +2635,26 @@ export default function OptimizedGuideClient({
                     <span>Quêtes Dofus</span>
                   </Link>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {uniqueGuildMembers.length > 0 && (
-                      <button
-                        type="button"
-                        className="guide-hud-presence"
+                    {livePresenceMembers.length > 0 && (
+                      <div
+                        className="guide-live-presence"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setIsAllMembersModalOpen(true)}
-                        title={`${uniqueGuildMembers.length} membre${uniqueGuildMembers.length > 1 ? "s" : ""} de la guilde suivent ce guide — cliquer pour la liste`}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsAllMembersModalOpen(true); } }}
+                        title={`${livePresenceMembers.length} membre${livePresenceMembers.length > 1 ? "s" : ""} en ligne sur ce guide — cliquer pour la liste`}
                       >
-                        <div className="flex -space-x-1.5">
-                          {uniqueGuildMembers.slice(0, 4).map(m => (
-                            <span key={m.profileId} className="guide-hud-avatar">
-                              {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
-                            </span>
-                          ))}
-                        </div>
-                        <span className="guide-hud-presence-count">{uniqueGuildMembers.length}</span>
-                        <span className="guide-hud-presence-label">membre{uniqueGuildMembers.length > 1 ? "s" : ""}</span>
-                      </button>
+                        <span className="guide-live-dot" aria-hidden/>
+                        <span className="guide-live-label">Guide Live</span>
+                        <span className="guide-live-count">{livePresenceMembers.length} en ligne</span>
+                        {livePresenceMembers.slice(0, 3).map((m) => (
+                          <span key={m.profileId} className="guide-live-chip">
+                            {m.userAvatar ? <img src={m.userAvatar} alt="" referrerPolicy="no-referrer"/> : null}
+                            <span>{m.userName}</span>
+                            {isLiveMe(m) && <span className="guide-live-me">(toi)</span>}
+                          </span>
+                        ))}
+                      </div>
                     )}
                     {/* Aide / Revoir le guide tour — bouton visible avec libellé clair */}
                     <button

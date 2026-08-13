@@ -47,6 +47,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     let serverUniqueGuildMembers: any[] = [];
     let serverPresenceMap: any = {};
     let subGuideIdMap: Record<number, string> = {};
+    let subGuideTotals: Record<string, number> = {};
     try {
         const [membersContext, subsRes] = await Promise.all([
             getGuildOptimizedGuideProgress(slug, guildId),
@@ -58,6 +59,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         if (subsRes.success && Array.isArray(subsRes.subs)) {
             subsRes.subs.forEach((s: any) => {
                 if (s.ganymadeId) subGuideIdMap[s.ganymadeId] = s.guideRef;
+                if (s.guideRef && s.totalSteps) subGuideTotals[s.guideRef] = s.totalSteps;
             });
         }
     } catch (e) {
@@ -198,6 +200,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                         ocreStats={ocreStats}
                         ocreMonsters={ocreMonsters}
                         subGuideIdMap={subGuideIdMap}
+                        subGuideTotals={subGuideTotals}
                     />
                 )}
             </Suspense>

@@ -120,12 +120,28 @@ function buildSeqStepKeys(seq: Sequence): string[] {
 // Un sous-guide est « tout validé » quand toutes ses clés sont cochées.
 // Bornes connues (stepFrom→stepTo) : on dérive les clés. Bornes inconnues :
 // on compare avec les étapes réellement chargées du sous-guide (refStepsByRef).
-function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>, refStepsByRef?: Record<string, number[]>): boolean {
+function isSeqFullyDone(
+  seq: Sequence,
+  checkedSteps: Set<string>,
+  refStepsByRef?: Record<string, number[]>,
+  subGuideTotals?: Record<string, number>
+): boolean {
+  // 1. Bornes connues (stepFrom→stepTo)
   const keys = buildSeqStepKeys(seq);
   if (keys.length > 0) return keys.every(k => checkedSteps.has(k));
+  // 2. Étapes réellement chargées dans la session
   const stepNumbers = refStepsByRef?.[seq.subGuideRef];
-  if (!stepNumbers || stepNumbers.length === 0) return false;
-  return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
+  if (stepNumbers && stepNumbers.length > 0)
+    return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
+  // 3. Fallback : total stocké en DB — compare le nombre de clés cochées
+  const total = subGuideTotals?.[seq.subGuideRef];
+  if (total && total > 0) {
+    const ref = seq.subGuideRef + "-";
+    let count = 0;
+    for (const k of checkedSteps) { if (k.startsWith(ref)) count++; }
+    return count >= total;
+  }
+  return false;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -750,7 +766,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs, refStepsByRef }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs, refStepsByRef, subGuideTotals }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -764,6 +780,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   checkedSteps?: Set<string>;
   hideDoneSeqs?: boolean;
   refStepsByRef?: Record<string, number[]>;
+  subGuideTotals?: Record<string, number>;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -861,7 +878,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 
                   {(() => {
                     const seqs = hideDoneSeqs && checkedSteps
-                      ? ms.sequences.filter(s => !(isDone || isSeqFullyDone(s, checkedSteps, refStepsByRef)))
+                      ? ms.sequences.filter(s => !(isDone || isSeqFullyDone(s, checkedSteps, refStepsByRef, subGuideTotals)))
                       : ms.sequences;
                     if (seqs.length === 0) return null;
                     return (
@@ -977,7 +994,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
-  currentUserProfile, ocreStats, ocreMonsters = [], subGuideIdMap = {},
+  currentUserProfile, ocreStats, ocreMonsters = [], subGuideIdMap = {}, subGuideTotals = {},
   serverUniqueGuildMembers, serverPresenceMap
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
@@ -1003,6 +1020,8 @@ export default function OptimizedGuideClient({
   ocreMonsters?: OcreMonsterLite[];
   /** Map ganymadeId (number) → guideRef ("GP9", "GP9B"...) pour résolution correcte des cross-refs */
   subGuideIdMap?: Record<number, string>;
+  /** Map guideRef → totalSteps : permet de détecter un sous-guide 100 % coché sans le charger */
+  subGuideTotals?: Record<string, number>;
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -2373,6 +2392,7 @@ export default function OptimizedGuideClient({
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
               onBookmark={handleBookmark}
               onResetMilestone={handleResetMilestone}
+              subGuideTotals={subGuideTotals}
             />
           ))
           )

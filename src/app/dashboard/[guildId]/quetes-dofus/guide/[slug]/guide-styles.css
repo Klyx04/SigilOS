@@ -307,12 +307,14 @@
 .ms-title {
   flex: 1;
   min-width: 0;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 600;
   color: #a1a1aa;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
 }
 
 .ms-row.active .ms-title {

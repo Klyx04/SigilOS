@@ -40,7 +40,7 @@ jobs:
   build-and-push:
     name: 🏗️ Build & Push (${{ github.ref_name }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       IMAGE_REGISTRY: ghcr.io
       IMAGE_OWNER: ${{ github.repository_owner }}
@@ -92,6 +92,11 @@ jobs:
       # Le Dockerfile est SHARÉ entre app/worker/ws → BuildKit
       # met en cache les couches communes (le gros build Next.js
       # n'est fait qu'UNE fois par run grâce aux couches partagées).
+      #
+      # ⚠️ Résilience GHCR (fix 13/08) : GHCR applique des SECONDARY RATE LIMITS
+      # par compte (~1-3 min) quand on enchaîne push + export cache registry
+      # (`mode=max` écrit des dizaines de couches) sur plusieurs images.
+      # → on espace les images (sleep) et on RÉESSAIE les push avec backoff.
       # ───────────────────────────────────────────────────
       - name: Build & Push images
         run: |
@@ -100,9 +105,30 @@ jobs:
           SHA_SHORT=${SHA:0:7}
           REG="ghcr.io/${{ steps.env.outputs.owner_lower }}"
 
+          # Retry transparent pour les secondary rate-limits GHCR (403 transitoires).
+          retry_push() {
+            local name="$1"; shift
+            local attempt=1
+            while true; do
+              echo "▶️  [${name}] buildx push (tentative ${attempt})..."
+              if docker buildx build --push "$@"; then
+                echo "✅ [${name}] image poussée avec succès"
+                return 0
+              fi
+              if [ "$attempt" -ge 3 ]; then
+                echo "❌ [${name}] ÉCHEC après 3 tentatives"
+                return 1
+              fi
+              local delay=$((60 * attempt))
+              echo "⚠️  [${name}] échec (tentative ${attempt}) — probablement un secondary rate-limit GHCR. Retry dans ${delay}s..."
+              sleep "$delay"
+              attempt=$((attempt + 1))
+            done
+          }
+
           for NAME in app worker ws; do
             echo "▶️  Building sigilos-${NAME}-${SUFFIX}..."
-            docker buildx build --push \
+            retry_push "sigilos-${NAME}-${SUFFIX}" \
               -f Dockerfile \
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
               --build-arg BETA_PASSWORD="${{ secrets.BETA_PASSWORD }}" \
@@ -112,10 +138,12 @@ jobs:
               --cache-from "type=registry,ref=${REG}/sigilos-${NAME}-${SUFFIX}:latest" \
               --cache-to "type=registry,ref=${REG}/sigilos-${NAME}-${SUFFIX}:cache,mode=max" \
               .
+            # Espace les appels API GHCR (secondary rate limit par compte)
+            sleep 10
           done
 
           echo "▶️  Building sigilos-discord-bot-${SUFFIX}..."
-          docker buildx build --push \
+          retry_push "sigilos-discord-bot-${SUFFIX}" \
             -f services/discord-bot/Dockerfile \
             -t "${REG}/sigilos-discord-bot-${SUFFIX}:${SHA_SHORT}" \
             -t "${REG}/sigilos-discord-bot-${SUFFIX}:latest" \

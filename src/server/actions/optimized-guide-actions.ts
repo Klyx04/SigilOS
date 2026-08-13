@@ -10,6 +10,7 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { publishGuideEvent, parseStepKey } from "@/lib/guide-realtime";
+import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers } from "@/lib/guide-progress-helpers";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -300,25 +301,45 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
 
   const guide = await db.optimizedGuide.findUnique({
     where: { slug },
-    select: { id: true }
+    select: {
+      id: true,
+      milestones: { select: { id: true, order: true }, orderBy: { order: "asc" } },
+    },
   });
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
-  // Récupérer toutes les progressions des membres pour ce guide (avec isolation de guilde)
-  const allProgress = await db.playerGuideProgress.findMany({
+  // Phase I — Agrégation serveur (AUDIT-MILITAIRE §2.1) : select chirurgical au lieu
+  // du `include profile { include user }` qui sérialisait profil + user complets
+  // (5 000 à 15 000 lignes) vers le client. On renvoie uniquement :
+  //   - allProgress        : lignes allégées (shape client inchangée) ;
+  //   - uniqueGuildMembers : membres agrégés par profileId ;
+  //   - presenceMap        : carte milestoneId → membres présents.
+  const rawRows = await db.playerGuideProgress.findMany({
     where: {
       milestone: { guideId: guide.id },
       profile: { guild: { discordGuildId: guildId } }
     },
-    include: {
+    select: {
+      profileId: true,
+      milestoneId: true,
+      isCompleted: true,
+      completedSteps: true,
+      currentStep: true,
       profile: {
-        include: { user: true }
-      }
-    }
+        select: {
+          pseudoDofus: true,
+          user: { select: { name: true, image: true } },
+        },
+      },
+    },
   });
 
-  return { success: true, allProgress };
+  const allProgress = buildGuildProgressRows(rawRows);
+  const uniqueGuildMembers = buildUniqueGuildMembers(allProgress, guide.milestones);
+  const presenceMap = buildPresenceMap(uniqueGuildMembers);
+
+  return { success: true, allProgress, uniqueGuildMembers, presenceMap };
 }
 
 /**
@@ -576,7 +597,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     where: { id: milestoneId },
     select: {
       guide: { select: { slug: true } },
-      sequences: { select: { id: true, activityTags: true } }
+      sequences: { select: { id: true, subGuideRef: true, stepFrom: true, stepTo: true, activityTags: true } }
     }
   });
 
@@ -593,7 +614,36 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
   const regularSeqs = milestone?.sequences.filter(s => !isInfoSeq(s)) || [];
   const totalSeqCount = regularSeqs.length;
-  const isAllCompleted = totalSeqCount > 0 && regularSeqs.every(s => completedSteps.includes(s.id));
+
+  // Étapes réelles des sous-guides SANS bornes (stepFrom/stepTo) — nécessaires pour
+  // décider si toutes leurs étapes sont cochées (le jalon se complète alors automatiquement).
+  const unboundedRefs = [...new Set(regularSeqs.filter(s => !s.stepFrom || !s.stepTo).map(s => s.subGuideRef))];
+  const stepsByRef: Record<string, number[]> = {};
+  if (unboundedRefs.length > 0) {
+    const subGuides = await db.subGuideData.findMany({ where: { guideRef: { in: unboundedRefs } } });
+    for (const sg of subGuides) {
+      const arr = Array.isArray(sg.steps) ? (sg.steps as unknown[]) : [];
+      stepsByRef[sg.guideRef] = arr
+        .map((s: any) => s?.stepNumber)
+        .filter((n: unknown): n is number => typeof n === "number");
+    }
+  }
+
+  // Un jalon est COMPLÉTÉ quand toutes les étapes de tous ses sous-guides sont cochées
+  // (fix : on comparait des IDs de séquences aux clés des étapes → toujours faux → 0/N).
+  const checkedSet = new Set(completedSteps);
+  const isSeqFullyChecked = (seq: { subGuideRef: string; stepFrom?: number | null; stepTo?: number | null }): boolean => {
+    if (seq.stepFrom && seq.stepTo) {
+      for (let n = seq.stepFrom; n <= seq.stepTo; n++) {
+        if (!checkedSet.has(`${seq.subGuideRef}-${n}`)) return false;
+      }
+      return true;
+    }
+    const stepNumbers = stepsByRef[seq.subGuideRef];
+    if (!stepNumbers || stepNumbers.length === 0) return false;
+    return stepNumbers.every(n => checkedSet.has(`${seq.subGuideRef}-${n}`));
+  };
+  const isAllCompleted = totalSeqCount > 0 && regularSeqs.every(isSeqFullyChecked);
 
   const progress = await db.playerGuideProgress.upsert({
     where: {

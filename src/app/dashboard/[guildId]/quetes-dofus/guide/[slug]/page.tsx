@@ -40,20 +40,17 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     const guide = guideContext.guide as any;
     const isTimeline = guide.displayMode === "TIMELINE";
 
-    // Fetch Guild members progress (non-blocking)
+    // Fetch Guild members progress (non-blocking) — Phase I : agrégation serveur.
+    // Le serveur renvoie les lignes allégées (shape client inchangée) + les agrégats
+    // presenceMap/uniqueGuildMembers (AUDIT-MILITAIRE §2.1).
     let allProgress: any[] = [];
+    let serverUniqueGuildMembers: any[] = [];
+    let serverPresenceMap: any = {};
     try {
         const membersContext = await getGuildOptimizedGuideProgress(slug, guildId);
-        allProgress = (membersContext.allProgress || []).map((p: any) => ({
-            profileId: p.profileId,
-            milestoneId: p.milestoneId,
-            isCompleted: p.isCompleted || false,
-            completedSteps: Array.isArray(p.completedSteps) ? p.completedSteps : [],
-            currentStep: p.currentStep || null,
-            userName: p.profile?.displayName || p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
-            userAvatar: p.profile?.user?.image || undefined,
-            profileSlug: p.profile?.pseudoDofus || p.profileId
-        }));
+        allProgress = membersContext.allProgress || [];
+        serverUniqueGuildMembers = membersContext.uniqueGuildMembers || [];
+        serverPresenceMap = membersContext.presenceMap || {};
     } catch (e) {
         console.error("[Guide Page] Guild progress fetch failed (non-fatal):", e);
     }
@@ -171,6 +168,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                         milestones={guide.milestones as any}
                         userProgress={guide.milestones.flatMap((m: any) => m.playerProgress || [])}
                         guildProgress={allProgress}
+                        serverUniqueGuildMembers={serverUniqueGuildMembers}
+                        serverPresenceMap={serverPresenceMap}
                         guildId={guildId}
                         selectedCharacter={character}
                         mainCharacter={{

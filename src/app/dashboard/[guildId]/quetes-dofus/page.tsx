@@ -81,14 +81,8 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                 guideUserProgress = detailRes.guide.milestones.flatMap((m: any) => m.playerProgress || []);
                 
                 const membersContext = await getGuildOptimizedGuideProgress(guideSlug, guildId);
-                guideGuildProgress = (membersContext.allProgress || []).map((p: any) => ({
-                    profileId: p.profileId,
-                    milestoneId: p.milestoneId,
-                    isCompleted: p.isCompleted,
-                    userName: p.profile?.displayName || p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
-                    userAvatar: p.profile?.user?.image || undefined,
-                    profileSlug: p.profile?.pseudoDofus || p.profileId
-                }));
+                // Phase I : lignes allégées renvoyées par le serveur (shape inchangée).
+                guideGuildProgress = membersContext.allProgress || [];
             }
         } catch (e) {
             console.error("[Quest Page] Error fetching guide details:", e);

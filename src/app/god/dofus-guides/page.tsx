@@ -17,17 +17,27 @@ export default async function DofusGuidesGodPage() {
   const isAdmin = await isSuperAdmin() || await canAccessBrick("game-data-guides");
   if (!isAdmin) redirect("/");
 
-  const guides = await db.optimizedGuide.findMany({
-    include: {
-      milestones: {
-        orderBy: { order: "asc" },
-        include: {
-          sequences: { orderBy: { order: "asc" } },
+  const [guides, firstGuild] = await Promise.all([
+    db.optimizedGuide.findMany({
+      include: {
+        milestones: {
+          orderBy: { order: "asc" },
+          include: {
+            sequences: { orderBy: { order: "asc" } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+      orderBy: { createdAt: "asc" },
+    }),
+    // Première guild active pour le bouton Preview
+    db.guildConfig.findFirst({
+      where: { isActive: true },
+      select: { discordGuildId: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  const firstGuildId = firstGuild?.discordGuildId ?? null;
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar p-8 md:p-12 md:pt-16 space-y-10">
@@ -62,7 +72,7 @@ export default async function DofusGuidesGodPage() {
       </div>
 
       <div className="min-h-[600px]">
-        <OptimizedGuideAdminClient initialGuides={guides as any} />
+        <OptimizedGuideAdminClient initialGuides={guides as any} firstGuildId={firstGuildId} />
       </div>
     </div>
   );

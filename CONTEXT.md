@@ -23,6 +23,33 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 13/08 en cours sur `feat/chantier-2026-08-13`
+
+> Branche `feat/chantier-2026-08-13` (base `origin/dev` = `8d1f7e90`), 11 commits poussés, PR ouverte → dev.
+> Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
+
+### ✅ Sécurité — F-01 (revocation d'accès membres supprimés/bannis)
+- **Bug confirmé** : un membre supprimé par un admin (`deleteProfileByAdmin`) était **ré-provisionné
+  automatiquement** (profil recréé car toujours sur Discord avec un rôle autorisé) + cache 60s non invalidé.
+- **Fix** : table `GuildMemberBan` (tombstone guild-scopé, migration `20260813000000_add_guild_member_ban`),
+  check fail-closed dans `_getUserContext`, upsert/lift sur delete/ban/reactivate/sync,
+  invalidation immédiate des caches, **onglet « Exclus »** dans l'admin membres (liste + « Réintégrer »).
+- **Flux archivé** : auto-archive → redirection `/dashboard/{guildId}` (page « Compte Archivé » + réintégration).
+
+### ✅ Quick wins & features (chantier)
+- Ladder : messages clairs avec le nom du serveur Dofus configuré (Draconiros) — 4 points de vérification.
+- Guides : alignement des MULES synchro profil perso (`updateMuleAlignment` → `altPseudos`), tranches par pas
+  de 10 (10→100) sur Ganymède / Rush / Profil, highlight « rendu ici » emerald + centrage.
+- Missions : icône exclamation sur objectifs manuels. Guild-hub : onglet Stats supprimé.
+- Notifications : page stabilisée (plus de saut au changement d'onglet).
+- Sidebar : nom + logo de guilde affichés même pour une seule guilde. Dashboard : widgets Agenda/Sondages
+  gatés par RBAC (`canViewCalendar` / `canViewPolls`).
+- Audit fermeture posts : DJ posts restent ouverts (auto-expire volontairement désactivé) — voir mémo.
+
+### ✅ Qualité
+- `tsc --noEmit` 0 · lint 0 erreur · `test:run` **155/155** · `npm run build` OK.
+- ⚠️ Migration Prisma à appliquer en beta : `20260813000000_add_guild_member_ban`.
+
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 
 > Tous les commits poussés sur `feat/deploy-clean-pro` (PR à merger vers `dev`). Détail complet : `src/temp/memo-2026-08-10-worldmap-jeux-429-suite.md`.

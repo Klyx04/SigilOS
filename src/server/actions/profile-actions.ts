@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { resolveDofusServerName } from "@/lib/presentation-constants";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getUserContext, checkGuildPermission } from "./user-actions";
@@ -241,7 +242,7 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
     });
     
     const serverId = guildConfig?.dofusServerId || "295"; // Default to Imagiro
-    const serverName = guildConfig?.dofusServerName || "le serveur configuré par la guilde";
+    const serverName = resolveDofusServerName(guildConfig?.dofusServerName, guildConfig?.dofusServerId);
 
     try {
         const headers: Record<string, string> = { "Accept": "application/json" };
@@ -269,7 +270,7 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
             };
         }
 
-        return { success: false, error: `Le pseudo "${pseudo}" est introuvable sur le ladder officiel du serveur Dofus ${serverName}. Vérifiez l'orthographe exacte (majuscules, tirets...) ou que ce personnage existe bien sur ${serverName}.` };
+        return { success: false, error: `Pseudo "${pseudo}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
     } catch (err: any) {
         logger.error("Verify Pseudo Error", { error: err });
         return { success: false, error: "Erreur de communication avec le service de vérification." };
@@ -783,10 +784,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             // SuperAdmins sont exemptés (bypass pour les overrides admin)
             if (!isGod) {
                 const serverId = (guildConfig as any).dofusServerId || "295";
-                const serverName = (guildConfig as any).dofusServerName || "le serveur configuré par la guilde";
+                const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
                 const existsOnLadder = await checkPseudoExistsOnLadder(pseudoDofus, serverId);
                 if (existsOnLadder === false) {
-                    return { success: false, error: `Le pseudo "${pseudoDofus}" est introuvable sur le ladder officiel du serveur Dofus ${serverName}. Vérifiez l'orthographe exacte (majuscules, tirets...) ou que ce personnage existe bien sur ${serverName}.` };
+                    return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
                 }
                 // null = service indisponible → on laisse passer (fail-open)
             }
@@ -1119,13 +1120,13 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         // SuperAdmins sont exemptés
         if (!isGod) {
             const serverId = (guildConfig as any).dofusServerId || "295";
-            const serverName = (guildConfig as any).dofusServerName || "le serveur configuré par la guilde";
+            const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
             const ladderChecks = await Promise.all(
                 cleanedPseudos.map(p => checkPseudoExistsOnLadder(p.pseudo, serverId))
             );
             for (let i = 0; i < cleanedPseudos.length; i++) {
                 if (ladderChecks[i] === false) {
-                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" est introuvable sur le ladder officiel du serveur Dofus ${serverName}. Vérifiez l'orthographe exacte ou que ce personnage existe bien sur ${serverName}.` };
+                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
                 }
             }
         }
@@ -2259,7 +2260,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
         }
 
         const serverId = profile.guild.dofusServerId || "295"; // Draconiros by default
-        const serverName = profile.guild.dofusServerName || "le serveur configuré par la guilde";
+        const serverName = resolveDofusServerName(profile.guild.dofusServerName, profile.guild.dofusServerId);
         const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
 
         const response = await fetch(targetUrl, {
@@ -2280,7 +2281,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
         const result = await response.json();
 
         if (!result.success || !result.found) {
-            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur le ladder officiel du serveur Dofus ${serverName} (id ${serverId}). Vérifiez l'orthographe ou que ce personnage existe bien sur ${serverName}.` };
+            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe.` };
         }
 
         // 4. Update Database

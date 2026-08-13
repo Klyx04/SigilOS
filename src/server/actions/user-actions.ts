@@ -101,13 +101,39 @@ export async function revalidateUserContext(guildId?: string) {
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const userId = session.user.id;
+    const discordUserId = (session.user as any)?.discordId as string | undefined;
 
-    // 1. Clear In-memory and Redis context caches
-    await invalidateUserContextCache(userId, guildId || "");
+    // 1. Clear in-memory + Redis context caches.
+    //    ⚠️ Clés différentes : le cache profil mémoire est clé sur l'ID INTERNE de
+    //    guildConfig (`profile:{userId}:{guildConfig.id}`), le cache Redis `user:ctx`
+    //    sur l'ID DISCORD. On résout l'id interne pour purger la bonne clé profil,
+    //    et on passe l'id Discord en 3ᵉ arg (couvre Redis + l'autre forme de clé).
+    let internalGuildId = guildId || "";
+    if (guildId) {
+        try {
+            const config = await db.guildConfig.findFirst({
+                where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+                select: { id: true }
+            });
+            if (config?.id) internalGuildId = config.id;
+        } catch { /* non bloquant */ }
+    }
+    await invalidateUserContextCache(userId, internalGuildId, guildId);
 
-    // 2. Clear Discord cache (pattern based)
-    const { invalidateDiscordCache } = await import("@/server/discord");
-    invalidateDiscordCache(`member:${guildId || ""}:${userId}`);
+    // 2. Clear Discord member/roles cache.
+    //    ⚠️ CRITIQUE : fetchGuildMember stocke les RÔLES sous
+    //    `member:{guildId}:{discordId}` (snowflake Discord). Utiliser
+    //    `session.user.id` (UUID interne) ne matche jamais la clé → le rôle
+    //    fraîchement octroyé restait ignoré jusqu'au TTL 15s. La bonne identité est
+    //    `session.user.discordId`, alignée sur l'invalidation faite à la création de
+    //    profil (voir getUserContext → invalidateDiscordCache(`member:...:${discordUserId}`)).
+    if (discordUserId && guildId) {
+        try {
+            const { invalidateDiscordCache } = await import("@/server/discord");
+            invalidateDiscordCache(`member:${guildId}:${discordUserId}`);
+            invalidateDiscordCache(`roles:${guildId}`);
+        } catch { /* non bloquant */ }
+    }
 
     // 3. Revalidate all relevant paths so the sidebar guild switcher picks up
     //    the newly created UserProfile on the very first connection.
@@ -1064,7 +1090,26 @@ const getCachedDiscordGuilds = async (accessToken: string) => {
     }
 };
 
-export async function getGuildsSeparated() {
+/**
+ * Item du portail multi-guilde (getGuildsSeparated).
+ * `hasAccess` = le membre a déjà franchi le gatekeeper RBAC (profil ACTIVE) OU est
+ * admin Discord. `accessLabel` est un libellé HONNÊTE : un candidat (sans profil,
+ * sans rôle autorisé) voit « Rôle d'accès requis » — jamais « Accès Membre ».
+ */
+export type GuildPortalItem = {
+    id: string;
+    name: string;
+    icon: string | null;
+    isAdmin: boolean;
+    hasAccess: boolean;
+    accessLabel: string;
+};
+
+export async function getGuildsSeparated(): Promise<{
+    active: GuildPortalItem[];
+    pending: Array<{ id: string; name: string; icon: string | null }>;
+    rateLimited: boolean;
+}> {
     const session = await auth();
     if (!session?.user?.id) return { active: [], pending: [], rateLimited: false };
 
@@ -1124,7 +1169,9 @@ export async function getGuildsSeparated() {
                 id: p.guild.discordGuildId,
                 name: p.guild.name,
                 icon: p.guild.iconUrl,
-                isAdmin: false
+                isAdmin: false,
+                hasAccess: true,
+                accessLabel: "Membre Actif",
             }));
         return { active: activeFromDb, pending: [], rateLimited: status === 429 };
     }
@@ -1168,11 +1215,23 @@ export async function getGuildsSeparated() {
         .map(g => {
             const userGuild = userGuilds.find(ug => ug.id === g.discordGuildId);
             const perms = userGuild ? BigInt(userGuild.permissions) : 0n;
+            const isAdmin = userGuild?.owner || (perms & 0x8n) === 0x8n;
+            const status = statusMap.get(g.discordGuildId);
+            // Libellé HONNÊTE : un profil n'existe QUE si le membre a déjà franchi le
+            // gatekeeper RBAC (DASHBOARD_LOGIN / admin Discord / mapping). Un membre
+            // sans profil (ex. candidat) n'a donc PAS encore accès → on affiche
+            // "Rôle d'accès requis" au lieu de mentir avec "Accès Membre"/"Membre Actif".
+            const hasAccess = isAdmin || status === "ACTIVE";
+            const accessLabel = hasAccess
+                ? isAdmin ? "Administrateur" : "Membre Actif"
+                : "Rôle d'accès requis";
             return {
                 id: g.discordGuildId,
                 name: g.name,
                 icon: g.iconUrl,
-                isAdmin: userGuild?.owner || (perms & 0x8n) === 0x8n
+                isAdmin,
+                hasAccess,
+                accessLabel,
             };
         });
 

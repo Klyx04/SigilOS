@@ -84,9 +84,11 @@ import {
     fetchGuildMember,
     fetchGuild,
     fetchGuildRoles,
+    invalidateDiscordCache,
 } from "@/server/discord";
+import { redis } from "@/lib/redis";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { validateGuildOwnership, getUserContext } from "@/server/actions/user-actions";
+import { validateGuildOwnership, getUserContext, revalidateUserContext } from "@/server/actions/user-actions";
 import { PERMISSIONS } from "@/lib/permissions";
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -550,5 +552,62 @@ describe("getUserContext — onboarding incomplete", () => {
         expect(ctx.canViewOcre).toBe(false);
         expect(ctx.canViewSonges).toBe(false);
         expect(ctx.canViewLadder).toBe(false);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 6 — revalidateUserContext (bouton « Je viens de rejoindre »)
+// FIX 13/08 : la purge du cache membre Discord doit utiliser le snowflake
+// (`session.user.discordId`), PAS l'UUID interne — sinon `key.includes(pattern)`
+// ne matche jamais la clé `member:{guildId}:{discordId}` et le rôle octroyé
+// reste ignoré jusqu'au TTL 15s.
+// ─────────────────────────────────────────────────────────────
+describe("revalidateUserContext — purge des caches (bouton Synchroniser)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAuth.mockResolvedValue({
+            user: { id: "user-1", discordId: "discord-user-1", name: "Test" },
+        });
+    });
+
+    it("invalide le cache membre Discord avec le snowflake discordId (jamais l'UUID interne)", async () => {
+        mockDb.guildConfig.findFirst.mockResolvedValue({ id: "guild-uuid-1" });
+
+        const res = await revalidateUserContext("111111111111111111");
+
+        expect(res.success).toBe(true);
+        // La clé réelle de fetchGuildMember est `member:{guildId}:{discordId}`
+        expect(invalidateDiscordCache).toHaveBeenCalledWith("member:111111111111111111:discord-user-1");
+        expect(invalidateDiscordCache).toHaveBeenCalledWith("roles:111111111111111111");
+        // Régression : ne PAS invalider avec l'UUID interne (clé fantôme)
+        expect(invalidateDiscordCache).not.toHaveBeenCalledWith("member:111111111111111111:user-1");
+    });
+
+    it("purge le cache profil mémoire (id interne) ET Redis user:ctx (id Discord)", async () => {
+        mockDb.guildConfig.findFirst.mockResolvedValue({ id: "guild-uuid-1" });
+
+        await revalidateUserContext("111111111111111111");
+
+        // Redis `user:ctx` clé sur l'id Discord (forme utilisée par getUserContext)
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:111111111111111111");
+        // Forme alternative (id interne) couverte aussi
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:guild-uuid-1");
+    });
+
+    it("ne purge pas le cache membre si la session n'a pas de discordId", async () => {
+        mockAuth.mockResolvedValue({ user: { id: "user-1", name: "Test" } });
+
+        await revalidateUserContext("111111111111111111");
+
+        expect(invalidateDiscordCache).not.toHaveBeenCalled();
+    });
+
+    it("retourne une erreur sans session authentifiée", async () => {
+        mockAuth.mockResolvedValue(null);
+
+        const res = await revalidateUserContext("111111111111111111");
+
+        expect(res.success).toBe(false);
+        expect(invalidateDiscordCache).not.toHaveBeenCalled();
     });
 });

@@ -24,6 +24,11 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     const character = (resolvedSearchParams?.character as string) || "PRINCIPAL";
     const altPseudo = character !== "PRINCIPAL" ? character : undefined;
 
+    // Contexte de navigation croisée (lien vers un sous-guide d'un AUTRE guide) :
+    // résolu CÔTÉ SERVEUR → passé en props au client (fiabilité, pas de useSearchParams).
+    const fromSlug = (resolvedSearchParams?.from as string) || null;
+    const fromTitle = (resolvedSearchParams?.fromTitle as string) || null;
+
     const user = await getUserContext(guildId);
 
     let guideContext: Awaited<ReturnType<typeof getOptimizedGuideDetail>>;
@@ -202,6 +207,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                         ocreMonsters={ocreMonsters}
                         subGuideIdMap={subGuideIdMap}
                         subGuideTotals={subGuideTotals}
+                        fromSlug={fromSlug}
+                        fromTitle={fromTitle}
                     />
                 )}
             </Suspense>

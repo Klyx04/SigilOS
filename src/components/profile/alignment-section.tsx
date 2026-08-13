@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Shield, Check, Info, Sparkles } from "lucide-react";
-import { ALIGNMENTS, ORDERS, getAlignment, getOrder } from "@/lib/dofus-assets";
+import { ALIGNMENTS, ORDERS, getAlignment, getOrder, getAlignmentLevelSteps } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
@@ -255,10 +255,8 @@ export function AlignmentSection({
                                                 <Info className="w-4 h-4" /> 3. Niveau d'Alignement (Tranche)
                                             </h4>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                                            {[20, 40, 60, 80, 100].map(level => {
-                                                const isSelected = localLevel >= level && localLevel < (level + 20); // If they picked exactly 100, etc. Actually let's strictly use the exact levels.
-                                                // Better yet, just match exactly:
+                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                            {getAlignmentLevelSteps(selectedOrder).map(({ level, title }) => {
                                                 const isExactSelected = localLevel === level;
                                                 return (
                                                     <button
@@ -281,7 +279,7 @@ export function AlignmentSection({
                                                             "text-[10px] uppercase font-bold leading-tight",
                                                             isExactSelected ? "text-white" : "text-zinc-600"
                                                         )}>
-                                                            {getLevelTitle(selectedAlignment, selectedOrder, level)}
+                                                            {title || getLevelTitle(selectedAlignment, selectedOrder, level)}
                                                         </span>
                                                         {isExactSelected && (
                                                             <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">

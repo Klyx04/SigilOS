@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
     Select,
     SelectContent,
@@ -29,7 +29,8 @@ import {
     Palmtree,
     CalendarDays,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Loader2
 } from "lucide-react";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
@@ -62,7 +63,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
-import { deleteProfileByAdmin, reactivateProfileByAdmin } from "@/server/actions/lifecycle-actions";
+import { deleteProfileByAdmin, reactivateProfileByAdmin, getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
 import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -109,7 +110,7 @@ interface MemberManagementTableProps {
 export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null, currentUserId = "" }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
-    const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
+    const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED" | "EXCLUDED">("ACTIVE");
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc"); // desc = newer first
     const [roleFilter, setRoleFilter] = useState("all");
@@ -128,7 +129,39 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const [vacationTarget, setVacationTarget] = useState<Member | null>(null);
     const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
 
+    // ── F-01 : exclusions (tombstones) — membres supprimés/bannis dont le profil n'existe plus ──
+    const [excludedBans, setExcludedBans] = useState<any[]>([]);
+
+    const loadExcludedBans = useCallback(() => {
+        getGuildMemberBans(guildId).then((res: any) => {
+            if (res.success && Array.isArray(res.data)) setExcludedBans(res.data);
+        }).catch(() => { /* non bloquant */ });
+    }, [guildId]);
+
+    useEffect(() => {
+        loadExcludedBans();
+    }, [loadExcludedBans]);
+
+    const handleLiftExclusion = async (ban: any) => {
+        if (!confirm(`Réintégrer ce membre ? Il pourra de nouveau accéder au dashboard (et sera re-provisionné au prochain accès).`)) return;
+        setIsUpdating(ban.discordId);
+        try {
+            const res = await liftGuildMemberBan(guildId, ban.discordId);
+            if (res.success) {
+                toast.success("Exclusion levée — le membre peut de nouveau accéder au dashboard");
+                setExcludedBans(prev => prev.filter(b => b.discordId !== ban.discordId));
+            } else {
+                toast.error(res.error || "Erreur lors de la levée d'exclusion");
+            }
+        } catch (e) {
+            toast.error("Erreur de communication");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
     const filteredMembers = useMemo(() => {
+        if (activeTab === "EXCLUDED") return [];
         return members
             .filter((member: Member) =>
                 activeTab === "ALL" || member.status === activeTab
@@ -238,6 +271,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
             if (res.success) {
                 setMembers(prev => prev.filter(m => m.id !== profileId));
                 toast.success("Profil supprimé définitivement");
+                loadExcludedBans(); // F-01 : la suppression crée un tombstone → le membre ne peut plus être ré-provisionné
             } else {
                 toast.error(res.error || "Erreur lors de la suppression");
             }
@@ -352,7 +386,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl">
-                    {["ACTIVE", "ARCHIVED", "BANNED", "ALL"].map((tab) => (
+                    {["ACTIVE", "ARCHIVED", "BANNED", "EXCLUDED", "ALL"].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -361,7 +395,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                 }`}
                         >
-                            {tab === "ACTIVE" ? "Actifs" : tab === "ARCHIVED" ? "Archivés" : tab === "BANNED" ? "Bannis" : "Tous"}
+                            {tab === "ACTIVE" ? "Actifs" : tab === "ARCHIVED" ? "Archivés" : tab === "BANNED" ? "Bannis" : tab === "EXCLUDED" ? "Exclus" : "Tous"}
                         </button>
                     ))}
                 </div>
@@ -405,6 +439,50 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                 </div>
             </div>
 
+            {activeTab === "EXCLUDED" ? (
+                <div className="rounded-[32px] border border-white/10 bg-zinc-900/40 backdrop-blur-2xl overflow-hidden no-scrollbar shadow-2xl relative group">
+                    {excludedBans.length === 0 ? (
+                        <div className="h-40 flex flex-col items-center justify-center gap-2 text-zinc-500">
+                            <ShieldAlert className="w-7 h-7 opacity-40" />
+                            <p className="italic text-sm">Aucune exclusion active.</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                                Les membres bannis ou supprimés du dashboard apparaîtront ici (protection anti-ré-provisionnement).
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-white/5">
+                            {excludedBans.map(ban => (
+                                <div key={ban.id} className="flex items-center justify-between gap-4 px-6 md:px-8 py-5">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="h-10 w-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                            <ShieldAlert className="w-5 h-5 text-red-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="font-black text-sm md:text-base text-zinc-200 flex items-center gap-2 truncate">
+                                                <span className="text-zinc-400 font-mono text-xs md:text-sm">{ban.discordId}</span>
+                                            </div>
+                                            <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                                                {ban.reason} · {formatDistanceToNow(new Date(ban.createdAt), { addSuffix: true, locale: fr })}
+                                                {ban.bannedByName ? ` · par ${ban.bannedByName}` : ""}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isUpdating === ban.discordId}
+                                        onClick={() => handleLiftExclusion(ban)}
+                                        className="shrink-0 rounded-xl text-[10px] font-black uppercase tracking-widest border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                                    >
+                                        {isUpdating === ban.discordId ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <UserCheck className="w-3.5 h-3.5 mr-2" />}
+                                        Réintégrer
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
             <div className="rounded-[32px] border border-white/10 bg-zinc-900/40 backdrop-blur-2xl overflow-x-auto no-scrollbar shadow-2xl relative group">
                 <Table className="min-w-[800px] lg:min-w-0">
                     <TableHeader className="bg-white/[0.02] border-b border-white/5">
@@ -632,6 +710,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </TableBody>
                 </Table>
             </div>
+            )}
 
             {/* Pagination UI */}
             {totalPages > 1 && (

@@ -27,8 +27,8 @@ import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { getClass, getAlignment, ORDERS, ALIGNMENTS } from "@/lib/dofus-assets";
-import { updateUserProfile } from "@/server/actions/profile-actions";
+import { getClass, getAlignment, getAlignmentLevelSteps, ORDERS, ALIGNMENTS } from "@/lib/dofus-assets";
+import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
 import {
   toggleMilestoneProgress,
   resetMilestoneProgress,
@@ -252,7 +252,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     const totalPrereqs = prereqTags.length;
     const singleName = totalPrereqs === 1 ? prereqTags[0]?.name : null;
     return (
-      <div data-seq-id={seq.id} className={`rounded-2xl border transition-all bg-amber-500/[0.06] border-amber-500/25 hover:border-amber-400/50 ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
+      <div data-seq-id={seq.id} className={`rounded-2xl border transition-all bg-amber-500/[0.06] border-amber-500/25 hover:border-amber-400/50 scroll-mt-24 ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60":""}`}>
         <div className="px-3 pt-2 pb-0">
           <p className="text-[11px] font-bold text-zinc-300 truncate">{questName}</p>
         </div>
@@ -298,7 +298,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03] shadow-[0_0_12px_rgba(245,158,11,0.05)]" : ""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all scroll-mt-24 ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60 bg-emerald-500/[0.04]":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03] shadow-[0_0_12px_rgba(245,158,11,0.05)]" : ""}`}>
         {isThisBookmarked && !isSeqCompleted && (
           <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[8px] font-black uppercase tracking-widest text-amber-300">
             <MapPin className="w-2.5 h-2.5" />
@@ -1047,9 +1047,9 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [alignEditOrder,setAlignEditOrder]=useState<string|null>(null);
   const [alignEditLevel,setAlignEditLevel]=useState<number>(0);
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
-  const resolvedCharacterInfo=useMemo(()=>{if(!effectiveAltPseudo)return{alignment:localProfile?.alignment,alignmentOrder:localProfile?.alignmentOrder,alignmentLevel:localProfile?.alignmentLevel??0};const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return{alignment:m?.alignment,alignmentOrder:m?.alignmentOrder,alignmentLevel:m?.level??0};},[effectiveAltPseudo,localProfile]);
+  const resolvedCharacterInfo=useMemo(()=>{if(!effectiveAltPseudo)return{alignment:localProfile?.alignment,alignmentOrder:localProfile?.alignmentOrder,alignmentLevel:localProfile?.alignmentLevel??0};const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return{alignment:m?.alignment,alignmentOrder:m?.alignmentOrder,alignmentLevel:m?.alignmentLevel??0};},[effectiveAltPseudo,localProfile]);
   const openAlignEdit=useCallback(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;setAlignEditAlignment(alignment||"neutre");setAlignEditOrder(alignmentOrder||null);setAlignEditLevel(alignmentLevel||0);setAlignEditStep("alignment");setAlignEditOpen(true);},[resolvedCharacterInfo]);
-  const handleAlignEditSave=useCallback(async()=>{setAlignEditSaving(true);try{const res=await updateUserProfile({guildId,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel});if((res as any).success){toast.success("Alignement mis à jour !");setAlignEditOpen(false);/* Optimistic update — sync local state instantly */if(!effectiveAltPseudo){setLocalProfile(prev=>({...prev,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}));}else{setLocalProfile(prev=>{const updatedAlts=(prev.altPseudos||[]).map((m:any)=>m.pseudo===effectiveAltPseudo?{...m,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,level:alignEditLevel}:m);return{...prev,altPseudos:updatedAlts};});}router.refresh();}else{toast.error((res as any).error||"Erreur lors de la sauvegarde");}}catch{toast.error("Erreur réseau");}finally{setAlignEditSaving(false);}},[guildId,alignEditAlignment,alignEditOrder,alignEditLevel,effectiveAltPseudo,router]);
+  const handleAlignEditSave=useCallback(async()=>{setAlignEditSaving(true);try{/* #1 : une mule s'édite dans altPseudos (même tableau que le profil) — pas le perso principal */const res=effectiveAltPseudo?await updateMuleAlignment({guildId,pseudo:effectiveAltPseudo,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}):await updateUserProfile({guildId,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel});if((res as any).success){toast.success("Alignement mis à jour !");setAlignEditOpen(false);/* Optimistic update — sync local state instantly */if(!effectiveAltPseudo){setLocalProfile(prev=>({...prev,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}));}else{setLocalProfile(prev=>{const updatedAlts=(prev.altPseudos||[]).map((m:any)=>m.pseudo===effectiveAltPseudo?{...m,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}:m);return{...prev,altPseudos:updatedAlts};});}router.refresh();}else{toast.error((res as any).error||"Erreur lors de la sauvegarde");}}catch{toast.error("Erreur réseau");}finally{setAlignEditSaving(false);}},[guildId,alignEditAlignment,alignEditOrder,alignEditLevel,effectiveAltPseudo,router]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
   useEffect(()=>{const k=`rush-onboarding-${guide.id}`;if(!localStorage.getItem(k)){const t=setTimeout(()=>setWizardOpen(true),800);return()=>clearTimeout(t);}},[guide.id]);
@@ -1104,10 +1104,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         const el = document.querySelector(`[data-seq-id="${foundId}"]`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
+          el.classList.add("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
           setTimeout(() => {
-            el.classList.remove("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
-          }, 3000);
+            el.classList.remove("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
+          }, 3500);
         } else if (attempts < maxAttempts) {
           attempts++;
           setTimeout(tryScroll, 200 + attempts * 100);
@@ -1222,10 +1222,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       const el = document.querySelector(`[data-seq-id="${seqId}"]`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
+        el.classList.add("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
         setTimeout(() => {
-          el.classList.remove("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
-        }, 3000);
+          el.classList.remove("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
+        }, 3500);
       } else if (attempts < maxAttempts) {
         attempts++;
         setTimeout(tryScroll, 200 + attempts * 100);
@@ -1651,18 +1651,16 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           <div className="space-y-4">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Niveau d'alignement (Tranche)</p>
             <div className="grid grid-cols-1 gap-2">
-              {[20,40,60,80,100].map(lvl=>{
+              {(()=>{const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;return getAlignmentLevelSteps(orderData).map(({level:lvl,title})=>{
                 const isSel=alignEditLevel===lvl;
-                const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;
-                const title=orderData?.levels?.[lvl]||"";
                 return(
                   <button key={lvl} type="button" onClick={()=>setAlignEditLevel(lvl)} className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all text-left ${isSel?"border-amber-500 bg-amber-500/15":"border-zinc-800/60 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-900"}`}>
                     <span className={`text-sm font-black w-8 shrink-0 ${isSel?"text-amber-400":"text-zinc-500"}`}>{">"}{lvl}</span>
-                    <span className={`text-xs font-bold flex-1 ${isSel?"text-white":"text-zinc-400"}`}>{title}</span>
+                    <span className={`text-xs font-bold flex-1 ${isSel?"text-white":"text-zinc-400"}`}>{title||`Niveau ${lvl}`}</span>
                     {isSel&&<Check className="w-4 h-4 text-amber-400 shrink-0"/>}
                   </button>
                 );
-              })}
+              });})()}
             </div>
           </div>
         )}

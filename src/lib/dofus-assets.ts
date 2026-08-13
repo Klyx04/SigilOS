@@ -231,6 +231,19 @@ export function getOrder(alignmentId: string, orderId: string) {
     return (ORDERS as any)[alignmentId]?.find((o: any) => o.id === orderId);
 }
 
+/**
+ * Paliers d'alignement (tranches) par pas de 10, de 10 à 100.
+ * Le titre n'existe que pour les grades officiels (20/40/60/80/100) ;
+ * les paliers intermédiaires (10/30/50/70/90) affichent un label générique.
+ */
+export function getAlignmentLevelSteps(order: any): Array<{ level: number; title: string }> {
+    const steps: Array<{ level: number; title: string }> = [];
+    for (let lvl = 10; lvl <= 100; lvl += 10) {
+        steps.push({ level: lvl, title: order?.levels?.[lvl] || "" });
+    }
+    return steps;
+}
+
 // -----------------------------------------------------------------------------
 // DOFUS WORLDS & DIMENSIONS
 // -----------------------------------------------------------------------------

@@ -147,8 +147,11 @@ export function UserSettings({
             const res = await archiveProfile(guildId, undefined, archiveDuration);
             if (res.success) {
                 toast.success(`Profil archivé. Redirection...`);
-                // Use hard redirect to clear all client-side state/caches
-                window.location.href = "/dashboard";
+                // Use hard redirect to clear all client-side state/caches.
+                // → /dashboard/{guildId} (et non /dashboard) pour afficher la page
+                // « Compte Archivé » avec « Demander ma réintégration » ; le sélecteur
+                // /dashboard exclut les guildes archivées → landing « Prenez les commandes ».
+                window.location.href = `/dashboard/${guildId}`;
             } else {
                 toast.error(res.error || "Une erreur est survenue");
             }

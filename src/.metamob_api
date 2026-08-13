@@ -164,12 +164,16 @@ Réponse (détail) :
     ]
   }
 }
+Pseudonymes à null : les champs creator et username (participants, messages) peuvent valoir null. Deux causes possibles, indistinguables : un blocage mutuel avec le compte concerné, ou un compte supprimé définitivement. L'évènement reste visible dans les deux cas — c'est une ressource collective. Prévoyez donc un null partout où vous attendez un pseudonyme.
+
 Utilisateurs
 Méthode	Endpoint	Description
 GET	/v1/users/search	Rechercher des utilisateurs
 GET	/v1/users/{username}	Profil public d'un utilisateur
 GET	/v1/users/{username}/quests	Liste des quêtes publiques d'un utilisateur
 GET	/v1/users/{username}/quests/{slug}	Détail d'une quête avec ses monstres
+Comptes supprimés : un compte supprimé disparaît de la recherche et tous ses endpoints renvoient 404. Son pseudonyme peut en revanche continuer d'apparaître dans les contenus partagés (conversations, propositions d'échange, évènements Kralamoure) pendant 30 jours, le temps que la suppression devienne définitive. Passé ce délai, il n'est plus jamais exposé : selon l'endpoint, le champ vaut null (Kralamoure) ou l'entrée disparaît (conversations). Un pseudonyme présent dans un historique n'implique donc pas qu'il corresponde à un compte accessible.
+
 Rechercher des utilisateurs
 Recherche des utilisateurs ayant des quêtes publiques. Nécessite un terme de recherche d'au moins 3 caractères.
 
@@ -330,6 +334,10 @@ Liste des conversations
 Méthode	Endpoint	Description
 GET	/v1/conversations	Liste les conversations de l'utilisateur authentifié
 Retourne une ligne par interlocuteur, triée par date du dernier message (la plus récente d'abord). Par défaut, seules les conversations actives sont listées.
+
+Comptes supprimés : une conversation avec un compte supprimé reste listée et consultable pendant 30 jours (le compte peut encore être restauré). Passé ce délai, elle disparaît de la liste et son détail renvoie 404. Le site, lui, continue de l'afficher en lecture seule : cette différence est volontaire, une entrée sans interlocuteur joignable n'ayant pas d'usage programmatique.
+
+⚠️ Un pseudonyme obtenu ici n'est donc pas nécessairement exploitable ailleurs : GET /v1/users/{pseudo} et les endpoints de quêtes renvoient 404 dès que le compte est supprimé, alors que la conversation, elle, reste accessible. Prévoyez ce cas plutôt que de supposer qu'un interlocuteur listé possède un profil.
 
 Paramètres de requête :
 

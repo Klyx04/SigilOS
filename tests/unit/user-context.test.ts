@@ -39,6 +39,7 @@ vi.mock("@/lib/prisma", () => ({
         guildConfig: { findFirst: vi.fn() },
         account: { findFirst: vi.fn() },
         platformBan: { findUnique: vi.fn() },
+        guildMemberBan: { findUnique: vi.fn().mockResolvedValue(null) },
     },
 }));
 vi.mock("@/lib/redis", () => ({

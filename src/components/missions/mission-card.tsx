@@ -389,6 +389,20 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 />
                                 {/* Cinematic Overlay: Gradient Fade to Right */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#1a1c20]/40 z-10" />
+
+                                {/* OBJECTIF MANUEL — gros badge exclamation sur l'image */}
+                                {mission.category === 'EVENT' && payload.eventType === 'OBJECTIF' && (
+                                    <div className="absolute bottom-1 right-1 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-amber-500/95 border-2 border-white/25 shadow-[0_0_24px_rgba(245,158,11,0.55)] flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform duration-300">
+                                        <Image
+                                            src="/exclamation.png"
+                                            alt="Objectif manuel"
+                                            width={64}
+                                            height={64}
+                                            className="object-contain w-full h-full p-1"
+                                            unoptimized={true}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 border border-white/5 flex items-center justify-center">

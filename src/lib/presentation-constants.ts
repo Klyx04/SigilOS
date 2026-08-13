@@ -36,6 +36,23 @@ export const ALL_DOFUS_SERVERS = [
     ...DOFUS_UNITY_SERVERS.pionnier.map(s => s.name),
 ];
 
+/**
+ * Résout un nom de serveur Dofus affichable à l'utilisateur :
+ * 1) dofusServerName configuré par la guilde (ex: "Draconiros")
+ * 2) sinon, résolution par dofusServerId via la liste officielle
+ * 3) sinon, libellé générique (rare — admin n'a pas configuré le serveur)
+ */
+export function resolveDofusServerName(name?: string | null, id?: string | null): string {
+    if (name && name.trim()) return name.trim();
+    if (id) {
+        for (const group of Object.values(DOFUS_UNITY_SERVERS)) {
+            const server = (group as ReadonlyArray<{ name: string; id: number }>).find(s => String(s.id) === String(id));
+            if (server) return server.name;
+        }
+    }
+    return "le serveur configuré par la guilde";
+}
+
 // ============================================================================
 // AVAILABLE ACTIVITIES
 // ============================================================================

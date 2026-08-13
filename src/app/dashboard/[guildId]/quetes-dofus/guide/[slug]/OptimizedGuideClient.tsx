@@ -1182,11 +1182,13 @@ export default function OptimizedGuideClient({
     try { return localStorage.getItem(`guide-particles-${guildId}`) !== "false"; } catch { return true; }
   });
 
-  // ─── Guide tour (P2) : rejouable, dispo pour tous via le menu Options ───────
+  // ─── Guide tour (P2) : auto-start UNE SEULE fois (1ère arrivée), puis bouton « Aide » ─
+  // v2 : flag bumpé le 13/08 (le tour était invisible avant le fix overlay → on veut
+  // qu'il pop une fois pour tout le monde maintenant qu'il est visible).
   const { startTour } = useTour();
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const seenKey = "sigilos-tour-guide-seen";
+    const seenKey = "sigilos-tour-guide-seen-v2";
     if (localStorage.getItem(seenKey) === "true") return;
     const t = setTimeout(() => {
       localStorage.setItem(seenKey, "true");

@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { resolveDofusServerName } from "@/lib/presentation-constants";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getUserContext, checkGuildPermission } from "./user-actions";
@@ -234,13 +235,14 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
         return { success: false, error: "Service de vérification indisponible." };
     }
 
-    // Get guild's server ID
+    // Get guild's server ID + name (nom du serveur Dofus configuré côté admin)
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { dofusServerId: true }
+        select: { dofusServerId: true, dofusServerName: true }
     });
     
     const serverId = guildConfig?.dofusServerId || "295"; // Default to Imagiro
+    const serverName = resolveDofusServerName(guildConfig?.dofusServerName, guildConfig?.dofusServerId);
 
     try {
         const headers: Record<string, string> = { "Accept": "application/json" };
@@ -268,7 +270,7 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
             };
         }
 
-        return { success: false, error: "Pseudo introuvable sur le ladder Officiel." };
+        return { success: false, error: `Pseudo "${pseudo}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
     } catch (err: any) {
         logger.error("Verify Pseudo Error", { error: err });
         return { success: false, error: "Erreur de communication avec le service de vérification." };
@@ -746,7 +748,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
     try {
         const guildConfig = await db.guildConfig.findUnique({ 
             where: { discordGuildId: guildId },
-            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true }
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -782,9 +784,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             // SuperAdmins sont exemptés (bypass pour les overrides admin)
             if (!isGod) {
                 const serverId = (guildConfig as any).dofusServerId || "295";
+                const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
                 const existsOnLadder = await checkPseudoExistsOnLadder(pseudoDofus, serverId);
                 if (existsOnLadder === false) {
-                    return { success: false, error: `Le pseudo "${pseudoDofus}" est introuvable sur le ladder officiel Ankama. Vérifiez l'orthographe exacte (majuscules, tirets...).` };
+                    return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
                 }
                 // null = service indisponible → on laisse passer (fail-open)
             }
@@ -1066,6 +1069,7 @@ const AltPseudoObjectSchema = z.object({
     level: z.number().min(0).max(200).optional(),
     alignment: z.string().nullable().optional(),
     alignmentOrder: z.string().nullable().optional(),
+    alignmentLevel: z.number().min(0).max(100).optional(),
 });
 
 const UpdateAltPseudosSchema = z.object({
@@ -1093,7 +1097,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
     try {
         const guildConfig = await db.guildConfig.findUnique({ 
             where: { discordGuildId: guildId },
-            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true }
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -1116,12 +1120,13 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         // SuperAdmins sont exemptés
         if (!isGod) {
             const serverId = (guildConfig as any).dofusServerId || "295";
+            const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
             const ladderChecks = await Promise.all(
                 cleanedPseudos.map(p => checkPseudoExistsOnLadder(p.pseudo, serverId))
             );
             for (let i = 0; i < cleanedPseudos.length; i++) {
                 if (ladderChecks[i] === false) {
-                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" est introuvable sur le ladder officiel Ankama. Vérifiez l'orthographe exacte.` };
+                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
                 }
             }
         }
@@ -1146,6 +1151,76 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
     } catch (error: unknown) {
         logger.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR", { error });
         return { success: false, error: "Erreur serveur critique" };
+    }
+}
+
+const UpdateMuleAlignmentSchema = z.object({
+    guildId: z.string(),
+    pseudo: z.string()
+        .min(2, "Pseudo trop court")
+        .max(20, "Pseudo trop long"),
+    alignment: z.string().nullable(),
+    alignmentOrder: z.string().nullable(),
+    alignmentLevel: z.number().min(0).max(100),
+});
+
+/**
+ * Met à jour l'alignement d'UNE mule (altPseudos du profil).
+ * Utilisé par les modules guide (Ganymède / Rush Sylvestre) quand on édite
+ * l'alignement d'une mule : la donnée vit dans le MÊME tableau `altPseudos`
+ * que le profil perso → la synchro est parfaite dans les deux sens.
+ */
+export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = UpdateMuleAlignmentSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, pseudo, alignment, alignmentOrder, alignmentLevel } = validation.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { id: true, altPseudos: true }
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const alts = Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [];
+        const idx = alts.findIndex((m: any) => m.pseudo === pseudo);
+        if (idx === -1) return { success: false, error: `La mule "${pseudo}" est introuvable sur votre profil.` };
+
+        const isNeutre = !alignment || alignment === "neutre";
+        alts[idx] = {
+            ...alts[idx],
+            alignment: alignment || "neutre",
+            alignmentOrder: isNeutre ? null : alignmentOrder,
+            alignmentLevel: isNeutre ? 0 : alignmentLevel,
+        };
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: { altPseudos: alts as any, userUpdatedAt: new Date() }
+        });
+
+        // 🛡️ Invalider le cache pour que le guide et le profil lisent la nouvelle valeur
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Mule Alignment Error", { error });
+        return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
 
@@ -2185,6 +2260,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
         }
 
         const serverId = profile.guild.dofusServerId || "295"; // Draconiros by default
+        const serverName = resolveDofusServerName(profile.guild.dofusServerName, profile.guild.dofusServerId);
         const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
 
         const response = await fetch(targetUrl, {
@@ -2205,7 +2281,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
         const result = await response.json();
 
         if (!result.success || !result.found) {
-            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur le ladder (${serverId}).` };
+            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe.` };
         }
 
         // 4. Update Database

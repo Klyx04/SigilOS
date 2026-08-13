@@ -454,6 +454,30 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         return { ...baseContext, isAuthenticated: false };
     }
 
+    // --- GUILD-SCOPED BAN CHECK (GuildMemberBan / tombstone) — F-01 ---
+    // Fail-closed : un membre banni OU supprimé par un admin reste exclu du dashboard
+    // même si son UserProfile a été purgé (il ne peut PAS être ré-provisionné
+    // automatiquement au prochain accès). Vérifié AVANT la création de profil.
+    if (guildConfig && !isGod && discordUserId) {
+        const guildBan = await db.guildMemberBan.findUnique({
+            where: { guildId_discordId: { guildId: guildConfig.id, discordId: discordUserId } },
+            select: { id: true, reason: true }
+        }).catch(() => null);
+        if (guildBan) {
+            logger.warn(`[Security] Blocked access for GUILD-BANNED user ${discordUserId} in guild ${guildConfig.id} (${guildBan.reason})`);
+            return {
+                ...baseContext,
+                isAuthenticated: true,
+                id: session.user.id,
+                name: session.user.name || "Voyageur",
+                image: session.user.image || undefined,
+                isMember: false,
+                isBanned: true,
+                guildName: guildConfig?.name || "Serveur Inconnu",
+            } as any;
+        }
+    }
+
     // --- ENSURE USER PROFILE EXISTS ---
     const profileCacheKey = `profile:${session.user.id}:${guildConfig?.id || ""}`;
     let profile = profileCache.get(profileCacheKey)?.expiresAt && profileCache.get(profileCacheKey)!.expiresAt > Date.now()
@@ -1618,7 +1642,54 @@ export async function internalUpdateMemberProfileStatus(
     // Invalidate Redis cache
     await invalidateUserContextCache(updated.userId, profile.guild.discordGuildId);
 
+    // ── F-01 : Tombstone guild-scopé — le ban persiste même si le profil est purgé plus tard ──
+    const banDiscordId = profile.user?.accounts?.find((a: any) => a.provider === "discord")?.providerAccountId;
+    if (banDiscordId) {
+        try {
+            if (status === "BANNED") {
+                await db.guildMemberBan.upsert({
+                    where: { guildId_discordId: { guildId: profile.guildId, discordId: banDiscordId } },
+                    create: {
+                        guildId: profile.guildId,
+                        discordId: banDiscordId,
+                        reason: reason || "MEMBER_BANNED",
+                        bannedBy: actorUserId ?? "system",
+                        bannedByName: "Admin"
+                    },
+                    update: {
+                        reason: reason || "MEMBER_BANNED",
+                        liftedAt: null,
+                        liftedBy: null,
+                        liftedByName: null
+                    }
+                });
+            } else if (status === "ACTIVE") {
+                await db.guildMemberBan.updateMany({
+                    where: { guildId: profile.guildId, discordId: banDiscordId, liftedAt: null },
+                    data: { liftedAt: new Date(), liftedBy: actorUserId ?? "system", liftedByName: "Admin" }
+                });
+            }
+        } catch (banErr) {
+            logger.error("[GuildMemberBan] sync after status update failed:", banErr);
+        }
+    }
+
     // 5. Audit & Activity
+    // ── Chantier #31 : ban/archive → fermer le contenu publié (posts DJ + runs songes + embeds Discord)
+    if (status === "BANNED" || status === "ARCHIVED") {
+        try {
+            const { closeMemberPublishedContent } = await import("./lifecycle-actions");
+            await closeMemberPublishedContent(
+                profile.guild?.discordGuildId || profile.guildId,
+                profileId,
+                profile.userId,
+                status === "BANNED" ? (reason || "MEMBER_BANNED") : "MEMBER_ARCHIVED"
+            );
+        } catch (closeErr) {
+            logger.error("[closeMemberPublishedContent] after status update failed:", closeErr);
+        }
+    }
+
     const targetProfile = await db.userProfile.findUnique({
         where: { id: profileId },
         select: {

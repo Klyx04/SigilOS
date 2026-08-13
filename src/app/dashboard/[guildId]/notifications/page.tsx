@@ -206,7 +206,7 @@ export default function NotificationsPage() {
             </div>
 
             {/* Status Filter (Unread / Read / All) */}
-            <div className="flex items-center gap-2 mb-4 p-1.5 bg-zinc-950 border border-white/10 rounded-2xl">
+            <div className="flex flex-wrap items-center gap-2 mb-4 p-1.5 bg-zinc-950 border border-white/10 rounded-2xl">
                 {[
                     { id: "UNREAD", label: "Non lues", count: unreadCount, icon: Bell },
                     { id: "READ", label: "Historique (Lues)", count: notifications.filter(n => n.read).length, icon: CheckCircle2 },
@@ -216,16 +216,16 @@ export default function NotificationsPage() {
                         key={st.id}
                         onClick={() => setStatusFilter(st.id as any)}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                            "flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
                             statusFilter === st.id
                                 ? "bg-white/10 text-white border border-white/20 shadow-lg shadow-white/5"
                                 : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                         )}
                     >
-                        <st.icon className={cn("w-3.5 h-3.5", statusFilter === st.id ? "text-cyan-400" : "text-zinc-600")} />
-                        {st.label}
+                        <st.icon className={cn("w-3.5 h-3.5 shrink-0", statusFilter === st.id ? "text-cyan-400" : "text-zinc-600")} />
+                        <span className="whitespace-nowrap">{st.label}</span>
                         <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                            "min-w-[26px] text-center px-2 py-0.5 rounded-full text-[10px] font-bold tabular-nums",
                             statusFilter === st.id ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" : "bg-white/5 text-zinc-600"
                         )}>
                             {st.count}
@@ -254,7 +254,7 @@ export default function NotificationsPage() {
                         >
                             {cat.label}
                             <span className={cn(
-                                "px-1.5 py-0.5 rounded-md text-[10px] font-black",
+                                "min-w-[22px] text-center px-1.5 py-0.5 rounded-md text-[10px] font-black tabular-nums",
                                 activeTab === cat.id ? "bg-black/30 text-cyan-200" : "bg-white/10 text-zinc-500"
                             )}>
                                 {count}
@@ -265,6 +265,7 @@ export default function NotificationsPage() {
             </div>
 
 
+            <div className="min-h-[55vh]">
             {loading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -380,6 +381,7 @@ export default function NotificationsPage() {
                     ))}
                 </div>
             )}
+            </div>
 
             <Dialog open={!!replyNotif} onOpenChange={(open) => !open && setReplyNotif(null)}>
                 <DialogContent className="max-w-md bg-zinc-950 border border-white/10 shadow-2xl rounded-3xl text-white p-6 backdrop-blur-xl">

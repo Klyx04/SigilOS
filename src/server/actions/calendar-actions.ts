@@ -1791,7 +1791,7 @@ export async function autoCloseExpiredEvents(guildId: string) {
                 status: "PUBLISHED",
                 endDate: { lt: now }
             },
-            select: { id: true, title: true }
+            select: { id: true, title: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (expiredEvents.length === 0) {
@@ -1808,6 +1808,24 @@ export async function autoCloseExpiredEvents(guildId: string) {
             }
         });
 
+        // ── Chantier #31 : supprimer les embeds Discord + messages de rappel des événements clôturés ──
+        const { deleteChannelMessage } = await import("@/server/discord");
+        const deleteTasks: Promise<unknown>[] = [];
+        for (const event of expiredEvents) {
+            const meta = (event.metadata as any) || {};
+            const reminderMessages: { channelId: string, messageId: string }[] = meta.reminderMessages || [];
+            for (const rm of reminderMessages) {
+                if (rm?.channelId && rm?.messageId) {
+                    deleteTasks.push(deleteChannelMessage(rm.channelId, rm.messageId).catch(() => false));
+                }
+            }
+            if (event.discordChannelId && event.discordMessageId) {
+                deleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
+            }
+        }
+        if (deleteTasks.length > 0) {
+            await Promise.allSettled(deleteTasks);
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, closedCount: expiredEvents.length };

@@ -2,19 +2,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
-import { updateUserProfile } from "@/server/actions/profile-actions";
+import { ALIGNMENTS, ORDERS, getAlignmentLevelSteps } from "@/lib/dofus-assets";
+import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 /**
  * Édite alignement / ordre / tranche depuis le bandeau du guide.
- * Persiste via updateUserProfile (champs partiels, guild isolation intouchée).
+ * Persiste via updateUserProfile (perso principal) OU updateMuleAlignment
+ * (mule → altPseudos, synchro parfaite avec le profil perso).
  */
 export default function AlignmentModal({
   open,
   onOpenChange,
   guildId,
+  mulePseudo,
   alignment,
   alignmentOrder,
   alignmentLevel,
@@ -22,6 +24,7 @@ export default function AlignmentModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   guildId: string;
+  mulePseudo?: string | null;
   alignment?: string | null;
   alignmentOrder?: string | null;
   alignmentLevel?: number;
@@ -43,17 +46,25 @@ export default function AlignmentModal({
 
   const orders = a ? ((ORDERS as unknown as Record<string, any[]>)[a] || []) : [];
   const selectedOrder = orders.find((x: any) => x.id === o);
-  const levelKeys = selectedOrder ? Object.keys(selectedOrder.levels).map(Number).sort((x, y) => x - y) : [];
+  const levelSteps = selectedOrder ? getAlignmentLevelSteps(selectedOrder) : [];
 
   const save = async () => {
     setSaving(true);
     try {
-      const res = await updateUserProfile({
-        guildId,
-        alignment: a ?? "neutre",
-        alignmentOrder: a ? (o ?? null) : null,
-        alignmentLevel: a ? (selectedOrder ? lvl : 0) : 0,
-      });
+      const res = mulePseudo
+        ? await updateMuleAlignment({
+            guildId,
+            pseudo: mulePseudo,
+            alignment: a ?? "neutre",
+            alignmentOrder: a ? (o ?? null) : null,
+            alignmentLevel: a ? (selectedOrder ? lvl : 0) : 0,
+          })
+        : await updateUserProfile({
+            guildId,
+            alignment: a ?? "neutre",
+            alignmentOrder: a ? (o ?? null) : null,
+            alignmentLevel: a ? (selectedOrder ? lvl : 0) : 0,
+          });
       if (res.success) {
         toast.success("Alignement mis à jour");
         router.refresh();
@@ -126,15 +137,15 @@ export default function AlignmentModal({
                   >
                     Aucune
                   </button>
-                  {levelKeys.map(k => (
+                  {levelSteps.map(({ level: k, title }) => (
                     <button
                       key={k}
                       type="button"
                       onClick={() => setLvl(k)}
                       className={`align-tranche${lvl === k ? " active" : ""}`}
-                      title={selectedOrder.levels[k]}
+                      title={title || `Niveau ${k}`}
                     >
-                      {k} · {selectedOrder.levels[k]}
+                      {k} · {title || `Niveau ${k}`}
                     </button>
                   ))}
                 </div>

@@ -9,9 +9,6 @@ import { Sparkles, BookOpen, BarChart3, MessageSquare } from "lucide-react";
 import { getGuildPresentation } from "@/server/actions/presentation-actions";
 import { db } from "@/lib/prisma";
 import PresentationContent from "./_components/presentation-content";
-import { getGuildStats } from "@/server/actions/guild-stats-actions";
-import StatsClient from "../stats/_components/stats-client";
-import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getWelcomePosts } from "@/server/actions/onboarding-admin-actions";
 import { WelcomeFeedClient } from "../welcome/_components/welcome-feed-client";
 import { GuildHubTabs } from "./_components/guild-hub-tabs";
@@ -31,11 +28,11 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
     const user = await getUserContext(guildId);
     
     // Check if user has access to at least one of the tabs
-    const canViewAny = user.canViewWelcome || user.canViewPresentation || user.canViewStats;
+    const canViewAny = user.canViewWelcome || user.canViewPresentation;
     if (!canViewAny) return <AccessDenied />;
 
     // Determine initial tab based on available permissions
-    const defaultTab = user.canViewPresentation ? "presentation" : user.canViewWelcome ? "welcome" : "stats";
+    const defaultTab = user.canViewPresentation ? "presentation" : "welcome";
     const initialTab = tab || defaultTab;
 
     return (
@@ -53,7 +50,6 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
                     initialTab={initialTab}
                     canViewWelcome={!!user.canViewWelcome}
                     canViewPresentation={!!user.canViewPresentation}
-                    canViewStats={!!user.canViewStats}
                 />
 
                 {/* --- Welcome Tab --- */}
@@ -70,15 +66,6 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
                     <TabsContent value="presentation" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
                         <Suspense fallback={<div className="h-64 rounded-2xl bg-white/5 animate-pulse" />}>
                             <PresentationTabContent guildId={guildId} user={user} />
-                        </Suspense>
-                    </TabsContent>
-                )}
-
-                {/* --- Stats Tab --- */}
-                {user.canViewStats && (
-                    <TabsContent value="stats" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
-                        <Suspense fallback={<div className="h-64 rounded-2xl bg-white/5 animate-pulse" />}>
-                            <StatsTabContent guildId={guildId} user={user} />
                         </Suspense>
                     </TabsContent>
                 )}
@@ -120,52 +107,4 @@ async function PresentationTabContent({ guildId, user }: { guildId: string, user
     if (!guild) return null;
 
     return <PresentationContent guild={guild} user={user} guildId={guildId} />;
-}
-
-async function StatsTabContent({ guildId, user }: { guildId: string, user: any }) {
-    const enabled = await isModuleEnabled(guildId, "stats");
-    if (!user.isAdmin && !enabled) return <AccessDenied />;
-
-    const guildConfig = await db.guildConfig.findUnique({
-        where: { discordGuildId: guildId },
-        select: { 
-            missionVitrineMode: true,
-            serviceLoansEnabled: true,
-            serviceVaultEnabled: true,
-        },
-    });
-
-    const missionsModuleEnabled = await isModuleEnabled(guildId, "missions");
-    const missionsEnabled = missionsModuleEnabled && !guildConfig?.missionVitrineMode;
-    const questsEnabled = await isModuleEnabled(guildId, "quests");
-    const servicesEnabled = await isModuleEnabled(guildId, "services");
-    const songesEnabled = await isModuleEnabled(guildId, "songes");
-    const minigamesEnabled = await isModuleEnabled(guildId, "minigames");
-
-    const vitrineMode = !!guildConfig?.missionVitrineMode;
-    const loansEnabled = guildConfig?.serviceLoansEnabled ?? true;
-    const vaultEnabled = guildConfig?.serviceVaultEnabled ?? true;
-
-    const result = await getGuildStats(guildId);
-    if (!result.success || !result.stats) {
-        return (
-            <div className="p-12 text-center text-zinc-500 bg-white/5 rounded-2xl border border-white/5">
-                Erreur lors du chargement des statistiques.
-            </div>
-        );
-    }
-
-    return (
-        <StatsClient
-            stats={result.stats}
-            missionsEnabled={missionsEnabled}
-            questsEnabled={questsEnabled}
-            servicesEnabled={servicesEnabled}
-            songesEnabled={songesEnabled}
-            minigamesEnabled={minigamesEnabled}
-            vitrineMode={vitrineMode}
-            loansEnabled={loansEnabled}
-            vaultEnabled={vaultEnabled}
-        />
-    );
 }

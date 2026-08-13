@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Users, Plus, X, Save, Edit2, AlertCircle, Copy, Shield, Trash2, Check, Sparkles, Info, Search, Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
-import { DOFUS_CLASSES, getClass, ALIGNMENTS, ORDERS, getAlignment, getOrder } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, getClass, ALIGNMENTS, ORDERS, getAlignment, getOrder, getAlignmentLevelSteps } from "@/lib/dofus-assets";
 import NextImage from "next/image";
 import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 
@@ -18,6 +18,7 @@ export type Mule = {
     level?: number;
     alignment?: string | null;
     alignmentOrder?: string | null;
+    alignmentLevel?: number;
 };
 
 interface AltPseudosProps {
@@ -44,6 +45,7 @@ export function AltPseudos({
     const [newLevel, setNewLevel] = useState<string>("200");
     const [newAlignment, setNewAlignment] = useState<string>("neutre");
     const [newOrder, setNewOrder] = useState<string | null>(null);
+    const [newAlignmentLevel, setNewAlignmentLevel] = useState<number>(0);
 
     // Vérification du pseudo (loupe) + fallback God : même logique que l'identité.
     const [newPseudoVerified, setNewPseudoVerified] = useState(false);
@@ -69,7 +71,7 @@ export function AltPseudos({
     useEffect(() => {
         const normalized = altPseudos.map(p => {
             if (typeof p === "string") {
-                return { id: crypto.randomUUID(), pseudo: p, classe: "cra", level: 200, alignment: "neutre", alignmentOrder: null };
+                return { id: crypto.randomUUID(), pseudo: p, classe: "cra", level: 200, alignment: "neutre", alignmentOrder: null, alignmentLevel: 0 };
             }
             return {
                 id: p.id || crypto.randomUUID(),
@@ -77,7 +79,8 @@ export function AltPseudos({
                 classe: p.classe || "cra",
                 level: p.level !== undefined ? p.level : 200,
                 alignment: p.alignment || "neutre",
-                alignmentOrder: p.alignmentOrder || null
+                alignmentOrder: p.alignmentOrder || null,
+                alignmentLevel: p.alignmentLevel || 0
             };
         });
         setLocalPseudos(normalized);
@@ -137,6 +140,7 @@ export function AltPseudos({
         setNewLevel(mule.level?.toString() || "200");
         setNewAlignment(mule.alignment || "neutre");
         setNewOrder(mule.alignmentOrder || null);
+        setNewAlignmentLevel(mule.alignmentLevel || 0);
 
         // Smooth scroll to form
         setTimeout(() => {
@@ -155,6 +159,7 @@ export function AltPseudos({
         setNewLevel("200");
         setNewAlignment("neutre");
         setNewOrder(null);
+        setNewAlignmentLevel(0);
     };
 
     const handleAddOrUpdatePseudo = () => {
@@ -186,7 +191,8 @@ export function AltPseudos({
                         classe: newClass,
                         level: lvl,
                         alignment: newAlignment,
-                        alignmentOrder: newAlignment === "neutre" ? null : newOrder
+                        alignmentOrder: newAlignment === "neutre" ? null : newOrder,
+                        alignmentLevel: newAlignment === "neutre" ? 0 : newAlignmentLevel
                     };
                 }
                 return p;
@@ -211,7 +217,8 @@ export function AltPseudos({
                 classe: newClass, 
                 level: lvl,
                 alignment: newAlignment,
-                alignmentOrder: newAlignment === "neutre" ? null : newOrder
+                alignmentOrder: newAlignment === "neutre" ? null : newOrder,
+                alignmentLevel: newAlignment === "neutre" ? 0 : newAlignmentLevel
             }]);
             toast.success(`Personnage ${trimmed} ajouté localement`);
             handleCancelFormEdit();
@@ -248,7 +255,8 @@ export function AltPseudos({
                         classe: newClass, 
                         level: lvl,
                         alignment: newAlignment,
-                        alignmentOrder: newAlignment === "neutre" ? null : newOrder
+                        alignmentOrder: newAlignment === "neutre" ? null : newOrder,
+                        alignmentLevel: newAlignment === "neutre" ? 0 : newAlignmentLevel
                     });
                     setLocalPseudos(finalPseudos);
                     handleCancelFormEdit();
@@ -274,14 +282,15 @@ export function AltPseudos({
 
     const handleCancel = () => {
         const normalized = altPseudos.map(p => {
-            if (typeof p === "string") return { id: crypto.randomUUID(), pseudo: p, classe: "cra", level: 200, alignment: "neutre", alignmentOrder: null };
+            if (typeof p === "string") return { id: crypto.randomUUID(), pseudo: p, classe: "cra", level: 200, alignment: "neutre", alignmentOrder: null, alignmentLevel: 0 };
             return {
                 id: p.id || crypto.randomUUID(),
                 pseudo: p.pseudo || "Inconnu",
                 classe: p.classe || "cra",
                 level: p.level !== undefined ? p.level : 200,
                 alignment: p.alignment || "neutre",
-                alignmentOrder: p.alignmentOrder || null
+                alignmentOrder: p.alignmentOrder || null,
+                alignmentLevel: p.alignmentLevel || 0
             };
         });
         setLocalPseudos(normalized);
@@ -625,6 +634,7 @@ export function AltPseudos({
                                                         type="button"
                                                         onClick={() => {
                                                             setNewAlignment(align.id);
+                                                            setNewAlignmentLevel(0);
                                                             if (align.id === "neutre") {
                                                                 setNewOrder(null);
                                                             } else {
@@ -668,7 +678,7 @@ export function AltPseudos({
                                                         <button
                                                             key={order.id}
                                                             type="button"
-                                                            onClick={() => setNewOrder(order.id)}
+                                                            onClick={() => { setNewOrder(order.id); setNewAlignmentLevel(0); }}
                                                             className={cn(
                                                                 "h-14 px-4 rounded-xl flex items-center gap-3 transition-all border text-left text-[11px] font-black uppercase tracking-widest relative overflow-hidden",
                                                                 isSel
@@ -685,6 +695,46 @@ export function AltPseudos({
                                                         </button>
                                                     );
                                                 })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Tranche d'alignement (Niveau) */}
+                                    {newAlignment !== "neutre" && newOrder && (
+                                        <div className="flex flex-col gap-2 pt-2 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="flex items-center gap-1.5">
+                                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                                <label className="text-[11px] text-zinc-300 font-black uppercase tracking-wider">Tranche d'Alignement</label>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setNewAlignmentLevel(0)}
+                                                    className={cn(
+                                                        "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                        newAlignmentLevel === 0
+                                                            ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                                                            : "bg-black/20 border-white/5 text-zinc-500 hover:text-zinc-300"
+                                                    )}
+                                                >
+                                                    Aucune
+                                                </button>
+                                                {getAlignmentLevelSteps((ORDERS as any)[newAlignment]?.find((o: any) => o.id === newOrder)).map(({ level, title }) => (
+                                                    <button
+                                                        key={level}
+                                                        type="button"
+                                                        onClick={() => setNewAlignmentLevel(level)}
+                                                        className={cn(
+                                                            "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                            newAlignmentLevel === level
+                                                                ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                                                                : "bg-black/20 border-white/5 text-zinc-500 hover:text-zinc-300"
+                                                        )}
+                                                        title={title || `Niveau ${level}`}
+                                                    >
+                                                        {level} · {title || `Niv ${level}`}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
                                     )}

@@ -94,11 +94,6 @@ export async function getOptimizedGuides(guildId?: string) {
 
   const guides = await db.optimizedGuide.findMany({
     where: whereCl,
-    include: {
-      steps: {
-        orderBy: { order: "asc" },
-      },
-    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -461,7 +456,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
   }
 
-  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true, progress };
 }
 
@@ -487,7 +482,7 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
   }
-  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
 }
 
@@ -522,7 +517,7 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
   if (guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
   }
-  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
 }
 
@@ -579,7 +574,7 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
   if (guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
   }
-  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
 }
 
@@ -702,7 +697,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
   }
 
-  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true, progress, isCompleted: isAllCompleted };
 }
 
@@ -951,6 +946,106 @@ export async function deleteAllMilestones(guideId: string) {
 }
 
 /**
+ * ── Réparation des refs Alignement Bonta/Brâkmar ────────────────────────────
+ * Garantit que GP9 = BONTARIEN et GP9B = BRÂKMARIEN quel que soit l'ordre
+ * d'import initial. Idempotent — safe à relancer plusieurs fois.
+ * Corrige aussi toutes les GuideSequence qui pointent vers le mauvais ref.
+ */
+export async function repairAlignmentRefs() {
+  await requireGuideAccess();
+
+  // 1. Trouver tous les variants GP9x
+  const gp9Variants = await db.subGuideData.findMany({
+    where: { guideRef: { startsWith: "GP9" } },
+    select: { id: true, guideRef: true, guideName: true, ganymadeId: true },
+  });
+
+  const bontarien = gp9Variants.find(g =>
+    g.guideName.toUpperCase().includes("BONTARIEN")
+  );
+  const brakmarien = gp9Variants.find(g =>
+    g.guideName.toUpperCase().includes("BRAKMARIEN") ||
+    g.guideName.toUpperCase().includes("BRÂKMARIEN")
+  );
+
+  if (!bontarien || !brakmarien) {
+    return {
+      success: false,
+      error: "Les deux guides d'alignement ne sont pas encore importés. Importez Bontarien ET Brâkmarien depuis l'onglet Import Ganymède avant de lancer la réparation.",
+      bontarienFound: !!bontarien,
+      brakmarienFound: !!brakmarien,
+    };
+  }
+
+  let fixedSubGuides = 0;
+
+  // 2. Corriger SubGuideData si nécessaire (swap ou rename simple)
+  if (bontarien.guideRef !== "GP9" || brakmarien.guideRef !== "GP9B") {
+    const tempRef = "__GP9_REPAIR_TEMP__";
+    // Phase 1 : libérer GP9 si occupé par Brâkmarien
+    if (brakmarien.guideRef === "GP9") {
+      await db.subGuideData.update({ where: { id: brakmarien.id }, data: { guideRef: tempRef } });
+    }
+    // Phase 2 : affecter GP9 à Bontarien
+    if (bontarien.guideRef !== "GP9") {
+      await db.subGuideData.update({ where: { id: bontarien.id }, data: { guideRef: "GP9" } });
+      fixedSubGuides++;
+    }
+    // Phase 3 : affecter GP9B à Brâkmarien (depuis tempRef ou autre ref)
+    if (brakmarien.guideRef !== "GP9B") {
+      await db.subGuideData.update({ where: { id: brakmarien.id }, data: { guideRef: "GP9B" } });
+      fixedSubGuides++;
+    }
+  }
+
+  // 3. Corriger les séquences (basé sur le nom, pas le ref stocké)
+  const [seqBontResult, seqBrakResult, seqBrakAltResult] = await Promise.all([
+    db.guideSequence.updateMany({
+      where: {
+        subGuideName: { contains: "BONTARIEN", mode: "insensitive" },
+        NOT: { subGuideRef: "GP9" },
+      },
+      data: { subGuideRef: "GP9" },
+    }),
+    db.guideSequence.updateMany({
+      where: {
+        subGuideName: { contains: "BRÂKMARIEN", mode: "insensitive" },
+        NOT: { subGuideRef: "GP9B" },
+      },
+      data: { subGuideRef: "GP9B" },
+    }),
+    // Variante sans accent
+    db.guideSequence.updateMany({
+      where: {
+        subGuideName: { contains: "BRAKMARIEN", mode: "insensitive" },
+        NOT: { subGuideRef: "GP9B" },
+      },
+      data: { subGuideRef: "GP9B" },
+    }),
+  ]);
+
+  const fixedSequences =
+    seqBontResult.count + seqBrakResult.count + seqBrakAltResult.count;
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: "GP9/GP9B",
+    metadata: { op: "repair-alignment-refs", fixedSubGuides, fixedSequences },
+  });
+
+  revalidatePath("/god/dofus-guides");
+
+  return {
+    success: true,
+    fixedSubGuides,
+    fixedSequences,
+    bontarienRef: "GP9",
+    brakmarienRef: "GP9B",
+  };
+}
+
+/**
  * Importe et stocke un sous-guide Ganymède (GP1, GP2...) en base.
  * Le JSON contient { id, name, steps: [{ id, web_text, pos_x, pos_y }] }
  */
@@ -964,7 +1059,39 @@ export async function importSubGuide(jsonData: any) {
   const rawSteps: any[] = jsonData.steps ?? [];
 
   const refMatch = guideName.match(/\[(GP\d+)\]/i);
-  const guideRef = refMatch ? refMatch[1].toUpperCase() : `GP${ganymadeId}`;
+  let guideRef = refMatch ? refMatch[1].toUpperCase() : `GP${ganymadeId}`;
+
+  // ── Détection de conflit de guideRef ─────────────────────────────────────
+  // Deux guides Ganymède peuvent partager le même préfixe [GPx] (ex: GP9 Bontarien
+  // et GP9 Brâkmarien). Si le guideRef existe déjà avec un ganymadeId différent,
+  // on génère un variant : GP9 → GP9B → GP9C … pour les stocker séparément.
+  if (refMatch) {
+    const existing = await db.subGuideData.findUnique({
+      where: { guideRef },
+      select: { ganymadeId: true },
+    });
+    if (existing && existing.ganymadeId !== ganymadeId) {
+      const SUFFIXES = "BCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let resolved = false;
+      for (const letter of SUFFIXES) {
+        const candidate = guideRef + letter;
+        const candidateExisting = await db.subGuideData.findUnique({
+          where: { guideRef: candidate },
+          select: { ganymadeId: true },
+        });
+        // Slot libre OU déjà occupé par le même guide (re-import) → on prend ce slot
+        if (!candidateExisting || candidateExisting.ganymadeId === ganymadeId) {
+          guideRef = candidate;
+          resolved = true;
+          break;
+        }
+      }
+      if (!resolved) {
+        // Fallback ultime : utilise l'ID Ganymède brut (jamais en conflit)
+        guideRef = `GP_ID${ganymadeId}`;
+      }
+    }
+  }
 
   // Parse enrichi : chaque step contient maintenant pos_x/y, map, dungeons, guideRefs, plainText
   const enrichedSteps = parseSubGuideSteps(rawSteps);

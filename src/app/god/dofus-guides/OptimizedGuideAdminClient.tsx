@@ -10,7 +10,7 @@ import {
   importGanymedeGuide, upsertMilestone, deleteMilestone, upsertSequence, 
   deleteSequence, getGuideAdminFull, getGuildProgressSummary, 
   deleteAllMilestones, importSubGuide, listSubGuides, getSubGuideSteps, updateSubGuideStep, deleteSubGuide,
-  updateGuideSettings
+  updateGuideSettings, repairAlignmentRefs
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchItemsDofusDB, searchQuestsLocalThenDofusDB, getQuestPrerequisites } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
@@ -32,7 +32,7 @@ type ContentBlock =
   | { type: 'IMAGE', url: string, alt?: string };
 
 
-export default function OptimizedGuideAdminClient({ initialGuides }: { initialGuides: Guide[] }) {
+export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId }: { initialGuides: Guide[]; firstGuildId?: string | null }) {
   const [tab, setTab] = useState<"import" | "edit" | "progress" | "settings">("edit");
   const [guide, setGuide] = useState<Guide | null>(initialGuides[0] ?? null);
   const [milestones, setMilestones] = useState<Milestone[]>(initialGuides[0]?.milestones ?? []);
@@ -546,13 +546,19 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
             {initialGuides.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
 
-          <a 
-            href={`/dashboard/ANY_GUILD/quetes-dofus/guide/${guide?.slug}`} 
-            target="_blank" 
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-zinc-400 text-xs font-black hover:bg-white/10 transition-all"
-          >
-            <Eye className="w-4 h-4" /> Preview
-          </a>
+          {firstGuildId ? (
+            <a 
+              href={`/dashboard/${firstGuildId}/quetes-dofus/guide/${guide?.slug}`} 
+              target="_blank" 
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-zinc-400 text-xs font-black hover:bg-white/10 transition-all"
+            >
+              <Eye className="w-4 h-4" /> Preview
+            </a>
+          ) : (
+            <span className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-zinc-600 text-xs font-black cursor-not-allowed" title="Aucune guild active trouvée">
+              <Eye className="w-4 h-4" /> Preview
+            </span>
+          )}
         </div>
       </div>
 
@@ -1661,6 +1667,33 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+
+                {/* ── Outil de réparation GP9/GP9B ── */}
+                <div className="bg-amber-950/20 border border-amber-500/20 rounded-2xl p-5 flex items-start gap-4">
+                  <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-amber-300 font-black text-xs uppercase tracking-widest mb-1">Réparation refs Alignement</p>
+                    <p className="text-zinc-400 text-xs mb-3">Normalise GP9 = Bontarien et GP9B = Brâkmarien quel que soit l&apos;ordre d&apos;import. À lancer une seule fois après avoir importé les deux guides.</p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await repairAlignmentRefs();
+                          if (res.success) {
+                            toast.success(`✅ Réparé : ${res.fixedSubGuides} sous-guides, ${res.fixedSequences} séquences`);
+                            await loadSubs();
+                          } else {
+                            toast.error((res as any).error ?? 'Erreur');
+                          }
+                        } catch (e: any) {
+                          toast.error(e.message || 'Erreur lors de la réparation');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-xs font-black rounded-xl transition-all"
+                    >
+                      🔧 Réparer GP9 / GP9B
+                    </button>
                   </div>
                 </div>
               </div>

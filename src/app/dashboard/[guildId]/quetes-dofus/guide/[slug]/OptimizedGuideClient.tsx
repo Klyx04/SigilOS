@@ -1201,6 +1201,9 @@ export default function OptimizedGuideClient({
   
   const [activeSeqIndex, setActiveSeqIndex] = useState(0);
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
+  // Point de retour quand un lien inter-sous-guide change le jalon du guide principal
+  // (on garde la trace du jalon d'origine pour ne pas « perdre le fil »).
+  const [guideReturnCtx, setGuideReturnCtx] = useState<{ fromMsId: string; fromTitle: string; toMsId: string } | null>(null);
 
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
   // Mode discret (Phase F) : masque la présence du membre courant (localStorage).
@@ -2206,6 +2209,9 @@ export default function OptimizedGuideClient({
 
         if (targetMs) {
           if (targetMs.id !== selected?.id) {
+            // Lien inter-sous-guide → on change de jalon du guide principal : on mémorise
+            // le jalon d'origine pour proposer un « Retour » (ne pas perdre le fil).
+            if (selected) setGuideReturnCtx({ fromMsId: selected.id, fromTitle: selected.title, toMsId: targetMs.id });
             setSelected(targetMs);
             toast.info(`→ ${targetMs.title}`);
           }
@@ -2788,6 +2794,27 @@ export default function OptimizedGuideClient({
                       >
                         ← Retour
                       </button>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  // Point de retour IN-PAGE : un lien dans un sous-guide a changé le jalon
+                  // du guide principal → on propose de revenir au jalon d'origine.
+                  if (!guideReturnCtx || selected?.id !== guideReturnCtx.toMsId) return null;
+                  const fromMs = flatList.find(m => m.id === guideReturnCtx.fromMsId);
+                  return (
+                    <div className="guide-return-banner">
+                      <ChevronLeft size={14} className="shrink-0"/>
+                      <span>Un lien vous a mené ici depuis « {guideReturnCtx.fromTitle} ».</span>
+                      {fromMs && (
+                        <button
+                          type="button"
+                          onClick={() => { setSelected(fromMs); setGuideReturnCtx(null); }}
+                        >
+                          ← Retour à « {guideReturnCtx.fromTitle} »
+                        </button>
+                      )}
                     </div>
                   );
                 })()}

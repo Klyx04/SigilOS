@@ -94,6 +94,28 @@ model PlatformBan {
   @@index([entityType])
 }
 
+// Tombstone guild-scopé (multi-tenant) : un membre banni OU supprimé par un admin
+// reste exclu du dashboard même si son UserProfile a été purgé (RGPD / cleanup).
+// Sans cette table, deleteProfileByAdmin() recréait automatiquement un profil
+// au prochain accès → l'exclusion était contournée (F-01).
+model GuildMemberBan {
+  id           String       @id @default(cuid())
+  guildId      String
+  discordId    String
+  reason       String
+  bannedBy     String
+  bannedByName String?
+  createdAt    DateTime     @default(now())
+  liftedAt     DateTime?
+  liftedBy     String?
+  liftedByName String?
+  guild        GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId])
+  @@index([guildId])
+  @@index([discordId])
+}
+
 model BlacklistEntry {
   id               String      @id @default(cuid())
   guildId          String
@@ -389,6 +411,7 @@ model GuildConfig {
   raidAllowedSignUpRoleIds         String[]                @default([])
   raidHubConfig                    Json?
   notifications                    Notification[]
+  memberBans                       GuildMemberBan[]
 }
 
 model UserSkin {

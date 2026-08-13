@@ -328,6 +328,36 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
         // 2. Invalidate ALL active sessions (force re-auth immediately)
         await db.session.deleteMany({ where: { userId: targetUserId } });
 
+        // ── F-01 : Tombstone guild-scopé — le membre supprimé ne peut PAS être
+        // ré-provisionné automatiquement au prochain accès (il a encore son rôle
+        // Discord ; sans tombstone, _getUserContext recréait un profil → accès rétabli).
+        if (targetDiscordId) {
+            try {
+                await db.guildMemberBan.upsert({
+                    where: { guildId_discordId: { guildId: target.guildId, discordId: targetDiscordId } },
+                    create: {
+                        guildId: target.guildId,
+                        discordId: targetDiscordId,
+                        reason: "MEMBER_DELETED",
+                        bannedBy: ctx.id ?? "system",
+                        bannedByName: ctx.name ?? "Un administrateur"
+                    },
+                    update: {
+                        reason: "MEMBER_DELETED",
+                        liftedAt: null,
+                        liftedBy: null,
+                        liftedByName: null
+                    }
+                });
+            } catch (banErr) {
+                logger.error("[GuildMemberBan] tombstone on delete failed:", banErr);
+            }
+        }
+
+        // 2bis. Invalider les caches user:ctx (Redis) + profil (mémoire) → révocation IMMÉDIATE
+        // (sans ça, le cache 60s laissait le membre supprimé garder un accès complet)
+        await invalidateUserContextCache(targetUserId, guildId, target.guildId).catch(() => { });
+
         // 3. If no other guild profiles → full account wipe (User + Account OAuth + Notifications)
         if (!hasOtherProfiles) {
             await db.user.delete({ where: { id: targetUserId } });
@@ -406,6 +436,19 @@ export async function reactivateProfileByAdmin(
 
         // 🔔 Lifecycle Notification — reactivation
         await sendLifecycleNotification(guildId, profile, "REACTIVATED", ctx.name ?? "Un administrateur");
+
+        // ── F-01 : lever le tombstone guild-scopé (déban/réactivation) ──
+        const reactivateDiscordId = profile.user?.accounts?.[0]?.providerAccountId;
+        if (reactivateDiscordId) {
+            try {
+                await db.guildMemberBan.updateMany({
+                    where: { guildId: profile.guildId, discordId: reactivateDiscordId, liftedAt: null },
+                    data: { liftedAt: new Date(), liftedBy: ctx.id ?? "system", liftedByName: ctx.name ?? "Un administrateur" }
+                });
+            } catch (banErr) {
+                logger.error("[GuildMemberBan] lift on reactivate failed:", banErr);
+            }
+        }
 
         // Invalidate Redis cache to ensure the user sees their restored access immediately
         await invalidateUserContextCache(
@@ -751,6 +794,28 @@ export async function syncGuildMembers(discordGuildId: string) {
                         }
                     });
 
+                    // ── F-01 : tombstone guild-scopé (ban Discord détecté) ──
+                    try {
+                        await db.guildMemberBan.upsert({
+                            where: { guildId_discordId: { guildId: profile.guildId, discordId } },
+                            create: {
+                                guildId: profile.guildId,
+                                discordId,
+                                reason: "BANNED (Discord)",
+                                bannedBy: "SYSTEM",
+                                bannedByName: "Sync System"
+                            },
+                            update: {
+                                reason: "BANNED (Discord)",
+                                liftedAt: null,
+                                liftedBy: null,
+                                liftedByName: null
+                            }
+                        });
+                    } catch (banErr) {
+                        logger.error("[GuildMemberBan] tombstone on Discord ban failed:", banErr);
+                    }
+
                     // 🔔 Lifecycle Notification
                     await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)");
 
@@ -1062,6 +1127,76 @@ export async function getPendingReactivations(guildId: string) {
         return { success: true, data: requests };
     } catch (e) {
         logger.error("Fetch pending reactivations error:", e);
+        return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Liste les exclusions (tombstones GuildMemberBan) actives d'une guilde.
+ * Accessible aux admins (canManageMembers / isAdmin) — UI « Exclus » du membre.
+ */
+export async function getGuildMemberBans(guildId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || (!ctx.canManageMembers && !ctx.isAdmin && !ctx.isSuperAdmin)) {
+        return { success: false, error: "Permission 'Gérer les membres' requise", data: [] as any[] };
+    }
+
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true }
+    });
+    if (!guild) return { success: false, error: "Guild not found", data: [] };
+
+    const bans = await db.guildMemberBan.findMany({
+        where: { guildId: guild.id, liftedAt: null },
+        orderBy: { createdAt: "desc" },
+        take: 100
+    });
+
+    return { success: true, data: bans };
+}
+
+/**
+ * Lève une exclusion (tombstone) — réintègre un membre précédemment supprimé/banni.
+ * Le membre pourra de nouveau être provisionné par _getUserContext (accès dashboard).
+ */
+export async function liftGuildMemberBan(guildId: string, discordId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || (!ctx.canManageMembers && !ctx.isAdmin && !ctx.isSuperAdmin)) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+    if (!/^\d+$/.test(discordId)) return { success: false, error: "Identifiant Discord invalide" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guild not found" };
+
+        const result = await db.guildMemberBan.updateMany({
+            where: { guildId: guild.id, discordId, liftedAt: null },
+            data: { liftedAt: new Date(), liftedBy: ctx.id ?? "system", liftedByName: ctx.name ?? "Un administrateur" }
+        });
+
+        if (result.count === 0) return { success: false, error: "Aucune exclusion active trouvée pour ce membre" };
+
+        await createAuditLog({
+            guildId,
+            action: "MEMBER_UNBANNED" as any,
+            actorUserId: ctx.id as string,
+            actorName: ctx.name ?? "Inconnu",
+            targetType: "PROFILE",
+            metadata: {
+                description: `Exclusion levée pour le membre Discord ${discordId}`,
+                reason: "Action manuelle (réintégration)"
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return { success: true };
+    } catch (e) {
+        logger.error("[liftGuildMemberBan] error:", e);
         return { success: false, error: "Database error" };
     }
 }

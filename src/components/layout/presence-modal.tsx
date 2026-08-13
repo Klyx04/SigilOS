@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
     Dialog,
     DialogContent,
@@ -9,9 +10,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Users } from "lucide-react";
+import { Users, Search, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { searchGuildMembers, type GuildMemberSearchResult } from "@/server/actions/search-actions";
+import { getClass } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 
 interface ActiveUser {
     id: string;
@@ -25,10 +29,51 @@ interface PresenceModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     users: ActiveUser[];
+    canSearch?: boolean;
 }
 
-export function PresenceModal({ isOpen, onOpenChange, users }: PresenceModalProps) {
+export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }: PresenceModalProps) {
     const { guildId } = useParams() as { guildId: string };
+
+    // ─── Recherche membre (scopée guilde, fail-closed côté serveur) ─────────
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState<GuildMemberSearchResult[]>([]);
+    const [searching, setSearching] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const isSearchActive = query.trim().length >= 2;
+
+    useEffect(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+
+        if (!isSearchActive) {
+            setResults([]);
+            setSearching(false);
+            return;
+        }
+
+        setSearching(true);
+        debounceRef.current = setTimeout(async () => {
+            const res = await searchGuildMembers(guildId, query.trim());
+            setResults(res);
+            setSearching(false);
+        }, 250);
+
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [query, isSearchActive, guildId]);
+
+    // Réinitialiser la recherche à chaque ouverture
+    useEffect(() => {
+        if (isOpen) {
+            setQuery("");
+            setResults([]);
+            setSearching(false);
+        }
+    }, [isOpen]);
+
+    const memberClass = (classe: string | null) => (classe ? getClass(classe) : null);
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -36,12 +81,86 @@ export function PresenceModal({ isOpen, onOpenChange, users }: PresenceModalProp
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-white uppercase tracking-widest text-sm font-black">
                         <Users className="w-4 h-4 text-indigo-400" />
-                        Membres En Ligne ({users.length})
+                        {isSearchActive ? "Recherche de membres" : `Membres En Ligne (${users.length})`}
                     </DialogTitle>
                 </DialogHeader>
 
+                {canSearch && (
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Chercher un membre de la guilde…"
+                            aria-label="Rechercher un membre de la guilde"
+                            autoComplete="off"
+                            maxLength={60}
+                            className="w-full h-10 rounded-xl bg-white/[0.03] border border-white/10 pl-9 pr-8 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-indigo-400/50 transition-colors"
+                        />
+                        {query && (
+                            <button
+                                type="button"
+                                onClick={() => setQuery("")}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white transition-colors"
+                                aria-label="Effacer la recherche"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 <div className="mt-4 space-y-2.5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                    {users.length > 0 ? (
+                    {isSearchActive ? (
+                        searching ? (
+                            <div className="py-8 flex flex-col items-center gap-3">
+                                <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                                <p className="text-xs text-zinc-500">Recherche dans la guilde…</p>
+                            </div>
+                        ) : results.length > 0 ? (
+                            results.map((member) => {
+                                const cls = memberClass(member.classe);
+                                return (
+                                    <Link
+                                        key={member.profileId}
+                                        href={`/dashboard/${guildId}/members/${encodeURIComponent(member.slug)}`}
+                                        onClick={() => onOpenChange(false)}
+                                        className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-indigo-400/40 hover:bg-white/[0.06] transition-colors group"
+                                    >
+                                        <div className="relative">
+                                            <Avatar className="h-10 w-10 border border-white/10 group-hover:border-indigo-400/50 transition-all">
+                                                <AvatarImage src={member.image || ""} />
+                                                <AvatarFallback className="bg-zinc-800 text-xs font-bold">
+                                                    {member.name.substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors truncate">
+                                                {member.name}
+                                            </span>
+                                            <span className="text-[10px] font-medium text-zinc-500 truncate">
+                                                {member.pseudoDofus
+                                                    ? <>Dofus : <span className="text-indigo-400/80">{member.pseudoDofus}</span></>
+                                                    : "Membre de la guilde"}
+                                                {cls && (
+                                                    <span className="inline-flex items-center gap-1 ml-2">
+                                                        <ClassIcon classId={member.classe as never} size={11} />
+                                                        {cls.name}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    </Link>
+                                );
+                            })
+                        ) : (
+                            <div className="py-8 text-center">
+                                <p className="text-zinc-500 text-sm">Aucun membre trouvé pour « {query.trim()} ».</p>
+                            </div>
+                        )
+                    ) : users.length > 0 ? (
                         users.map((user) => {
                             const lastActiveDate = user.lastActive ? new Date(user.lastActive) : null;
                             const diffMinutes = lastActiveDate ? (Date.now() - lastActiveDate.getTime()) / 60000 : 0;

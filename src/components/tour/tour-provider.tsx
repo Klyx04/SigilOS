@@ -142,18 +142,19 @@ const PROFILE_STEPS: TourStep[] = [
 
 const DASHBOARD_STEPS: TourStep[] = [
     {
-        target: '[data-tour="sidebar-missions"]',
-        title: "Missions de guilde",
-        description: "Consulte les missions disponibles, soumets tes captures et gagne des points d'XP pour faire progresser la guilde.",
-        placement: "right",
-        module: "missions"
-    },
-    {
         target: '[data-tour="sidebar-ladder"]',
         title: "Ladder des succès",
         description: "Suis ton score de succès Dofus, synchronisé automatiquement depuis le site officiel Ankama.",
         placement: "right",
         module: "ladder"
+    },
+    {
+        // Dernière carte du tour d'arrivée : présenter la NAVBAR dans son ensemble.
+        // L'étape « Missions de guilde » a été retirée (redondante avec la vue globale).
+        target: '[data-tour="sidebar-root"]',
+        title: "Tous vos modules",
+        description: "Missions, Ladder, Quêtes Dofus, Songes, Services, Calendrier, Sondages… Tous les modules de votre guilde sont accessibles depuis cette barre latérale. Parcourez-la pour tout découvrir.",
+        placement: "right"
     }
 ];
 

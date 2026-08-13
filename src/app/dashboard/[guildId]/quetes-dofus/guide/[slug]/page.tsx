@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
-import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress } from "@/server/actions/optimized-guide-actions";
+import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
@@ -46,11 +46,20 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     let allProgress: any[] = [];
     let serverUniqueGuildMembers: any[] = [];
     let serverPresenceMap: any = {};
+    let subGuideIdMap: Record<number, string> = {};
     try {
-        const membersContext = await getGuildOptimizedGuideProgress(slug, guildId);
+        const [membersContext, subsRes] = await Promise.all([
+            getGuildOptimizedGuideProgress(slug, guildId),
+            listSubGuides(),
+        ]);
         allProgress = membersContext.allProgress || [];
         serverUniqueGuildMembers = membersContext.uniqueGuildMembers || [];
         serverPresenceMap = membersContext.presenceMap || {};
+        if (subsRes.success && Array.isArray(subsRes.subs)) {
+            subsRes.subs.forEach((s: any) => {
+                if (s.ganymadeId) subGuideIdMap[s.ganymadeId] = s.guideRef;
+            });
+        }
     } catch (e) {
         console.error("[Guide Page] Guild progress fetch failed (non-fatal):", e);
     }
@@ -188,6 +197,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                         }}
                         ocreStats={ocreStats}
                         ocreMonsters={ocreMonsters}
+                        subGuideIdMap={subGuideIdMap}
                     />
                 )}
             </Suspense>

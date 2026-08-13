@@ -50,6 +50,22 @@
 - `tsc --noEmit` 0 · lint 0 erreur · `test:run` **155/155** · `npm run build` OK.
 - ⚠️ Migration Prisma à appliquer en beta : `20260813000000_add_guild_member_ban`.
 
+### ✅ Session 14/08 — #36, #33 (fin), #18, #25 (même branche, 3 commits + rush dans #36)
+- **#36 Membres En Ligne** (`7d2139e3b`) : nouvelle action `searchGuildMembers` (Zod + fail-closed
+  non-auth/non-membre/sans `canViewRoster` → `[]`, scope guilde ACTIVE, take 8) + **champ de recherche
+  dans la modale headbar** (debounce 250 ms) → clic = page lecture seule `/members/{slug}`. +10 tests
+  (`tests/unit/presence-search.test.ts`) → **165/165**.
+- **#33 rush « Rendu ici » 1 max par bloc** : état `bookmarksByMs: Map<msId, seqId>` + toggle per-bloc
+  (le serveur était déjà per-milestone), **bouton « Rendu ici/Repère » dans l'en-tête de chaque bloc**
+  (pose sur la 1ʳᵉ quête non faite / retire), repère principal (HUD « Rush Live » + « Reprendre ? ») =
+  bloc actif sinon 1er du guide. ⚠️ fichier inclus dans le commit `7d2139e3b` (incident lock/quoting).
+- **#18 ladder** (`6553598ba`) : `vitrineMode` **appliqué aux admins/God** (suppression `&& !user.isAdmin`)
+  → Activité/Guildatons masqués pour tous en vitrine ; onglet **« Général » (XP membres) remonté en 2ᵉ position**.
+- **#25 songes** (`a953df2ca`) : **heure « Créée/Départ »** sur les cartes de runs + épuration UI
+  (decor blur, glow boutons, barre gradient animée, `animate-pulse`, `backdrop-blur` retirés).
+- Vérifs : tsc 0 · lint 0 erreur · **165/165** · build OK · pre-commit vert (4 commits).
+- 🔜 Reportés : #34 God Télémetry pro + #26/#27 donjons (multi-embed) → prochaine session.
+
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 
 > Tous les commits poussés sur `feat/deploy-clean-pro` (PR à merger vers `dev`). Détail complet : `src/temp/memo-2026-08-10-worldmap-jeux-429-suite.md`.

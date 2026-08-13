@@ -11,6 +11,13 @@
 ```
 Réfère-toi à @/CONTEXT.md pour le contexte complet.
 
+📋 OUVRE AUSSI (obligatoire avant toute tâche) :
+- @/src/temp/chantier — la liste de tâches du chantier AVEC ses annotations de progression
+  (✅ FAIT / 🔸 PARTIEL / ⚪ EN ATTENTE). Ne supprime jamais de demande ; annoter chaque item traité
+  en 1-2 lignes à chaque itération.
+- La mémo de session la plus récente (src/temp/memo-*.md) pour l'état réel (ce qui reste à faire,
+  les PR en attente, les migrations à vérifier).
+
 🔒 Exigences systématiques (état de l'art) :
 - Sécurité : respecter RULES.md + SECURITY.md (fail-closed, auth sur chaque action,
   guild isolation multi-tenant, pas de secret en dur, validation Zod, jamais de console.log en prod → logger).
@@ -18,11 +25,11 @@ Réfère-toi à @/CONTEXT.md pour le contexte complet.
   `npm run test:run` + `npm run build` (ou au minimum tsc + lint) en local.
 - Infra : respecter MAINTENANCE.md (déploiement CD GHCR : ./scripts/deploy-cd.sh,
   fallback : ./scripts/deploy.sh, rollback : ./scripts/rollback.sh).
-- Ne JAMAIS committer : docs/audits/, src/audit-*, AUDIT_*.md, .env*.
+- Ne JAMAIS committer : docs/audits/, src/audit-*, AUDIT_*.md, .env*, src/temp/.
 - Nommer les findings sécurité avec référence (F-xx) + fichier précis.
 - Pousser sur une branche puis PR vers dev (pas directement sur main/dev sauf exception).
 
-Tâche demandée ([TYPE]) : [DÉCRIS TA TÂCHE ICI]
+Tâche demandée ([TYPE]) : [DÉCRIS TA TÂCHE ICI — ou référence le/les item(s) du chantier]
 ```
 
 ---
@@ -79,6 +86,10 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 ## 🧠 MÉMO DE SESSION (à consulter et tenir à jour à CHAQUE session)
 
 > ⚠️ **Règle permanente** : au démarrage d'une nouvelle session, lire la mémo de session la plus récente, puis **la mettre à jour** en fin de session (ajouter ce qui a été fait, supprimer ce qui est obsolète, corriger toute info devenue fausse).
+
+> 📌 **Liste des tâches** : le fichier `src/temp/chantier` EST la source des tâches. Chaque session
+> doit l'ouvrir, annoter en 1-2 lignes les items traités (✅ FAIT / 🔸 PARTIEL / ⚪ EN ATTENTE),
+> et NE JAMAIS supprimer une demande (on ajoute, on reformate, on annote).
 
 - **Emplacement** : `src/temp/memo-*.md` (dossier **non commité** — jamais poussé sur git).
 - **But** : garder une trace fiable de l'état réel entre les sessions, car `.antigravity` n'est **plus mis à jour** et ne doit plus servir de référence.

@@ -1675,6 +1675,21 @@ export async function internalUpdateMemberProfileStatus(
     }
 
     // 5. Audit & Activity
+    // ── Chantier #31 : ban/archive → fermer le contenu publié (posts DJ + runs songes + embeds Discord)
+    if (status === "BANNED" || status === "ARCHIVED") {
+        try {
+            const { closeMemberPublishedContent } = await import("./lifecycle-actions");
+            await closeMemberPublishedContent(
+                profile.guild?.discordGuildId || profile.guildId,
+                profileId,
+                profile.userId,
+                status === "BANNED" ? (reason || "MEMBER_BANNED") : "MEMBER_ARCHIVED"
+            );
+        } catch (closeErr) {
+            logger.error("[closeMemberPublishedContent] after status update failed:", closeErr);
+        }
+    }
+
     const targetProfile = await db.userProfile.findUnique({
         where: { id: profileId },
         select: {

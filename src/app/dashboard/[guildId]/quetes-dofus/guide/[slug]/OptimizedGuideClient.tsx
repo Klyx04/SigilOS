@@ -975,7 +975,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
-  currentUserProfile, ocreStats, ocreMonsters = [],
+  currentUserProfile, ocreStats, ocreMonsters = [], subGuideIdMap = {},
   serverUniqueGuildMembers, serverPresenceMap
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
@@ -999,6 +999,8 @@ export default function OptimizedGuideClient({
   };
   ocreStats?: { bosses?: { gathered?: number; total?: number }; archis?: { gathered?: number; total?: number }; progressPercent?: number; currentStep?: number; serverName?: string } | null;
   ocreMonsters?: OcreMonsterLite[];
+  /** Map ganymadeId (number) → guideRef ("GP9", "GP9B"...) pour résolution correcte des cross-refs */
+  subGuideIdMap?: Record<number, string>;
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -2025,8 +2027,19 @@ export default function OptimizedGuideClient({
       e.stopPropagation();
       e.preventDefault();
       const guideName = guideStepEl.getAttribute("guidename") || guideStepEl.getAttribute("guideName") || "";
-      const refMatch = guideName.match(/\[GP(\d+)\]/i);
-      const ref = refMatch ? `GP${refMatch[1]}` : "";
+      // Priorité 1 : guideid numérique → lookup dans subGuideIdMap (ganymadeId→guideRef)
+      // Résout GP9B correctement même quand guidename dit "[GP9] ALIGNEMENT BRÂKMARIEN"
+      const rawGuideid = guideStepEl.getAttribute("guideid") || guideStepEl.getAttribute("data-guideid") || "";
+      const numericGuideid = rawGuideid ? parseInt(rawGuideid, 10) : NaN;
+      let ref = (!isNaN(numericGuideid) && subGuideIdMap[numericGuideid])
+        ? subGuideIdMap[numericGuideid].toUpperCase()
+        : "";
+
+      // Priorité 2 : regex sur guidename (supporte GP9, GP9B, GP10...)
+      if (!ref) {
+        const refMatch = guideName.match(/\[GP(\d+[A-Za-z]*)\]/i);
+        ref = refMatch ? `GP${refMatch[1].toUpperCase()}` : "";
+      }
       const targetStep = extractTargetStep(guideStepEl);
 
       if (ref) {

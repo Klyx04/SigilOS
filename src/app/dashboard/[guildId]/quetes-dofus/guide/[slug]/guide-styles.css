@@ -566,6 +566,18 @@
 .guide-hud-btn.active { color: var(--guide-green); border-color: rgba(16,185,129,0.35); background: var(--guide-green-soft); }
 .guide-hud-btn-danger { color: var(--guide-red); }
 .guide-hud-btn-danger:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); background: var(--guide-red-soft); }
+.guide-hud-tour-btn { color: var(--guide-gold); }
+.guide-hud-tour-btn:hover { color: #e8c97e; border-color: rgba(212, 168, 83, 0.4); background: rgba(212, 168, 83, 0.08); }
+/* Navigation du guide principal (GP0) — en tête du contenu de l'étape */
+.guide-step-nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0 0.75rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--guide-border);
+}
 
 /* ── Menu Options du guide (actions regroupées) ── */
 /* Fond OPAQUE (fini la transparence illisible) + ombre de profondeur. */
@@ -1114,7 +1126,6 @@
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.08);
   border-left-color: #10b981;
-  transform: translateX(6px);
 }
 
 .sgc-step.done .sgc-step-content {
@@ -1578,6 +1589,16 @@
   color: #34d399;
   border-color: rgba(16, 185, 129, 0.55);
 }
+/* Bouton « Vue lecture » — accent bleu distinct (coords/infos), jamais vert (valider) */
+.sgc-read-toggle-btn {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+.sgc-read-toggle-btn:hover { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border-color: rgba(59, 130, 246, 0.55); }
+.sgc-read-toggle-btn.active { background: rgba(59, 130, 246, 0.18); border-color: #3b82f6; color: #93c5fd; }
+/* Bouton « Masquer les étapes validées » — état actif ambre (distinct du vert Valider) */
+.sgc-hide-steps-btn.active { background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; color: #fbbf24; }
 
 .map-overlay {
   position: fixed;
@@ -2576,28 +2597,84 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .toc-chapters::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
 /* ── Pied d'étape sous-guide : présence discrète (pas d'avatars) ── */
-.sgc-step-footer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.45rem;
-}
 .sgc-step-presence-btn {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.22rem 0.5rem;
+  gap: 0.35rem;
+  padding: 0.18rem 0.5rem 0.18rem 0.22rem;
   border-radius: 999px;
   background: var(--guide-surface);
-  border: 1px solid var(--guide-border);
-  color: var(--guide-text-faint);
-  font-size: 0.62rem;
-  font-weight: 800;
+  border: 1px solid rgba(59,130,246,0.3);
+  color: #60a5fa;
+  font-size: 0.66rem;
+  font-weight: 900;
   cursor: pointer;
-  transition: color var(--guide-t-fast), border-color var(--guide-t-fast), background var(--guide-t-fast);
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
   width: fit-content;
 }
-.sgc-step-presence-btn:hover { color: var(--guide-blue); border-color: rgba(59,130,246,0.4); background: var(--guide-blue-soft); }
+.sgc-step-presence-btn:hover { border-color: rgba(59,130,246,0.6); background: var(--guide-blue-soft); }
+.sgc-step-presence-avatars { display: inline-flex; align-items: center; }
+.sgc-step-presence-avatar {
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  border: 2px solid #12141a;
+  overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #1e2430;
+  color: #93c5fd;
+  font-size: 0.6rem; font-weight: 900;
+  margin-left: -6px;
+}
+.sgc-step-presence-avatar:first-child { margin-left: 0; }
+.sgc-step-presence-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sgc-step-presence-more {
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  border: 2px solid #12141a;
+  background: rgba(59,130,246,0.15);
+  color: #93c5fd;
+  font-size: 0.58rem; font-weight: 900;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: -6px;
+}
+.sgc-step-presence-count { color: #60a5fa; }
+/* ── Vue lecture (sous-guide) : une étape à la fois + navigation ‹ › ── */
+.sgc-read-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.sgc-read-progress {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--guide-text-dim);
+}
+.sgc-read-next {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+.sgc-read-next:hover {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.55);
+}
+.sgc-ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+/* Navigation ‹ › dans la liste (mode principal) : une étape à la fois par défilement */
+.sgc-step-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
 
 /* ── Boutons footer stables (pas de décalage au toggle) ── */
 .jump-btn {
@@ -2618,6 +2695,19 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   white-space: nowrap;
 }
 .jump-btn:hover { background: var(--guide-surface-2); color: #fff; border-color: rgba(255,255,255,0.15); }
+.step-nav-counter {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.5rem;
+  background: var(--guide-surface);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
 .jump-btn.reset { min-width: 42px; width: 42px; color: var(--guide-red); background: var(--guide-red-soft); border-color: rgba(239,68,68,0.2); }
 .jump-btn.reset:hover { color: #fca5a5; border-color: rgba(239,68,68,0.4); }
 .validate-btn { min-width: 150px; }

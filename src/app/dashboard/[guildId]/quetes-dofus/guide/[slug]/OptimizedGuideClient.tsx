@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress, completeGuideProgress, getOptimizedGuidesLite } from "@/server/actions/optimized-guide-actions";
 import CoordHoverMap from "./CoordHoverMap";
+import type { GuideProgressMember, GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
@@ -116,10 +117,15 @@ function buildSeqStepKeys(seq: Sequence): string[] {
   for (let n = seq.stepFrom; n <= seq.stepTo; n++) keys.push(`${seq.subGuideRef}-${n}`);
   return keys;
 }
-// Un sous-guide est « tout validé » quand toutes ses clés (bornes connues) sont cochées.
-function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>): boolean {
+// Un sous-guide est « tout validé » quand toutes ses clés sont cochées.
+// Bornes connues (stepFrom→stepTo) : on dérive les clés. Bornes inconnues :
+// on compare avec les étapes réellement chargées du sous-guide (refStepsByRef).
+function isSeqFullyDone(seq: Sequence, checkedSteps: Set<string>, refStepsByRef?: Record<string, number[]>): boolean {
   const keys = buildSeqStepKeys(seq);
-  return keys.length > 0 && keys.every(k => checkedSteps.has(k));
+  if (keys.length > 0) return keys.every(k => checkedSteps.has(k));
+  const stepNumbers = refStepsByRef?.[seq.subGuideRef];
+  if (!stepNumbers || stepNumbers.length === 0) return false;
+  return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -340,7 +346,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide, onStepsLoaded }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -360,6 +366,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
   onCompleteSubGuide?: (keys: string[]) => void;
+  onStepsLoaded?: (ref: string, stepNumbers: number[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -369,6 +376,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
 
   // Hide state
   const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
+  // Vue « lecture » (seule vue du sous-guide) : une étape à la fois + navigation ‹ ›.
+  const [readIndex, setReadIndex] = useState(0);
 
   const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
   const total = steps.length;
@@ -384,10 +393,14 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     setLoading(true);
     try {
       const res = await getSubGuideSteps(seq.subGuideRef, seq.stepFrom, seq.stepTo);
-      if (res.success) setSteps((res as any).steps || []);
+      const loadedSteps: SubStep[] = (res as any).steps || [];
+      if (res.success) setSteps(loadedSteps);
+      // Remonte les étapes chargées au parent → le sommaire peut masquer les
+      // sous-guides sans bornes (stepFrom/stepTo) 100 % validés.
+      if (res.success && loadedSteps.length > 0) onStepsLoaded?.(seq.subGuideRef, loadedSteps.map(s => s.stepNumber));
     } catch { /* silent */ }
     finally { setLoading(false); setLoaded(true); }
-  }, [seq.subGuideRef, seq.stepFrom, seq.stepTo, loaded]);
+  }, [seq.subGuideRef, seq.stepFrom, seq.stepTo, loaded, onStepsLoaded]);
 
   useEffect(() => {
     if (expanded && !loaded && !loading) {
@@ -444,6 +457,89 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     });
     return map;
   }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef]);
+
+  // Vue lecture (seule vue) : étapes filtrées une à une + navigation ‹ ›.
+  const readSteps = filteredSteps;
+  const safeReadIndex = readSteps.length === 0 ? 0 : Math.min(readIndex, readSteps.length - 1);
+  const currentReadStep = readSteps[safeReadIndex] ?? null;
+
+  const handleReadToggle = (ref: string, n: number) => {
+    const key = `${ref}-${n}`;
+    const wasChecked = checkedSteps.has(key);
+    onStepToggle(ref, n);
+    // Vue lecture : après avoir coché l'étape, on avance vers la suivante non cochée.
+    if (!wasChecked) {
+      const nextIdx = readSteps.findIndex((s, i) => i > safeReadIndex && !checkedSteps.has(`${ref}-${s.stepNumber}`));
+      if (nextIdx >= 0) setReadIndex(nextIdx);
+    }
+  };
+
+  const renderStep = (step: SubStep) => {
+    const key = `${seq.subGuideRef}-${step.stepNumber}`;
+    const checked = checkedSteps.has(key);
+    const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
+    const presenceCount = validatedMembers.length + activeMembers.length;
+    return (
+      <div
+        key={key}
+        id={`sgc-step-${key}`}
+        className={`sgc-step ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}
+      >
+        <div className="sgc-step-check" onClick={() => handleReadToggle(seq.subGuideRef, step.stepNumber)}>
+          {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
+        </div>
+        <button
+          className="sgc-step-bookmark-btn"
+          title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onStepBookmark(key);
+          }}
+        >
+          {bookmarkStepKey === key ? (
+            <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
+          ) : (
+            <Bookmark size={18} />
+          )}
+        </button>
+        <span className="sgc-step-num">{step.stepNumber}</span>
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="sgc-step-content ganymade-step-text"
+            onClick={onInteractiveClick}
+            // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+            {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
+        </div>
+        {/* Bulles profils : EN HAUT à droite de l'étape — clic → modale. */}
+        {presenceCount > 0 && (
+          <button
+            type="button"
+            className="sgc-step-presence-btn"
+            title="Voir qui a validé ou est en cours sur cette étape"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowStepPresenceModal(
+                step.stepNumber,
+                step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                validatedMembers,
+                activeMembers
+              );
+            }}
+          >
+            <span className="sgc-step-presence-avatars">
+              {[...validatedMembers, ...activeMembers].slice(0, 3).map((m) => (
+                <span key={m.profileId} className="sgc-step-presence-avatar">
+                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
+                </span>
+              ))}
+              {presenceCount > 3 && <span className="sgc-step-presence-more">+{presenceCount - 3}</span>}
+            </span>
+            <span className="sgc-step-presence-count">{presenceCount}</span>
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // Sous-guide 100 % validé + option « masquer » active → la carte disparaît.
   const allStepsDone = loaded && steps.length > 0 && filteredSteps.length === 0;
@@ -564,7 +660,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                 {/* Mode controls */}
                 <div className="sgc-controls" data-tour="guide-complete-subguide">
                   <button 
-                    className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
+                    className={`sgc-ctrl-btn sgc-hide-steps-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
                     title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes validées de ce sous-guide"}
                   >
@@ -590,66 +686,38 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                       <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
                       <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
                     </div>
-                  ) : (
-                    filteredSteps.map((step) => {
-                      const key = `${seq.subGuideRef}-${step.stepNumber}`;
-                      const checked = checkedSteps.has(key);
-                      const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
-                      const presenceCount = validatedMembers.length + activeMembers.length;
-                      return (
-                        <div
-                          key={key}
-                          id={`sgc-step-${key}`}
-                          className={`sgc-step ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}
-                        >
-                          <div className="sgc-step-check" onClick={() => onStepToggle(seq.subGuideRef, step.stepNumber)}>
-                            {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
-                          </div>
+                  ) : currentReadStep ? (
+                    <>
+                      {renderStep(currentReadStep)}
+                      <div className="sgc-read-nav">
+                        <span className="sgc-read-progress">
+                          Sous-guide · Étape {currentReadStep.stepNumber} / {readSteps[readSteps.length - 1].stepNumber}
+                        </span>
+                        <div className="flex items-center gap-2">
                           <button
-                            className="sgc-step-bookmark-btn"
-                            title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              onStepBookmark(key);
-                            }}
+                            type="button"
+                            className="sgc-ctrl-btn"
+                            disabled={safeReadIndex === 0}
+                            onClick={() => setReadIndex(safeReadIndex - 1)}
                           >
-                            {bookmarkStepKey === key ? (
-                              <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
-                            ) : (
-                              <Bookmark size={18} />
-                            )}
+                            <ChevronLeft size={12}/> Précédent
                           </button>
-                          <span className="sgc-step-num">{step.stepNumber}</span>
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <div className="sgc-step-content ganymade-step-text"
-                              onClick={onInteractiveClick}
-                              {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                            <div className="sgc-step-footer">
-                              {presenceCount > 0 && (
-                                <button
-                                  type="button"
-                                  className="sgc-step-presence-btn"
-                                  title="Voir qui a validé ou est en cours sur cette étape"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onShowStepPresenceModal(
-                                      step.stepNumber,
-                                      step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                      validatedMembers,
-                                      activeMembers
-                                    );
-                                  }}
-                                >
-                                  <Users size={11}/>
-                                  <span>{presenceCount} {presenceCount > 1 ? "membres" : "membre"}</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                          <button
+                            type="button"
+                            className="sgc-ctrl-btn sgc-read-next"
+                            disabled={safeReadIndex >= readSteps.length - 1}
+                            onClick={() => setReadIndex(safeReadIndex + 1)}
+                          >
+                            Suivant <ChevronRight size={12}/>
+                          </button>
                         </div>
-                      );
-                    })
+                      </div>
+                    </>
+                  ) : (
+                    <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                      <Loader2 size={24} className="mx-auto mb-2 text-emerald-500 animate-spin" />
+                      <span>Chargement des étapes…</span>
+                    </div>
                   )}
                 </div>
               </>
@@ -682,7 +750,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs, refStepsByRef }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -695,6 +763,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   onResetMilestone: (milestone: Milestone) => void;
   checkedSteps?: Set<string>;
   hideDoneSeqs?: boolean;
+  refStepsByRef?: Record<string, number[]>;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -792,7 +861,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 
                   {(() => {
                     const seqs = hideDoneSeqs && checkedSteps
-                      ? ms.sequences.filter(s => !isSeqFullyDone(s, checkedSteps))
+                      ? ms.sequences.filter(s => !(isDone || isSeqFullyDone(s, checkedSteps, refStepsByRef)))
                       : ms.sequences;
                     if (seqs.length === 0) return null;
                     return (
@@ -906,12 +975,15 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
 export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
-  currentUserProfile, ocreStats, ocreMonsters = []
+  currentUserProfile, ocreStats, ocreMonsters = [],
+  serverUniqueGuildMembers, serverPresenceMap
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
   userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[]; currentStep?: string | null }[];
   guildProgress: GuildMember[];
+  serverUniqueGuildMembers?: GuideProgressMember[];
+  serverPresenceMap?: GuidePresenceMap;
   guildId: string;
   selectedCharacter?: string;
   mainCharacter?: { pseudo: string; classe?: string | null };
@@ -1383,6 +1455,21 @@ export default function OptimizedGuideClient({
 
   // Unique Guild Members logic (aggregates multiple playerGuideProgress rows per profileId)
   const uniqueGuildMembers = useMemo(() => {
+    // Phase I (AUDIT-MILITAIRE §2.1) : agrégats pré-calculés côté serveur.
+    // Conversion arrays → Set/Map pour préserver les consommateurs existants.
+    // Fallback historique si les agrégats sont absents (ancien payload).
+    if (Array.isArray(serverUniqueGuildMembers) && serverUniqueGuildMembers.length > 0) {
+      return serverUniqueGuildMembers.map(m => ({
+        profileId: m.profileId,
+        userName: m.userName,
+        userAvatar: m.userAvatar,
+        profileSlug: m.profileSlug,
+        completedSteps: new Set(m.completedSteps),
+        completedMilestoneIds: new Set(m.completedMilestoneIds),
+        currentMilestoneId: m.currentMilestoneId,
+        bookmarkedSteps: new Map(m.bookmarkedSteps.map(b => [b.milestoneId, b.stepKey])),
+      }));
+    }
     const map = new Map<string, {
       profileId: string;
       userName: string;
@@ -1475,10 +1562,14 @@ export default function OptimizedGuideClient({
         bookmarkedSteps: m.bookmarkedSteps
       };
     });
-  }, [guildProgress, milestones]);
+  }, [guildProgress, milestones, serverUniqueGuildMembers]);
 
   // Presence mapping (maps milestone ID to members currently active there)
   const presenceMap = useMemo(() => {
+    // Phase I : carte pré-calculée côté serveur quand disponible (shape identique).
+    if (serverPresenceMap && Object.keys(serverPresenceMap).length > 0) {
+      return serverPresenceMap;
+    }
     const map: Record<string, any[]> = {};
     const seen = new Set<string>();
     uniqueGuildMembers.forEach(m => {
@@ -1491,7 +1582,7 @@ export default function OptimizedGuideClient({
       }
     });
     return map;
-  }, [uniqueGuildMembers]);
+  }, [uniqueGuildMembers, serverPresenceMap]);
 
   // ─── Temps réel (Phase F) : présence live du guide ──────────────────────────
   const guideLive = useGuidePresence({
@@ -1582,36 +1673,39 @@ export default function OptimizedGuideClient({
   // Valider un SOUS-GUIDE d'un coup : coche toutes ses étapes + une seule persistance.
   const handleCompleteSubGuide = useCallback((keys: string[]) => {
     if (!selected || keys.length === 0) return;
-    setCheckedSteps(prev => {
-      const next = new Set(prev);
-      keys.forEach(k => next.add(k));
-      const milestoneKeys = Array.from(next).filter(k =>
-        selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
-      );
-      updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
-      return next;
-    });
+    const next = new Set(checkedSteps);
+    keys.forEach(k => next.add(k));
+    setCheckedSteps(next);
+    const milestoneKeys = Array.from(next).filter(k =>
+      selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+    );
+    // Valide côté serveur → si le jalon devient COMPLET, on le marque (le sommaire se met à jour).
+    updateStepProgress(guildId, selected.id, milestoneKeys).then(res => {
+      if (res?.success && (res as any).isCompleted) {
+        setCompletedIds(prev => (prev.has(selected.id) ? prev : new Set(prev).add(selected.id)));
+      }
+    }).catch(() => {});
     toast.success(`Sous-guide validé ✓ (${keys.length} étape${keys.length > 1 ? "s" : ""})`);
-  }, [selected, guildId]);
+  }, [selected, guildId, checkedSteps]);
 
   const handleStepToggle = useCallback((ref: string, n: number) => {
     const key = `${ref}-${n}`;
-    setCheckedSteps(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+    const next = new Set(checkedSteps);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setCheckedSteps(next);
 
-      // Persist to DB: gather all checked keys for the current milestone's sequences
-      if (selected) {
-        const milestoneKeys = Array.from(next).filter(k =>
-          selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
-        );
-        // Fire-and-forget: don't block UI
-        updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
-      }
-
-      return next;
-    });
-  }, [selected, guildId]);
+    if (selected) {
+      const milestoneKeys = Array.from(next).filter(k =>
+        selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+      );
+      // Fire-and-forget: don't block UI ; si le jalon devient COMPLET, on le marque.
+      updateStepProgress(guildId, selected.id, milestoneKeys).then(res => {
+        if (res?.success && (res as any).isCompleted) {
+          setCompletedIds(prev => (prev.has(selected.id) ? prev : new Set(prev).add(selected.id)));
+        }
+      }).catch(() => {});
+    }
+  }, [selected, guildId, checkedSteps]);
 
   // ─── Sommaire (tiroir TOC + rail épinglable, mode unique plein écran) ─────────
   const router = useRouter();
@@ -2146,14 +2240,20 @@ export default function OptimizedGuideClient({
   }, [milestones, guildId, setCreateDjModal, setCreateUnpopulatedDjModal, setDungeonChoiceModal, setQuestChoiceModal, selected]);
 
 
+  // Étapes chargées par sous-guide (masquage au sommaire des sous-guides sans bornes validés).
+  const [refStepsByRef, setRefStepsByRef] = useState<Record<string, number[]>>({});
+  const reportRefSteps = useCallback((ref: string, nums: number[]) => {
+    setRefStepsByRef(prev => (prev[ref] ? prev : { ...prev, [ref]: nums }));
+  }, []);
   // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
   // Quand « masquer les étapes validées » est actif, les sous-guides 100 % validés
   // (bornes connues) sont retirés de la pagination.
   const visibleSeqs = useMemo(() => {
     if (!selected) return [];
     const sorted = [...selected.sequences].sort((a, b) => a.order - b.order);
-    return globalHideCompletedSteps ? sorted.filter(s => !isSeqFullyDone(s, checkedSteps)) : sorted;
-  }, [selected, globalHideCompletedSteps, checkedSteps]);
+    const selectedDone = completedIds.has(selected.id);
+    return globalHideCompletedSteps ? sorted.filter(s => !(selectedDone || isSeqFullyDone(s, checkedSteps, refStepsByRef))) : sorted;
+  }, [selected, globalHideCompletedSteps, checkedSteps, completedIds, refStepsByRef]);
   const activeSeq = selected ? visibleSeqs[activeSeqIndex] || visibleSeqs[0] || null : null;
   // Borne l'index quand des sous-guides disparaissent (validés + masqués).
   useEffect(() => {
@@ -2252,6 +2352,7 @@ export default function OptimizedGuideClient({
               presenceMap={effectivePresenceMap}
               checkedSteps={checkedSteps}
               hideDoneSeqs={globalHideCompletedSteps}
+              refStepsByRef={refStepsByRef}
               bookmarkId={bookmarkId}
               guildId={guildId}
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
@@ -2412,6 +2513,16 @@ export default function OptimizedGuideClient({
                         <span className="guide-hud-presence-label">membre{uniqueGuildMembers.length > 1 ? "s" : ""}</span>
                       </button>
                     )}
+                    {/* Revoir le guide tour — bouton visible (sorti du menu Options) */}
+                    <button
+                      type="button"
+                      className="guide-hud-btn guide-hud-tour-btn"
+                      onClick={() => startTour("guide")}
+                      title="Revoir le guide tour"
+                      aria-label="Revoir le guide tour"
+                    >
+                      <CircleHelp size={13}/>
+                    </button>
                     {/* Menu Options : toutes les actions du guide regroupées (fini la rangée d'icônes) */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -2452,12 +2563,6 @@ export default function OptimizedGuideClient({
                         >
                           <Sparkles size={13}/>
                           <span>{particlesEnabled ? "Désactiver l'effet d'ambiance" : "Activer l'effet d'ambiance (particules)"}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => startTour("guide")}
-                        >
-                          <CircleHelp size={13}/>
-                          <span>Revoir le guide tour</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator/>
                         <DropdownMenuItem onClick={handleCompleteGuide} disabled={isCompletingGuide || validating}>
@@ -2626,6 +2731,26 @@ export default function OptimizedGuideClient({
 
               {/* Colonne de lecture 840px — le HUD et le hero restent pleine largeur */}
               <div className="guide-read-col">
+              {/* Navigation du guide principal (GP0) : étape précédente / suivante */}
+              <div className="guide-step-nav-top">
+                <button
+                  className={`nav-btn prev ${prevMs ? "" : "disabled"}`}
+                  onClick={() => prevMs && setSelected(prevMs)}
+                  disabled={!prevMs}
+                  title={prevMs ? `Étape précédente : ${prevMs.title}` : "Première étape du guide"}
+                >
+                  <ChevronLeft size={14}/> <span>Précédent</span>
+                </button>
+                <span className="step-nav-counter">Étape {selectedIdx + 1} / {flatList.length}</span>
+                <button
+                  className={`nav-btn next ${nextMs ? "" : "disabled"}`}
+                  onClick={() => nextMs && setSelected(nextMs)}
+                  disabled={!nextMs}
+                  title={nextMs ? `Étape suivante : ${nextMs.title}` : "Dernière étape du guide"}
+                >
+                  <span>Suivant</span> <ChevronRight size={14}/>
+                </button>
+              </div>
 
               {/* Step header with Navigator */}
               <header className="step-header">
@@ -2766,6 +2891,7 @@ export default function OptimizedGuideClient({
                           bookmarkStepKey={bookmarkStepKey}
                           onStepBookmark={handleStepBookmark}
                           onCompleteSubGuide={handleCompleteSubGuide}
+                          onStepsLoaded={reportRefSteps}
                         />
                       )}
                     </div>
@@ -2809,12 +2935,11 @@ export default function OptimizedGuideClient({
               {/* Footer nav */}
               <footer className="step-footer" data-tour="guide-footer">
                 <div className="step-nav">
-                  {prevMs && (
-                    <button className="nav-btn prev" onClick={() => setSelected(prevMs)}>
-                      <ChevronLeft size={14}/> <span className="nav-label">Précédent</span>
-                    </button>
-                  )}
+                  <button className={`nav-btn prev ${prevMs ? "" : "disabled"}`} onClick={() => prevMs && setSelected(prevMs)} disabled={!prevMs}>
+                    <ChevronLeft size={14}/> <span className="nav-label">Précédent</span>
+                  </button>
                   <div className="step-actions">
+                    <span className="step-nav-counter">Étape {selectedIdx + 1} / {flatList.length}</span>
                     <button
                       className="jump-btn"
                       onClick={() => setIsMilestoneModalOpen(true)}
@@ -2855,11 +2980,9 @@ export default function OptimizedGuideClient({
                       <span>Réinitialiser</span>
                     </button>
                   </div>
-                  {nextMs && (
-                    <button className="nav-btn next" onClick={() => setSelected(nextMs)}>
-                      <span className="nav-label">Suivant</span> <ArrowRight size={14}/>
-                    </button>
-                  )}
+                  <button className={`nav-btn next ${nextMs ? "" : "disabled"}`} onClick={() => nextMs && setSelected(nextMs)} disabled={!nextMs}>
+                    <span className="nav-label">Suivant</span> <ArrowRight size={14}/>
+                  </button>
                 </div>
               </footer>
               </div>{/* /guide-read-col */}

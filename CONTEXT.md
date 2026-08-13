@@ -220,6 +220,34 @@ Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` 
 
 ---
 
+## 🧭 Suivi de chantier — Session 13/08 (arrivée : changelog, activités obligatoires, God changelog, tour navbar) — FAIT sur `refonte/arrivee-changelog-tour`
+
+> **Branche** : `refonte/arrivee-changelog-tour` (base = `origin/dev` 11f1d71c) → PR vers `dev`. **4 chantiers en 3 commits** : `da72df08` (changelog user) · `97df0fff` (onboarding+tour) · `78661947` (God changelog). Contient aussi le fix CI `6a7222f1`. **Module guide GANYMEDE toujours CLOS.**
+
+### ✅ Chantier 1 — Le changelog ne pollue plus les nouveaux
+- **Cause** : `checkChangelogVisibility` affichait la dernière release à tout user dont `lastSeenChangelogId !== latest.id` → un **nouvel arrivant** (null) recevait le popup au-dessus de l'onboarding/tour. + `getLatestChangelogEntry` ne filtrait pas `isInternal` → entrées internes auto-affichées.
+- **Fix** : entrées internes filtrées ; si `lastSeenChangelogId === null` → pas de popup + **markSeen silencieux** (le lien « Maj » de la sidebar reste le chemin d'accès).
+
+### ✅ Chantier 2 — « Activités & Contenu préféré » obligatoire à l'onboarding
+- Nouveau `src/lib/profile-activities.ts` (source de vérité : `PREFERRED_ACTIVITIES` + tuple `PREFERRED_ACTIVITY_IDS`).
+- `UpdateProfileSchema` : `preferredActivities: z.array(z.enum(PREFERRED_ACTIVITY_IDS))` (fini les valeurs arbitraires).
+- `UserContext.hasPreferredActivities` → `OnboardingWizard` **étape 3** (chips ≥1 requis) déclenchée quand `!hasPreferredActivities` (non-admin).
+
+### ✅ Chantier 3 — Rendu changelog + God admin
+- Nouveau **`ChangelogContent`** : rendu léger/sans conflit de classes prose (tableaux scrollables, code scrollable, images bornées, callouts sobres) — remplace `DocContent` overridé dans la modale user.
+- **God panel réécrit** (-101 lignes) : éditeur en **modale** (plus de panneaux resizables), cartes de liste claires (catégorie/version/date/badge Interne), actions distinctes **Publier Hub** vs **Diffuser à toutes les guildes**, aperçu via `ChangelogContent`.
+
+### ✅ Chantier 4 — Tour d'arrivée : navbar finale
+- `DASHBOARD_STEPS` : suppression de l'étape « Missions de guilde » + **carte finale « Tous vos modules »** ciblant `[data-tour="sidebar-root"]` (posé sur le conteneur sidebar). « Pas d'AI slop » : description sobre.
+
+### 🔒 Fix CI (branch `fix/ci-ghcr-rate-limit`, hotfix autonome)
+- **Échec** : push `sigilos-worker-beta` → **403 secondary rate limit GHCR** (burst push+cache registry `mode=max` ×4 images). Fix : **retry+backoff** (3 tentatives 60/120s) + `sleep 10` entre images + `timeout-minutes` 45. Inclus aussi dans `refonte/arrivee-changelog-tour`.
+
+### ✅ Vérifs
+tsc 0 · lint 0 erreur · **test:run 155/155** · build exit 0.
+
+---
+
 ## 🧭 Suivi de chantier courant (Évol 4 — God evolutions)
 
 > **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).

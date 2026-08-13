@@ -1052,15 +1052,9 @@ const GUIDE_STEPS: TourStep[] = [
         placement: "bottom",
     },
     {
-        target: '[data-tour="guide-complete-subguide"]',
-        title: "Valider un sous-guide d'un coup",
-        description: "Ce bouton coche toutes les étapes du sous-guide en un clic. Avec « masquer les validés » actif, le sous-guide validé disparaît.",
-        placement: "top",
-    },
-    {
         target: '[data-tour="guide-footer"]',
         title: "Valider l'étape",
-        description: "En bas : valider l'étape courante, marquer ta position, tout valider le guide d'un coup, ou réinitialiser ce jalon.",
+        description: "En bas : valider l'étape courante, marquer ta position, tout valider le guide d'un coup, ou réinitialiser ce jalon. Dans un sous-guide : bouton « Valider / Réinitialiser ce sous-guide » pour tout cocher ou décocher d'un coup.",
         placement: "top",
     },
 ];

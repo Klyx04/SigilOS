@@ -64,6 +64,8 @@ import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
@@ -111,6 +113,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const epreuve = getEpreuve((run as any).epreuveCode);
 
     const progress = (run.currentFloor / 26) * 100;
+    // #25 — heure sur la carte : départ programmé si défini, sinon date de création
+    const runTimeLabel = run.scheduledAt
+        ? `Départ · ${format(new Date(run.scheduledAt), "d MMM · HH:mm", { locale: fr })}`
+        : `Créée · ${format(new Date(run.createdAt), "d MMM · HH:mm", { locale: fr })}`;
     const canApplyConditions = !isMember && !isLeader && run.members.length < 4 && !pendingRequest;
     const canApply = canApplyConditions && canJoinSonges;
 
@@ -202,11 +208,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     }
 
     return (
-        <div className="group relative overflow-hidden rounded-3xl bg-[#0d0d12] border border-white/5 p-7 transition-all duration-500 hover:border-white/20 hover:shadow-[0_0_60px_rgba(255,255,255,0.03)]">
+        <div className="group relative overflow-hidden rounded-3xl bg-[#0d0d12] border border-white/5 p-7 transition-colors duration-200 hover:border-white/20">
             
-            {/* Background Decor */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] rounded-full pointer-events-none" />
-
             {/* --- HEADER --- */}
             <div className="relative z-10 flex justify-between items-center gap-4 mb-8">
                 <div className="flex items-center gap-4 min-w-0">
@@ -236,7 +239,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             <Users className="w-3 h-3" /> {run.members.length}/4
                             <span className="opacity-20">•</span>
                             <span className="flex items-center gap-1.5">
-                                Leader <span className="text-white/60">{getDisplayName(run.leaderId)}</span>
+                                Leader <span className="text-white/60">{getDisplayName(run.leaderId)}</span><span className="opacity-20">•</span><span className="flex items-center gap-1" title={run.scheduledAt ? "Départ programmé" : "Création de la run"}><Clock className="w-3 h-3" />{runTimeLabel}</span>
                             </span>
                         </div>
                     </div>
@@ -273,7 +276,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- ÉPREUVE BOX --- */}
             {epreuve && (
-                <div className="relative z-10 p-4 rounded-2xl border border-white/5 bg-white/5 mb-6 backdrop-blur-sm">
+                <div className="relative z-10 p-4 rounded-2xl border border-white/5 bg-white/5 mb-6">
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xl">{epreuve.icon}</span>
                         <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
@@ -295,7 +298,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     <div className="flex flex-col items-end flex-1 ml-8">
                         <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
                             <div 
-                                className="h-full rounded-full bg-gradient-to-r from-white/20 via-white/40 to-white/20 bg-[length:200%_auto] animate-[gradient_3s_linear_infinite] shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-1000"
+                                className="h-full rounded-full bg-emerald-500/80 transition-all duration-200"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
@@ -316,7 +319,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         return (
                             <div key={slot} className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-[1rem] border transition-all truncate",
-                                member ? "bg-white/5 border-white/10 shadow-lg" : "bg-black/20 border-white/5 border-dashed"
+                                member ? "bg-white/5 border-white/10" : "bg-black/20 border-white/5 border-dashed"
                             )}>
                                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-zinc-900 border border-white/10 overflow-hidden">
                                     {member ? (
@@ -390,7 +393,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <div className="flex gap-1.5 shrink-0">
                                             <Button 
                                                 size="icon" 
-                                                className="w-8 h-8 rounded-lg bg-green-500 hover:bg-green-400 text-black shadow-lg shadow-green-500/20" 
+                                                className="w-8 h-8 rounded-lg bg-green-500 hover:bg-green-400 text-black" 
                                                 onClick={() => handleRespondCandidacy(c.id, true)} 
                                                 disabled={!!actionLoading}
                                             >
@@ -441,7 +444,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             Avancement
                         </Button>
                         <Button 
-                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] shadow-lg rounded-xl transition-all"
+                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] rounded-xl transition-colors"
                             onClick={() => setCloseModalOpen(true)}
                         >
                             <Check className="w-4 h-4 mr-2" />
@@ -459,7 +462,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </Button>
                 ) : pendingRequest ? (
                     <div className="flex-1 flex gap-2">
-                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest text-[10px] animate-pulse">
+                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest text-[10px]">
                             <Clock className="w-4 h-4 mr-2" />
                             En attente
                         </div>
@@ -473,7 +476,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                 ) : canApply ? (
                     <Button 
-                        className="flex-1 h-11 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-[10px] rounded-xl border border-white/10 shadow-lg transition-all"
+                        className="flex-1 h-11 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-[10px] rounded-xl border border-white/10 transition-colors"
                         onClick={() => setJoinDialogOpen(true)}
                     >
                         <UserPlus className="w-4 h-4 mr-2" />

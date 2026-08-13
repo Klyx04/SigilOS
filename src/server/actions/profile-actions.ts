@@ -16,6 +16,7 @@ import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
+import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
 const RANKING_CACHE_TTL = 300_000; // 5 minutes
@@ -58,7 +59,7 @@ const UpdateProfileSchema = z.object({
     alignmentLevel: z.number().min(0).max(100).optional(),
     introduction: z.string().max(2000, "Présentation trop longue").nullable().optional(),
     objectifs: z.string().max(1000, "Objectifs trop longs").nullable().optional(),
-    preferredActivities: z.array(z.string()).optional(),
+    preferredActivities: z.array(z.enum(PREFERRED_ACTIVITY_IDS)).optional(),
     discordContact: z.string().max(200, "Contact trop long").nullable().optional(),
     targetUserId: z.string().optional(),
 });

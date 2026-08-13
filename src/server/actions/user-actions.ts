@@ -206,6 +206,8 @@ export type UserContext = {
     isMember: boolean;
     // Data & Identity
     hasPseudoIssue: boolean;
+    /** true si le membre a déjà sélectionné ≥1 activité (bloc « Activités & Contenu préféré »). */
+    hasPreferredActivities: boolean;
     pseudoDofus?: string | null;
     ankamaId?: string | null;
     profileId?: string;
@@ -333,6 +335,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewSettings: false,
         canViewAuditLogs: false,
         hasPseudoIssue: false,
+        hasPreferredActivities: false,
         roles: [],
         roleNames: [],
         newsBroadcastEnabled: true,
@@ -964,6 +967,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isSuperAdmin: !!isGod,
         isMember: !!member,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
+        hasPreferredActivities: !!((profile?.preferredActivities as string[])?.length),
         pseudoDofus: profile?.pseudoDofus,
         ankamaId: profile?.ankamaId,
         profileId: profile?.id,

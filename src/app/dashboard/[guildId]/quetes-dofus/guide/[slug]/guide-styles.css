@@ -683,19 +683,42 @@
 .guide-hud-credit {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.7rem;
-  background: var(--guide-surface-2);
-  border: 1px solid rgba(255,255,255,0.16);
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 0.6rem;
-  color: var(--guide-text-dim);
-  font-size: 0.72rem;
-  font-weight: 800;
+  color: #fff;
   text-decoration: none;
-  transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
+  transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
 }
-.guide-hud-credit:hover { color: #fff; border-color: rgba(59,130,246,0.4); background: var(--guide-blue-soft); }
-.guide-hud-credit img { width: 15px; height: 15px; object-fit: contain; border-radius: 3px; }
+.guide-hud-credit:hover { border-color: rgba(59, 130, 246, 0.55); background: rgba(59, 130, 246, 0.15); }
+.guide-hud-credit-fav {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.guide-hud-credit-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  text-align: left;
+}
+.guide-hud-credit-eyebrow {
+  font-size: 0.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #93c5fd;
+}
+.guide-hud-credit-name {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+}
 
 /* Bouton « Signaler » uniformisé avec le reste du HUD (fini le dégradé rose) */
 .guide-hud-feedback-btn { color: #f87171; }

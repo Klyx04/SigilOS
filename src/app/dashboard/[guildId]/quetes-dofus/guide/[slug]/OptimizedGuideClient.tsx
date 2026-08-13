@@ -126,15 +126,26 @@ function isSeqFullyDone(
   refStepsByRef?: Record<string, number[]>,
   subGuideTotals?: Record<string, number>
 ): boolean {
-  // 1. Bornes connues (stepFrom→stepTo) : on dérive les clés exactes
+  // 1. Si on a les étapes chargées en session, on utilise cette source de vérité absolue
+  const stepNumbers = refStepsByRef?.[seq.subGuideRef];
+  if (stepNumbers && stepNumbers.length > 0) {
+    if (seq.stepFrom || seq.stepTo) {
+      // Pour une tranche, on valide uniquement les étapes réelles situées dans la tranche
+      const realKeys = stepNumbers
+        .filter(n => n >= (seq.stepFrom ?? 1) && n <= (seq.stepTo ?? 99999))
+        .map(n => `${seq.subGuideRef}-${n}`);
+      if (realKeys.length > 0) return realKeys.every(k => checkedSteps.has(k));
+    } else {
+      // Pour le guide complet, toutes les étapes réelles doivent être cochées
+      return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
+    }
+  }
+
+  // 2. Bornes connues théoriques (si étapes réelles non chargées)
   const keys = buildSeqStepKeys(seq);
   if (keys.length > 0) return keys.every(k => checkedSteps.has(k));
-  // 2. Étapes chargées dans la session (SubGuideCard ouvert)
-  const stepNumbers = refStepsByRef?.[seq.subGuideRef];
-  if (stepNumbers && stepNumbers.length > 0)
-    return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
+
   // 3. Fallback DB : uniquement pour les séquences sans bornes (= guide entier)
-  //    Si stepFrom/stepTo sont définis, c'est une tranche → path 1 gère déjà.
   if (!seq.stepFrom && !seq.stepTo) {
     const total = subGuideTotals?.[seq.subGuideRef];
     if (total && total > 0) {
@@ -365,7 +376,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide, onStepsLoaded }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide, onResetSubGuide, onStepsLoaded }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -385,6 +396,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
   ) => void;
   onCompleteSubGuide?: (keys: string[]) => void;
+  onResetSubGuide?: (keys: string[]) => void;
   onStepsLoaded?: (ref: string, stepNumbers: number[]) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -686,17 +698,32 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
                     {hideCompletedLocal || hideCompletedGlobal ? <Eye size={12}/> : <EyeOff size={12}/>}
                     <span>{hideCompletedLocal || hideCompletedGlobal ? `Afficher les étapes validées (${done})` : `Masquer les étapes validées (${done})`}</span>
                   </button>
-                  <button
-                    className="sgc-ctrl-btn sgc-complete-subguide-btn"
-                    onClick={() => {
-                      const keys = steps.map(s => `${seq.subGuideRef}-${s.stepNumber}`);
-                      onCompleteSubGuide?.(keys);
-                    }}
-                    title="Valider toutes les étapes de ce sous-guide d'un coup"
-                  >
-                    <CheckCheck size={12}/>
-                    <span>Valider ce sous-guide</span>
-                  </button>
+                  {pct === 100 ? (
+                    <button
+                      className="sgc-ctrl-btn sgc-reset-subguide-btn"
+                      onClick={() => {
+                        const keys = steps.map(s => `${seq.subGuideRef}-${s.stepNumber}`);
+                        onResetSubGuide?.(keys);
+                      }}
+                      title="Réinitialiser et décocher toutes les étapes de ce sous-guide"
+                      style={{ color: "var(--guide-red)", borderColor: "rgba(239, 68, 68, 0.2)", background: "rgba(239, 68, 68, 0.05)" }}
+                    >
+                      <RotateCcw size={12}/>
+                      <span>Réinitialiser ce sous-guide</span>
+                    </button>
+                  ) : (
+                    <button
+                      className="sgc-ctrl-btn sgc-complete-subguide-btn"
+                      onClick={() => {
+                        const keys = steps.map(s => `${seq.subGuideRef}-${s.stepNumber}`);
+                        onCompleteSubGuide?.(keys);
+                      }}
+                      title="Valider toutes les étapes de ce sous-guide d'un coup"
+                    >
+                      <CheckCheck size={12}/>
+                      <span>Valider ce sous-guide</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="sgc-step-list">
@@ -1712,6 +1739,27 @@ export default function OptimizedGuideClient({
       }
     }).catch(() => {});
     toast.success(`Sous-guide validé ✓ (${keys.length} étape${keys.length > 1 ? "s" : ""})`);
+  }, [selected, guildId, checkedSteps]);
+
+  // Réinitialiser un SOUS-GUIDE d'un coup : décoche toutes ses étapes + une seule persistance.
+  const handleResetSubGuide = useCallback((keys: string[]) => {
+    if (!selected || keys.length === 0) return;
+    const next = new Set(checkedSteps);
+    keys.forEach(k => next.delete(k));
+    setCheckedSteps(next);
+    const milestoneKeys = Array.from(next).filter(k =>
+      selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+    );
+    updateStepProgress(guildId, selected.id, milestoneKeys).then(res => {
+      if (res?.success && !(res as any).isCompleted) {
+        setCompletedIds(prev => {
+          const nextIds = new Set(prev);
+          nextIds.delete(selected.id);
+          return nextIds;
+        });
+      }
+    }).catch(() => {});
+    toast.info("Sous-guide réinitialisé");
   }, [selected, guildId, checkedSteps]);
 
   const handleStepToggle = useCallback((ref: string, n: number) => {
@@ -2944,6 +2992,7 @@ export default function OptimizedGuideClient({
                           bookmarkStepKey={bookmarkStepKey}
                           onStepBookmark={handleStepBookmark}
                           onCompleteSubGuide={handleCompleteSubGuide}
+                          onResetSubGuide={handleResetSubGuide}
                           onStepsLoaded={reportRefSteps}
                         />
                       )}

@@ -1621,6 +1621,16 @@ export function TourProvider({
         setCelebrationActive(true);
     };
 
+    // Le tour du guide (plein écran) ne doit JAMAIS « fuir » sur une autre page :
+    // dès qu'on quitte la route du guide alors qu'il est actif, on l'arrête
+    // silencieusement (sans écran de célébration — ce n'est pas une fin de tour).
+    useEffect(() => {
+        if (tourPhase === "guide" && isActive && !pathname.includes("/quetes-dofus/guide/")) {
+            setIsActive(false);
+            localStorage.removeItem(`sigilos-tour-step-${guildId}`);
+        }
+    }, [pathname, tourPhase, isActive, guildId]);
+
     return (
         <TourContext.Provider
             value={{

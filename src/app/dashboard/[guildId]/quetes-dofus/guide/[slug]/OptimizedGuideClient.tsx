@@ -405,8 +405,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   const [loaded, setLoaded] = useState(false);
   const color = getGPColor(seq.subGuideRef);
 
-  // Hide state
-  const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
   // Vue « lecture » (seule vue du sous-guide) : une étape à la fois + navigation ‹ ›.
   const [readIndex, setReadIndex] = useState(0);
 
@@ -414,8 +412,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   const total = steps.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  // Filter steps if hideCompleted is checked
-  const filteredSteps = (hideCompletedLocal || hideCompletedGlobal)
+  // Filter steps if hideCompleted is checked (état GLOBAL uniquement — un seul toggle depuis 13/08)
+  const filteredSteps = hideCompletedGlobal
     ? steps.filter(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`))
     : steps;
 
@@ -574,7 +572,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
 
   // Sous-guide 100 % validé + option « masquer » active → la carte disparaît.
   const allStepsDone = loaded && steps.length > 0 && filteredSteps.length === 0;
-  if (allStepsDone && (hideCompletedLocal || hideCompletedGlobal)) {
+  if (allStepsDone && hideCompletedGlobal) {
     return null;
   }
 
@@ -688,16 +686,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
               </div>
             ) : (
               <>
-                {/* Mode controls */}
+                {/* Mode controls — valider/réinitialiser le sous-guide (masquage = global, cf. barre sous-guides) */}
                 <div className="sgc-controls" data-tour="guide-complete-subguide">
-                  <button 
-                    className={`sgc-ctrl-btn sgc-hide-steps-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
-                    onClick={() => setHideCompletedLocal(v => !v)}
-                    title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes validées de ce sous-guide"}
-                  >
-                    {hideCompletedLocal || hideCompletedGlobal ? <Eye size={12}/> : <EyeOff size={12}/>}
-                    <span>{hideCompletedLocal || hideCompletedGlobal ? `Afficher les étapes validées (${done})` : `Masquer les étapes validées (${done})`}</span>
-                  </button>
                   {pct === 100 ? (
                     <button
                       className="sgc-ctrl-btn sgc-reset-subguide-btn"
@@ -2614,15 +2604,16 @@ export default function OptimizedGuideClient({
                         <span className="guide-hud-presence-label">membre{uniqueGuildMembers.length > 1 ? "s" : ""}</span>
                       </button>
                     )}
-                    {/* Revoir le guide tour — bouton visible (sorti du menu Options) */}
+                    {/* Aide / Revoir le guide tour — bouton visible avec libellé clair */}
                     <button
                       type="button"
                       className="guide-hud-btn guide-hud-tour-btn"
                       onClick={() => startTour("guide")}
-                      title="Revoir le guide tour"
-                      aria-label="Revoir le guide tour"
+                      title="Revoir le guide d'utilisation (tour guidé)"
+                      aria-label="Revoir le guide d'utilisation (tour guidé)"
                     >
                       <CircleHelp size={13}/>
+                      <span>Aide</span>
                     </button>
                     {/* Menu Options : toutes les actions du guide regroupées (fini la rangée d'icônes) */}
                     <DropdownMenu>
@@ -2925,9 +2916,39 @@ export default function OptimizedGuideClient({
                 if (visibleSeqs.length === 0) {
                   return (
                     <section className="subguides-section">
+                      <p className="subguides-hint">
+                        Tous les sous-guides de cette étape sont validés. Tu peux les afficher à nouveau, ou passer à l'étape suivante.
+                      </p>
+                      <div className="subguides-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span>Sous-guide</span>
+                        </div>
+                        <button
+                          className={`global-hide-steps-btn ${globalHideCompletedSteps ? "active" : ""}`}
+                          onClick={() => setGlobalHideCompletedSteps(v => !v)}
+                          title={globalHideCompletedSteps ? "Afficher toutes les étapes validées" : "Masquer toutes les étapes validées"}
+                        >
+                          {globalHideCompletedSteps ? <Eye size={11}/> : <EyeOff size={11}/>}
+                          <span>{globalHideCompletedSteps ? "Afficher les étapes validées" : "Masquer les étapes validées"}</span>
+                        </button>
+                      </div>
                       <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
-                        <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500" />
-                        <span>Tous les sous-guides de cette étape sont validés. 🎉</span>
+                        <CheckCircle2 size={24} className="mx-auto mb-2 text-emerald-500" />
+                        <span className="text-sm font-bold text-zinc-200">Sous-guides validés et masqués ✅</span>
+                        <span className="text-xs text-zinc-500 mt-1 block">
+                          Clique sur « Afficher les étapes validées » ci-dessus pour les revoir,<br/>
+                          ou réinitialise ce jalon pour les refaire.
+                        </span>
+                        {globalHideCompletedSteps && (
+                          <button
+                            type="button"
+                            className="global-hide-steps-btn active mt-4"
+                            onClick={() => setGlobalHideCompletedSteps(false)}
+                          >
+                            <Eye size={11}/>
+                            <span>Afficher les étapes validées</span>
+                          </button>
+                        )}
                       </div>
                     </section>
                   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, BookOpen, BarChart3, LucideIcon } from "lucide-react";
+import { MessageSquare, BookOpen, LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,6 @@ interface GuildHubTabsProps {
     initialTab: string;
     canViewWelcome: boolean;
     canViewPresentation: boolean;
-    canViewStats: boolean;
 }
 
 interface HubCardProps {
@@ -138,8 +137,7 @@ function HubCard({ id, label, description, icon: Icon, isActive, color, onClick 
 export function GuildHubTabs({
     initialTab,
     canViewWelcome,
-    canViewPresentation,
-    canViewStats
+    canViewPresentation
 }: GuildHubTabsProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -151,7 +149,7 @@ export function GuildHubTabs({
     }
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <AnimatePresence mode="popLayout">
                 {canViewWelcome && (
                     <HubCard 
@@ -174,18 +172,6 @@ export function GuildHubTabs({
                         isActive={initialTab === "presentation"}
                         color="amber"
                         onClick={() => setTab("presentation")}
-                    />
-                )}
-
-                {canViewStats && (
-                    <HubCard 
-                        id="stats"
-                        label="Stats Guilde"
-                        description="Performances"
-                        icon={BarChart3}
-                        isActive={initialTab === "stats"}
-                        color="indigo"
-                        onClick={() => setTab("stats")}
                     />
                 )}
             </AnimatePresence>

@@ -2188,8 +2188,10 @@ export default function OptimizedGuideClient({
             mod.findGuideBySubRef(ref).then((res: any) => {
               if (res?.success && res.slug) {
                 toast.info(`Ouverture du guide ${res.guideName || ref}…`);
-                let url = `/dashboard/${guildId}/quetes-dofus/guide/${res.slug}`;
-                if (targetStep > 0) url += `?step=${ref}-${targetStep}`;
+                // Navigation croisée : on conserve un point de retour pour ne pas « perdre le fil »
+                // (le guide cible affichera un bandeau « Retour » grâce aux params from/fromTitle).
+                let url = `/dashboard/${guildId}/quetes-dofus/guide/${res.slug}?from=${encodeURIComponent(guide.slug)}&fromTitle=${encodeURIComponent(guide.name || "")}`;
+                if (targetStep > 0) url += `&step=${ref}-${targetStep}`;
                 window.location.href = url;
               } else {
                 toast.warning(`Sous-guide ${ref} introuvable dans cette roadmap.`);
@@ -2564,8 +2566,9 @@ export default function OptimizedGuideClient({
                     onClick={toggleTocSide}
                     title="Ouvrir le sommaire (S)"
                   >
-                    <PanelLeft size={14}/>
+                    <PanelLeft size={15}/>
                     <span>Sommaire</span>
+                    <kbd className="guide-sommaire-kbd">S</kbd>
                   </button>
 
                   <div className="guide-switcher">
@@ -2741,6 +2744,24 @@ export default function OptimizedGuideClient({
                     {/* Reset guide déplacé dans le menu Options */}
                   </div>
                 </div>
+
+                {(() => {
+                  const fromSlug = searchParams.get("from");
+                  const fromTitle = searchParams.get("fromTitle");
+                  if (!fromSlug || fromSlug === guide.slug) return null;
+                  return (
+                    <div className="guide-return-banner">
+                      <ChevronLeft size={14} className="shrink-0"/>
+                      <span>Vous êtes arrivé depuis « {fromTitle || "un autre guide"} » — votre position y est conservée.</span>
+                      <button
+                        type="button"
+                        onClick={() => { window.location.href = `/dashboard/${guildId}/quetes-dofus/guide/${encodeURIComponent(fromSlug)}`; }}
+                      >
+                        ← Retour
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 <div className="guide-hero-title">
                   <div className="flex items-center gap-2 mb-1">

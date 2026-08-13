@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { ChevronRight, X, Sparkles, Rocket, Shield, Zap, BookOpen, Bug, ExternalLink } from "lucide-react";
 import { checkChangelogVisibility, markChangelogAsSeen } from "@/server/actions/changelog-actions";
 import { Badge } from "@/components/ui/badge";
-import { DocContent } from "@/components/doc/doc-content";
+import { ChangelogContent } from "@/components/changelog/changelog-content";
 import { cn } from "@/lib/utils";
 import { ChangelogCategory } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 const categoryConfig: Record<ChangelogCategory, { label: string; bg: string; text: string; border: string; icon: any }> = {
     FEATURE: { label: "Nouveauté", bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30", icon: Rocket },
@@ -35,9 +36,13 @@ export function ChangelogModal() {
                 if (res.show && res.changelog) {
                     setChangelog(res.changelog);
                     setIsOpen(true);
+                } else if (res.markSeen) {
+                    // Nouvel utilisateur : on marque silencieusement la dernière release
+                    // comme vue — pas de popup changelog pendant l'onboarding/tour.
+                    await markChangelogAsSeen(res.markSeen);
                 }
             } catch (err) {
-                console.error("Failed to check changelog visibility", err);
+                logger.error("[Changelog] Failed to check changelog visibility:", err);
             }
         };
         checkVisibility();
@@ -48,7 +53,7 @@ export function ChangelogModal() {
             try {
                 await markChangelogAsSeen(changelog.id);
             } catch (err) {
-                console.error("Failed to mark changelog as seen", err);
+                logger.error("[Changelog] Failed to mark changelog as seen:", err);
             }
         }
         setIsOpen(false);
@@ -107,21 +112,7 @@ export function ChangelogModal() {
 
                 {/* Single Scrollable Content Container (Prevents Double Scrollbars) */}
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                    <DocContent
-                        content={changelog.content}
-                        className="
-                            prose-p:text-sm prose-p:leading-relaxed prose-p:text-zinc-300
-                            prose-headings:text-zinc-100 prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6
-                            prose-h2:text-lg prose-h2:text-amber-400 prose-h2:border-b-0 prose-h2:pb-0
-                            prose-h3:text-base prose-h3:text-indigo-400
-                            prose-strong:text-amber-300 prose-strong:font-bold
-                            prose-ul:list-disc prose-ul:ml-4 prose-li:text-zinc-300 prose-li:text-sm prose-li:my-1
-                            prose-hr:border-white/10 prose-hr:my-4
-                            [&_.callout]:my-4 [&_.callout]:p-4 [&_.callout]:rounded-xl
-                            [&_img]:max-w-full [&_img]:max-h-[380px] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:border [&_img]:border-white/10 [&_img]:my-3 [&_img]:shadow-lg [&_img]:mx-auto
-                            [&_figure]:my-4 [&_figure]:flex [&_figure]:flex-col [&_figure]:items-center
-                        "
-                    />
+                    <ChangelogContent content={changelog.content} />
                 </div>
 
                 {/* Footer Controls */}

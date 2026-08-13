@@ -190,6 +190,9 @@ export async function getChangelogEntry(id: string) {
 export async function getLatestChangelogEntry() {
     try {
         const entry = await db.changelogEntry.findFirst({
+            // 🔒 Les entrées INTERNES (brouillons/notes God) ne doivent JAMAIS
+            // s'afficher aux utilisateurs (modale auto-pop ni page publique).
+            where: { isInternal: false },
             orderBy: { publishedAt: 'desc' }
         });
 
@@ -208,7 +211,11 @@ export async function getLatestChangelogEntry() {
 /**
  * Check if the user should see the changelog modal
  */
-export async function checkChangelogVisibility() {
+export async function checkChangelogVisibility(): Promise<{
+    show: boolean;
+    changelog?: NonNullable<Awaited<ReturnType<typeof getLatestChangelogEntry>>>;
+    markSeen?: string;
+}> {
     const session = await auth();
     if (!session?.user?.id) return { show: false };
 
@@ -223,6 +230,14 @@ export async function checkChangelogVisibility() {
 
         if (!latest) return { show: false };
         if (user?.lastSeenChangelogId === latest.id) return { show: false };
+
+        // NOUVEL UTILISATEUR (jamais vu aucune release) : ne pas imposer le popup
+        // changelog pendant son arrivée/onboarding/tour. On renvoie markSeen pour que
+        // le client marque silencieusement la dernière release comme vue — le lien
+        // « Maj » de la sidebar reste le chemin d'accès au changelog.
+        if (!user?.lastSeenChangelogId) {
+            return { show: false, markSeen: latest.id };
+        }
 
         return { show: true, changelog: latest };
     } catch (error) {

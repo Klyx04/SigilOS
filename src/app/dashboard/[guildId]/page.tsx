@@ -225,20 +225,26 @@ export default async function DashboardPage({
                 )}
 
                 {/* ── 4. EVENTS + SONDAGES ─────────────────────────────── */}
+                {(user.canViewCalendar || user.canViewPolls) && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    <section data-tour="dash-events" className="lg:col-span-7 min-h-[340px]">
-                        <UpcomingEventsWidget
-                            guildId={guildId}
-                            events={upcomingEvents as any}
-                        />
-                    </section>
-                    <section data-tour="dash-polls" className="lg:col-span-5 min-h-[340px]">
-                        <ActivePollsWidget
-                            guildId={guildId}
-                            polls={polls}
-                        />
-                    </section>
+                    {user.canViewCalendar && (
+                        <section data-tour="dash-events" className={`${user.canViewPolls ? "lg:col-span-7" : "lg:col-span-12"} min-h-[340px]`}>
+                            <UpcomingEventsWidget
+                                guildId={guildId}
+                                events={upcomingEvents as any}
+                            />
+                        </section>
+                    )}
+                    {user.canViewPolls && (
+                        <section data-tour="dash-polls" className="lg:col-span-5 min-h-[340px]">
+                            <ActivePollsWidget
+                                guildId={guildId}
+                                polls={polls}
+                            />
+                        </section>
+                    )}
                 </div>
+                )}
 
                 {/* ── 5. GROUPES ACTIFS + GALERIE ──────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">

@@ -234,13 +234,14 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
         return { success: false, error: "Service de vérification indisponible." };
     }
 
-    // Get guild's server ID
+    // Get guild's server ID + name (nom du serveur Dofus configuré côté admin)
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { dofusServerId: true }
+        select: { dofusServerId: true, dofusServerName: true }
     });
     
     const serverId = guildConfig?.dofusServerId || "295"; // Default to Imagiro
+    const serverName = guildConfig?.dofusServerName || "le serveur configuré par la guilde";
 
     try {
         const headers: Record<string, string> = { "Accept": "application/json" };
@@ -268,7 +269,7 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
             };
         }
 
-        return { success: false, error: "Pseudo introuvable sur le ladder Officiel." };
+        return { success: false, error: `Le pseudo "${pseudo}" est introuvable sur le ladder officiel du serveur Dofus ${serverName}. Vérifiez l'orthographe exacte (majuscules, tirets...) ou que ce personnage existe bien sur ${serverName}.` };
     } catch (err: any) {
         logger.error("Verify Pseudo Error", { error: err });
         return { success: false, error: "Erreur de communication avec le service de vérification." };
@@ -746,7 +747,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
     try {
         const guildConfig = await db.guildConfig.findUnique({ 
             where: { discordGuildId: guildId },
-            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true }
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -782,9 +783,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             // SuperAdmins sont exemptés (bypass pour les overrides admin)
             if (!isGod) {
                 const serverId = (guildConfig as any).dofusServerId || "295";
+                const serverName = (guildConfig as any).dofusServerName || "le serveur configuré par la guilde";
                 const existsOnLadder = await checkPseudoExistsOnLadder(pseudoDofus, serverId);
                 if (existsOnLadder === false) {
-                    return { success: false, error: `Le pseudo "${pseudoDofus}" est introuvable sur le ladder officiel Ankama. Vérifiez l'orthographe exacte (majuscules, tirets...).` };
+                    return { success: false, error: `Le pseudo "${pseudoDofus}" est introuvable sur le ladder officiel du serveur Dofus ${serverName}. Vérifiez l'orthographe exacte (majuscules, tirets...) ou que ce personnage existe bien sur ${serverName}.` };
                 }
                 // null = service indisponible → on laisse passer (fail-open)
             }
@@ -1093,7 +1095,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
     try {
         const guildConfig = await db.guildConfig.findUnique({ 
             where: { discordGuildId: guildId },
-            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true }
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -1116,12 +1118,13 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         // SuperAdmins sont exemptés
         if (!isGod) {
             const serverId = (guildConfig as any).dofusServerId || "295";
+            const serverName = (guildConfig as any).dofusServerName || "le serveur configuré par la guilde";
             const ladderChecks = await Promise.all(
                 cleanedPseudos.map(p => checkPseudoExistsOnLadder(p.pseudo, serverId))
             );
             for (let i = 0; i < cleanedPseudos.length; i++) {
                 if (ladderChecks[i] === false) {
-                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" est introuvable sur le ladder officiel Ankama. Vérifiez l'orthographe exacte.` };
+                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" est introuvable sur le ladder officiel du serveur Dofus ${serverName}. Vérifiez l'orthographe exacte ou que ce personnage existe bien sur ${serverName}.` };
                 }
             }
         }
@@ -2185,6 +2188,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
         }
 
         const serverId = profile.guild.dofusServerId || "295"; // Draconiros by default
+        const serverName = profile.guild.dofusServerName || "le serveur configuré par la guilde";
         const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
 
         const response = await fetch(targetUrl, {
@@ -2205,7 +2209,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
         const result = await response.json();
 
         if (!result.success || !result.found) {
-            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur le ladder (${serverId}).` };
+            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur le ladder officiel du serveur Dofus ${serverName} (id ${serverId}). Vérifiez l'orthographe ou que ce personnage existe bien sur ${serverName}.` };
         }
 
         // 4. Update Database

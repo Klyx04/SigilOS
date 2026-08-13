@@ -126,20 +126,23 @@ function isSeqFullyDone(
   refStepsByRef?: Record<string, number[]>,
   subGuideTotals?: Record<string, number>
 ): boolean {
-  // 1. Bornes connues (stepFrom→stepTo)
+  // 1. Bornes connues (stepFrom→stepTo) : on dérive les clés exactes
   const keys = buildSeqStepKeys(seq);
   if (keys.length > 0) return keys.every(k => checkedSteps.has(k));
-  // 2. Étapes réellement chargées dans la session
+  // 2. Étapes chargées dans la session (SubGuideCard ouvert)
   const stepNumbers = refStepsByRef?.[seq.subGuideRef];
   if (stepNumbers && stepNumbers.length > 0)
     return stepNumbers.every(n => checkedSteps.has(`${seq.subGuideRef}-${n}`));
-  // 3. Fallback : total stocké en DB — compare le nombre de clés cochées
-  const total = subGuideTotals?.[seq.subGuideRef];
-  if (total && total > 0) {
-    const ref = seq.subGuideRef + "-";
-    let count = 0;
-    for (const k of checkedSteps) { if (k.startsWith(ref)) count++; }
-    return count >= total;
+  // 3. Fallback DB : uniquement pour les séquences sans bornes (= guide entier)
+  //    Si stepFrom/stepTo sont définis, c'est une tranche → path 1 gère déjà.
+  if (!seq.stepFrom && !seq.stepTo) {
+    const total = subGuideTotals?.[seq.subGuideRef];
+    if (total && total > 0) {
+      const prefix = seq.subGuideRef + "-";
+      let count = 0;
+      for (const k of checkedSteps) { if (k.startsWith(prefix)) count++; }
+      return count >= total;
+    }
   }
   return false;
 }
@@ -766,7 +769,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs, refStepsByRef, subGuideTotals }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone, checkedSteps, hideDoneSeqs, completedSubGuideRefs }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -779,8 +782,8 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   onResetMilestone: (milestone: Milestone) => void;
   checkedSteps?: Set<string>;
   hideDoneSeqs?: boolean;
-  refStepsByRef?: Record<string, number[]>;
-  subGuideTotals?: Record<string, number>;
+  /** Pré-calculé par le parent : refs dont toutes les étapes sont cochées */
+  completedSubGuideRefs?: Set<string>;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -877,8 +880,8 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                   )}
 
                   {(() => {
-                    const seqs = hideDoneSeqs && checkedSteps
-                      ? ms.sequences.filter(s => !(isDone || isSeqFullyDone(s, checkedSteps, refStepsByRef, subGuideTotals)))
+                    const seqs = hideDoneSeqs
+                      ? ms.sequences.filter(s => !(isDone || completedSubGuideRefs?.has(s.subGuideRef)))
                       : ms.sequences;
                     if (seqs.length === 0) return null;
                     return (
@@ -2279,6 +2282,20 @@ export default function OptimizedGuideClient({
   const reportRefSteps = useCallback((ref: string, nums: number[]) => {
     setRefStepsByRef(prev => (prev[ref] ? prev : { ...prev, [ref]: nums }));
   }, []);
+  // Sous-guides 100 % cochés : pré-calcul réactif pour le filtre du sommaire.
+  // Répond immédiatement sur checkedSteps (refStepsByRef ou subGuideTotals en fallback).
+  const completedSubGuideRefs = useMemo(() => {
+    if (!globalHideCompletedSteps) return new Set<string>();
+    const done = new Set<string>();
+    milestones.forEach(ms =>
+      ms.sequences.forEach(seq => {
+        if (!done.has(seq.subGuideRef) && isSeqFullyDone(seq, checkedSteps, refStepsByRef, subGuideTotals))
+          done.add(seq.subGuideRef);
+      })
+    );
+    return done;
+  }, [milestones, checkedSteps, refStepsByRef, subGuideTotals, globalHideCompletedSteps]);
+
   // Sous-guide actif (pour le HUD : "Phase X · [GPx] nom · Z%")
   // Quand « masquer les étapes validées » est actif, les sous-guides 100 % validés
   // (bornes connues) sont retirés de la pagination.
@@ -2286,8 +2303,10 @@ export default function OptimizedGuideClient({
     if (!selected) return [];
     const sorted = [...selected.sequences].sort((a, b) => a.order - b.order);
     const selectedDone = completedIds.has(selected.id);
-    return globalHideCompletedSteps ? sorted.filter(s => !(selectedDone || isSeqFullyDone(s, checkedSteps, refStepsByRef))) : sorted;
-  }, [selected, globalHideCompletedSteps, checkedSteps, completedIds, refStepsByRef]);
+    return globalHideCompletedSteps
+      ? sorted.filter(s => !(selectedDone || completedSubGuideRefs.has(s.subGuideRef)))
+      : sorted;
+  }, [selected, globalHideCompletedSteps, completedSubGuideRefs, completedIds]);
   const activeSeq = selected ? visibleSeqs[activeSeqIndex] || visibleSeqs[0] || null : null;
   // Borne l'index quand des sous-guides disparaissent (validés + masqués).
   useEffect(() => {
@@ -2386,13 +2405,12 @@ export default function OptimizedGuideClient({
               presenceMap={effectivePresenceMap}
               checkedSteps={checkedSteps}
               hideDoneSeqs={globalHideCompletedSteps}
-              refStepsByRef={refStepsByRef}
               bookmarkId={bookmarkId}
               guildId={guildId}
               onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
               onBookmark={handleBookmark}
               onResetMilestone={handleResetMilestone}
-              subGuideTotals={subGuideTotals}
+              completedSubGuideRefs={completedSubGuideRefs}
             />
           ))
           )

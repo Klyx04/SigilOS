@@ -101,7 +101,10 @@ export async function revalidateUserContext(guildId?: string) {
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const userId = session.user.id;
-    const discordUserId = (session.user as any)?.discordId as string | undefined;
+    // discordId (snowflake Discord) porté par la session depuis auth.ts → utilisée pour
+    // purger le cache membre (clé `member:{guildId}:{discordId}`). Assertion typée étroite
+    // (le champ est ajouté dynamiquement à la session, absent du type NextAuth).
+    const discordUserId = (session as unknown as { user?: { discordId?: string } }).user?.discordId;
 
     // 1. Clear in-memory + Redis context caches.
     //    ⚠️ Clés différentes : le cache profil mémoire est clé sur l'ID INTERNE de

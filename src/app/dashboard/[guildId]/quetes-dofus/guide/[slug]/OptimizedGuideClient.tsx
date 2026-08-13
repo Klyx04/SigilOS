@@ -1045,7 +1045,8 @@ export default function OptimizedGuideClient({
   guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
   selectedCharacter = "PRINCIPAL", mainCharacter, mules = [],
   currentUserProfile, ocreStats, ocreMonsters = [], subGuideIdMap = {}, subGuideTotals = {},
-  serverUniqueGuildMembers, serverPresenceMap
+  serverUniqueGuildMembers, serverPresenceMap,
+  fromSlug, fromTitle
 }: {
   guide: { id: string; name: string; slug: string; description?: string };
   milestones: Milestone[];
@@ -1072,6 +1073,9 @@ export default function OptimizedGuideClient({
   subGuideIdMap?: Record<number, string>;
   /** Map guideRef → totalSteps : permet de détecter un sous-guide 100 % coché sans le charger */
   subGuideTotals?: Record<string, number>;
+  /** Contexte de navigation croisée : on vient d'un autre guide (slug + nom) → bandeau « Retour ». */
+  fromSlug?: string | null;
+  fromTitle?: string | null;
 }) {
   // altPseudo is the mule name to pass to server actions (undefined = main char)
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -2746,8 +2750,9 @@ export default function OptimizedGuideClient({
                 </div>
 
                 {(() => {
-                  const fromSlug = searchParams.get("from");
-                  const fromTitle = searchParams.get("fromTitle");
+                  // Bandeau de retour inter-guides — les params from/fromTitle arrivent
+                  // par PROPS (résolus côté serveur dans page.tsx), pas via useSearchParams
+                  // (vide au premier rendu → c'est pour ça qu'il n'apparaissait pas).
                   if (!fromSlug || fromSlug === guide.slug) return null;
                   return (
                     <div className="guide-return-banner">

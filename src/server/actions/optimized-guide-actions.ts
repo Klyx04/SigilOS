@@ -51,6 +51,18 @@ async function requireGuideAccess() {
 }
 
 /**
+ * Guard admin God + RATE LIMIT (P1-4) : protège les écritures lourdes
+ * (import JSON, upsert, delete bulk) contre le spam. Fail-closed via Redis.
+ */
+async function requireGuideWriteAccess(scope: string, limit = 20, windowMs = 60_000) {
+  await requireGuideAccess();
+  const session = await auth();
+  const uid = session?.user?.id || "anon";
+  const { success } = await rateLimit(`guide-admin-${scope}:${uid}`, limit, windowMs);
+  if (!success) throw new Error("Trop de requêtes, veuillez patienter.");
+}
+
+/**
  * 🛡️ Guard fail-closed local : autorise super-admin OU grant/scope sur la brique Rush.
  */
 async function requireRushAccess() {
@@ -881,7 +893,7 @@ export async function upsertMilestone(data: {
   posY?: number;
   isOptional?: boolean;
 }) {
-  await requireGuideAccess();
+  await requireGuideWriteAccess("upsert-milestone", 30);
 
   // Destructure explicitly to avoid passing unknown fields (sequences, playerProgress, etc.)
   // to Prisma which would throw on unrecognized fields
@@ -989,7 +1001,7 @@ export async function deleteSequence(sequenceId: string) {
  * Supprime TOUS les milestones d'un guide (reset avant import).
  */
 export async function deleteAllMilestones(guideId: string) {
-  await requireGuideAccess();
+  await requireGuideWriteAccess("delete-all-milestones", 5);
 
   await db.guideMilestone.deleteMany({ where: { guideId } });
   await logGodWrite({
@@ -1009,7 +1021,7 @@ export async function deleteAllMilestones(guideId: string) {
  * Corrige aussi toutes les GuideSequence qui pointent vers le mauvais ref.
  */
 export async function repairAlignmentRefs() {
-  await requireGuideAccess();
+  await requireGuideWriteAccess("repair-alignment", 5);
 
   // 1. Trouver tous les variants GP9x
   const gp9Variants = await db.subGuideData.findMany({
@@ -1107,7 +1119,7 @@ export async function repairAlignmentRefs() {
  * Le JSON contient { id, name, steps: [{ id, web_text, pos_x, pos_y }] }
  */
 export async function importSubGuide(jsonData: any) {
-  await requireGuideAccess();
+  await requireGuideWriteAccess("import-sub-guide", 10);
 
   const { parseSubGuideSteps } = await import("@/lib/ganymede-parser");
 
@@ -1284,7 +1296,7 @@ export async function updateSubGuideStep(guideRef: string, stepNumber: number, n
 export async function updateMilestonePositions(
   positions: { id: string; posX: number; posY: number }[]
 ) {
-  await requireGuideAccess();
+  await requireGuideWriteAccess("milestone-positions", 20);
 
   await Promise.all(
     positions.map((p) =>
@@ -1318,7 +1330,7 @@ export async function updateMilestonePositions(
  * - Chapitre : groupé par numéro GP de la première séquence
  */
 export async function importGanymedeGuide(guideId: string, jsonData: any) {
-  await requireGuideAccess();
+  await requireGuideWriteAccess("import-guide", 10);
 
   const guide = await db.optimizedGuide.findUnique({ where: { id: guideId } });
   if (!guide) return { success: false, error: "Guide introuvable" };

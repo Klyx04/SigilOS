@@ -96,9 +96,9 @@
 - ✅ **`SECURITY.md` resynchronisé** : CSP_ENFORCE activé beta+prod (10/08), WS auth activé+testé prod — lignes « À faire » obsolètes retirées.
 - ✅ **Nouvelle branche de travail** : `refonte-module-ganymede` (ouverte depuis la HEAD mergée, contenant toute la session).
 
-### ✅ Refonte module GANYMEDE (guide complet) — FAIT sur `refonte-module-ganymede` (10/08/2026)
+### ✅ Refonte module GANYMEDE (guide complet) — MERGÉE dans `dev` (PR #456, merge `42b5c4d4`, 13/08/2026)
 
-> **Branche** : `refonte-module-ganymede` → PR vers `dev`. **Mémo** : `src/temp/memo-2026-08-10-module-ganymede.md`. Mock de référence : `src/guide-complet-refonte.html` (jamais commité).
+> **Branche MERGÉE** : `refonte-module-ganymede` → **PR #456 mergée dans `origin/dev`** (merge commit `42b5c4d4`, 13/08). **Mémo** : `src/temp/memo-2026-08-10-module-ganymede.md`. Mock de référence : `src/guide-complet-refonte.html` (jamais commité).
 
 - **Module cible** : `https://beta.sigilos.fr/dashboard/1290442961380835451/quetes-dofus/guide/progression-complete` (route `src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx`).
 - **Périmètre (fichiers)** : parser `src/lib/ganymede-parser.ts` · actions `optimized-guide-actions.ts` · rendu `OptimizedGuideClient.tsx` + `guide-styles.css` · `RushTimelineClient.tsx` (sylvestre, **non touché**) · onglet/admin `OptimizedGuideTab.tsx` / `god/dofus-guides/` (phase 6 séparée).
@@ -127,14 +127,28 @@ Session 12/08 (reprise refonte, branche `refonte-module-ganymede`) : `e8a2d36e` 
 - **Fix retours user 12/08 ✅ commit `de632c69`** : le sommaire masque maintenant AUSSI les sous-guides sans bornes 100 % validés (remontée des étapes chargées `refStepsByRef`) · flèches ‹ › de changement d'étape sur le guide principal (suit l'étape visible) · boutons de contrôles dissociés visuellement (ambre/vert/bleu).
 - **Vague UX 12/08 ✅ commit `467fe0d1`** : sommaire masque les sous-guides validés quand « Masquer les étapes validées » est actif (jalon complété inclus) · « Revoir le guide tour » sorti du menu Options → bouton doré dans le bandeau du haut · bulles de présence des étapes remontées en haut · suppression du décalage au hover (translateX) · **vue lecture** (étapes numérotées + bouton Suivant ›) dans chaque sous-guide.
 
+### ✅ Session 13/08 — Alignement GP9/GP9B (branche `fix/guide-gp9-alignment-refs`, poussée — PR → `dev` à créer)
+
+> **Branche** : `fix/guide-gp9-alignment-refs` (6 commits `4056745f`→`0a3c5af7`, base = `origin/dev` = merge PR #456). **Mémo** : `src/temp/memo-2026-08-13-guide-gp9-gp9b.md` (gitignorée). **Contexte** : le guide Ganymède a deux guides d'alignement partageant le préfixe `[GP9]` (Bontarien + Brâkmarien) → les refs se mélangeaient à l'import. Normalisation **GP9 = Bontarien, GP9B = Brâkmarien** + lisibilité sommaire + validation/réinitialisation par sous-guide.
+
+- **`4056745f` fix serveur + admin God** : nouvelle action **`repairAlignmentRefs()`** (idempotente) → garantit GP9=Bontarien / GP9B=Brâkmarien quel que soit l'ordre d'import (swap si inversé + `updateMany` sur les `GuideSequence` par nom : BONTARIEN / BRÂKMARIEN / BRAKMARIEN), log `GOD_GUIDE_UPDATE`/`DATA_SYNC` · **bouton « 🔧 Réparer GP9 / GP9B »** dans le God Panel (onglet Edit, encart ambre) · **détection de conflit de guideRef à l'import** (`importSubGuide`) : si le `[GPx]` du nom est déjà pris par un autre `ganymadeId` → variant `GP9B`/`GP9C`… (fallback `GP_ID{n}`) · revalidatePaths morts `routes/progression-complete` → `/dashboard/{guildId}/quetes-dofus` (toggle/reset milestone, resetGuide, completeGuide, updateStep) · `getOptimizedGuides` sans include steps · seed : `GP9-BONTA`→`GP9` + **nouvelles séquences `GP9B` Alignement Brâkmarien** (jalon alignement chapitre 2, bornes 1→6 + jalon final) · bouton **Preview** du God Panel pointe vers la 1ʳᵉ guild active réelle (`firstGuildId`, désactivé si aucune).
+- **`6cebe9ce` fix cross-refs GP9B (client)** : `listSubGuides()` appelé en parallèle côté page → `subGuideIdMap` (ganymadeId→guideRef) → les liens `guide-step-link` résolvent **GP9B** via le `guideid` numérique (priorité 1) avant la regex du nom `[GP(\d+[A-Za-z]*)]` (priorité 2).
+- **`5de0b827` fix sommaire** : `.ms-title` wrap 2 lignes (`-webkit-line-clamp:2`) + badge `ms-seqs` affiche **`[GP9B]`** quand un seul sous-guide (au lieu de « 1 sous-guide ») ; tooltip `[ref] nom` par ligne.
+- **`fc194f9c` feat masquage des sous-guides 100 % cochés** : `isSeqFullyDone` gagne un **fallback DB `subGuideTotals`** (totalSteps stocké) → détecte un sous-guide complet sans l'avoir chargé → masqué du sommaire (`ChapterGroup`) et de la pagination quand « Masquer les étapes validées » est actif.
+- **`bc626b9c` fix réactivité sommaire** : `completedSubGuideRefs` en `useMemo` réactif sur `checkedSteps`/`refStepsByRef`/`subGuideTotals` → le sommaire masque/réaffiche immédiatement sans dépendre du chargement des étapes.
+- **`0a3c5af7` feat toggle valider/reset sous-guide** : bouton de carte → **« Réinitialiser ce sous-guide »** (rouge, `RotateCcw`) quand 100 % validé, sinon « Valider ce sous-guide » · `handleResetSubGuide` décoche toutes les étapes + une seule persistance (`updateStepProgress`) + **décomplète le jalon** si le serveur répond `isCompleted:false`.
+
+**État git (13/08)** : branche `fix/guide-gp9-alignment-refs` **poussée sur origin**, working tree propre. `origin/dev` = `42b5c4d4` (PR #456 mergée) ; `dev` local en retard (`76836f4c`). Prochaine étape : **PR `fix/guide-gp9-alignment-refs` → `dev`** + recette GP9/GP9B sur beta.
+
 ### ⚠️ Restant / à savoir
-- **Branche `refonte-module-ganymede`** : 20 commits (15 session 12/08 + Phase I `2c9e4161` + vague UX `467fe0d1` + fix `de632c69` + round 2 `6ca7a6f0` + round 3 `a8137e16`) → **PR vers `dev`** (auto-approbation solo). `dev` étant protégé, le merge passe par la PR GitHub.
+- **Branche `refonte-module-ganymede`** : 20 commits (15 session 12/08 + Phase I `2c9e4161` + vague UX `467fe0d1` + fix `de632c69` + round 2 `6ca7a6f0` + round 3 `a8137e16`) → **MERGÉE dans `origin/dev` via PR #456** (merge `42b5c4d4`, 13/08). ⚠️ `dev` local encore sur `76836f4c` → `git pull` au prochain checkout de `dev`.
+- **Chantier UX signalé par le user (13/08, NON corrigé)** : tour « ? » du guide invisible (cause racine : `body.guide-fullscreen .dashboard-tour { display:none }` dans `globals.css` → l'overlay est caché pendant le plein écran, puis « fuit » sur les autres pages) · état « Tous les sous-guides de cette étape sont validés 🎉 » sans issue (toggle masqué dans cet état) · 3 toggles « Masquer les étapes validées » redondants. Plan détaillé : `src/temp/memo-2026-08-13-guide-gp9-gp9b.md`.
 - **Reste à faire (mémo `src/temp/memo-2026-08-12-refonte-ganymede-rush.md`)** : **G** portages UX croisés (recherche persistante, ContextualHelp, verrouillage prérequis Rush→Ganymède ; CoordHoverMap→Rush) · **J** finalisation (console.error page.tsx → logger, recette UX) · **Bonus** : facepile Rush (RushTimelineClient) temps réel.
 - **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : fichiers absents côté serveur (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
 - **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` — correctif = composant enfant sous Suspense (option).
 - **Leaflet `_leaflet_pos`** (`map-viewer.tsx`) : pré-existant, map détachée/cleanup.
 - **Rush sylvestre** : nettoyage AI slop + z-index faits (12/08) ; reste portage `CoordHoverMap`, réduction boutons, temps réel partagé (phases E→H). **Ne pas fusionner les deux modules** (différenciateurs préservés). Admin/composer (`OptimizedGuideAdminClient`, `OptimizedGuideTab`, `god/dofus-guides`) : **phase 6 dédiée** (réimport à la volée déjà fonctionnel).
-- Mémo à jour : `src/temp/memo-2026-08-12-refonte-ganymede-rush.md` (source de vérité session en cours) + `src/temp/memo-2026-08-10-module-ganymede.md` (historique 10-12/08).
+- Mémo à jour : `src/temp/memo-2026-08-12-refonte-ganymede-rush.md` (refonte 12/08) + **`src/temp/memo-2026-08-13-guide-gp9-gp9b.md`** (session 13/08 — alignement GP9/GP9B + bugs UX, voir section ci-dessus) + `src/temp/memo-2026-08-10-module-ganymede.md` (historique 10-12/08).
 
 ---
 

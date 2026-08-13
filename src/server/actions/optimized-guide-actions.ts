@@ -9,8 +9,9 @@ import { isSuperAdmin, canAccessBrick } from "./super-admin-actions";
 import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./audit-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
-import { publishGuideEvent, parseStepKey } from "@/lib/guide-realtime";
-import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers } from "@/lib/guide-progress-helpers";
+import { rateLimit } from "@/lib/ratelimit";
+import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
+import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -287,10 +288,22 @@ export async function deleteOptimizedGuide(guildId: string | undefined, guideId:
 }
 
 /**
+ * Résultat agrégé de la progression d'une guilde sur un guide (Phase I + cache Redis P0).
+ * `allProgress`/`uniqueGuildMembers`/`presenceMap` absents quand `success=false`.
+ */
+export type GuildGuideProgressResult = {
+  success: boolean;
+  allProgress?: GuideProgressRow[];
+  uniqueGuildMembers?: GuideProgressMember[];
+  presenceMap?: GuidePresenceMap;
+  error?: string;
+};
+
+/**
  * Calcule à quelle étape de la route se trouve chaque membre de la guilde.
  * Basé sur les PlayerGuideProgress.
  */
-export async function getGuildOptimizedGuideProgress(slug: string, guildId: string) {
+export async function getGuildOptimizedGuideProgress(slug: string, guildId: string): Promise<GuildGuideProgressResult> {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
 
@@ -310,31 +323,36 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
   //   - allProgress        : lignes allégées (shape client inchangée) ;
   //   - uniqueGuildMembers : membres agrégés par profileId ;
   //   - presenceMap        : carte milestoneId → membres présents.
-  const rawRows = await db.playerGuideProgress.findMany({
-    where: {
-      milestone: { guideId: guide.id },
-      profile: { guild: { discordGuildId: guildId } }
-    },
-    select: {
-      profileId: true,
-      milestoneId: true,
-      isCompleted: true,
-      completedSteps: true,
-      currentStep: true,
-      profile: {
-        select: {
-          pseudoDofus: true,
-          user: { select: { name: true, image: true } },
+  // Cache Redis court (multi-guilde × centaines d'utilisateurs) : l'agrégat complet
+  // n'est recalculé qu'une fois toutes les ~3s par (guildId, slug), au lieu d'un
+  // findMany de TOUTES les progressions de la guilde à chaque page view (P0).
+  return getCachedGuideProgress(guildId, slug, async () => {
+    const rawRows = await db.playerGuideProgress.findMany({
+      where: {
+        milestone: { guideId: guide.id },
+        profile: { guild: { discordGuildId: guildId } }
+      },
+      select: {
+        profileId: true,
+        milestoneId: true,
+        isCompleted: true,
+        completedSteps: true,
+        currentStep: true,
+        profile: {
+          select: {
+            pseudoDofus: true,
+            user: { select: { name: true, image: true } },
+          },
         },
       },
-    },
+    });
+
+    const allProgress = buildGuildProgressRows(rawRows);
+    const uniqueGuildMembers = buildUniqueGuildMembers(allProgress, guide.milestones);
+    const presenceMap = buildPresenceMap(uniqueGuildMembers);
+
+    return { success: true, allProgress, uniqueGuildMembers, presenceMap };
   });
-
-  const allProgress = buildGuildProgressRows(rawRows);
-  const uniqueGuildMembers = buildUniqueGuildMembers(allProgress, guide.milestones);
-  const presenceMap = buildPresenceMap(uniqueGuildMembers);
-
-  return { success: true, allProgress, uniqueGuildMembers, presenceMap };
 }
 
 /**
@@ -405,6 +423,10 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
+  // 🛡️ RATE LIMIT (P0) : 30 toggle/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-toggle:${ctx.profileId}`, 30, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
   const milestoneWithSequences = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
     select: {
@@ -454,6 +476,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
   });
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+    await invalidateGuideProgressCache(guildId, milestone.guide.slug);
   }
 
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
@@ -470,6 +493,10 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
+  // 🛡️ RATE LIMIT (P0) : 15 reset jalon/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-reset-ms:${ctx.profileId}`, 15, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
   // Delete the progress record entirely (cleaner than zeroing out)
   await db.playerGuideProgress.deleteMany({
     where: { profileId, milestoneId, characterSlot }
@@ -481,6 +508,7 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
   });
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+    await invalidateGuideProgressCache(guildId, milestone.guide.slug);
   }
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
@@ -495,6 +523,10 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 5 reset guide/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-reset-guide:${ctx.profileId}`, 5, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
 
   // Fetch all milestone IDs for this guide
   const milestones = await db.guideMilestone.findMany({
@@ -516,6 +548,7 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
   });
   if (guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+    await invalidateGuideProgressCache(guildId, guide.slug);
   }
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
@@ -532,6 +565,10 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 5 completions guide/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-complete:${ctx.profileId}`, 5, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
 
   // Fetch all milestones with their sequences for this guide
   const milestones = await db.guideMilestone.findMany({
@@ -573,6 +610,7 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
   });
   if (guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+    await invalidateGuideProgressCache(guildId, guide.slug);
   }
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
@@ -587,6 +625,19 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 120 validations d'étapes/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-step-write:${ctx.profileId}`, 120, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  // Validation + borne des clés d'étapes (anti-payload géant / clés arbitraires).
+  // Format attendu `GPx-N` (subGuideRef-numéro). Max 500 clés par appel.
+  const STEP_KEY_RE = /^[A-Za-z0-9_]+-\d+$/;
+  const validSteps = Array.isArray(completedSteps)
+    ? completedSteps
+        .filter((k): k is string => typeof k === "string" && k.length <= 64 && STEP_KEY_RE.test(k))
+        .slice(0, 500)
+    : [];
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -626,7 +677,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 
   // Un jalon est COMPLÉTÉ quand toutes les étapes de tous ses sous-guides sont cochées
   // (fix : on comparait des IDs de séquences aux clés des étapes → toujours faux → 0/N).
-  const checkedSet = new Set(completedSteps);
+  const checkedSet = new Set(validSteps);
   const isSeqFullyChecked = (seq: { subGuideRef: string; stepFrom?: number | null; stepTo?: number | null }): boolean => {
     if (seq.stepFrom && seq.stepTo) {
       for (let n = seq.stepFrom; n <= seq.stepTo; n++) {
@@ -645,7 +696,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
       profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot }
     },
     update: {
-      completedSteps: completedSteps,
+      completedSteps: validSteps,
       isCompleted: isAllCompleted,
       completedAt: isAllCompleted ? new Date() : null
     },
@@ -653,7 +704,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
       profileId,
       milestoneId,
       characterSlot,
-      completedSteps: completedSteps,
+      completedSteps: validSteps,
       isCompleted: isAllCompleted,
       completedAt: isAllCompleted ? new Date() : null
     }
@@ -662,7 +713,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
   // Temps réel (Phase E) : diff sur les étapes nouvellement cochées.
   if (milestone?.guide?.slug) {
     const addedByRef = new Map<string, string[]>();
-    completedSteps.forEach(k => {
+    validSteps.forEach(k => {
       if (previousKeys.has(k)) return;
       const parsed = parseStepKey(k);
       if (!parsed) return;
@@ -695,6 +746,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+    await invalidateGuideProgressCache(guildId, milestone.guide.slug);
   }
 
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
@@ -710,6 +762,10 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 30 marque-pages/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-bookmark:${ctx.profileId}`, 30, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
@@ -753,6 +809,7 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
 
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+    await invalidateGuideProgressCache(guildId, milestone.guide.slug);
   }
 
   return { success: true, progress };

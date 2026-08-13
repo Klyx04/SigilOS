@@ -34,7 +34,9 @@ export default async function LadderPage({ params }: Props) {
         select: { missionVitrineMode: true }
     });
 
-    const vitrineMode = !!guildConfig?.missionVitrineMode && !user.isAdmin;
+    // Mode vitrine : les onglets « Activité » / « Guildatons » sont masqués pour TOUS
+    // (membres ET admins / God) — une vitrine reste une vitrine, personne ne la contourne.
+    const vitrineMode = !!guildConfig?.missionVitrineMode;
 
     return (
         <div className="relative min-h-[calc(100vh-4rem)] pb-12">

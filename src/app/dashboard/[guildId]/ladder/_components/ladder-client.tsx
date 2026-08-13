@@ -215,13 +215,14 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
     const categories = ([
         { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
+        // « Général » (XP des membres) en 2e position pour être immédiatement visible.
+        { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
         { id: "guildatons", label: "Guildatons", icon: "/guildatons.png", isImage: true, color: "#eab308" },
         { id: "raids", label: "Raids", icon: Swords, isImage: false, color: "#ef4444" },
         { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
         { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
         { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
         { id: "success", label: "Succès", icon: Trophy, isImage: false, color: "#f59e0b" },
-        { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
     ] as const).filter(cat => !vitrineMode || (cat.id !== "activity" && cat.id !== "guildatons"));
 
     return (

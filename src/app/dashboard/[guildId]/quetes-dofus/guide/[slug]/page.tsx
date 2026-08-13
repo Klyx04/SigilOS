@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
+import { logger } from "@/lib/logger";
 import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
@@ -29,7 +30,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     try {
         guideContext = await getOptimizedGuideDetail(slug, guildId, altPseudo);
     } catch (e: any) {
-        console.error("[Guide Page] Error fetching guide:", slug, e?.message);
+        logger.error("[Guide Page] Error fetching guide", { slug, error: e?.message });
         notFound();
     }
 
@@ -63,7 +64,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
             });
         }
     } catch (e) {
-        console.error("[Guide Page] Guild progress fetch failed (non-fatal):", e);
+        logger.error("[Guide Page] Guild progress fetch failed (non-fatal)", { error: e });
     }
 
     // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos, class & metamob
@@ -93,7 +94,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
             };
         }
     } catch (e) {
-        console.error("[Guide Page] Profile fetch failed (non-fatal):", e);
+        logger.error("[Guide Page] Profile fetch failed (non-fatal)", { error: e });
     }
 
     // Fetch Ocre progress stats if metamob is linked
@@ -125,7 +126,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 }
             }
         } catch (e) {
-            console.error("[Guide Page] Metamob stats fetch error (non-fatal):", e);
+            logger.error("[Guide Page] Metamob stats fetch error (non-fatal)", { error: e });
         }
     }
 

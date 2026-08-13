@@ -10,6 +10,7 @@ import { getOptimizedGuides, getOptimizedGuideDetail, getGuildOptimizedGuideProg
 import { DofusQuestHub } from "@/components/dofus-quests/DofusQuestHub";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -85,7 +86,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                 guideGuildProgress = membersContext.allProgress || [];
             }
         } catch (e) {
-            console.error("[Quest Page] Error fetching guide details:", e);
+            logger.error("[Quest Page] Error fetching guide details", { error: e });
         }
     }
 

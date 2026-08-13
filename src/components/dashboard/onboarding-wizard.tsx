@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 import { useRouter } from "next/navigation";
+import { PREFERRED_ACTIVITIES, type PreferredActivityId } from "@/lib/profile-activities";
 
 interface OnboardingWizardProps {
     guildId: string;
@@ -27,14 +28,17 @@ interface OnboardingWizardProps {
     show: boolean;
     initialStep?: number;
     initialPseudo?: string;
+    /** true = l'étape 3 « Activités & Contenu préféré » est obligatoire (≥1 tag). */
+    requireActivities?: boolean;
 }
 
-export function OnboardingWizard({ guildId, userName, show, initialStep = 1, initialPseudo = "" }: OnboardingWizardProps) {
+export function OnboardingWizard({ guildId, userName, show, initialStep = 1, initialPseudo = "", requireActivities = false }: OnboardingWizardProps) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [step, setStep] = useState(initialStep);
     const [pseudo, setPseudo] = useState(initialPseudo);
     const [selectedClass, setSelectedClass] = useState("");
+    const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -106,9 +110,13 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
             const res = await updateUserProfile(payload);
 
             if (res.success) {
-                toast.success("Profil configuré avec succès ! Bienvenue à bord.");
-                setIsOpen(false);
-                router.push(`/dashboard/${guildId}/profile?tour=1`);
+                if (requireActivities) {
+                    setStep(3);
+                } else {
+                    toast.success("Profil configuré avec succès ! Bienvenue à bord.");
+                    setIsOpen(false);
+                    router.push(`/dashboard/${guildId}/profile?tour=1`);
+                }
             } else {
                 toast.error(res.error || "Une erreur est survenue lors de la sauvegarde.");
             }
@@ -118,6 +126,47 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
             setLoading(false);
         }
     };
+
+    const toggleActivity = (id: string) => {
+        setSelectedActivities(prev =>
+            prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+        );
+    };
+
+    const handleActivitiesSubmit = async () => {
+        if (selectedActivities.length === 0) {
+            toast.error("Sélectionnez au moins une activité préférée.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await updateUserProfile({
+                guildId,
+                preferredActivities: selectedActivities as PreferredActivityId[],
+            });
+
+            if (res.success) {
+                toast.success("Profil configuré avec succès ! Bienvenue à bord.");
+                setIsOpen(false);
+                router.push(`/dashboard/${guildId}/profile?tour=1`);
+            } else {
+                toast.error(res.error || "Une erreur est survenue lors de la sauvegarde.");
+            }
+        } catch (err) {
+            toast.error("Erreur serveur lors de la sauvegarde des activités.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Étapes réellement parcourues (points d'indicateur) selon le point de départ.
+    const flowSteps =
+        initialStep === 3
+            ? [3]
+            : initialStep === 2
+                ? requireActivities ? [2, 3] : [2]
+                : requireActivities ? [1, 2, 3] : [1, 2];
 
     return (
         <AnimatePresence>
@@ -143,12 +192,11 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-[100px]" />
 
                         <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
-                            {/* Step indicators — 2 dots for full flow, 1 dot for class-only */}
+                            {/* Step indicators — nombre de points = étapes du flux (pseudo/classe + activités) */}
                             <div className="flex items-center gap-3">
-                                {initialStep === 1 && (
-                                    <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 1 ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
-                                )}
-                                <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 2 ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
+                                {flowSteps.map(s => (
+                                    <div key={s} className={cn("w-2 h-2 rounded-full transition-all duration-300", step === s ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
+                                ))}
                             </div>
 
                             {step === 1 && (
@@ -276,6 +324,76 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                             onClick={handleClassSubmit}
                                             className="flex-1 h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
                                             disabled={loading || !selectedClass}
+                                        >
+                                            {loading ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                "Terminer"
+                                            )}
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {step === 3 && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="w-full space-y-6"
+                                >
+                                    <div className="space-y-2">
+                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl">
+                                            <Compass className="w-8 h-8 text-white" />
+                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-400" />
+                                        </div>
+                                        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">
+                                            Activités <span className="text-emerald-400">& Contenu préféré</span>
+                                        </h2>
+                                        <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-sm mx-auto">
+                                            Coche au moins une activité pour indiquer tes préférences à la guilde. Tu pourras les modifier plus tard depuis ton profil.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap justify-center gap-2 max-h-[42vh] overflow-y-auto custom-scrollbar">
+                                        {PREFERRED_ACTIVITIES.map(act => {
+                                            const isSelected = selectedActivities.includes(act.id);
+                                            return (
+                                                <button
+                                                    key={act.id}
+                                                    type="button"
+                                                    onClick={() => toggleActivity(act.id)}
+                                                    className={cn(
+                                                        "flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-150",
+                                                        isSelected
+                                                            ? act.color
+                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/15 text-zinc-400"
+                                                    )}
+                                                >
+                                                    <span className="text-base leading-none">{act.icon}</span>
+                                                    <span>{act.label}</span>
+                                                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="flex gap-3 max-w-md mx-auto w-full">
+                                        {initialStep !== 3 && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => setStep(2)}
+                                                className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                                                disabled={loading}
+                                            >
+                                                Retour
+                                            </Button>
+                                        )}
+                                        <Button
+                                            type="button"
+                                            onClick={handleActivitiesSubmit}
+                                            className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-500 font-black uppercase tracking-widest text-xs rounded-xl transition-all active:scale-95 text-white gap-2"
+                                            disabled={loading || selectedActivities.length === 0}
                                         >
                                             {loading ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />

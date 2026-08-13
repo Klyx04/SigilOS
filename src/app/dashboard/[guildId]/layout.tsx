@@ -180,7 +180,7 @@ export default async function DashboardLayout({
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
@@ -262,14 +262,15 @@ export default async function DashboardLayout({
                     <GalacticFooterGate />
                 </div>
 
-                {/* Forced Onboarding Wizard (Missing character pseudo or class) */}
-                {!user.isAdmin && (user.hasPseudoIssue || !user.classe) && (
+                {/* Forced Onboarding Wizard (Missing character pseudo, class or preferred activities) */}
+                {!user.isAdmin && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (
                     <OnboardingWizard
                         guildId={guildId}
                         userName={user.name || "Aventurier"}
                         show={true}
-                        initialStep={user.hasPseudoIssue ? 1 : 2}
+                        initialStep={user.hasPseudoIssue ? 1 : !user.classe ? 2 : 3}
                         initialPseudo={user.pseudoDofus || ""}
+                        requireActivities={!user.hasPreferredActivities}
                     />
                 )}
             </div>

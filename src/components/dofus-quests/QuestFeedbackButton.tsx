@@ -17,13 +17,15 @@ interface QuestFeedbackButtonProps {
     targetSlug?: string;
     /** Variante visuelle compacte (coin) */
     compact?: boolean;
+    /** Classes custom pour uniformiser le rendu (ex: bandeau du guide) — remplace le style dégradé par défaut */
+    className?: string;
 }
 
 /**
  * Bouton « Signaler / Feedback » visible sur les pages du module
  * « Les Dofus Dofus ». Ouvre une modale avec les 8 catégories demandées.
  */
-export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact = false }: QuestFeedbackButtonProps) {
+export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact = false, className }: QuestFeedbackButtonProps) {
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
     const [description, setDescription] = useState("");
@@ -66,16 +68,18 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
         <>
             <button
                 onClick={() => setOpen(true)}
-                className={`group inline-flex items-center gap-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 ring-1 ring-inset ring-rose-400/60 transition-all ${
-                    compact
-                        ? "px-3 py-2 text-[10px] bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
-                        : "px-4 py-2.5 text-xs bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
-                }`}
+                className={className
+                    ? `group inline-flex items-center gap-1.5 ${className}`
+                    : `group inline-flex items-center gap-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 ring-1 ring-inset ring-rose-400/60 transition-all ${
+                        compact
+                            ? "px-3 py-2 text-[10px] bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
+                            : "px-4 py-2.5 text-xs bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
+                    }`}
                 title="Signaler un bug, proposer une amélioration ou un ajout"
             >
                 <Bug className={`${compact ? "w-3.5 h-3.5" : "w-4 h-4"} transition-transform group-hover:rotate-12`} />
-                <span className="hidden sm:inline">Signaler</span>
-                <span className={`hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse ml-0.5`} />
+                <span className={className ? "whitespace-nowrap" : "hidden sm:inline"}>Signaler</span>
+                {!className && <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse ml-0.5" />}
             </button>
 
             <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else setOpen(true); }}>

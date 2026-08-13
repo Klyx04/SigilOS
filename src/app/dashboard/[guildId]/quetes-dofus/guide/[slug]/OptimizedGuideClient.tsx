@@ -376,7 +376,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide, onResetSubGuide, onStepsLoaded }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, onShowStepPresenceModal, onCompleteSubGuide, onResetSubGuide, onStepsLoaded, currentIdentity }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -398,6 +398,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
   onCompleteSubGuide?: (keys: string[]) => void;
   onResetSubGuide?: (keys: string[]) => void;
   onStepsLoaded?: (ref: string, stepNumbers: number[]) => void;
+  /** Identité du membre courant (nom/avatar) — affiche sa bulle profil sur son étape marquée « J'en suis là ». */
+  currentIdentity?: { name?: string; image?: string };
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -482,10 +484,23 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
         const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
         if (firstIncompleteStep?.stepNumber === step.stepNumber) (active as any[]).push(member);
       });
+
+      // Bulle profil du membre courant : si j'ai marqué « J'en suis là » sur CETTE
+      // étape, ma bulle apparaît immédiatement (la donnée serveur est périmée sinon).
+      if (bookmarkStepKey === key && currentIdentity?.name) {
+        const alreadyThere = (active as any[]).some(m => m.userName === currentIdentity.name);
+        if (!alreadyThere) {
+          (active as any[]).push({
+            profileId: "me",
+            userName: currentIdentity.name,
+            userAvatar: currentIdentity.image,
+          });
+        }
+      }
       map.set(key, { validated: validated as any, active: active as any });
     });
     return map;
-  }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef]);
+  }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef, bookmarkStepKey, currentIdentity]);
 
   // Vue lecture (seule vue) : étapes filtrées une à une + navigation ‹ ›.
   const readSteps = filteredSteps;
@@ -2673,15 +2688,16 @@ export default function OptimizedGuideClient({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact />
+                    <QuestFeedbackButton guildId={guildId} sourcePage={"guide:" + guide.slug} targetSlug={guide.slug} compact className="guide-hud-btn guide-hud-feedback-btn" />
                     <a
                       href="https://ganymede-app.com/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="guide-hud-credit"
+                      className="guide-hud-btn guide-hud-credit"
                       title="Parcours et étapes issus de Ganymède"
                     >
-                      <img src="/assets/icons/ganymede.png" alt="Ganymède"/>
+                      <img src="/assets/icons/ganymede.png" alt=""/>
+                      <span>Ganymède</span>
                     </a>
                     {/* Reset guide déplacé dans le menu Options */}
                   </div>
@@ -3017,6 +3033,7 @@ export default function OptimizedGuideClient({
                           onCompleteSubGuide={handleCompleteSubGuide}
                           onResetSubGuide={handleResetSubGuide}
                           onStepsLoaded={reportRefSteps}
+                          currentIdentity={myIdentity}
                         />
                       )}
                     </div>

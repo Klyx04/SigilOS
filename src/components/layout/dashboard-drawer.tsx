@@ -124,9 +124,9 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                                             {guild.name}
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-0.5">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                            <span className="text-[11px] font-medium text-zinc-500 truncate">
-                                                                {guild.isAdmin ? "Administrateur" : "Membre Actif"}
+                                                            <div className={cn("w-1.5 h-1.5 rounded-full", guild.hasAccess ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
+                                                            <span className={cn("text-[11px] font-medium truncate", guild.hasAccess ? "text-zinc-500" : "text-amber-500/90")}>
+                                                                {guild.accessLabel}
                                                             </span>
                                                         </div>
                                                     </div>

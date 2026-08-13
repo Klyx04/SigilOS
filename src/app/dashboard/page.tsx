@@ -123,8 +123,8 @@ export default async function GuildSelectorPage() {
                                                             <p className="text-sm text-zinc-500 flex items-center gap-2 mt-0.5">
                                                                 <span className="text-emerald-400 font-medium text-xs uppercase tracking-wider">Opérationnel</span>
                                                                 <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
-                                                                <span className={cn("truncate", guild.isAdmin ? "text-indigo-400" : "text-zinc-500")}>
-                                                                    {guild.isAdmin ? "Administrateur" : "Accès Membre"}
+                                                                <span className={cn("truncate", guild.isAdmin ? "text-indigo-400" : guild.hasAccess ? "text-zinc-500" : "text-amber-500")}>
+                                                                    {guild.accessLabel}
                                                                 </span>
                                                             </p>
                                                         </div>

@@ -487,8 +487,13 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
 
       // Bulle profil du membre courant : si j'ai marqué « J'en suis là » sur CETTE
       // étape, ma bulle apparaît immédiatement (la donnée serveur est périmée sinon).
+      // Match par avatar PUIS par nom — le serveur peut me lister avec un pseudo
+      // différent (pseudoDofus) de mon nom Discord → jamais de doublon visuel.
       if (bookmarkStepKey === key && currentIdentity?.name) {
-        const alreadyThere = (active as any[]).some(m => m.userName === currentIdentity.name);
+        const isMe = (m: any) =>
+          (currentIdentity.image && !!m.userAvatar && m.userAvatar === currentIdentity.image)
+          || m.userName === currentIdentity.name;
+        const alreadyThere = (validated as any[]).some(isMe) || (active as any[]).some(isMe);
         if (!alreadyThere) {
           (active as any[]).push({
             profileId: "me",
@@ -522,7 +527,17 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
     const key = `${seq.subGuideRef}-${step.stepNumber}`;
     const checked = checkedSteps.has(key);
     const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
-    const presenceCount = validatedMembers.length + activeMembers.length;
+    // Déduplication d'affichage : un même membre (même avatar OU même nom) ne doit
+    // JAMAIS apparaître 2× — fusionne validated + active, y compris le « me » local.
+    const allPresence = [...validatedMembers, ...activeMembers];
+    const seenKeys = new Set<string>();
+    const presenceMembers = allPresence.filter(m => {
+      const k = m.userAvatar || m.userName || m.profileId;
+      if (seenKeys.has(k)) return false;
+      seenKeys.add(k);
+      return true;
+    });
+    const presenceCount = presenceMembers.length;
     return (
       <div
         key={key}
@@ -571,7 +586,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
             }}
           >
             <span className="sgc-step-presence-avatars">
-              {[...validatedMembers, ...activeMembers].slice(0, 3).map((m) => (
+              {presenceMembers.slice(0, 3).map((m) => (
                 <span key={m.profileId} className="sgc-step-presence-avatar">
                   {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
                 </span>
@@ -2629,7 +2644,7 @@ export default function OptimizedGuideClient({
                       title="Revoir le guide d'utilisation (tour guidé)"
                       aria-label="Revoir le guide d'utilisation (tour guidé)"
                     >
-                      <CircleHelp size={13}/>
+                      <CircleHelp size={14}/>
                       <span>Aide</span>
                     </button>
                     {/* Menu Options : toutes les actions du guide regroupées (fini la rangée d'icônes) */}
@@ -2642,7 +2657,8 @@ export default function OptimizedGuideClient({
                           title="Options du guide"
                           aria-label="Options du guide"
                         >
-                          <Settings2 size={13}/>
+                          <Settings2 size={14}/>
+                          <span>Options</span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="guide-hud-menu">

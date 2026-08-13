@@ -173,6 +173,9 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     if (wsAuthEnabled && userId) {
       const identity = await resolveActiveProfileIdentity(userId, data.guildId);
       if (identity) {
+        // P1 : on mémorise l'identité résolue sur le socket → les heartbeats suivants
+        // ne font AUCUNE requête DB (gros gain à 300+ clients, heartbeat toutes les 20s).
+        socket.data.guideIdentity = identity;
         queueEvent(guideRoom(data.guildId, data.guideSlug), {
           type: "presence:join",
           profileId: identity.profileId,
@@ -196,34 +199,28 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     socket.leave(guideRoom(data.guildId, data.guideSlug));
     logger.info(`[GuidePresence] 🚪 ${socket.id} quitte ${guideRoom(data.guildId, data.guideSlug)}`);
     // Notif de départ du guide (milestoneId vide = départ du guide).
-    const userId = socket.data.userId as string | undefined;
-    if (wsAuthEnabled && userId) {
-      const identity = await resolveActiveProfileIdentity(userId, data.guildId);
-      if (identity) {
-        queueEvent(guideRoom(data.guildId, data.guideSlug), {
-          type: "presence:leave",
-          profileId: identity.profileId,
-          userName: identity.userName,
-          milestoneId: "",
-        });
-      }
+    // P1 : identité déjà résolue au join — plus de requête DB au leave non plus.
+    const identity = socket.data.guideIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
+    if (identity?.profileId) {
+      queueEvent(guideRoom(data.guildId, data.guideSlug), {
+        type: "presence:leave",
+        profileId: identity.profileId,
+        userName: identity.userName,
+        milestoneId: "",
+      });
     }
   }
 
   async function handleHeartbeat(socket: Socket, data: GuideHeartbeatData) {
     if (!data.guildId || !data.guideSlug || !data.milestoneId) return;
-    const userId = socket.data.userId as string | undefined;
 
-    // Identité serveur-autoritative quand l'auth est active : le profileId est
-    // résolu côté serveur (jamais fourni par le client), le nom/avatar restent
-    // cosmétiques. En mode urgence (WS_AUTH_ENABLED=false) on accepte profileId.
+    // P1 : identité résolue UNE seule fois au `guide:join` et mémorisée sur le socket.
+    // Les heartbeats (toutes les 20s, 300+ clients) ne font PLUS aucune requête DB.
     let profileId: string | null = null;
+    const identity = socket.data.guideIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
     if (wsAuthEnabled) {
-      if (!userId) return; // fail-closed
-      const allowed = await isMemberOfGuild(userId, data.guildId);
-      if (!allowed) return;
-      profileId = await resolveActiveProfileId(userId, data.guildId);
-      if (!profileId) return;
+      if (!identity?.profileId) return; // fail-closed : pas d'identité join → pas de heartbeat
+      profileId = identity.profileId;
     } else {
       if (!data.profileId) return;
       profileId = data.profileId;
@@ -231,28 +228,14 @@ export function createGuidePresence(config: GuidePresenceConfig) {
 
     await touchPresence(data.guildId, data.guideSlug, {
       profileId,
-      userName: data.userName || "Membre",
-      userAvatar: data.userAvatar,
+      userName: data.userName || identity?.userName || "Membre",
+      userAvatar: data.userAvatar || identity?.userAvatar,
       milestoneId: data.milestoneId,
     });
     queuePresenceBroadcast(guideRoom(data.guildId, data.guideSlug), data.guildId, data.guideSlug);
   }
 
   return { handleJoin, handleLeave, handleHeartbeat, guideRoom };
-}
-
-/** Résout le userProfile ACTIF d'un utilisateur dans une guilde (fail-closed null). */
-async function resolveActiveProfileId(userId: string, discordGuildId: string): Promise<string | null> {
-  try {
-    const { db } = await import("../../lib/prisma");
-    const profile = await db.userProfile.findFirst({
-      where: { status: "ACTIVE", userId, guild: { discordGuildId } },
-      select: { id: true },
-    });
-    return profile?.id ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /** Résout l'identité d'affichage (profileId + nom + avatar) d'un membre ACTIF. */

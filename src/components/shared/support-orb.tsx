@@ -12,7 +12,7 @@ export function SupportOrb() {
     const stripeLink = "https://ko-fi.com/wylan"; 
 
     return (
-        <div className="fixed bottom-6 right-6 z-[100]">
+        <div className="support-orb fixed bottom-6 right-6 z-[100]">
             <a
                 href={stripeLink}
                 target="_blank"

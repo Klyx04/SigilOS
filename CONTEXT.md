@@ -23,10 +23,32 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 13/08 en cours sur `feat/chantier-2026-08-13`
+## 🧭 Chantier global (src/temp/chantier) — SESSION 14/08 (suite 5) sur `feat/chantier-2026-08-14`
 
-> Branche `feat/chantier-2026-08-13` (base `origin/dev` = `8d1f7e90`), 11 commits poussés, PR ouverte → dev.
+> PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
+> migrations 201 à jour, Sondages `polls=t`). Nouvelle branche `feat/chantier-2026-08-14`
+> (base `origin/dev` = `e2549faee`) → PR vers dev.
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
+
+### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
+- **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`
+  (room `guild:{gid}:dofus:{slug}`, position = `questId`, fail-closed `isMemberOfGuild`) + hook
+  `use-dofus-presence.ts` + `dofus-realtime.ts` (publish best-effort). `toggleQuestStatus` publie
+  `quest:status` → synergie LIVE (fin du polling 2 min). Bandeau « Présence live » + badge
+  « N en direct » par quête + viewers live. **`OptimizedGuideClient` (Ganymède) jamais touché.**
+- **`1c6d35308` → `79631ac97` — #26/#27 Donjons (v1→v3)** :
+  épuration UI/UX (dé-lag framer-motion, anti AI-slop) + `DjMultiDungeonModal` ; fix DateTimePicker
+  z-index (date/heure injoignable) + icônes ; **v2 « UN SEUL post »** (migration `dungeonsJson`,
+  un post multi au lieu de N, **UN embed PAR donjon**) + retour « Mode simple » ; **v3 boutons
+  Discord PAR donjon** (`dj:join:{postId}:{idx}`, libellé « S'inscrire — <nom> », migration
+  `dungeonIndex` sur `DjSearchParticipant`), blocage SUIVANT expliqué (blockReason), étape 2
+  scrollable, date multi optionnelle ; **limite posts actifs/membre 5**.
+- **#27** : `AchievementTracker` dé-sloppé ; ⚠️ **placement « Mes succès »/« Succès Commun » :
+  décision produit à trancher.**
+- Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build OK.
+- ⚠️ **Migrations à vérifier à la PR/deploy** : `20260814120000_add_dj_multi_dungeons` +
+  `20260814130000_add_dj_participant_dungeon_index`. ⚠️ Après deploy : recréer le container WS
+  (handlers `dofus:*`).
 
 ### ✅ Sécurité — F-01 (revocation d'accès membres supprimés/bannis)
 - **Bug confirmé** : un membre supprimé par un admin (`deleteProfileByAdmin`) était **ré-provisionné

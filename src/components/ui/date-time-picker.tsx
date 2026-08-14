@@ -128,7 +128,7 @@ export function DateTimePicker({
             <PopoverContent
                 side="bottom"
                 align="start"
-                className="w-auto p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden z-50"
+                className="w-auto p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden z-[200]"
             >
                 {/* Tab toggle */}
                 <div className="flex border-b border-white/5">

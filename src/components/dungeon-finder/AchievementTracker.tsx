@@ -153,7 +153,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
         return (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {Array.from({ length: 10 }).map((_, i) => (
-                    <div key={i} className="h-32 rounded-2xl bg-zinc-900/40 border border-white/5 animate-pulse" />
+                    <div key={i} className="h-32 rounded-2xl bg-zinc-900/40 border border-white/5" />
                 ))}
             </div>
         );
@@ -162,7 +162,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
     return (
         <div className="space-y-5">
             {/* Global stats banner */}
-            <div className="relative overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl p-6 group">
+            <div className="relative overflow-hidden bg-zinc-950 border border-white/10 rounded-2xl p-6 group">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-emerald-500/5" />
                 <div className="absolute -top-24 -right-24 w-64 h-64 opacity-[0.03] rotate-12 group-hover:rotate-0 transition-transform duration-1000">
                     <Trophy className="w-full h-full text-white" />
@@ -180,7 +180,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
 
                     <div className="flex-1 text-center md:text-left">
                         <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
-                            <Trophy className="w-5 h-5 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]" />
+                            <Trophy className="w-5 h-5 text-amber-500" />
                             <h2 className="text-xl font-black text-white tracking-tight uppercase">Progression des Succès</h2>
                         </div>
                         <p className="text-2xl font-black text-white leading-none">
@@ -301,13 +301,13 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                             >
                                 {isExpanded ? (
                                     /* Expanded view */
-                                    <div className="bg-zinc-900/90 border border-indigo-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-indigo-500/10 backdrop-blur-xl">
+                                    <div className="bg-zinc-900/90 border border-indigo-500/30 rounded-2xl overflow-hidden">
                                         {/* Expanded header */}
                                         <button
                                             onClick={() => expandDungeon(dungeon.id)}
                                             className="w-full flex flex-col sm:flex-row items-center gap-6 p-6 hover:bg-white/5 transition-all text-left group"
                                         >
-                                             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform duration-500 relative">
+                                             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center relative">
                                                 {dungeon.imageUrl
                                                     ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                                     : <Trophy className="w-8 h-8 text-zinc-700" />
@@ -361,15 +361,15 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                         <button
                                                             onClick={() => toggleAchievement(a.id)}
                                                             className={cn(
-                                                                "flex items-center gap-4 p-3.5 rounded-2xl cursor-pointer transition-all border w-full text-left group/item",
+                                                                "flex items-center gap-4 p-3.5 rounded-2xl cursor-pointer transition-colors border w-full text-left group/item",
                                                                 isDone
-                                                                    ? "bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]"
+                                                                    ? "bg-emerald-500/5 border-emerald-500/20"
                                                                     : "bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.05]"
                                                             )}
                                                         >
                                                             <div className={cn(
-                                                                "w-6 h-6 rounded-full flex items-center justify-center shrink-0 border transition-all",
-                                                                isDone ? "bg-emerald-500 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-zinc-900 border-white/10 group-hover/item:border-zinc-500"
+                                                                "w-6 h-6 rounded-full flex items-center justify-center shrink-0 border transition-colors",
+                                                                isDone ? "bg-emerald-500 border-emerald-400" : "bg-zinc-900 border-white/10 group-hover/item:border-zinc-500"
                                                             )}>
                                                                 {isDone && <CheckCircle2 className="w-4 h-4 text-white" />}
                                                             </div>
@@ -398,10 +398,10 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                     <button
                                         onClick={() => expandDungeon(dungeon.id)}
                                         className={cn(
-                                            "group w-full rounded-2xl border transition-all duration-300 overflow-hidden text-left hover:scale-[1.03] hover:shadow-2xl flex flex-col h-full bg-zinc-900/40",
+                                            "group w-full rounded-2xl border transition-colors overflow-hidden text-left flex flex-col h-full bg-zinc-900/40",
                                             isComplete
-                                                ? "border-emerald-500/30 shadow-emerald-950/20"
-                                                : "border-white/5 hover:border-indigo-500/40 hover:bg-zinc-900/60 shadow-lg"
+                                                ? "border-emerald-500/30"
+                                                : "border-white/5 hover:border-indigo-500/40 hover:bg-zinc-900/60"
                                         )}
                                     >
                                         <div className="p-4 flex flex-col h-full gap-4">

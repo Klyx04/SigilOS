@@ -274,7 +274,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="h-14 px-8 text-lg bg-purple-600 hover:bg-purple-500 text-white gap-3 font-black uppercase tracking-wider flex-1 min-w-[240px] shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all">
+                <Button className="h-14 px-8 text-lg bg-purple-600 hover:bg-purple-500 text-white gap-3 font-black uppercase tracking-wider flex-1 min-w-[240px] transition-colors">
                     <Plus className="w-6 h-6" />
                     Créer une Run
                 </Button>
@@ -644,10 +644,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 setStep(2);
                             }}
                             className={cn(
-                                "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2",
+                                "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
                                 mode === "epreuve"
-                                    ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-zinc-950"
-                                    : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white"
+                                    ? "bg-amber-600 hover:bg-amber-500 text-zinc-950"
+                                    : "bg-purple-600 hover:bg-purple-500 text-white"
                             )}
                         >
                             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
@@ -826,10 +826,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             </Button>
                             <Button
                                 className={cn(
-                                    "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2",
+                                    "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
                                     mode === "epreuve" 
-                                        ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-900/20" 
-                                        : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
+                                        ? "bg-amber-500 hover:bg-amber-400 text-zinc-950" 
+                                        : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
                                 )}
                                 onClick={handleCreate}
                                 disabled={isPending}

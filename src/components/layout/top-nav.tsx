@@ -188,6 +188,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         <SmartBar
                             memberCount={sidebarProps.guildData?.memberCount}
                             onlineCount={sidebarProps.guildData?.activeCount}
+                            canSearch={sidebarProps.user?.canViewRoster}
                         />
                     </div>
 

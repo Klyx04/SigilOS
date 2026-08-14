@@ -337,6 +337,8 @@ model GuildConfig {
   pollsNotifyRoleId                String?
   ocreNotifyChannelId              String?
   djNotifyChannelId                String?
+  // Chantier — points de contribution personnalisables (DJ / quêtes / Songes), config JSON admin
+  pointsConfig                     Json?
   servicesNotifyChannelId          String?
   loansNotifyChannelId             String?
   vaultNotifyChannelId             String?

@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import type { Socket } from "socket.io-client";
 import { getSocket } from "@/lib/socket-utils";
+import { emitDashboardPresence } from "@/lib/dashboard-presence-bus";
 
 export type DashboardPresenceEvent = {
   type: "join" | "leave";
@@ -11,15 +11,14 @@ export type DashboardPresenceEvent = {
   userAvatar?: string;
 };
 
-const TOAST_DURATION_MS = 3500;
-
 /**
  * Présence temps réel du Dashboard (chantier #39).
  *
  * - Rejoint la room `guild:<guildId>` via le socket partagé.
  * - Écoute `dashboard:presence:event` (broadcast serveur vers les AUTRES
  *   membres de la guilde — pas de notif « toi »).
- * - Affiche un toast quand un membre se connecte ou quitte le Dashboard.
+ * - Publie chaque événement sur le bus `dashboard-presence-bus` → rendu par
+ *   `GuildActivityStream` (popups discrets, même UI que les autres activités).
  *
  * Fail-soft : si le WS est down, aucune erreur — la présence Redis + polling
  * de la SmartBar reste le fallback (jamais d'écran cassé).
@@ -40,12 +39,7 @@ export function useDashboardPresence({ guildId, enabled = true }: { guildId?: st
 
     const onEvent = (e: DashboardPresenceEvent) => {
       if (!e || (e.type !== "join" && e.type !== "leave")) return;
-      const name = e.userName || "Un membre";
-      if (e.type === "join") {
-        toast(`${name} est arrivé(e) sur le dashboard`, { duration: TOAST_DURATION_MS });
-      } else {
-        toast(`${name} a quitté le dashboard`, { duration: TOAST_DURATION_MS });
-      }
+      emitDashboardPresence(e);
     };
 
     socket.on("connect", onConnect);

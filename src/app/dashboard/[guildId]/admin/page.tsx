@@ -23,6 +23,7 @@ import {
     Bell,
     Activity,
     ShieldAlert,
+    Coins,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
@@ -126,6 +127,15 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "cyan",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/points`,
+                    icon: Coins,
+                    title: "Points de Contribution",
+                    description: "Personnalisez les points de la clôture des posts DJ / quêtes et des runs Songes.",
+                    accent: "amber",
+                    permission: (u) => u.isAdmin,
+                    tourId: "admin-overview-card-points",
                 },
             ],
         },

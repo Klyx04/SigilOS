@@ -14,6 +14,7 @@ import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
 import { getDisplayName } from "@/lib/display-name";
+import { resolveSongesContributionPoints } from "../points-config-actions";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -1681,17 +1682,10 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
 // ============================================
 
 /**
- * Returns contribution points based on Songes difficulty.
- * - Rêve I/II/III      → 1 pt
- * - Paradoxe I/II/III/IV → 2 pts
- * - Cauchemar I/II/III → 3 pts
- * Épreuves are excluded (handled separately by caller).
+ * Points de contribution Songes — calcul délégué à la config admin
+ * `GuildConfig.pointsConfig` (défauts : Rêve = 1, Paradoxe = 2, Cauchemar = 3).
+ * Épreuves exclues (gérées séparément par l'appelant).
  */
-function getSongesContributionPoints(difficulty: string): number {
-    if (difficulty.startsWith("CAUCHEMAR")) return 3;
-    if (difficulty.startsWith("PARADOXE")) return 2;
-    return 1; // REVE_*
-}
 
 /**
  * Lightweight guild member list for the Songes close modal.
@@ -1765,14 +1759,14 @@ export async function closeRunWithContributions(
         return { success: false, error: "Les runs épreuve ne distribuent pas de points de contribution" };
     }
 
-    const pts = getSongesContributionPoints(run.difficulty);
-
-    // Get internal guildConfig to resolve profile IDs
+    // Get internal guildConfig to resolve profile IDs + config points personnalisée (admin)
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true },
+        select: { id: true, pointsConfig: true },
     });
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+    const pts = resolveSongesContributionPoints(run.difficulty, guildConfig.pointsConfig as unknown);
 
     // Determine the leader's profile ID to exclude them from rewards
     const leaderProfile = await db.userProfile.findFirst({

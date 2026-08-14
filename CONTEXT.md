@@ -43,6 +43,11 @@
   loading `min-h-[50vh]`).
 - **Vérif sécurité multi-donjons (#26/#7)** : `closeMemberPublishedContent` couvre déjà les posts multi
   (1 ligne `DjSearchPost` + 1 `discordMessageId`) → CLOSED + embed supprimé, aucun job de rappel planifié.
+- **2e passe (15/08)** : présence Dashboard → popups discrets `GuildActivityStream` (bus
+  `dashboard-presence-bus`, type LEAVE « a quitté », popups remontées `bottom-24` au-dessus du bouton
+  Don) · panneau admin **« Points de Contribution »** `/admin/points` (`GuildConfig.pointsConfig`,
+  migration `20260816000000_add_guild_points_config`, Zod admin, branché dans les clôtures DJ/Songes)
+  · modale de suppression de run refaite (difficulté + avertissement, a11y).
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build exit 0.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)

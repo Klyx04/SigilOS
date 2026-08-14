@@ -30,21 +30,25 @@
 > (base `origin/dev` = `e2549faee`) → PR vers dev.
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
 
-### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (commits `71fc3c148` + `1c6d35308`)
-- **#37 — présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`
+### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
+- **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`
   (room `guild:{gid}:dofus:{slug}`, position = `questId`, fail-closed `isMemberOfGuild`) + hook
   `use-dofus-presence.ts` + `dofus-realtime.ts` (publish best-effort). `toggleQuestStatus` publie
   `quest:status` → synergie LIVE (fin du polling 2 min). Bandeau « Présence live » + badge
   « N en direct » par quête + viewers live. **`OptimizedGuideClient` (Ganymède) jamais touché.**
-  ⚠️ Après deploy : recréer le container WS (handlers `dofus:*`).
-- **#26 — multi-donjons (2 à 5)** : modale imbriquée `DjMultiDungeonModal` (succès/date/note par
-  donjon) + action `createDjPosts` (transaction, anti-spam 5, whitelist ping) → **UN seul message
-  Discord multi-embeds + UN seul ping** (`sendMultiDiscordNotification`).
-- **#26/#27 — dé-lag + anti AI-slop du module Donjons** : grille sans framer-motion layout
-  (source du lag), console.log supprimés, `DjPostCard`/`DjFiltersBar`/`DjPostCreateModal`/
-  `AchievementTracker` épurés (gradients/glows/neon/shadows/pulse retirés, transition-colors).
-  ⚠️ **#27 placement « Mes succès »/« Succès Commun » : décision produit à trancher.**
+- **`1c6d35308` → `79631ac97` — #26/#27 Donjons (v1→v3)** :
+  épuration UI/UX (dé-lag framer-motion, anti AI-slop) + `DjMultiDungeonModal` ; fix DateTimePicker
+  z-index (date/heure injoignable) + icônes ; **v2 « UN SEUL post »** (migration `dungeonsJson`,
+  un post multi au lieu de N, **UN embed PAR donjon**) + retour « Mode simple » ; **v3 boutons
+  Discord PAR donjon** (`dj:join:{postId}:{idx}`, libellé « S'inscrire — <nom> », migration
+  `dungeonIndex` sur `DjSearchParticipant`), blocage SUIVANT expliqué (blockReason), étape 2
+  scrollable, date multi optionnelle ; **limite posts actifs/membre 5**.
+- **#27** : `AchievementTracker` dé-sloppé ; ⚠️ **placement « Mes succès »/« Succès Commun » :
+  décision produit à trancher.**
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build OK.
+- ⚠️ **Migrations à vérifier à la PR/deploy** : `20260814120000_add_dj_multi_dungeons` +
+  `20260814130000_add_dj_participant_dungeon_index`. ⚠️ Après deploy : recréer le container WS
+  (handlers `dofus:*`).
 
 ### ✅ Sécurité — F-01 (revocation d'accès membres supprimés/bannis)
 - **Bug confirmé** : un membre supprimé par un admin (`deleteProfileByAdmin`) était **ré-provisionné

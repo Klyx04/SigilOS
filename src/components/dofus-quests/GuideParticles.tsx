@@ -15,14 +15,30 @@ type Particle = {
 
 const COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#a78bfa"];
 
+function hexToRgba(hex: string, alpha: number): string {
+  let h = (hex || "").replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length !== 6) return `rgba(251, 191, 36, ${alpha})`;
+  const num = parseInt(h, 16);
+  if (Number.isNaN(num)) return `rgba(251, 191, 36, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /**
  * Effet d'ambiance du guide — braises Dofus (or / émeraude / saphir) + halos doux.
  * Performance avant tout :
  *  - zéro shadowBlur (très coûteux), halos pré-rendus offscreen (drawImage léger),
  *  - ~52 particules desktop / 24 mobile, devicePixelRatio plafonné à 2,
  *  - pointer-events none, respecte prefers-reduced-motion, désactivable (menu Options).
+ *
+ * Props optionnelles (page par-Dofus) :
+ *  - `colors` : palette de braises teintées à la couleur officielle du Dofus ;
+ *  - `haloColor` : couleur du halo pré-rendu (dégradé radial), défaut or.
  */
-export default function GuideParticles({ active }: { active: boolean }) {
+export default function GuideParticles({ active, colors, haloColor = "#fbbf24" }: { active: boolean; colors?: string[]; haloColor?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -41,15 +57,20 @@ export default function GuideParticles({ active }: { active: boolean }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let particles: Particle[] = [];
 
-    // Halo doré pré-rendu (dégradé radial) — créé UNE fois, dessiné via drawImage (léger).
+    const palette = (colors && colors.length > 0 ? colors : COLORS).map((c) => {
+      const m = (c || "").replace("#", "");
+      return m.length === 3 ? m.split("").map((x) => x + x).join("") : m.length === 6 ? m : "fbbf24";
+    }).map((h) => `#${h}`);
+
+    // Halo pré-rendu (dégradé radial) — créé UNE fois, dessiné via drawImage (léger).
     const halo = document.createElement("canvas");
     halo.width = 96;
     halo.height = 96;
     const hctx = halo.getContext("2d");
     if (hctx) {
       const g = hctx.createRadialGradient(48, 48, 4, 48, 48, 48);
-      g.addColorStop(0, "rgba(251, 191, 36, 0.28)");
-      g.addColorStop(1, "rgba(251, 191, 36, 0)");
+      g.addColorStop(0, hexToRgba(haloColor, 0.28));
+      g.addColorStop(1, hexToRgba(haloColor, 0));
       hctx.fillStyle = g;
       hctx.fillRect(0, 0, 96, 96);
     }
@@ -63,7 +84,7 @@ export default function GuideParticles({ active }: { active: boolean }) {
       opacity: 0.07 + Math.random() * 0.2,
       phase: Math.random() * Math.PI * 2,
       speed: 0.005 + Math.random() * 0.01,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      color: palette[Math.floor(Math.random() * palette.length)],
     });
 
     const resize = () => {
@@ -109,8 +130,8 @@ export default function GuideParticles({ active }: { active: boolean }) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [active]);
+  }, [active, colors, haloColor]);
 
   if (!active) return null;
-  return <canvas ref={canvasRef} className="guide-particles" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className="guide-particles" aria-hidden="true" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: "var(--z-content, 1)", pointerEvents: "none", opacity: 0.85 }} />;
 }

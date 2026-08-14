@@ -88,6 +88,33 @@
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 165/165** · build OK · pre-commit vert (2 commits).
 - 🔜 Prochaine session : #37 God quêtes-dofus, #38 Prêt/Coffre, #44 sondages UX, + rappels #34/#26/#27.
 
+### ✅ Session 14/08 (suite 2) — #37 (bug + harmonisation + particules + présence), #38, #44, icône Discord profil (même branche)
+> ⚠️ **`/quetes-dofus` ≠ `/dofus-guides`** : 2 modules distincts — le #37 porte sur **`/quetes-dofus`** (admin God
+> + pages membre par-Dofus). **`OptimizedGuideClient` (Ganymède) jamais touché.**
+- **#37 bug « Déjà en dernière position » corrigé** (`dofus-quest-admin-actions.ts`) : cause = voisin cherché
+  par `chainOrder/stepOrder: { gt/lt }` sur des champs `@default(0)` NON uniques après siphon. Fix = liste
+  triée + swap par index + **valeurs contiguës 0..N-1 en transaction** (Zod direction, auth fail-closed).
+- **#37 admin God harmonisé** (`DofusQuestGodManager.tsx`) : dé-glow total (italic, `shadow-*`, `blur-3xl`,
+  `animate-in`, inputs emerald/cyan → neutres), « Expulser »→« Supprimer », modale DofusDB ID restylée.
+- **#37 pages membre par-Dofus** : `GuideParticles` paramétrable → **particules teintées à la couleur
+  officielle du Dofus** + nouveau `DofusPageOptions` (menu « Options » du bandeau, toggle localStorage) ;
+  **« Qui est rendu où »** sans plafond (`QuiEstOuPanel` scrollable, détails quête IN_PROGRESS + COMPLETED).
+  ⚠️ Suivi : présence WS dédiée page par-Dofus non portée (nécessite redeploy container WS).
+- **#38 Coffre** : source documentée dans l'UI (**Dofusdude**, fallback saisie libre) + **consommables
+  ajoutés** à la recherche `all` + UI `vault-form`/`vault-table` dé-sloppée.
+- **#44 Sondages** : `poll-card`/`poll-list` dé-sloppés (glow/blur/pulse/italic/hover cyan retirés) → Calme 2026.
+- **Icône Discord profil** (retour user) : bouton **toujours visible** sur chaque miniature de stuff
+  (`skin-library.tsx`, blurple #5865F2, partage rapide).
+- Vérifs : tsc 0 · lint 0 erreur · **test:run 165/165**.
+- **Session 14/08 (suite 3)** — **#37 prérequis rendus côté user** : `getDofusDetailWithChains` charge
+  `prereqsByQuestId` → quête **grisée + badge cadenas « N prérequis »** tant que non complété + clic = focus/scroll
+  sur la quête prérequis. **#44 module Sondages invisible** : cause = `DEFAULT_MODULES.polls=false` + **toggle
+  `polls` absent de `/admin/modules`** → toggle « Sondages » ajouté (+ **doublon « Mini-Jeux & Carte » supprimé**).
+  ⚠️ Réactiver « Sondages » dans `/admin/modules` après déploiement.
+- **Session 14/08 (suite 4)** — **« Rendu ici » bloqué sur quêtes à prérequis non terminés** (page par-Dofus :
+  bouton désactivé ; Rush : refus dans `handleBookmarkSequence` via `blockedSeqIds`) + **dénomination revue :
+  « Rendu ici » → « Je suis ici »** partout (boutons, tooltips, compteurs « N membres ici », Rush inclus).
+
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 
 > Tous les commits poussés sur `feat/deploy-clean-pro` (PR à merger vers `dev`). Détail complet : `src/temp/memo-2026-08-10-worldmap-jeux-429-suite.md`.

@@ -20,6 +20,7 @@ interface DofusQuestManagerV3Props {
     heatmapData?: GuildHeatmapData | null;
     selectedCharacter?: string;
     initialGlobalCompletedIds?: string[];
+    prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
 }
 
 export function DofusQuestManagerV3({ 
@@ -29,7 +30,8 @@ export function DofusQuestManagerV3({
     dofusColor, 
     heatmapData,
     selectedCharacter = "PRINCIPAL",
-    initialGlobalCompletedIds = []
+    initialGlobalCompletedIds = [],
+    prereqsByQuestId = {}
 }: DofusQuestManagerV3Props) {
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
@@ -128,6 +130,7 @@ export function DofusQuestManagerV3({
                 selectedCharacter={selectedCharacter}
                 synergy={synergy}
                 currentUser={currentUser || undefined}
+                prereqsByQuestId={prereqsByQuestId}
             />
         </div>
     );

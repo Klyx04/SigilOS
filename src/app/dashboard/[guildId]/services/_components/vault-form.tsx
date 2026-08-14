@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, X, Package, TrendingDown, TrendingUp, Send, AlertTriangle } from "lucide-react";
+import { Loader2, Upload, X, TrendingDown, TrendingUp, Send, AlertTriangle } from "lucide-react";
 import { createVaultEntry } from "@/server/actions/vault-actions";
 import { VaultAction } from "@prisma/client";
 import { toast } from "sonner";
@@ -160,10 +160,10 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
             />
 
             {/* Panel */}
-            <div className="relative z-10 w-full max-w-lg bg-zinc-950 rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="relative z-10 w-full max-w-lg bg-zinc-950 rounded-2xl border border-white/10 overflow-hidden">
 
                 {/* Header coloré selon l'action */}
-                <div className={`px-6 pt-6 pb-4 border-b border-white/5 bg-gradient-to-r ${isDeposit ? "from-emerald-500/15 to-transparent" : "from-orange-500/15 to-transparent"}`}>
+                <div className={`px-6 pt-6 pb-4 border-b border-white/5 ${isDeposit ? "bg-emerald-500/10" : "bg-orange-500/10"}`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className={`p-2.5 rounded-xl border ${isDeposit ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400" : "border-orange-500/40 bg-orange-500/15 text-orange-400"}`}>
@@ -216,6 +216,10 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                             onClear={() => { setSelectedItem(null); setItemName(""); }}
                             placeholder="Ex: Gelano, Abyssal Bouclier..."
                         />
+                        <p className="text-[10px] text-zinc-600">
+                            Recherche : <strong className="text-zinc-400">Dofusdude</strong> (api.dofusdu.de) — équipements, ressources et consommables.
+                            Si l&apos;API est indisponible, la <strong className="text-zinc-400">saisie libre</strong> ci-dessous reste disponible.
+                        </p>
                         {!selectedItem && (
                             <Input
                                 value={itemName}

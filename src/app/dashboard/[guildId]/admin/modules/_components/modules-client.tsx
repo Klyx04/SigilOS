@@ -29,6 +29,7 @@ import {
     Search,
     Gamepad2,
     Camera,
+    Gavel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -135,15 +136,6 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 borderColor: "border-yellow-500/30",
             },
             {
-                key: "minigames",
-                label: "Mini-Jeux & Carte",
-                description: "Défiez vos amis sur SigilGuesser (Geo), Sigil-Gartic (Dessin) et explorez la carte du monde.",
-                icon: Map,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
-            },
-            {
                 key: "gallery",
                 label: "Galerie Guilde",
                 description: "Partagez et consultez les builds de stuff Dofusbook des membres. Intégration API Dofusbook.",
@@ -199,6 +191,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Documentation",
                 description: "Wiki interne de la guilde. Éditeur TipTap avec images, accès contrôlé par rôle Discord.",
                 icon: BookOpen,
+                color: "text-cyan-400",
+                bgColor: "bg-cyan-500/10",
+                borderColor: "border-cyan-500/30",
+            },
+            {
+                key: "polls",
+                label: "Sondages",
+                description: "Sondages de guilde (suggestions, améliorations, événements) avec votes et archives.",
+                icon: Gavel,
                 color: "text-cyan-400",
                 bgColor: "bg-cyan-500/10",
                 borderColor: "border-cyan-500/30",

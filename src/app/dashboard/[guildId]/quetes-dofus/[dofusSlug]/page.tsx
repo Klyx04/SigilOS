@@ -14,6 +14,8 @@ import {
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
 import { DofusProgressRing } from "@/components/dofus-quests/DofusProgressRing";
 import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
+import { DofusPageOptions } from "@/components/dofus-quests/DofusPageOptions";
+import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
 import { notFound } from "next/navigation";
@@ -47,8 +49,8 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
     if (!result.success || !result.data) return notFound();
 
-    const { dofus, chains } = result.data;
-    const color = dofus.color || "#6366f1";
+    const { dofus, chains, prereqsByQuestId = {} } = result.data;
+    const color = getDofusColor(dofus.slug, dofus.color || "#6366f1");
     const heatmapData = heatmapResult.success ? heatmapResult.data ?? null : null;
 
     // Extract pages from notes if available (Format: "PAGES:X")
@@ -84,6 +86,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         targetSlug={dofusSlug}
                         compact
                     />
+                    <DofusPageOptions guildId={guildId} dofusSlug={dofusSlug} baseColor={color} />
                 </div>
             </div>
 
@@ -274,6 +277,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 heatmapData={heatmapData}
                 selectedCharacter={character}
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
+                prereqsByQuestId={prereqsByQuestId}
             />
         </div>
     );

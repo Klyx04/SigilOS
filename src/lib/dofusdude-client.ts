@@ -72,7 +72,7 @@ const CATEGORY_ENDPOINTS: Record<DofusItemCategory, string[]> = {
     equipment: ["/items/equipment/search"],
     resources: ["/items/resources/search"],
     consumables: ["/items/consumables/search"],
-    all: ["/items/equipment/search", "/items/resources/search"],
+    all: ["/items/equipment/search", "/items/resources/search", "/items/consumables/search"],
 };
 
 // Dofusdude image CDN base

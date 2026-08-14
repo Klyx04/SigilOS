@@ -471,7 +471,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                 {scheduledDate ? format(scheduledDate, "d MMM yyyy", { locale: fr }) : "Choisir une date"}
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0 bg-zinc-950 border-white/10" align="center">
+                                        <PopoverContent className="w-auto p-0 bg-zinc-950 border-white/10 z-[200]" align="center">
                                             <Calendar
                                                 mode="single"
                                                 selected={scheduledDate}
@@ -765,7 +765,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden z-[200]" align="center" sideOffset={8}>
                                         <Command className="bg-transparent text-white">
                                             <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
                                             <CommandList className="max-h-[320px] premium-scrollbar p-2">

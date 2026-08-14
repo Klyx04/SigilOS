@@ -432,11 +432,11 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                             transition={{ duration: 0.2 }}
                             className="overflow-hidden"
                         >
-                            <div className="p-6 rounded-3xl bg-[#080808] border border-white/5 shadow-2xl space-y-8">
+                            <div className="p-6 rounded-2xl bg-[#0a0a0f] border border-white/5 space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
                                         <div className="flex items-center gap-2 mb-4">
-                                            <ListFilter className="w-3.5 h-3.5 text-cyan-500" />
+                                            <ListFilter className="w-3.5 h-3.5 text-zinc-500" />
                                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 leading-none">Filtrer par Catégorie</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
@@ -445,13 +445,13 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                                     key={f.value}
                                                     onClick={() => setCategoryFilter(f.value)}
                                                     className={cn(
-                                                        "group flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-wider border transition-all duration-300",
+                                                        "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-colors",
                                                         categoryFilter === f.value
-                                                            ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]"
+                                                            ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-400"
                                                             : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] hover:border-white/10"
                                                     )}
                                                 >
-                                                    <span className={cn("text-base grayscale group-hover:grayscale-0 transition-all", categoryFilter === f.value && "grayscale-0")}>{f.emoji}</span>
+                                                    <span className="text-base">{f.emoji}</span>
                                                     {f.label}
                                                 </button>
                                             ))}
@@ -459,7 +459,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2 mb-4">
-                                            <LayoutGrid className="w-3.5 h-3.5 text-violet-500" />
+                                            <LayoutGrid className="w-3.5 h-3.5 text-zinc-500" />
                                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 leading-none">Filtrer par Statut</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
@@ -468,9 +468,9 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                                     key={f.value}
                                                     onClick={() => setStatusFilter(f.value)}
                                                     className={cn(
-                                                        "px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-wider border transition-all duration-300",
+                                                        "px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-colors",
                                                         statusFilter === f.value
-                                                            ? "bg-violet-500/10 border-violet-500/40 text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.1)]"
+                                                            ? "bg-violet-500/10 border-violet-500/40 text-violet-400"
                                                             : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] hover:border-white/10"
                                                     )}
                                                 >
@@ -526,10 +526,9 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                     ) : (
                         <Link
                             href={`/dashboard/${guildId}/sondages`}
-                            className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all text-cyan-400"
+                            className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors text-cyan-400"
                         >
-                            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                            <span className="text-xs font-black uppercase tracking-widest">Retour aux sondages en cours</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">Retour aux sondages en cours</span>
                         </Link>
                     )}
                 </div>
@@ -563,10 +562,10 @@ function RemainingTime({ expiresAt }: { expiresAt: Date | string }) {
     }, [expiresAt]);
 
     return (
-        <div className="flex flex-col items-center gap-1.5 px-6 py-3 rounded-2xl bg-zinc-950/50 border border-white/5 text-cyan-400/90 shadow-inner group">
+        <div className="flex flex-col items-center gap-1.5 px-6 py-3 rounded-2xl bg-zinc-950/50 border border-white/5 text-cyan-400/90">
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 leading-none">Temps restant</span>
             <div className="flex items-center gap-2">
-                <Timer className="w-4 h-4 text-cyan-500 group-hover:animate-pulse" />
+                <Timer className="w-4 h-4 text-cyan-500" />
                 <span className="text-xl font-black tabular-nums tracking-wider leading-none">{timeLeft}</span>
             </div>
         </div>

@@ -16,7 +16,6 @@ import {
     Loader2,
     Users,
     Key,
-    Compass,
     UserCircle,
     BarChart3,
     FileText,
@@ -24,7 +23,6 @@ import {
     BookMarked,
     Map,
     Library,
-    MessageCircle,
     Palette,
     Search,
     Gamepad2,
@@ -32,7 +30,7 @@ import {
     Gavel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GuidePulse } from "@/components/dashboard/guide-pulse";
+import Link from "next/link";
 
 // ============================================================================
 // MODULE DEFINITIONS
@@ -47,6 +45,41 @@ type ModuleDef = {
     bgColor: string;
     borderColor: string;
     comingSoon?: boolean;
+};
+
+/**
+ * Pages / paramètres concernés par chaque module (#66) — rendus en clair sur la
+ * carte pour que l'admin sache EXACTEMENT ce que le toggle active/désactive.
+ * `{guildId}` est remplacé au rendu ; `/docs` est global (hors guilde).
+ */
+const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]>> = {
+    presentation: [{ label: "Présentation", href: "/dashboard/{guildId}/presentation" }],
+    roster: [{ label: "Annuaire", href: "/dashboard/{guildId}/members" }],
+    stats: [{ label: "Stats Guilde", href: "/dashboard/{guildId}/stats" }],
+    calendar: [{ label: "Calendrier", href: "/dashboard/{guildId}/calendar" }],
+    missions: [
+        { label: "Missions", href: "/dashboard/{guildId}/missions" },
+        { label: "Gestion Missions", href: "/dashboard/{guildId}/missions/manage" },
+    ],
+    songes: [{ label: "Songes", href: "/dashboard/{guildId}/songes" }],
+    ocre: [{ label: "Quête Ocre", href: "/dashboard/{guildId}/quete-ocre" }],
+    ladder: [{ label: "Classement", href: "/dashboard/{guildId}/ladder" }],
+    gallery: [{ label: "Galerie Guilde", href: "/dashboard/{guildId}/galerie-stuff" }],
+    ladderSync: [{ label: "Classement (sync auto)", href: "/dashboard/{guildId}/ladder" }],
+    manualLadderSync: [{ label: "Classement (sync manuelle)", href: "/dashboard/{guildId}/ladder" }],
+    services: [{ label: "Services Guilde", href: "/dashboard/{guildId}/services" }],
+    donjons: [{ label: "Donjons & Quêtes", href: "/dashboard/{guildId}/donjons-et-quetes" }],
+    docs: [{ label: "Documentation (Wiki)", href: "/docs" }],
+    polls: [{ label: "Sondages", href: "/dashboard/{guildId}/sondages" }],
+    minigames: [{ label: "Mini-Jeux", href: "/dashboard/{guildId}/mini-jeux" }],
+    quests: [{ label: "Quêtes Dofus", href: "/dashboard/{guildId}/quetes-dofus" }],
+    worldmap: [{ label: "Carte du Monde", href: "/dashboard/{guildId}/worldmap" }],
+    resources: [{ label: "Ressources Dofus", href: "/dashboard/{guildId}/ressources" }],
+    profile: [
+        { label: "Profil Membre", href: "/dashboard/{guildId}/profile" },
+        { label: "Annuaire", href: "/dashboard/{guildId}/members" },
+    ],
+    logs: [{ label: "Audit Logs", href: "/dashboard/{guildId}/admin/logs" }],
 };
 
 type ModuleGroup = {
@@ -310,22 +343,22 @@ export function ModulesClient({ guildId, initialModules }: Props) {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-2 py-4 border-b border-white/5 bg-white/[0.01] rounded-2xl">
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Système de Capacités</span>
+                        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Système de Capacités</span>
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-black text-white">{enabledCount}</span>
-                            <span className="text-zinc-500 font-bold uppercase text-[10px] tracking-tighter">/ {totalCount} Modules Déployés</span>
+                            <span className="text-zinc-500 font-medium text-xs">/ {totalCount} modules</span>
                         </div>
                     </div>
                     <div className="h-10 w-px bg-white/10 mx-2 hidden md:block" />
                     <div className="flex h-2 w-32 bg-white/5 rounded-full overflow-hidden">
                         <div 
-                            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all duration-1000 ease-out" 
+                            className="h-full bg-emerald-500 transition-all duration-200 ease-out"
                             style={{ width: `${(enabledCount / totalCount) * 100}%` }} 
                         />
                     </div>
                 </div>
-                <Badge variant="outline" className="bg-white/5 border-white/10 text-white/40 font-black uppercase tracking-widest text-[9px] py-1 px-3 rounded-lg backdrop-blur-md">
-                    Modifications Instantanées • Sync Temps Réel
+                <Badge variant="outline" className="bg-white/5 border-white/10 text-zinc-400 font-medium text-xs py-1 px-3 rounded-lg">
+                    Modifications appliquées instantanément
                 </Badge>
             </div>
 
@@ -353,10 +386,10 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                     if (filteredModules.length === 0) return null;
 
                     return (
-                        <div key={group.label} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div key={group.label} className="space-y-8">
                         <div className="flex items-center gap-4 px-2">
-                             <div className="h-0.5 w-8 bg-gradient-to-r from-emerald-500 to-transparent" />
-                            <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400 drop-shadow-sm">
+                             <div className="h-0.5 w-8 bg-white/15" />
+                            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
                                 {group.label}
                             </h3>
                         </div>
@@ -366,70 +399,56 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                 const isEnabled = modules[mod.key];
                                 const isLoading = pending === mod.key && isPending;
                                 const Icon = mod.icon;
+                                const routes = MODULE_ROUTES[mod.key];
 
                                 return (
                                     <div
                                         key={mod.key}
                                         className={cn(
-                                            "group relative rounded-[2rem] border transition-all duration-500 overflow-hidden",
+                                            "group relative rounded-2xl border transition-all duration-200 overflow-hidden",
                                             isEnabled
-                                                ? "bg-[#09090b]/80 border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
+                                                ? "bg-zinc-900/60 border-white/10 shadow-sm"
                                                 : "bg-black/40 border-white/5 opacity-50 grayscale-[0.5] hover:grayscale-0 hover:opacity-100 hover:border-white/10"
                                         )}
                                     >
-                                        {/* Dynamic Glow Layer */}
-                                        {isEnabled && (
-                                            <div className={cn(
-                                                "absolute -inset-[100px] opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 blur-[100px] pointer-events-none",
-                                                mod.bgColor.replace("/10", "/100")
-                                            )} />
-                                        )}
-
                                         <div className="relative z-10 p-6 flex flex-col h-full">
                                             {/* Top Row: Icon & Toggle */}
                                             <div className="flex items-start justify-between gap-4 mb-6">
                                                 <div className="flex items-center gap-4">
                                                     <div className={cn(
-                                                        "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-all duration-500 group-hover:scale-110 group-hover:rotate-3",
+                                                        "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-all duration-200",
                                                         isEnabled 
-                                                            ? `bg-white/[0.03] ${mod.borderColor} shadow-[0_0_20px_rgba(255,255,255,0.02)]`
+                                                            ? `bg-white/[0.03] ${mod.borderColor}`
                                                             : "bg-white/[0.01] border-white/5"
                                                     )}>
                                                         <Icon className={cn(
-                                                            "w-7 h-7 transition-all duration-500",
+                                                            "w-7 h-7 transition-all duration-200",
                                                             isEnabled ? mod.color : "text-zinc-600"
                                                         )} strokeWidth={1.5} />
-                                                        
-                                                        {isEnabled && (
-                                                            <div className={cn(
-                                                                "absolute -inset-2 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity",
-                                                                mod.bgColor
-                                                            )} />
-                                                        )}
                                                     </div>
 
                                                     <div className="flex flex-col">
                                                          <div className="flex items-center gap-2">
                                                             <h3 className={cn(
-                                                                "font-black text-base tracking-tighter uppercase",
+                                                                "font-semibold text-base tracking-tight",
                                                                 isEnabled ? "text-white" : "text-zinc-500"
                                                             )}>
                                                                 {mod.label}
                                                             </h3>
                                                             {mod.comingSoon && (
-                                                                <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 bg-amber-500/10 border-amber-500/20 text-amber-400 font-black uppercase tracking-widest">
+                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-amber-500/10 border-amber-500/20 text-amber-400 font-medium">
                                                                     WIP
                                                                 </Badge>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             {isEnabled ? (
-                                                                <span className="flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
-                                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
-                                                                    Active
+                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                    Actif
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-[11px] font-bold text-zinc-600">OFFLINE</span>
+                                                                <span className="text-xs font-medium text-zinc-500">Désactivé</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -453,37 +472,32 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                             {/* Description Card */}
                                             <div className="flex-1 space-y-4">
                                                 <p className={cn(
-                                                    "text-[13px] leading-relaxed font-medium transition-colors duration-500",
+                                                    "text-sm leading-relaxed transition-colors duration-200",
                                                     isEnabled ? "text-zinc-400" : "text-zinc-600"
                                                 )}>
                                                     {mod.description}
                                                 </p>
                                             </div>
 
-                                            {/* Meta Footer */}
-                                            <div className="mt-6 pt-5 border-t border-white/[0.05] flex items-center justify-between">
-                                                <div className="flex -space-x-1">
-                                                    {/* Decorative user icons or stats placeholder */}
-                                                    {[...Array(2)].map((_, i) => (
-                                                        <div key={i} className="h-5 w-5 rounded-full border border-zinc-950 bg-zinc-900 flex items-center justify-center">
-                                                            <div className="h-1 w-1 rounded-full bg-zinc-600" />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <button 
-                                                    className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1.5"
-                                                    onClick={() => {}}
-                                                >
-                                                    Configs
-                                                    <span className="text-zinc-700">→</span>
-                                                </button>
+                                            {/* Pages concernées (#66) */}
+                                            <div className="mt-6 pt-5 border-t border-white/[0.05]">
+                                                {routes && routes.length > 0 ? (
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        <span className="text-xs font-medium text-zinc-500">Pages :</span>
+                                                        {routes.map((r) => (
+                                                            <Link
+                                                                key={r.href}
+                                                                href={r.href.replace("{guildId}", guildId)}
+                                                                className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-colors"
+                                                            >
+                                                                {r.label}
+                                                            </Link>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-zinc-500">Page dédiée à venir</span>
+                                                )}
                                             </div>
-                                        </div>
-
-                                        {/* HUD Border Decoration */}
-                                        <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                                            <div className="h-px w-8 bg-white" />
-                                            <div className="h-8 w-px bg-white absolute top-2 right-2" />
                                         </div>
                                     </div>
                                 );
@@ -494,10 +508,10 @@ export function ModulesClient({ guildId, initialModules }: Props) {
             </div>
 
             {/* Support Note */}
-            <div className="pt-20 pb-10 text-center space-y-4">
+            <div className="pt-16 pb-10 text-center space-y-4">
                 <div className="h-px w-32 bg-white/5 mx-auto" />
-                <p className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.4em] opacity-40">
-                    Infrastructure Modules • v4.2.0-stabilized
+                <p className="text-xs font-medium text-zinc-600 uppercase tracking-[0.25em]">
+                    Modules de la guilde
                 </p>
             </div>
         </div>

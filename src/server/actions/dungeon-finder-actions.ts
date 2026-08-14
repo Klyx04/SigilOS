@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { getDisplayName } from "@/lib/display-name";
-import { resolveDjContributionPoints } from "./points-config-actions";
+import { resolveDjContributionPoints } from "@/lib/points-config";
 
 // ---------------------------------------------------------------------------
 // UTILS

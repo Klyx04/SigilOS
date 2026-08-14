@@ -23,10 +23,28 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 13/08 en cours sur `feat/chantier-2026-08-13`
+## 🧭 Chantier global (src/temp/chantier) — SESSION 14/08 (suite 5) sur `feat/chantier-2026-08-14`
 
-> Branche `feat/chantier-2026-08-13` (base `origin/dev` = `8d1f7e90`), 11 commits poussés, PR ouverte → dev.
+> PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
+> migrations 201 à jour, Sondages `polls=t`). Nouvelle branche `feat/chantier-2026-08-14`
+> (base `origin/dev` = `e2549faee`) → PR vers dev.
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
+
+### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (commits `71fc3c148` + `1c6d35308`)
+- **#37 — présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`
+  (room `guild:{gid}:dofus:{slug}`, position = `questId`, fail-closed `isMemberOfGuild`) + hook
+  `use-dofus-presence.ts` + `dofus-realtime.ts` (publish best-effort). `toggleQuestStatus` publie
+  `quest:status` → synergie LIVE (fin du polling 2 min). Bandeau « Présence live » + badge
+  « N en direct » par quête + viewers live. **`OptimizedGuideClient` (Ganymède) jamais touché.**
+  ⚠️ Après deploy : recréer le container WS (handlers `dofus:*`).
+- **#26 — multi-donjons (2 à 5)** : modale imbriquée `DjMultiDungeonModal` (succès/date/note par
+  donjon) + action `createDjPosts` (transaction, anti-spam 5, whitelist ping) → **UN seul message
+  Discord multi-embeds + UN seul ping** (`sendMultiDiscordNotification`).
+- **#26/#27 — dé-lag + anti AI-slop du module Donjons** : grille sans framer-motion layout
+  (source du lag), console.log supprimés, `DjPostCard`/`DjFiltersBar`/`DjPostCreateModal`/
+  `AchievementTracker` épurés (gradients/glows/neon/shadows/pulse retirés, transition-colors).
+  ⚠️ **#27 placement « Mes succès »/« Succès Commun » : décision produit à trancher.**
+- Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build OK.
 
 ### ✅ Sécurité — F-01 (revocation d'accès membres supprimés/bannis)
 - **Bug confirmé** : un membre supprimé par un admin (`deleteProfileByAdmin`) était **ré-provisionné

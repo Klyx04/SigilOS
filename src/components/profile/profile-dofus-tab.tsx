@@ -56,7 +56,7 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
 
     if (loading) {
         return (
-            <Card className="p-12 bg-zinc-950/60 border border-white/10 flex flex-col items-center justify-center space-y-3 rounded-3xl">
+            <Card className="p-12 bg-zinc-950/60 border border-white/10 flex flex-col items-center justify-center space-y-3 rounded-3xl min-h-[50vh]">
                 <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Chargement de la progression Dofus...</p>
             </Card>

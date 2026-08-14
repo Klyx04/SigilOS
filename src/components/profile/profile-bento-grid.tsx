@@ -535,7 +535,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* DOFUS PROGRESSION TAB */}
-                <TabsContent value="dofus" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="dofus" className="min-h-[60vh] animate-in fade-in duration-300">
                     {visitedTabs.has("dofus") && (
                         <ProfileDofusTab
                             guildId={guildId}

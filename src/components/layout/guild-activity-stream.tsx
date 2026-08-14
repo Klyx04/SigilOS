@@ -2,15 +2,20 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
-import { LogIn, UserPlus, Archive, Ban, UserCheck, X } from "lucide-react";
+import { LogIn, UserPlus, Archive, Ban, UserCheck, X, LogOut } from "lucide-react";
 import type { ActivityType } from "@/server/actions/activity-actions";
+import { subscribeDashboardPresence } from "@/lib/dashboard-presence-bus";
 
 // ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
+// "LEAVE" n'existe pas côté SSE (activity-actions) : il est ajouté par la
+// présence temps réel WS (dashboard:presence:event, type "leave").
+type LocalActivityType = ActivityType | "LEAVE";
+
 interface ActivityEvent {
     id: string;
-    type: ActivityType;
+    type: LocalActivityType;
     actorName: string;
     actorImage: string | null;
     meta: Record<string, string> | null;
@@ -29,7 +34,7 @@ interface GuildActivityStreamProps {
 // ─────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────
-const TYPE_CONFIG: Record<ActivityType, {
+const TYPE_CONFIG: Record<LocalActivityType, {
     icon: React.ElementType;
     label: string;
     accent: string;
@@ -38,15 +43,17 @@ const TYPE_CONFIG: Record<ActivityType, {
     barColor: string;
 }> = {
     LOGIN: { icon: LogIn, label: "vient de se connecter", accent: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/25", barColor: "#22d3ee" },
+    LEAVE: { icon: LogOut, label: "a quitté le dashboard", accent: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/25", barColor: "#fb7185" },
     NEW_MEMBER: { icon: UserPlus, label: "a rejoint la plateforme 🎉", accent: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/25", barColor: "#a78bfa" },
     ARCHIVED: { icon: Archive, label: "a été archivé", accent: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/25", barColor: "#fbbf24" },
     BANNED: { icon: Ban, label: "a été banni", accent: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/25", barColor: "#fb7185" },
     UNARCHIVED: { icon: UserCheck, label: "a été réactivé", accent: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25", barColor: "#34d399" },
 };
 
-// Dedup LOGIN events client-side — same person within 2 minutes
-const DEDUPE_MS = 2 * 60 * 1000;
-const DEDUPED_TYPES: ActivityType[] = ["LOGIN"];
+// Dedup côté client — LOGIN/LEAVE (même personne) dans une fenêtre courte.
+const DEDUPE_MS = 2 * 60 * 1000;    // LOGIN (reconnexion socket)
+const DEDUPE_LEAVE_MS = 10 * 1000;  // LEAVE (connect/disconnect rapide)
+const DEDUPED_TYPES: LocalActivityType[] = ["LOGIN", "LEAVE"];
 
 // ─────────────────────────────────────────────
 // KEYFRAMES (inserted once)
@@ -164,12 +171,14 @@ export function GuildActivityStream({ guildId }: GuildActivityStreamProps) {
     }, []);
 
     const addEvent = useCallback((evt: ActivityEvent) => {
-        // Dedup LOGIN by actorName within window
+        // Dedup par type + nom (LOGIN: reçoit la reconnexion socket, LEAVE: connect/disconnect rapide)
         if (DEDUPED_TYPES.includes(evt.type)) {
-            const lastSeen = recentRef.current.get(evt.actorName) ?? 0;
-            if (Date.now() - lastSeen < DEDUPE_MS) return;
+            const windowMs = evt.type === "LEAVE" ? DEDUPE_LEAVE_MS : DEDUPE_MS;
+            const key = `${evt.type}:${evt.actorName}`;
+            const lastSeen = recentRef.current.get(key) ?? 0;
+            if (Date.now() - lastSeen < windowMs) return;
+            recentRef.current.set(key, Date.now());
         }
-        recentRef.current.set(evt.actorName, Date.now());
 
         const popup: PopupItem = { ...evt, entering: true, leaving: false };
 
@@ -197,12 +206,26 @@ export function GuildActivityStream({ guildId }: GuildActivityStreamProps) {
         return () => { es.close(); esRef.current = null; };
     }, [guildId, addEvent]);
 
+    // Présence temps réel WS (dashboard:presence:event) → popups « X est arrivé / a quitté ».
+    useEffect(() => {
+        return subscribeDashboardPresence((e) => {
+            addEvent({
+                id: `presence-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                type: e.type === "leave" ? "LEAVE" : "LOGIN",
+                actorName: e.userName || "Un membre",
+                actorImage: e.userAvatar ?? null,
+                meta: null,
+                createdAt: new Date().toISOString(),
+            });
+        });
+    }, [addEvent]);
+
     // Render nothing if no popups
     if (popups.length === 0) return null;
 
     return (
         <div
-            className="fixed bottom-6 right-5 z-[9999] flex flex-col gap-2 items-end pointer-events-none"
+            className="fixed bottom-24 right-5 z-[9999] flex flex-col gap-2 items-end pointer-events-none"
             aria-live="polite"
         >
             {popups.map(p => (

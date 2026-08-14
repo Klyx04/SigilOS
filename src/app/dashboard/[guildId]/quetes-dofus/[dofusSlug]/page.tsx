@@ -3,17 +3,17 @@ import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
-import { Gem, ArrowLeft, Trophy, TreePine, Sparkles } from "lucide-react";
+import { ArrowLeft, Trophy, TreePine, Sparkles } from "lucide-react";
 import Link from "next/link";
 import {
     getDofusDetailWithChains,
     getGuildHeatmapForDofus,
     updateDolmanaxProgress,
     getUserCompletedQuestIds,
+    getDofusQuestHeaderIcon,
 } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
 import { DofusProgressRing } from "@/components/dofus-quests/DofusProgressRing";
-import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
 import { DofusPageOptions } from "@/components/dofus-quests/DofusPageOptions";
 import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
@@ -41,10 +41,11 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const enabled = await isModuleEnabled(guildId, "quests");
     if (!enabled) return <AccessDenied />;
 
-    const [result, heatmapResult, globalCompletedResult] = await Promise.all([
+    const [result, heatmapResult, globalCompletedResult, headerIcon] = await Promise.all([
         getDofusDetailWithChains(guildId, dofusSlug, character),
         getGuildHeatmapForDofus(guildId, dofusSlug),
         getUserCompletedQuestIds(guildId, character),
+        getDofusQuestHeaderIcon(),
     ]);
 
     if (!result.success || !result.data) return notFound();
@@ -52,6 +53,8 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const { dofus, chains, prereqsByQuestId = {} } = result.data;
     const color = getDofusColor(dofus.slug, dofus.color || "#6366f1");
     const heatmapData = heatmapResult.success ? heatmapResult.data ?? null : null;
+    // Chantier #68 — icône du bloc d'en-tête choisie côté God (serie-de-quete | icone-succes)
+    const headerIconPath = headerIcon === "icone-succes" ? "/assets/icons/icone-succes.png" : "/assets/icons/serie-de-quete.png";
 
     // Extract pages from notes if available (Format: "PAGES:X")
     let initialPages = 0;
@@ -120,26 +123,16 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         isObtained={dofus.isObtained}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        {(dofus as any).imageUrl ? (
-                            <div className="relative w-16 h-16">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : (dofus as any).imageUrl.replace(/^\/public/, "")}
-                                    alt={dofus.nameShort || dofus.name}
-                                    className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                                    style={{ filter: dofus.isObtained ? `drop-shadow(0 0 16px ${color})` : undefined }}
-                                />
-                            </div>
-                        ) : dofus.name ? (
-                            <DofusIcon
-                                name={dofus.nameShort || "Argenté"}
-                                size={64}
-                                color={color}
-                                isObtained={dofus.isObtained}
+                        {/* Chantier #68 — icône choisie côté God (serie-de-quete | icone-succes) */}
+                        <div className="relative w-16 h-16">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={headerIconPath}
+                                alt={dofus.nameShort || dofus.name}
+                                className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                                style={{ filter: dofus.isObtained ? `drop-shadow(0 0 16px ${color})` : undefined }}
                             />
-                        ) : (
-                            <Gem className="w-12 h-12" style={{ color }} />
-                        )}
+                        </div>
                     </div>
                 </div>
 

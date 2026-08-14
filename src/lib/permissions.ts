@@ -28,6 +28,7 @@ export const PERMISSIONS = {
     GAME_OPERATIONS: "game:operations",
     RAID_OFFICER: "game:raid_officer",
     RAID_MEMBER: "game:raid_member",
+    POINTS_MANAGE: "points:manage",
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -152,6 +153,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Autorisation de s'inscrire et de participer aux Raids Officiels (Dashboard & Discord).", 
         module: "game",
         modules: ["Inscription Raid", "Canaux Raid"]
+    },
+    [PERMISSIONS.POINTS_MANAGE]: {
+        label: "Gestion des Points de Contribution",
+        description: "Personnaliser les points attribués à la clôture des posts DJ / quêtes et des runs Songes.",
+        module: "game",
+        modules: ["Points de Contribution"]
     },
 };
 

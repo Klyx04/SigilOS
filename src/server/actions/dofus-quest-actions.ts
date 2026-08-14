@@ -1658,3 +1658,21 @@ export async function getUserCompletedQuestIds(
         return { success: false, error: "Erreur serveur" };
     }
 }
+
+/**
+ * Chantier #68 — Icône du bloc d'en-tête des pages quêtes par Dofus (choix God).
+ * Retourne toujours une valeur sûre (fail-closed : "serie-de-quete").
+ */
+export async function getDofusQuestHeaderIcon(): Promise<"serie-de-quete" | "icone-succes"> {
+    try {
+        const platform = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { dofusQuestHeaderIcon: true },
+        });
+        return platform?.dofusQuestHeaderIcon === "icone-succes" ? "icone-succes" : "serie-de-quete";
+    } catch (error) {
+        logger.error("[getDofusQuestHeaderIcon] error:", { error });
+        return "serie-de-quete";
+    }
+}
+

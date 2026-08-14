@@ -18,7 +18,8 @@ import {
     Sparkles, 
     TrendingUp,
     MessageSquare,
-    CalendarCheck
+    CalendarCheck,
+    Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ import { getClass } from "@/lib/dofus-assets";
 import { RunCloseModal } from "@/components/songes/RunCloseModal";
 import { RunProgressModal } from "@/components/songes/RunProgressModal";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
+import { RunEditModal } from "@/components/songes/RunEditModal";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -100,6 +102,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [closeModalOpen, setCloseModalOpen] = useState(false);
     const [progressModalOpen, setProgressModalOpen] = useState(false);
+    const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedClasse, setSelectedClasse] = useState<DofusClass>("Cra");
     const [message, setMessage] = useState("");
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
@@ -444,6 +447,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             Avancement
                         </Button>
                         <Button 
+                            variant="secondary" 
+                            className="flex-1 h-11 bg-white/5 hover:bg-white/10 border-white/10 text-white font-black uppercase tracking-widest text-[10px] rounded-xl"
+                            onClick={() => setEditModalOpen(true)}
+                        >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Modifier
+                        </Button>
+                        <Button 
                             className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] rounded-xl transition-colors"
                             onClick={() => setCloseModalOpen(true)}
                         >
@@ -536,6 +547,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <RunEditModal
+                isOpen={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                guildId={params.guildId as string}
+                run={run}
+            />
 
             <RunProgressModal
                 isOpen={progressModalOpen}

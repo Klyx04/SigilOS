@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Plus, Search, Swords, Map,
-    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle
+    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
 } from "lucide-react";
-import { createDjPost } from "@/server/actions/dungeon-finder-actions";
+import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
+import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { PingEstimate } from "@/components/shared/ping-estimate";
@@ -76,6 +77,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon | null>(null);
     const [selectedAchievements, setSelectedAchievements] = useState<string[]>([]);
 
+    // Mode multi-donjons (chantier #26) : 2 à 5 donjons dans une publication
+    const [multiDungeons, setMultiDungeons] = useState<MultiDungeonSelection[] | null>(null);
+    const [isMultiOpen, setIsMultiOpen] = useState(false);
+
     // Quêtes
     const [questSearchQuery, setQuestSearchQuery] = useState("");
     const [questSearchResults, setQuestSearchResults] = useState<any[]>([]);
@@ -126,6 +131,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setRequiredClasses([]);
             setIsDiscordPublished(isDiscordConfigured === true);
             setMentionRoleIds([]);
+            setMultiDungeons(null);
+            setIsMultiOpen(false);
         }
     }, [isOpen, isDiscordConfigured, initialQuestName]);
 
@@ -277,6 +284,37 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             return;
         }
 
+        // Mode multi-donjons (chantier #26) : 2 à 5 donjons → UNE publication.
+        if (multiDungeons && multiDungeons.length >= 2) {
+            if (step === 2 && isDiscordConfigured) {
+                setStep(3);
+                return;
+            }
+            const input = {
+                posts: multiDungeons.map((s) => ({
+                    dungeonId: s.dungeon.id,
+                    wantedAchievementIds: s.achievements,
+                    message: s.message ? s.message : null,
+                    targetDate: s.targetDate ? new Date(s.targetDate) : null,
+                })),
+                maxMembers,
+                requiredClasses,
+                isDiscordPublished,
+                mentionRoleIds,
+            };
+            startTransition(async () => {
+                const res = await createDjPosts(guildId, input);
+                if (res.success) {
+                    toast.success("Vos recherches de groupe sont en ligne !");
+                    handleClose();
+                    onCreated();
+                } else {
+                    toast.error(res.error || "Erreur lors de la publication.");
+                }
+            });
+            return;
+        }
+
         if (mode === "DONJON" && !selectedDungeon) {
             toast.error("Veuillez sélectionner un donjon.");
             return;
@@ -326,10 +364,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="w-[95vw] max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
-                <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
-                    <DialogTitle className="text-xl font-black flex items-center gap-3 relative z-10">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-900/10">
+                <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40">
+                    <DialogTitle className="text-xl font-black flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                             <Plus className="w-5 h-5 text-amber-500" />
                         </div>
                         <div className="flex flex-col">
@@ -349,7 +386,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                         {step === 1 && (
                             <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-6">
                                 {/* Mode Selector - Refined */}
-                                <div className="grid grid-cols-2 bg-zinc-900/80 border border-white/5 p-1 rounded-2xl w-full shadow-inner relative overflow-hidden">
+                                <div className="grid grid-cols-2 bg-zinc-900/80 border border-white/5 p-1 rounded-xl w-full">
                                     <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-zinc-800 border border-white/10 rounded-xl transition-all duration-500 ease-out z-0 ${mode === "QUETE" ? "translate-x-full" : "translate-x-0"}`} />
                                     <button
                                         onClick={() => setMode("DONJON")}
@@ -378,12 +415,12 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 value={dungeonSearch}
                                                 onChange={(e) => setDungeonSearch(e.target.value)}
                                                 placeholder="Rechercher un donjon ou un boss..."
-                                                className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-amber-500/50 rounded-2xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all placeholder:text-zinc-500 shadow-xl"
+                                                className="w-full bg-zinc-900/60 border border-white/10 focus:border-amber-500/50 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none placeholder:text-zinc-500"
                                             />
                                         </div>
 
                                         {loadingDungeons ? (
-                                            <div className="py-16 text-center text-zinc-500 animate-pulse bg-zinc-900/30 rounded-3xl border border-white/5">
+                                            <div className="py-16 text-center text-zinc-500 bg-zinc-900/30 rounded-3xl border border-white/5">
                                                 Consultation du bestiaire...
                                             </div>
                                         ) : (
@@ -427,6 +464,24 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 ))}
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {/* Mode multi-donjons (2 à 5) — chantier #26 */}
+                                {mode === "DONJON" && (
+                                    <div className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-white/5 bg-zinc-900/40">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                                                <Layers className="w-4 h-4 text-amber-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-white">Lancer un multi-donjons</p>
+                                                <p className="text-[9px] text-zinc-500">2 à 5 donjons dans une seule publication, un seul ping</p>
+                                            </div>
+                                        </div>
+                                        <Button size="sm" variant="outline" onClick={() => setIsMultiOpen(true)} className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0">
+                                            {multiDungeons ? `Modifier (${multiDungeons.length})` : "Choisir"}
+                                        </Button>
                                     </div>
                                 )}
 
@@ -509,40 +564,72 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
 
                         {step === 2 && (
                             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                                {/* Header Recap - Refined */}
-                                <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-zinc-950 border-white/10" : "bg-emerald-950/30 border-emerald-500/20"}`}>
-                                        {mode === "DONJON" && selectedDungeon?.imageUrl ? (
-                                            <img src={selectedDungeon.imageUrl} alt="" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-500" />
-                                        ) : mode === "DONJON" ? (
-                                            <Swords className="w-6 h-6 text-zinc-500" />
-                                        ) : (
-                                            <Map className="w-6 h-6 text-emerald-500" />
-                                        )}
+                                {multiDungeons && multiDungeons.length >= 2 ? (
+                                    <div className="flex items-center justify-between gap-3 bg-zinc-900/60 rounded-3xl p-5 border border-white/10">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                                                <Layers className="w-5 h-5 text-amber-500" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-black text-white text-base truncate">{multiDungeons.length} donjons sélectionnés</p>
+                                                <p className="text-[11px] text-zinc-500 truncate">{multiDungeons.map(s => s.dungeon.name).join(" · ")}</p>
+                                            </div>
+                                        </div>
+                                        <Button variant="ghost" size="sm" onClick={() => setIsMultiOpen(true)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 shrink-0">
+                                            MODIFIER
+                                        </Button>
                                     </div>
-                                    <div className="flex-1 min-w-0 relative z-10">
-                                        <p className="font-black text-white text-lg tracking-tight truncate leading-tight">
-                                            {mode === "DONJON" ? selectedDungeon?.name : selectedQuest?.name}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            {mode === "DONJON" ? (
-                                                <>
-                                                    <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">NIVEAU {selectedDungeon?.level}</span>
-                                                    <span className="text-[11px] font-medium text-zinc-500 truncate">{selectedDungeon?.bossName}</span>
-                                                </>
+                                ) : (
+                                    <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-zinc-950 border-white/10" : "bg-emerald-950/30 border-emerald-500/20"}`}>
+                                            {mode === "DONJON" && selectedDungeon?.imageUrl ? (
+                                                <img src={selectedDungeon.imageUrl} alt="" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-500" />
+                                            ) : mode === "DONJON" ? (
+                                                <Swords className="w-6 h-6 text-zinc-500" />
                                             ) : (
-                                                <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">GROUPE QUÊTE</span>
+                                                <Map className="w-6 h-6 text-emerald-500" />
                                             )}
                                         </div>
+                                        <div className="flex-1 min-w-0 relative z-10">
+                                            <p className="font-black text-white text-lg tracking-tight truncate leading-tight">
+                                                {mode === "DONJON" ? selectedDungeon?.name : selectedQuest?.name}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {mode === "DONJON" ? (
+                                                    <>
+                                                        <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">NIVEAU {selectedDungeon?.level}</span>
+                                                        <span className="text-[11px] font-medium text-zinc-500 truncate">{selectedDungeon?.bossName}</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">GROUPE QUÊTE</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 shrink-0 relative z-10">
+                                            RETOUR
+                                        </Button>
                                     </div>
-                                    <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 shrink-0 relative z-10">
-                                        RETOUR
-                                    </Button>
-                                </div>
+                                )}
+
+                                {/* Résumé multi-donjons : succès / date / note par donjon */}
+                                {multiDungeons && multiDungeons.length >= 2 && (
+                                    <div className="space-y-2">
+                                        {multiDungeons.map((s) => (
+                                            <div key={s.dungeon.id} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 p-3 rounded-xl bg-zinc-900/40 border border-white/5">
+                                                <span className="text-xs font-bold text-white truncate">{s.dungeon.name}</span>
+                                                <span className="text-[10px] text-zinc-500">
+                                                    {s.achievements.length > 0 ? `${s.achievements.length} succès` : "sans succès"}
+                                                    {s.targetDate ? ` · ${new Date(s.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}
+                                                </span>
+                                                {s.message && <span className="text-[10px] text-zinc-500 truncate">· {s.message}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Dynamic Fields depending on Mode */}
-                                {mode === "DONJON" && selectedDungeon?.achievements.length ? (
+                                {!multiDungeons && mode === "DONJON" && selectedDungeon?.achievements.length ? (
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Succès visés (optionnel)</p>
                                         <div className="grid grid-cols-2 gap-2">
@@ -613,7 +700,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             placeholder="Rechercher une quête sur DofusDB..."
                                                             className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/10 transition-all placeholder:text-zinc-500 shadow-xl"
                                                         />
-                                                        {isSearchingLinkedQuest && <p className="text-xs text-slate-500 animate-pulse">Recherche...</p>}
+                                                        {isSearchingLinkedQuest && <p className="text-xs text-slate-500">Recherche...</p>}
                                                         {linkedQuestResults.length > 0 && (
                                                             <div className="space-y-1 max-h-32 overflow-y-auto">
                                                                 {linkedQuestResults.map(q => (
@@ -635,9 +722,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 )}
 
                                 {/* Date & Membres */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Date & Heure prévue</p>
+                                <div className={`grid gap-6 ${multiDungeons ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+                                    {!multiDungeons && (
+                                        <div className="space-y-3">
+                                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Date & Heure prévue</p>
                                         <DateTimePicker
                                             value={targetDate}
                                             onChange={setTargetDate}
@@ -646,9 +734,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                             timeOptional={true}
                                         />
                                     </div>
+                                    )}
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Taille du groupe</p>
-                                        <div className="flex bg-zinc-900 border border-white/5 rounded-2xl p-1 shadow-inner h-[52px] items-center">
+                                        <div className="flex bg-zinc-900 border border-white/5 rounded-xl p-1 h-[52px] items-center">
                                             {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                                                 <button
                                                     key={n}
@@ -676,11 +765,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                     key={c.id}
                                                     title={c.name}
                                                     onClick={() => toggleClass(c.name)}
-                                                    className={`aspect-square rounded-xl flex items-center justify-center transition-all border group/class ${isSelected 
-                                                        ? "border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_-5px_var(--color-amber-500)] scale-105" 
+                                                    className={`aspect-square rounded-xl flex items-center justify-center transition-colors border group/class ${isSelected 
+                                                        ? "border-amber-500/50 bg-amber-500/10" 
                                                         : "border-transparent opacity-30 hover:opacity-100 hover:bg-zinc-800 hover:border-white/10"}`}
                                                 >
-                                                    <img src={c.icon} alt={c.name} className="w-7 h-7 object-contain drop-shadow-lg group-hover/class:scale-110 transition-transform" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                    <img src={c.icon} alt={c.name} className="w-7 h-7 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
                                                 </button>
                                             );
                                         })}
@@ -688,6 +777,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 </div>
 
                                 {/* Message */}
+                                {!multiDungeons && (
                                 <div className="space-y-3">
                                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Note pour la guilde</p>
                                     <textarea
@@ -698,6 +788,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none transition-all resize-none shadow-xl placeholder:text-zinc-500"
                                     />
                                 </div>
+                                )}
 
                                 {/* Footer Action - Details Step */}
                                 <div className="pt-8 border-t border-white/5 mt-4">
@@ -904,7 +995,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                     : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
                                             }`}
                                             onClick={handleSubmit}
-                                            disabled={isPending || !targetDate}
+                                            disabled={isPending || (!multiDungeons && !targetDate)}
                                         >
                                             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
                                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
@@ -923,6 +1014,18 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                     </AnimatePresence>
                 </div>
             </DialogContent>
+
+            {/* Modale imbriquée : sélection multi-donjons (2 à 5) */}
+            <DjMultiDungeonModal
+                isOpen={isMultiOpen}
+                initial={multiDungeons ?? undefined}
+                onClose={() => setIsMultiOpen(false)}
+                onConfirm={(selections) => {
+                    setMultiDungeons(selections);
+                    setIsMultiOpen(false);
+                    if (step < 2) setStep(2);
+                }}
+            />
         </Dialog>
     );
 }

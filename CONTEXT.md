@@ -55,6 +55,17 @@
   `20260815000000` + `20260816000000` **appliquées en local** (`prisma migrate deploy`).
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build exit 0.
 
+### ✅ Session 15/08 (4e passe) — #66 clarté Modules/RBAC + #67 galerie + #70 croix fermer
+- **#66** : chaque carte Module affiche désormais **« Pages : »** avec liens cliquables vers les pages
+  concernées (`MODULE_ROUTES` dans modules-client.tsx) ; chaque carte RBAC affiche **« Débloque : »**
+  (permission-card.tsx). Dé-slop des deux pages (zéro glow/blur/animate-pulse, typo ≥ 11px).
+  ⚠️ **#66bis** : audit RBAC complet (doublons/manques/incohérences + bloc admin) — session dédiée.
+- **#67 galerie-stuff** : dé-slop page (header, tabs, filtres, cartes, compteur, micro-typos) sans
+  toucher à la logique (filtres/votes/partage).
+- **#70 croix fermer** : fix systémique `DialogContent`/`SheetContent` → bouton visible partout
+  (bg-white/10, bordure, opacity-90, aria-label « Fermer »).
+- Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **test:run 168/168** · build OK.
+
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
 - **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`
   (room `guild:{gid}:dofus:{slug}`, position = `questId`, fail-closed `isMemberOfGuild`) + hook

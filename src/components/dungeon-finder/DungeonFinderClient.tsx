@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useMemo, useTransition, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { io } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { Plus, Search, Trophy, Sword, RefreshCw, Frown, Users, AlertTriangle } from "lucide-react";
@@ -78,11 +77,10 @@ export function DungeonFinderClient({
         });
 
         socket.on("connect", () => {
-            console.log("[WS] 📡 Connecté pour Dungeon Finder");
+            // No-op — le socket est prêt, les events arrivent ensuite.
         });
 
-        socket.on("dj:finder:update", (data: any) => {
-            console.log("[WS] 🔄 Update DJ reçu", data);
+        socket.on("dj:finder:update", (_data: any) => {
             handleRefresh();
         });
 
@@ -168,58 +166,31 @@ export function DungeonFinderClient({
                     }[tab.color];
 
                     return (
-                        <motion.button
+                        <button
                             key={tab.id}
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
-                                "relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300",
+                                "relative group flex items-center gap-4 p-5 rounded-2xl border transition-colors",
                                 isActive
-                                    ? cn("bg-zinc-800/90 z-10 shadow-2xl", colorVariants.border, colorVariants.shadow)
+                                    ? cn("bg-zinc-800/90 z-10", colorVariants.border)
                                     : cn("bg-zinc-900/70 hover:bg-zinc-800/70", colorVariants.inactiveBorder)
                             )}
                         >
-                            {/* Animated Background Glow */}
-                            <AnimatePresence>
-                                {isActive && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className={cn(
-                                            "absolute inset-0 bg-gradient-to-br opacity-[0.03] pointer-events-none",
-                                            tab.color === 'indigo' ? 'from-indigo-500 to-transparent' :
-                                            tab.color === 'amber' ? 'from-amber-500 to-transparent' :
-                                            'from-emerald-500 to-transparent'
-                                        )}
-                                    />
-                                )}
-                            </AnimatePresence>
-
                             {/* Top Indicator */}
                             {isActive && (
-                                <motion.div 
-                                    layoutId="active-pill"
-                                    className={cn(
-                                        "absolute top-0 inset-x-0 h-[2px] z-20",
-                                        tab.color === 'indigo' ? 'bg-indigo-500' :
-                                        tab.color === 'amber' ? 'bg-amber-500' :
-                                        'bg-emerald-500'
-                                    )}
-                                    style={{ 
-                                        boxShadow: `0 0 15px ${tab.color === 'indigo' ? 'rgba(99,102,241,0.5)' : 
-                                                     tab.color === 'amber' ? 'rgba(245,158,11,0.5)' : 
-                                                     'rgba(16,185,129,0.5)'}` 
-                                    }}
-                                />
+                                <span className={cn(
+                                    "absolute top-0 inset-x-0 h-[2px] z-20",
+                                    tab.color === 'indigo' ? 'bg-indigo-500' :
+                                    tab.color === 'amber' ? 'bg-amber-500' :
+                                    'bg-emerald-500'
+                                )} />
                             )}
 
                             {/* Icon Box */}
                             <div className={cn(
-                                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 relative overflow-hidden",
+                                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border",
                                 isActive
-                                    ? colorVariants.icon + " shadow-lg"
+                                    ? colorVariants.icon
                                     : colorVariants.inactiveIcon + " group-hover:brightness-125"
                             )}>
                                 {isActive && (
@@ -230,7 +201,7 @@ export function DungeonFinderClient({
                                         'from-emerald-400 to-emerald-700'
                                     )} />
                                 )}
-                                <Icon className={cn("w-5 h-5 relative z-10", isActive ? "scale-110" : "scale-100 transition-transform duration-500 group-hover:scale-110")} />
+                                <Icon className={cn("w-5 h-5 relative z-10", isActive ? "scale-110" : "scale-100 transition-transform group-hover:scale-110")} />
                             </div>
 
                             {/* Labels */}
@@ -248,15 +219,7 @@ export function DungeonFinderClient({
                                     {tab.sub}
                                 </p>
                             </div>
-
-                            {/* Corner Accent */}
-                            {isActive && (
-                                <div className={cn(
-                                    "absolute -bottom-6 -right-6 w-20 h-20 blur-3xl rounded-full opacity-20",
-                                    colorVariants.glow
-                                )} />
-                            )}
-                        </motion.button>
+                        </button>
                     );
                 })}
             </div>
@@ -264,7 +227,7 @@ export function DungeonFinderClient({
             <div>
                 {/* === POSTS TAB === */}
                 {activeTab === "posts" && (
-                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="space-y-5">
                         {/* Toolbar */}
                         <div className="flex flex-col xl:flex-row xl:items-start gap-4">
                             <div className="flex-1">
@@ -290,8 +253,8 @@ export function DungeonFinderClient({
                                     onClick={() => setIsCreateOpen(true)}
                                     disabled={!canCreate}
                                     title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
-                                    className={`font-black h-10 gap-2 shadow-lg ${canCreate
-                                        ? "bg-white hover:bg-zinc-200 text-zinc-900 shadow-white/5"
+                                    className={`font-black h-10 gap-2 ${canCreate
+                                        ? "bg-white hover:bg-zinc-200 text-zinc-900"
                                         : "bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed opacity-70"
                                         }`}
                                 >
@@ -329,12 +292,8 @@ export function DungeonFinderClient({
 
                         {/* Posts grid */}
                         {filteredPosts.length === 0 ? (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-white/10 rounded-2xl bg-zinc-950/50 shadow-inner"
-                            >
-                                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 shadow-sm flex items-center justify-center mb-4">
+                            <div className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-white/10 rounded-2xl bg-zinc-950/50">
+                                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center mb-4">
                                     <Search className="w-6 h-6 text-slate-500" />
                                 </div>
                                 <h3 className="text-base font-bold text-slate-300 mb-1">Aucun post actif</h3>
@@ -352,40 +311,37 @@ export function DungeonFinderClient({
                                         <Plus className="w-4 h-4 mr-2" /> Créer un post
                                     </Button>
                                 )}
-                            </motion.div>
+                            </div>
                         ) : (
-                            <motion.div
-                                layout
+                            <div
                                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-tour="donjons-list"
                             >
-                                <AnimatePresence>
-                                    {filteredPosts.map((post) => (
-                                        <DjPostCard
-                                            key={post.id}
-                                            post={post}
-                                            guildId={guildId}
-                                            currentProfileId={currentProfileId}
-                                            isAdmin={isAdmin}
-                                            onRefresh={handleRefresh}
-                                            isDiscordConfigured={isDiscordConfigured}
-                                        />
-                                    ))}
-                                </AnimatePresence>
-                            </motion.div>
+                                {filteredPosts.map((post) => (
+                                    <DjPostCard
+                                        key={post.id}
+                                        post={post}
+                                        guildId={guildId}
+                                        currentProfileId={currentProfileId}
+                                        isAdmin={isAdmin}
+                                        onRefresh={handleRefresh}
+                                        isDiscordConfigured={isDiscordConfigured}
+                                    />
+                                ))}
+                            </div>
                         )}
                     </div>
                 )}
 
                 {/* === TRACKER TAB === */}
                 {activeTab === "tracker" && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div>
                         <AchievementTracker guildId={guildId} />
                     </div>
                 )}
 
                 {/* === DIRECTORY TAB === */}
                 {activeTab === "directory" && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div>
                         <DungeonDirectory guildId={guildId} onCreatePost={handleCreateGroupDirect} />
                     </div>
                 )}

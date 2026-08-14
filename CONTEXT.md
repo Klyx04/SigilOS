@@ -38,7 +38,8 @@
   `icone-quete.png` posé dans chaque quête : par-Dofus (`DofusTimelineQuest` QuestRow) + Rush
   (`RushTimelineClient` SequenceRow). ⚠️ `OptimizedGuideClient` jamais touché.
 - **Songe « éditer une run »** (manquante) : `updateDreamRun` (Zod, guild isolation, leader/admin,
-  rate-limit, refresh embed) + bouton/modale « Modifier la Run » dans `RunDetailHeader.tsx`.
+  rate-limit, refresh embed) + modale `RunEditModal` branchée dans `RunCard.tsx` (bouton « Modifier »
+  dans les actions leader).
 - **#63** : onglet « Quêtes Dofus » lecture seule stabilisé (`min-h-[60vh]` TabsContent + retrait slide-in,
   loading `min-h-[50vh]`).
 - **Vérif sécurité multi-donjons (#26/#7)** : `closeMemberPublishedContent` couvre déjà les posts multi
@@ -48,6 +49,10 @@
   Don) · panneau admin **« Points de Contribution »** `/admin/points` (`GuildConfig.pointsConfig`,
   migration `20260816000000_add_guild_points_config`, Zod admin, branché dans les clôtures DJ/Songes)
   · modale de suppression de run refaite (difficulté + avertissement, a11y).
+- **3e passe (15/08)** : RBAC dédiée **`points:manage`** (« Gestion des Points de Contribution ») → carte
+  automatique dans `/admin/permissions` (défaut : personne, admin bypass) · fix build (helpers purs →
+  `src/lib/points-config.ts`, un fichier « use server » n'exporte que des async) · migrations
+  `20260815000000` + `20260816000000` **appliquées en local** (`prisma migrate deploy`).
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build exit 0.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)

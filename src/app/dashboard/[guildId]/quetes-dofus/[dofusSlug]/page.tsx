@@ -49,7 +49,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
     if (!result.success || !result.data) return notFound();
 
-    const { dofus, chains } = result.data;
+    const { dofus, chains, prereqsByQuestId = {} } = result.data;
     const color = getDofusColor(dofus.slug, dofus.color || "#6366f1");
     const heatmapData = heatmapResult.success ? heatmapResult.data ?? null : null;
 
@@ -277,6 +277,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 heatmapData={heatmapData}
                 selectedCharacter={character}
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
+                prereqsByQuestId={prereqsByQuestId}
             />
         </div>
     );

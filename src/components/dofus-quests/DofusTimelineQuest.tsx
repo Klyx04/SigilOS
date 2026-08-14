@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   CheckCircle2, Circle, ChevronDown,
   ExternalLink, MapPin, Sword, Package,
@@ -22,6 +22,7 @@ interface DofusTimelineQuestProps {
   selectedCharacter?: string;
   synergy?: Record<string, { profileId: string; pseudo: string; image: string | null; status: string }[]>;
   currentUser?: { pseudo: string; image: string | null };
+  prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
 }
 
 function parseObjectiveText(raw: string): string {
@@ -150,10 +151,12 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
 }
 
 // ─── Quest Row ────────────────────────────────────────────────────────────
-function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSelected, synergyForQuest = [], currentUser, onClick, onToggle }: {
+function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSelected, synergyForQuest = [], currentUser, prereqs = [], onFocusPrereq, onClick, onToggle }: {
   quest: any; color: string; isCompleted: boolean; isLast: boolean; isNext: boolean; isBlocked: boolean; isSelected: boolean;
   synergyForQuest?: any[];
   currentUser?: { pseudo: string; image: string | null };
+  prereqs?: { fromQuestId: string; name: string }[];
+  onFocusPrereq?: (questId: string) => void;
   onClick: () => void; onToggle: (status: DofusQuestStatus) => void;
 }) {
   const isRenduIci = quest.status === "IN_PROGRESS";
@@ -176,7 +179,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
         }`}>
         {isCompleted && <CheckCircle2 className="w-3 h-3 text-emerald-950" />}
       </button>
-      <div onClick={onClick} className={`relative p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
+      <div id={`quest-${quest.id}`} onClick={onClick} className={`relative p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
         isRenduIci ? "bg-amber-500/10 border-amber-500/40" :
         isNext && !isCompleted ? "bg-emerald-500/10 border-emerald-500/30" :
         isCompleted ? "bg-emerald-500/5 border-emerald-500/15" :
@@ -192,6 +195,17 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
               {quest.isDungeon && <span className="text-[8px] font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Donjon</span>}
               {quest.isOptional && <span className="text-[8px] font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Optionnel</span>}
               {quest.level && <span className="text-[8px] font-black text-zinc-600">N{quest.level}</span>}
+              {isBlocked && prereqs && prereqs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onFocusPrereq?.(prereqs[0].fromQuestId); }}
+                  title={`Prérequis : ${prereqs.map(p => p.name).join(" · ")}`}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[8px] font-black uppercase tracking-wider hover:bg-amber-500/20 transition-colors"
+                >
+                  <Lock className="w-2.5 h-2.5" />
+                  {prereqs.length > 1 ? `${prereqs.length} prérequis` : "1 prérequis"}
+                </button>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); onToggle(isRenduIci ? "NOT_STARTED" : "IN_PROGRESS"); }}
                 title={isRenduIci ? "Retirer le repère \"Rendu ici\"" : "Marquer \"Rendu ici\" (quête en cours)"}
@@ -255,13 +269,15 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
 }
 
 // ─── Chain Section ────────────────────────────────────────────────────────
-function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser }: {
+function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser, collapsed, onToggleCollapse, prereqsByQuestId, onFocusPrereq }: {
   chain: any; color: string; completedIds: Set<string>; onToggleStatus: (q: string, s: DofusQuestStatus) => void;
   onQuestClick: (q: any) => void; expandedQuest: string | null; setExpandedQuest: (id: string | null) => void; guildId: string;
   synergy: Record<string, any[]>;
   currentUser?: { pseudo: string; image: string | null };
+  collapsed: boolean; onToggleCollapse: (id: string) => void;
+  prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
+  onFocusPrereq?: (questId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const entries = chain.entries || [];
   const completedCount = entries.filter((e: any) => completedIds.has(e.id)).length;
   const progress = entries.length > 0 ? Math.round((completedCount / entries.length) * 100) : 0;
@@ -279,7 +295,7 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
 
   return (
     <div className="bg-zinc-900/30 border border-white/5 rounded-3xl overflow-hidden">
-      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between p-5 bg-zinc-900/40 hover:bg-zinc-900/60 transition-all text-left">
+      <button onClick={() => onToggleCollapse(chain.id)} className="w-full flex items-center justify-between p-5 bg-zinc-900/40 hover:bg-zinc-900/60 transition-all text-left">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
             <Layers className="w-5 h-5" style={{ color }} />
@@ -299,22 +315,26 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
           <div className="hidden sm:block w-20 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }} />
           </div>
-          <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform duration-300 ${collapsed ? "" : "rotate-180"}`} />
         </div>
       </button>
       <AnimatePresence>
-        {expanded && (
+        {!collapsed && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="p-5 pt-2 space-y-1">
               {entries.map((entry: any, idx: number) => {
                 const isSelected = expandedQuest === entry.id;
+                const entryPrereqs = prereqsByQuestId?.[entry.id] || [];
+                const blockedByPrereqs = entryPrereqs.some((p) => !completedIds.has(p.fromQuestId));
                 return (
                   <div key={entry.id}>
                     <QuestRow quest={entry} color={color} isCompleted={completedIds.has(entry.id)} isLast={idx === entries.length - 1}
-                      isNext={!completedIds.has(entry.id) && idx === firstNonCompletedIdx} isBlocked={false}
+                      isNext={!completedIds.has(entry.id) && idx === firstNonCompletedIdx} isBlocked={blockedByPrereqs}
                       isSelected={isSelected}
                       synergyForQuest={synergy[entry.id] || []}
                       currentUser={currentUser}
+                      prereqs={entryPrereqs}
+                      onFocusPrereq={onFocusPrereq}
                       onClick={() => { setExpandedQuest(isSelected ? null : entry.id); onQuestClick(entry); }}
                       onToggle={(s) => onToggleStatus(entry.id, s)} />
                     <AnimatePresence>
@@ -404,13 +424,39 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────
-export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser }: DofusTimelineQuestProps) {
+export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, prereqsByQuestId = {} }: DofusTimelineQuestProps) {
   const [expandedQuest, setExpandedQuest] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideCompleted, setHideCompleted] = useState(false);
   const [clickedQuestId, setClickedQuestId] = useState<string | null>(null);
+  const [collapsedChains, setCollapsedChains] = useState<Set<string>>(new Set());
 
   const synergyMap = useMemo(() => synergy || {}, [synergy]);
+
+  const toggleChainCollapse = useCallback((id: string) => {
+    setCollapsedChains((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Focus sur une quête prérequis : déplie sa section, ouvre son détail et scroll dessus.
+  const handleFocusPrereq = useCallback((questId: string) => {
+    const chain = chains.find((c: any) => c.entries?.some((e: any) => e.id === questId));
+    if (!chain) return;
+    setCollapsedChains((prev) => {
+      if (!prev.has(chain.id)) return prev;
+      const next = new Set(prev);
+      next.delete(chain.id);
+      return next;
+    });
+    setExpandedQuest(questId);
+    setTimeout(() => {
+      document.getElementById(`quest-${questId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  }, [chains]);
 
   const totalQuests = useMemo(() => chains.reduce((acc: number, c: any) => acc + (c.entries?.length || 0), 0), [chains]);
   const completedQuests = useMemo(() => chains.reduce((acc: number, c: any) => acc + (c.entries?.filter((e: any) => completedIds.has(e.id)).length || 0), 0), [chains, completedIds]);
@@ -471,7 +517,9 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
           ) : filteredChains.map((chain: any) => (
             <ChainSection key={chain.id} chain={chain} color={dofusColor} completedIds={completedIds}
               onToggleStatus={handleQuestToggle} onQuestClick={handleQuestClick}
-              expandedQuest={expandedQuest} setExpandedQuest={setExpandedQuest} guildId={guildId} synergy={synergyMap} currentUser={currentUser} />
+              expandedQuest={expandedQuest} setExpandedQuest={setExpandedQuest} guildId={guildId} synergy={synergyMap} currentUser={currentUser}
+              collapsed={collapsedChains.has(chain.id)} onToggleCollapse={toggleChainCollapse}
+              prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} />
           ))}
         </div>
 

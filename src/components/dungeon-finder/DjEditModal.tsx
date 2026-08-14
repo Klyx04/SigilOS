@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords, ScrollText, Link2 } from "lucide-react";
+import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords, ScrollText, Link2, Layers } from "lucide-react";
 import { updateDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
@@ -53,7 +53,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
     }
 
     function handleSave() {
-        if (!targetDate) {
+        if (!isMulti && !targetDate) {
             toast.error("La date prévue est obligatoire.");
             return;
         }
@@ -61,7 +61,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
             const res = await updateDjPost(guildId, post.id, {
                 maxMembers,
                 message: message.trim() || null,
-                targetDate: new Date(targetDate),
+                targetDate: isMulti ? null : new Date(targetDate),
                 wantedAchievementIds: selectedAchievements,
                 requiredClasses,
                 ...(isManualQuest && {
@@ -79,7 +79,10 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
         });
     }
 
-    const title = post.mode === "DONJON" ? post.dungeon?.name : post.questName;
+    const isMulti = (post.dungeonsJson?.length ?? 0) > 0;
+    const title = isMulti
+        ? `Multi-donjons — ${post.dungeonsJson?.length}`
+        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName);
     const achievements = post.dungeon?.achievements ?? [];
 
     return (
@@ -100,7 +103,36 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
 
                 {/* Body */}
                 <div className="p-6 space-y-6">
-                    {/* Date */}
+                    {/* Multi-donjons : liste en lecture seule */}
+                    {isMulti && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-indigo-400" /> Donjons de la session
+                            </p>
+                            {(post.dungeonsJson ?? []).map((d: any, idx: number) => (
+                                <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
+                                    {d.imageUrl ? (
+                                        <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-zinc-950 border border-white/10 shrink-0 p-0.5" />
+                                    ) : (
+                                        <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                            <Swords className="w-4 h-4" />
+                                        </span>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-white truncate">{d.name}</p>
+                                        <p className="text-[10px] text-slate-500">
+                                            Lvl {d.level}
+                                            {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
+                                            {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Date (simple uniquement — le multi gère ses dates par donjon) */}
+                    {!isMulti && (
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                             <CalendarClock className="w-3.5 h-3.5 text-indigo-400" />
@@ -114,6 +146,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             timeOptional={true}
                         />
                     </div>
+                    )}
 
                     {/* Nom et lien quête manuelle */}
                     {isManualQuest && (

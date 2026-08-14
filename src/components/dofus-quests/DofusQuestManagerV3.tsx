@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo } from "react";
+import { useState, useEffect, useTransition, useMemo, useRef } from "react";
 import { 
     getGuildSynergyForDofus, 
     toggleQuestStatus,
@@ -11,6 +11,7 @@ import { DofusTimelineQuest } from "./DofusTimelineQuest";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DofusQuestStatus } from "@prisma/client";
+import { useDofusPresence } from "@/hooks/use-dofus-presence";
 
 interface DofusQuestManagerV3Props {
     guildId: string;
@@ -36,11 +37,33 @@ export function DofusQuestManagerV3({
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
     const [currentUser, setCurrentUser] = useState<{ pseudo: string; image: string | null } | null>(null);
+    const [focusedQuestId, setFocusedQuestId] = useState<string | null>(null);
     
     const [localOverrides, setLocalOverrides] = useState<Map<string, DofusQuestStatus>>(new Map());
 
     const router = useRouter();
     const [, startTransition] = useTransition();
+
+    // #37 suite — présence temps réel de la page par-Dofus.
+    // La quête « focus » (détail ouvert) est le signal de position courant (heartbeat).
+    const loadSynergyRef = useRef(loadSynergy);
+    useEffect(() => {
+        loadSynergyRef.current = loadSynergy;
+    });
+
+    const dofusPresence = useDofusPresence({
+        guildId,
+        dofusSlug: dofus.slug,
+        questId: focusedQuestId,
+        userName: currentUser?.pseudo,
+        userAvatar: currentUser?.image ?? undefined,
+        onEvent: (e) => {
+            // Bascule de statut par un autre membre → refresh synergie en live (débounce léger).
+            if (e.type === "quest:status") {
+                window.setTimeout(() => loadSynergyRef.current(), 200);
+            }
+        },
+    });
 
     // Fetch current user info for "QUI EST OÙ" panel
     useEffect(() => {
@@ -109,8 +132,6 @@ export function DofusQuestManagerV3({
 
     useEffect(() => {
         loadSynergy();
-        const interval = setInterval(loadSynergy, 120000);
-        return () => clearInterval(interval);
     }, [dofus.id, guildId]);
 
     const totalMembers = Object.values(synergy).reduce((acc, members) => {
@@ -131,6 +152,9 @@ export function DofusQuestManagerV3({
                 synergy={synergy}
                 currentUser={currentUser || undefined}
                 prereqsByQuestId={prereqsByQuestId}
+                presence={dofusPresence.presence}
+                presenceConnected={dofusPresence.connectionStatus === "connected"}
+                onFocusedQuestChange={setFocusedQuestId}
             />
         </div>
     );

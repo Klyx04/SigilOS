@@ -75,7 +75,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                         value={filters.search}
                         onChange={(e) => onChange({ ...filters, search: e.target.value })}
                         placeholder="Rechercher un donjon, boss, quête…"
-                        className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 shadow-2xl transition-all h-11 backdrop-blur-xl"
+                        className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-500/50 h-11"
                     />
                     {filters.search && (
                         <button 
@@ -89,28 +89,24 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
 
                 <div className="flex items-center gap-2 shrink-0">
                     {/* Mode Selector */}
-                    <div className="flex bg-zinc-900/80 border border-white/10 rounded-xl p-1 relative shadow-2xl h-11 items-center backdrop-blur-xl">
+                    <div className="flex bg-zinc-900/80 border border-white/10 rounded-xl p-1 h-11 items-center">
                         {[
-                            { value: "", label: "Tous", icon: null, activeColor: "bg-indigo-500", activeText: "text-white", glow: "shadow-indigo-500/40" },
-                            { value: "DONJON", label: "DJ", icon: Swords, activeColor: "bg-rose-500", activeText: "text-white", glow: "shadow-rose-500/40" },
-                            { value: "QUETE", label: "Quête", icon: Map, activeColor: "bg-emerald-500", activeText: "text-white", glow: "shadow-emerald-500/40" },
-                        ].map(({ value, label, icon: Icon, activeColor, activeText, glow }) => {
+                            { value: "", label: "Tous", icon: null, activeColor: "bg-indigo-500", activeText: "text-white" },
+                            { value: "DONJON", label: "DJ", icon: Swords, activeColor: "bg-rose-500", activeText: "text-white" },
+                            { value: "QUETE", label: "Quête", icon: Map, activeColor: "bg-emerald-500", activeText: "text-white" },
+                        ].map(({ value, label, icon: Icon, activeColor, activeText }) => {
                             const isActive = filters.mode === value;
                             return (
                                 <button
                                     key={value}
                                     onClick={() => onChange({ ...filters, mode: value })}
                                     className={cn(
-                                        "relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-[11px] font-black transition-all duration-300",
+                                        "relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-[11px] font-black transition-colors",
                                         isActive ? activeText : "text-zinc-500 hover:text-zinc-300"
                                     )}
                                 >
                                     {isActive && (
-                                        <motion.div
-                                            layoutId="active-mode-pill"
-                                            className={cn("absolute inset-0 rounded-lg -z-10 shadow-lg", activeColor, glow)}
-                                            transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                                        />
+                                        <span className={cn("absolute inset-0 rounded-lg -z-10", activeColor)} />
                                     )}
                                     {Icon && <Icon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-zinc-500")} />}
                                     <span className="relative z-10 uppercase tracking-wider">{label}</span>
@@ -130,7 +126,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                         <Users className="w-3.5 h-3.5" />
                         Filtres
                         {hasActiveAdvancedFilters && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
                         )}
                     </button>
 
@@ -138,7 +134,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     {hasActiveFilters && (
                         <button
                             onClick={() => onChange({ ...DEFAULT_FILTERS })}
-                            className="flex items-center justify-center w-11 h-11 rounded-xl text-slate-500 hover:text-rose-400 border border-white/5 hover:border-rose-900/50 bg-slate-900/50 hover:bg-rose-950/30 transition-all shadow-inner shrink-0"
+                            className="flex items-center justify-center w-11 h-11 rounded-xl text-slate-500 hover:text-rose-400 border border-white/5 hover:border-rose-900/50 bg-slate-900/50 hover:bg-rose-950/30 transition-colors shrink-0"
                             title="Reset"
                         >
                             <RotateCcw className="w-4 h-4" />
@@ -165,8 +161,8 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                     <button
                                         key={preset.label}
                                         onClick={() => onChange({ ...filters, minLevel: preset.min, maxLevel: preset.max })}
-                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all border ${isActive
-                                            ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30 shadow-indigo-900/20"
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-colors border ${isActive
+                                            ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
                                             : "bg-white/5 text-slate-500 border-transparent hover:bg-white/10 hover:text-slate-300"
                                             }`}
                                     >
@@ -226,9 +222,9 @@ function ToggleChip({
     return (
         <button
             onClick={onToggle}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border shadow-sm transition-all ${active
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${active
                 ? colorClass
-                : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-300 shadow-inner"
+                : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-300"
                 }`}
         >
             {icon}

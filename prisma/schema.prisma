@@ -1362,6 +1362,12 @@ model DjSearchPost {
   questId              Int?
   requiredClasses      String[]
   mentionRoleId        String?
+  /**
+   * Mode multi-donjons (#26) : UN SEUL post portant N donjons (2-5).
+   * Chaque entrée contient le snapshot du donjon (nom/image/niveau/succès)
+   * + succès visés + note + date prévue. dungeonId reste NULL en mode multi.
+   */
+  dungeonsJson         Json?
   participants         DjSearchParticipant[]
   dungeon              Dungeon?              @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
   guild                GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
@@ -1380,6 +1386,11 @@ model DjSearchParticipant {
   userId      String
   classe      String?
   message     String?
+  /**
+   * #26 multi-donjons : index (0-based) du donjon rejoint dans post.dungeonsJson
+   * — sert à afficher « a rejoint X » sur la carte/embed. null = post simple.
+   */
+  dungeonIndex Int?
   status      DjParticipantStatus @default(PENDING)
   createdAt   DateTime            @default(now())
   respondedAt DateTime?

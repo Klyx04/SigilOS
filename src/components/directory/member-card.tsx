@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Hammer, Palmtree, Shield, ShieldCheck, Sparkles } from "lucide-react";
+import { Hammer, Palmtree, Shield, ShieldCheck, Sparkles, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { getDisplayName } from "@/lib/display-name";
 import { ClassIcon } from "@/components/shared/class-icon";
@@ -76,6 +77,19 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
     const alignmentData = getAlignment(profile.alignment || "");
     const orderData = profile.alignment && profile.alignmentOrder ? getOrder(profile.alignment, profile.alignmentOrder) : null;
+
+    // #60 : copie rapide du pseudo pour /w en jeu
+    const handleCopyPseudo = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pseudo = profile.pseudoDofus || profile.discordNickname || displayName;
+        if (!pseudo) return;
+        navigator.clipboard.writeText(`/w ${pseudo}`).then(() => {
+            toast.success(`Pseudo "${pseudo}" copié (commande /w prête)`);
+        }).catch(() => {
+            toast.error("Impossible de copier le pseudo");
+        });
+    };
 
     return (
         <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}>
@@ -205,6 +219,16 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 <h3 className="font-black text-xl truncate text-white italic uppercase tracking-tighter">
                                     {displayName}
                                 </h3>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyPseudo}
+                                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors shrink-0"
+                                    title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
+                                    aria-label="Copier le pseudo"
+                                >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Copier</span>
+                                </button>
                                 {profile.isAdmin && (
                                     <TooltipProvider>
                                         <Tooltip>

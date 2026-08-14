@@ -66,6 +66,28 @@
 - Vérifs : tsc 0 · lint 0 erreur · **165/165** · build OK · pre-commit vert (4 commits).
 - 🔜 Reportés : #34 God Télémetry pro + #26/#27 donjons (multi-embed) → prochaine session.
 
+### ✅ Session 14/08 (suite) — #61 Rush Sylvestre + quick wins (2 commits `0869dc11e` + `f435969bf`)
+- **#61 Rush Sylvestre refondu** (`0869dc11e`, PLAN-ACTION-RUSH-SYLVESTRE.md 4 phases, **`OptimizedGuideClient` jamais touché**) :
+  - **P1 temps réel** : `useGuidePresence` porté (room `guild:{guildId}:guide:rush-sylvestre`), `RushLivePopover`
+    (poll BDD 10s) remplacé par présence WS + fallback props serveur, **polling `router.refresh()` 120s supprimé**,
+    **mode discret** (localStorage `guide-incognito-{guildId}`) dans le menu Options, `LiveActivityTicker` réutilisé,
+    modale « Membres sur le guide », `guide-styles.css` importé (tokens `--z-*` dispo sur la page Rush).
+  - **P3 densité** : checkbox 44px→22px, suppression du doublon « Position de lancement » (tips vs chip pos_tags). **Icônes conservées visibles** (retour user 2e passe) : chips NOOBS/DOFUSDB restaurées avec favicons + tous les badges d'activité affichés.
+  - **P4 glow** : textShadow/boxShadow ornés/drop-shadow retirés (bannières DofusObtained/Info/InfoSequence plates, hero plat).
+  - **P2 hero** : carte **Metamob cliquable → `OcreProgressModal`** (nouvelle prop `ocreMonsters`), carte Alignement
+    cliquable entière, **menu « Options »** (Masquer terminées / Mode discret / Aide / Réinitialiser) — 3 boutons retirés de la barre sticky.
+- **Quick wins** (`f435969bf`) :
+  - **#39** présence Dashboard temps réel (WS) : handlers `dashboard:join/leave` (auth + guild isolation fail-closed,
+    broadcast aux AUTRES via `socket.broadcast.to`) + hook `useDashboardPresence` dans la SmartBar → toasts
+    « X est arrivé(e) / a quitté le dashboard ». ⚠️ **redéployer le container WS** pour activer.
+  - **#45** embeds lifecycle : pseudo **serveur** (`discordNickname`) en priorité, plus jamais `user.name` (bot inclus).
+  - **#46** popup d'arrivée sous le bouton Don : Dialog shadcn `z-50`→`z-[110]` (close `z-[120]`), welcome modals `z-[120]` — au-dessus du SupportOrb `z-[100]`.
+  - **#42** galerie + profil : icône remontée de façon robuste (wrapper `bottom-14` + `object-[50%_20%]`) sur `gallery-client.tsx` **et** `skin-library.tsx` (profil — non touché avant).
+  - **#43** boutons onglet Stuff du profil : tailles unifiées `w-9 h-9`, **teintes colorées** (Sync sky / Éditer ambre / Supprimer rouge / Copier emerald) + **logo Discord blurple #5865F2** (overlay + modale).
+  - **#60** annuaire : bouton **« Copier »** visible (bordure emerald + libellé) → `/w pseudo`.
+- Vérifs : tsc 0 · lint 0 erreur · **test:run 165/165** · build OK · pre-commit vert (2 commits).
+- 🔜 Prochaine session : #37 God quêtes-dofus, #38 Prêt/Coffre, #44 sondages UX, + rappels #34/#26/#27.
+
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 
 > Tous les commits poussés sur `feat/deploy-clean-pro` (PR à merger vers `dev`). Détail complet : `src/temp/memo-2026-08-10-worldmap-jeux-429-suite.md`.

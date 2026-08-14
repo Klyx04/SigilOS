@@ -545,13 +545,15 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                         {/* Thumbnail Container */}
                         <div className="aspect-[4/5] relative bg-black/40">
                             {skin.thumbnailUrl ? (
-                                <NextImage 
-                                    src={skin.thumbnailUrl} 
-                                    alt={skin.name}
-                                    fill
-                                    className="object-contain p-4 transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-1"
-                                    unoptimized // Often useful for external thumbnails
-                                />
+                                <div className="absolute inset-x-0 top-0 bottom-14 flex items-center justify-center">
+                                    <NextImage 
+                                        src={skin.thumbnailUrl} 
+                                        alt={skin.name}
+                                        fill
+                                        className="object-contain object-[50%_20%] transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-1"
+                                        unoptimized // Often useful for external thumbnails
+                                    />
+                                </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
                                     <Sparkles className="w-12 h-12" />
@@ -603,7 +605,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         size="icon"
                                         onClick={() => handleRefreshMetadata(skin.id, skin.url)}
                                         disabled={isSubmitting}
-                                        className="w-9 h-9 bg-zinc-900/40 backdrop-blur-md border-white/5 hover:bg-sky-500/20 hover:border-sky-500/30 hover:text-sky-400 rounded-xl transition-all shadow-xl"
+                                        className="w-9 h-9 bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 hover:border-sky-500/50 rounded-xl transition-all"
                                         title="Synchroniser"
                                     >
                                         <RefreshCw className={cn("w-4 h-4", isSubmitting && "animate-spin")} />
@@ -617,7 +619,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                             setEditedUrl(skin.url);
                                             setIsEditOpen(true);
                                         }}
-                                        className="w-10 h-10 bg-zinc-950/80 backdrop-blur-xl border border-white/10 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 rounded-xl transition-all shadow-2xl"
+                                        className="w-9 h-9 bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50 rounded-xl transition-all"
                                         title="Éditer"
                                     >
                                         <Pencil className="w-4 h-4" strokeWidth={2.5} />
@@ -631,7 +633,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                 setSkinToDelete(skin.id);
                                                 setIsDeleteOpen(true);
                                             }}
-                                            className="w-9 h-9 bg-zinc-900/40 backdrop-blur-md border-white/5 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400 rounded-xl transition-all shadow-xl"
+                                            className="w-9 h-9 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 rounded-xl transition-all"
                                             title="Supprimer"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -655,16 +657,16 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
 
                                 {/* BOTTOM ACTION BAR: FLOATING GLASS */}
                                 <div className="w-full pointer-events-auto transform translate-y-[20px] group-hover:translate-y-0 transition-all duration-500 delay-100">
-                                    <div className="flex items-center gap-1 bg-zinc-950/40 backdrop-blur-2xl border border-white/10 p-1.5 rounded-2xl shadow-2xl">
+                                    <div className="flex items-center gap-1 bg-zinc-950/80 border border-white/10 p-1.5 rounded-2xl">
                                         <Button 
-                                            variant="ghost"
-                                            size="sm"
+                                            variant="outline"
+                                            size="icon"
                                             onClick={async () => {
                                                 const res = await shareGalleryItemOnDiscord(guildId, skin.id, "SKIN", profileId);
                                                 if (res.success) toast.success("Partagé sur Discord !");
                                                 else toast.error(res.error || "Erreur lors du partage");
                                             }}
-                                            className="flex-1 h-9 hover:bg-indigo-500/20 text-indigo-400 rounded-xl transition-all gap-2 text-[10px] font-black uppercase tracking-widest"
+                                            className="w-9 h-9 bg-[#5865F2]/15 border border-[#5865F2]/40 text-[#5865F2] hover:bg-[#5865F2]/25 hover:border-[#5865F2]/60 rounded-xl transition-all"
                                             title="Partager sur Discord"
                                         >
                                             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -673,10 +675,10 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         </Button>
                                         <div className="w-[1px] h-6 bg-white/10" />
                                         <Button 
-                                            variant="ghost"
+                                            variant="outline"
                                             size="icon"
                                             onClick={() => handleCopyLink(skin.url)}
-                                            className="w-9 h-9 hover:bg-emerald-500/20 text-emerald-400 rounded-xl transition-all"
+                                            className="w-9 h-9 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 rounded-xl transition-all"
                                             title="Copier le lien"
                                         >
                                             <Copy className="w-3.5 h-3.5" />
@@ -882,7 +884,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="rounded-xl border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
+                                    className="rounded-xl border-[#5865F2]/40 bg-[#5865F2]/10 text-[#5865F2] hover:bg-[#5865F2] hover:text-white hover:border-[#5865F2] h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
                                     onClick={async () => {
                                         const res = await shareGalleryItemOnDiscord(guildId, selectedSkin.id, "SKIN", profileId);
                                         if (res.success) toast.success("Partagé sur Discord !");

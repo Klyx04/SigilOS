@@ -19,7 +19,8 @@ import {
     TrendingUp,
     MessageSquare,
     CalendarCheck,
-    Pencil
+    Pencil,
+    AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -252,22 +254,41 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     {(isLeader || isAdmin) && (
                         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-white/10 hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg">
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg" title="Supprimer la run">
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="bg-[#0a0514] border-white/10 text-white max-w-sm rounded-2xl">
                                 <DialogHeader>
                                     <DialogTitle className="flex items-center gap-2 text-red-500 text-lg font-black uppercase">
-                                        <Trash2 className="w-5 h-5" /> Supprimer ?
+                                        <Trash2 className="w-5 h-5" /> Supprimer la run
                                     </DialogTitle>
+                                    <DialogDescription className="sr-only">
+                                        Confirmation de suppression définitive de la run
+                                    </DialogDescription>
                                 </DialogHeader>
-                                <p className="text-sm text-white/50 leading-relaxed py-4 italic">
-                                    Confirmer la suppression ?
-                                </p>
-                                <div className="flex gap-3">
-                                    <Button variant="ghost" className="flex-1 rounded-xl h-10" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-                                    <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] rounded-xl h-10" onClick={handleDelete} disabled={loading}>
+                                <div className="py-1 space-y-4">
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                        <p className="text-[11px] text-red-200/80 font-medium leading-relaxed">
+                                            Cette action est <span className="font-black text-red-300">irréversible</span>.
+                                            La run <span className="font-bold text-white">{DIFFICULTIES[run.difficulty as DifficultyKey]?.label || run.difficulty}</span>
+                                            {run.members.length > 0 ? ` (${run.members.length} membre${run.members.length > 1 ? "s" : ""})` : ""}
+                                            , ses candidatures et son annonce Discord seront définitivement supprimés.
+                                        </p>
+                                    </div>
+                                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                                        {run.members.length > 0
+                                            ? "Les participants perdront leur place."
+                                            : "Aucun participant n'est inscrit."}
+                                    </p>
+                                </div>
+                                <div className="flex gap-3 mt-4">
+                                    <Button variant="outline" className="flex-1 rounded-xl h-10 border-white/10 bg-white/5 hover:bg-white/10 text-white" onClick={() => setDeleteDialogOpen(false)}>
+                                        Annuler
+                                    </Button>
+                                    <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] rounded-xl h-10 bg-red-600 hover:bg-red-500 text-white" onClick={handleDelete} disabled={loading}>
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
                                         Supprimer
                                     </Button>
                                 </div>

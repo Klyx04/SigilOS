@@ -111,6 +111,9 @@
   sur la quête prérequis. **#44 module Sondages invisible** : cause = `DEFAULT_MODULES.polls=false` + **toggle
   `polls` absent de `/admin/modules`** → toggle « Sondages » ajouté (+ **doublon « Mini-Jeux & Carte » supprimé**).
   ⚠️ Réactiver « Sondages » dans `/admin/modules` après déploiement.
+- **Session 14/08 (suite 4)** — **« Rendu ici » bloqué sur quêtes à prérequis non terminés** (page par-Dofus :
+  bouton désactivé ; Rush : refus dans `handleBookmarkSequence` via `blockedSeqIds`) + **dénomination revue :
+  « Rendu ici » → « Je suis ici »** partout (boutons, tooltips, compteurs « N membres ici », Rush inclus).
 
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 

@@ -106,6 +106,11 @@
 - **Icône Discord profil** (retour user) : bouton **toujours visible** sur chaque miniature de stuff
   (`skin-library.tsx`, blurple #5865F2, partage rapide).
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 165/165**.
+- **Session 14/08 (suite 3)** — **#37 prérequis rendus côté user** : `getDofusDetailWithChains` charge
+  `prereqsByQuestId` → quête **grisée + badge cadenas « N prérequis »** tant que non complété + clic = focus/scroll
+  sur la quête prérequis. **#44 module Sondages invisible** : cause = `DEFAULT_MODULES.polls=false` + **toggle
+  `polls` absent de `/admin/modules`** → toggle « Sondages » ajouté (+ **doublon « Mini-Jeux & Carte » supprimé**).
+  ⚠️ Réactiver « Sondages » dans `/admin/modules` après déploiement.
 
 ## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
 

@@ -236,6 +236,106 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
     return { success: true, runId: run.id };
 }
 
+// ============================================
+// UPDATE RUN (édition — chantier Songes)
+// ============================================
+
+const UpdateRunSchema = z.object({
+    difficulty: z.enum([
+        "REVE_I", "REVE_II", "REVE_III",
+        "PARADOXE_I", "PARADOXE_II", "PARADOXE_III", "PARADOXE_IV",
+        "CAUCHEMAR_I", "CAUCHEMAR_II", "CAUCHEMAR_III"
+    ]),
+    objectives: z.array(z.enum([
+        "MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN", "QUETE"
+    ])).min(1, "Sélectionnez au moins un objectif"),
+    epreuveCode: z.string().nullable().optional(), // null = run standard
+    scheduledAt: z.date().optional().nullable(),
+    mentionRoleIds: z.array(z.string()).default([]),
+    currentFloor: z.number().min(0).max(26).optional(),
+}).refine((data) => {
+    if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
+    const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
+    const restrictedObjectives = ["DROP_LEGENDE", "SUCCES_NO_ACHAT"];
+    if (!isParadoxeOrHigher) {
+        const hasRestricted = data.objectives.some(o => restrictedObjectives.includes(o));
+        if (hasRestricted) return false;
+    }
+    return true;
+}, {
+    message: "Certains objectifs nécessitent une difficulté Paradoxe ou plus.",
+    path: ["objectives"]
+});
+
+/**
+ * Édite une run Songes (difficulté, objectifs, épreuve, date/heure, rôles ping, étage).
+ * Sécurité : fail-closed (contexte guilde), guild isolation (la run doit appartenir
+ * à la guilde du contexte), seuls le leader ou un admin peuvent modifier, rate-limit,
+ * jamais de console.log → logger. Rafraîchit l'embed Discord si la run était publiée.
+ */
+export async function updateDreamRun(
+    guildId: string,
+    runId: string,
+    data: z.infer<typeof UpdateRunSchema>
+): Promise<{ success: boolean; error?: string; resetAt?: number }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const validated = UpdateRunSchema.safeParse(data);
+    if (!validated.success) {
+        return { success: false, error: validated.error.errors[0].message };
+    }
+
+    // RATE LIMIT : 10 éditions par 10 minutes (anti-spam)
+    const limiter = await rateLimit(`update_dream_run:${ctx.userId}:${guildId}`, 10, 10 * 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop de modifications. Veuillez patienter.", resetAt: limiter.reset };
+
+    try {
+        // ── Guild isolation : la run doit appartenir à la guilde du contexte ──
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+
+        // ── Seul le leader ou un admin peut modifier ──
+        if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+            return { success: false, error: "Seul le leader ou un administrateur peut modifier cette run" };
+        }
+
+        // ── Une run terminée/abandonnée n'est plus modifiable ──
+        if (["COMPLETED", "FAILED", "ABANDONED"].includes(run.status)) {
+            return { success: false, error: "Impossible de modifier une run terminée ou abandonnée" };
+        }
+
+        await db.dreamRun.update({
+            where: { id: runId },
+            data: {
+                difficulty: validated.data.difficulty,
+                objectives: validated.data.objectives,
+                objective: validated.data.objectives[0], // legacy field
+                epreuveCode: validated.data.epreuveCode ?? null,
+                scheduledAt: validated.data.scheduledAt ?? null,
+                mentionRoleId: validated.data.mentionRoleIds.length > 0 ? validated.data.mentionRoleIds.join(",") : null,
+                ...(validated.data.currentFloor !== undefined && { currentFloor: validated.data.currentFloor }),
+            },
+        });
+
+        // Rafraîchir l'embed Discord si la run était publiée (best-effort, non bloquant)
+        try {
+            const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+            await updateDiscordRunEmbed(ctx.guildId, runId);
+        } catch (embedErr) {
+            logger.warn("[updateDreamRun] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        return { success: true };
+    } catch (error) {
+        logger.error("[updateDreamRun] error:", error);
+        return { success: false, error: "Erreur lors de la modification de la run" };
+    }
+}
+
 /**
  * Lightweight public config fetch for Songes (no admin required)
  */

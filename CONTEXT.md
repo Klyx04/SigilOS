@@ -23,12 +23,27 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 14/08 (suite 5) sur `feat/chantier-2026-08-14`
+## 🧭 Chantier global (src/temp/chantier) — SESSION 15/08 sur `feat/chantier-2026-08-14`
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
-> migrations 201 à jour, Sondages `polls=t`). Nouvelle branche `feat/chantier-2026-08-14`
+> migrations 201 à jour, Sondages `polls=t`). Branche `feat/chantier-2026-08-14`
 > (base `origin/dev` = `e2549faee`) → PR vers dev.
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
+
+### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons
+- **#68 icônes** : choix de l'icône du bloc d'en-tête des pages quêtes par Dofus **côté God**
+  (`PlatformConfig.dofusQuestHeaderIcon`, migration `20260815000000_add_dofus_quest_header_icon`,
+  validation Zod enum dans `updatePlatformConfig`, select dans `platform-config-panel.tsx`) →
+  rendue dans `quetes-dofus/[dofusSlug]/page.tsx` via `getDofusQuestHeaderIcon()` (fail-closed).
+  `icone-quete.png` posé dans chaque quête : par-Dofus (`DofusTimelineQuest` QuestRow) + Rush
+  (`RushTimelineClient` SequenceRow). ⚠️ `OptimizedGuideClient` jamais touché.
+- **Songe « éditer une run »** (manquante) : `updateDreamRun` (Zod, guild isolation, leader/admin,
+  rate-limit, refresh embed) + bouton/modale « Modifier la Run » dans `RunDetailHeader.tsx`.
+- **#63** : onglet « Quêtes Dofus » lecture seule stabilisé (`min-h-[60vh]` TabsContent + retrait slide-in,
+  loading `min-h-[50vh]`).
+- **Vérif sécurité multi-donjons (#26/#7)** : `closeMemberPublishedContent` couvre déjà les posts multi
+  (1 ligne `DjSearchPost` + 1 `discordMessageId`) → CLOSED + embed supprimé, aucun job de rappel planifié.
+- Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build exit 0.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
 - **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`

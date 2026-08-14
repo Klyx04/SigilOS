@@ -161,6 +161,11 @@ model PlatformConfig {
   ladderManualFallbackUpdatedBy String?
   // Enable / disable the quest local search fallback (siphon local + dofusdb)
   questSearchLocalFirst  Boolean  @default(true)
+  // Chantier #68 — Icône affichée dans le bloc d'en-tête des pages quêtes par Dofus
+  // (choix God : "serie-de-quete" | "icone-succes")
+  dofusQuestHeaderIcon String   @default("serie-de-quete")
+  dofusQuestHeaderIconUpdatedAt DateTime?
+  dofusQuestHeaderIconUpdatedBy String?
 }
 
 /// Délégation d'accès au dashboard God (sub-gods) avec scopes granulaires.

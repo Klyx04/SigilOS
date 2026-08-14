@@ -109,7 +109,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="!z-[140] w-[95vw] max-w-3xl bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto premium-scrollbar">
+            <DialogContent className="!z-[140] w-[min(95vw,42rem)] max-w-[42rem] sm:min-w-[34rem] bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto premium-scrollbar">
                 <DialogHeader className="border-b border-white/5 p-5">
                     <DialogTitle className="flex items-center gap-3 text-lg font-black">
                         <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">

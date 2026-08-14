@@ -121,9 +121,15 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         });
     }
 
-    const title = post.mode === "DONJON" ? post.dungeon?.name : post.questName;
-    const subtitle = post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : "Quête";
-    const coverImage = post.dungeon?.imageUrl;
+    const multiDungeons = (post.dungeonsJson ?? []) as any[];
+    const isMulti = multiDungeons.length > 0;
+    const title = isMulti
+        ? `Multi-donjons — ${multiDungeons.length}`
+        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName);
+    const subtitle = isMulti
+        ? "Session de guilde multi-donjons"
+        : (post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : "Quête");
+    const coverImage = isMulti ? (multiDungeons[0]?.imageUrl ?? null) : post.dungeon?.imageUrl;
 
     const isOpen = post.status === "OPEN" || post.status === "FULL";
     const isDonjon = post.mode === "DONJON";
@@ -333,6 +339,32 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     </div>
                                 );
                             })}
+                        </div>
+                    )}
+
+                    {/* Multi-donjons : liste des donjons de la session (#26) */}
+                    {isMulti && (
+                        <div className="space-y-2">
+                            {multiDungeons.map((d: any, idx: number) => (
+                                <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950/40 border border-white/5">
+                                    {d.imageUrl ? (
+                                        <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-zinc-950 border border-white/10 shrink-0 p-0.5" />
+                                    ) : (
+                                        <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                            <Swords className="w-4 h-4" />
+                                        </span>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] font-bold text-white truncate">{d.name}</p>
+                                        <p className="text-[9px] text-zinc-500">
+                                            Lvl {d.level}
+                                            {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
+                                            {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                        </p>
+                                    </div>
+                                    <span className="text-[9px] font-black text-indigo-400/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
+                                </div>
+                            ))}
                         </div>
                     )}
 

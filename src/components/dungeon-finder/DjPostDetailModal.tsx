@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell
+    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -131,15 +131,15 @@ export function DjPostDetailModal({
 
                     {/* Hero Image / Banner */}
                     <div className="relative h-28 bg-slate-900 border-b border-white/5 overflow-hidden shrink-0">
-                        {post.mode === "DONJON" && post.dungeon?.imageUrl && (
-                            <img src={post.dungeon?.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                        {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) && (
+                            <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
 
                         <div className="absolute bottom-4 left-4 right-4 flex items-end gap-4">
                             <div className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg ${post.mode === "DONJON" ? "bg-slate-800/80 border-white/10" : "bg-cyan-950/80 border-cyan-500/30"}`}>
-                                {post.mode === "DONJON" && post.dungeon?.imageUrl ? (
-                                    <img src={post.dungeon?.imageUrl} alt="" className="w-full h-full object-cover" />
+                                {post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl) ? (
+                                    <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="w-full h-full object-cover" />
                                 ) : post.mode === "DONJON" ? (
                                     <Swords className="w-6 h-6 text-slate-400" />
                                 ) : (
@@ -148,10 +148,14 @@ export function DjPostDetailModal({
                             </div>
                             <div className="flex-1 min-w-0 pb-1">
                                 <h2 className="text-xl font-black text-white truncate drop-shadow-md">
-                                    {post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête"}
+                                    {(post.dungeonsJson as any[])?.length > 0
+                                        ? `Multi-donjons — ${(post.dungeonsJson as any[]).length}`
+                                        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête")}
                                 </h2>
                                 <p className="text-sm font-medium text-slate-300">
-                                    {post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : "Mode Quête"}
+                                    {(post.dungeonsJson as any[])?.length > 0
+                                        ? "Session de guilde multi-donjons"
+                                        : (post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : "Mode Quête")}
                                 </p>
                             </div>
                             <Badge className={`mb-1 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]" : "bg-white/5 text-slate-400 border-white/10"}`}>
@@ -194,7 +198,9 @@ export function DjPostDetailModal({
                                 <div>
                                     <p className="text-[10px] text-cyan-500/70 font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
                                     <span className="text-sm text-cyan-300 font-bold">
-                                        {post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête"}
+                                        {(post.dungeonsJson as any[])?.length > 0
+                                            ? `Multi-donjons — ${(post.dungeonsJson as any[]).length}`
+                                            : (post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête")}
                                     </span>
                                 </div>
                             </div>
@@ -225,6 +231,33 @@ export function DjPostDetailModal({
                                 )}
                             </div>
                         </div>
+
+                        {/* Multi-donjons : liste de la session (#26) */}
+                        {(post.dungeonsJson as any[])?.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Donjons de la session</p>
+                                {(post.dungeonsJson as any[]).map((d: any, idx: number) => (
+                                    <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900/40 border border-white/5">
+                                        {d.imageUrl ? (
+                                            <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-zinc-950 border border-white/10 shrink-0 p-0.5" />
+                                        ) : (
+                                            <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                                <Swords className="w-4 h-4" />
+                                            </span>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-bold text-white truncate">{d.name}</p>
+                                            <p className="text-[10px] text-slate-500">
+                                                Lvl {d.level}
+                                                {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
+                                                {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                            </p>
+                                        </div>
+                                        <span className="text-[9px] font-black text-indigo-400/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Message */}
                         {post.message && (

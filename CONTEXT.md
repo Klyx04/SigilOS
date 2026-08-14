@@ -26,8 +26,9 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 15/08 sur `feat/chantier-2026-08-14`
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
-> migrations 201 à jour, Sondages `polls=t`). Branche `feat/chantier-2026-08-14`
-> (base `origin/dev` = `e2549faee`) → PR vers dev.
+> migrations 201 à jour, Sondages `polls=t`). **PR #470 (session 14/08) MERGÉE dans dev**
+> (`d39d40e97`, base 8866229d7). Branche `feat/chantier-2026-08-14` porte les **11 commits 15/08**
+> (session 4e passe + correctif tags) **non encore mergés** → nouvelle PR à ouvrir vers dev.
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
 
 ### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons
@@ -54,6 +55,17 @@
   `src/lib/points-config.ts`, un fichier « use server » n'exporte que des async) · migrations
   `20260815000000` + `20260816000000` **appliquées en local** (`prisma migrate deploy`).
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 168/168** · build exit 0.
+
+### ✅ Session 15/08 (4e passe) — #66 clarté Modules/RBAC + #67 galerie + #70 croix fermer
+- **#66** : chaque carte Module affiche désormais **« Pages : »** avec liens cliquables vers les pages
+  concernées (`MODULE_ROUTES` dans modules-client.tsx) ; chaque carte RBAC affiche **« Débloque : »**
+  (permission-card.tsx). Dé-slop des deux pages (zéro glow/blur/animate-pulse, typo ≥ 11px).
+  ⚠️ **#66bis** : audit RBAC complet (doublons/manques/incohérences + bloc admin) — session dédiée.
+- **#67 galerie-stuff** : dé-slop page (header, tabs, filtres, cartes, compteur, micro-typos) sans
+  toucher à la logique (filtres/votes/partage).
+- **#70 croix fermer** : fix systémique `DialogContent`/`SheetContent` → bouton visible partout
+  (bg-white/10, bordure, opacity-90, aria-label « Fermer »).
+- Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **test:run 168/168** · build OK.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
 - **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`

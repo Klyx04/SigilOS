@@ -325,34 +325,25 @@ export function GalleryClient({
     return (
         <div className="space-y-6 pb-20">
             {/* Hero Header */}
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl p-8 lg:p-10">
-                <div className={cn(
-                    "absolute top-0 right-0 w-96 h-96 blur-[120px] rounded-full -mr-20 -mt-20 shrink-0 transition-colors duration-500",
-                    activeTab === "STUFF" ? "bg-emerald-500/10" : "bg-sky-500/10"
-                )} />
-                <div className={cn(
-                    "absolute bottom-0 left-0 w-64 h-64 blur-[100px] rounded-full -ml-20 -mb-20 shrink-0 transition-colors duration-500",
-                    activeTab === "STUFF" ? "bg-indigo-500/10" : "bg-purple-500/10"
-                )} />
-
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40 p-8 lg:p-10">
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-widest shrink-0 w-fit">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-xs font-medium shrink-0 w-fit">
                                 <ShieldCheck className="w-3.5 h-3.5 text-zinc-500" />
-                                Galerie de Guilde 2026
+                                Galerie de Guilde
                             </div>
                             
                             <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as any)} className="w-full sm:w-auto">
-                                <TabsList className="bg-black/60 border border-white/10 h-14 p-1.5 rounded-2xl shadow-2xl">
+                                <TabsList className="bg-black/60 border border-white/10 h-14 p-1.5 rounded-xl">
                                     <TabsTrigger 
                                         value="STUFF" 
-                                        className="rounded-xl px-6 h-full text-[12px] font-black uppercase tracking-widest gap-3 data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-all duration-300"
+                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-colors duration-200"
                                     >
                                         <Sword className={cn("w-4 h-4 transition-transform", activeTab === "STUFF" ? "scale-110" : "opacity-40")} />
-                                        ÉQUIPEMENTS
+                                        Équipements
                                         <span className={cn(
-                                            "ml-1 px-1.5 py-0.5 rounded-md text-[9px] font-black",
+                                            "ml-1 px-1.5 py-0.5 rounded-md text-xs font-semibold",
                                             activeTab === "STUFF" ? "bg-white/20 text-white" : "bg-white/5 text-zinc-600"
                                         )}>
                                             {stuffTotal}
@@ -360,12 +351,12 @@ export function GalleryClient({
                                     </TabsTrigger>
                                     <TabsTrigger 
                                         value="SKIN" 
-                                        className="rounded-xl px-6 h-full text-[12px] font-black uppercase tracking-widest gap-3 data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all duration-300"
+                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-colors duration-200"
                                     >
                                         <Sparkles className={cn("w-4 h-4 transition-transform", activeTab === "SKIN" ? "scale-110" : "opacity-40")} />
-                                        SKINS & LOOKS
+                                        Skins & Looks
                                         <span className={cn(
-                                            "ml-1 px-1.5 py-0.5 rounded-md text-[9px] font-black",
+                                            "ml-1 px-1.5 py-0.5 rounded-md text-xs font-semibold",
                                             activeTab === "SKIN" ? "bg-white/20 text-white" : "bg-white/5 text-zinc-600"
                                         )}>
                                             {skinTotal}
@@ -376,11 +367,8 @@ export function GalleryClient({
                         </div>
 
                         <div>
-                            <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tight mb-2">
-                                Galerie <span className={cn(
-                                    "text-transparent bg-clip-text bg-gradient-to-r transition-all duration-500",
-                                    activeTab === "STUFF" ? "from-emerald-400 to-indigo-400" : "from-sky-400 to-purple-400"
-                                )}>Guilde</span>
+                            <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight mb-2">
+                                Galerie <span className={cn("transition-colors duration-200", activeTab === "STUFF" ? "text-emerald-400" : "text-sky-400")}>Guilde</span>
                             </h1>
                             <p className="text-zinc-400 max-w-xl text-base leading-relaxed">
                                 {activeTab === "STUFF" 
@@ -412,13 +400,13 @@ export function GalleryClient({
                 </div>
             </div>
 
-            {/* Premium Filter Bar */}
+            {/* Filter Bar */}
             <div className="sticky top-0 z-30 pt-2">
-                <div className="bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] px-5 py-4 shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                <div className="bg-zinc-950/80 border border-white/10 rounded-2xl px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                     {/* Left: Filters */}
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* 1. Class Filter */}
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5" data-tour="galerie-filters">
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-white/5" data-tour="galerie-filters">
                             <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
                         </div>
 
@@ -431,12 +419,12 @@ export function GalleryClient({
                                 <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
 
                                 {/* 2. Primary Elements */}
-                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5">
+                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
                                     <button
                                         onClick={() => handleTagChange(null)}
                                         className={cn(
-                                            "h-8 px-4 rounded-xl text-[11px] font-black transition-all shrink-0",
-                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                            "h-8 px-4 rounded-lg text-xs font-semibold transition-colors shrink-0",
+                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-white text-black" : "text-zinc-500 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         Tous
@@ -449,8 +437,8 @@ export function GalleryClient({
                                                 key={id}
                                                 onClick={() => handleTagChange(selectedTag === id ? null : id)}
                                                 className={cn(
-                                                    "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                                    selectedTag === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                                    "h-8 px-3 rounded-lg text-xs font-medium transition-colors shrink-0",
+                                                    selectedTag === id ? `${tag.className} ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
                                                 )}
                                             >
                                                 {tag.label}
@@ -462,7 +450,7 @@ export function GalleryClient({
                                 <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
 
                                 {/* 3. Advanced / Specialities */}
-                                <div className="flex items-center bg-black/40 p-1 rounded-2xl border border-white/5">
+                                <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5">
                                     <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
                                 </div>
 
@@ -473,12 +461,12 @@ export function GalleryClient({
 
                     {/* Right: Count & Reset & Sort */}
                     <div className="flex items-center gap-4 text-sm w-full xl:w-auto shrink-0 justify-between xl:justify-end border-t border-white/5 pt-4 xl:border-0 xl:pt-0 flex-wrap">
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5 mr-2">
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-white/5 mr-2">
                             <button
                                 onClick={() => handleSortChange("newest")}
                                 className={cn(
-                                    "flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                    sortBy === "newest" ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                    "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
+                                    sortBy === "newest" ? "bg-white text-black" : "text-zinc-500 hover:text-white hover:bg-white/10"
                                 )}
                             >
                                 <RefreshCw className="w-3.5 h-3.5" /> Récents
@@ -486,8 +474,8 @@ export function GalleryClient({
                             <button
                                 onClick={() => handleSortChange("votes")}
                                 className={cn(
-                                    "flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                    sortBy === "votes" ? "bg-yellow-500 text-black shadow-md shadow-yellow-500/20" : "text-zinc-500 hover:text-yellow-400 hover:bg-white/10"
+                                    "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
+                                    sortBy === "votes" ? "bg-yellow-500 text-black" : "text-zinc-500 hover:text-yellow-400 hover:bg-white/10"
                                 )}
                             >
                                 <Star className={cn("w-3.5 h-3.5", sortBy === "votes" && "fill-black")} /> Favoris
@@ -495,25 +483,24 @@ export function GalleryClient({
                         </div>
                         
                         <div className="flex items-center gap-3">
-                            <p className="text-[11px] text-zinc-500 flex items-center gap-2">
-                                <span className={cn(
-                                    "w-2 h-2 rounded-full animate-pulse shrink-0",
-                                    activeTab === "STUFF" ? "bg-emerald-500/50" : "bg-sky-500/50"
-                                )} />
-                                <span className="text-white font-black">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
+                            <p className="text-sm text-zinc-500 flex items-center gap-2 tabular-nums">
+                                <span className="text-white font-semibold">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
                                 <span> sur {activeTab === "STUFF" ? stuffTotal : skinTotal} item{ (activeTab === "STUFF" ? stuffTotal : skinTotal) !== 1 ? "s" : ""}</span>
                             </p>
-                            {(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? (
-                                <>
-                                    <div className="w-px h-4 bg-white/10 shrink-0" />
-                                    <button
-                                        onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
-                                        className="text-[10px] text-zinc-400 hover:text-white transition-colors font-bold uppercase tracking-widest flex items-center gap-1 shrink-0"
-                                    >
-                                        <RefreshCw className="w-3 h-3" /> Reset
-                                    </button>
-                                </>
-                            ) : null}
+                            {/* Espace du bouton Reset TOUJOURS réservé → pas de saut de page
+                                quand un filtre devient actif (#67 anti-layout-shift) */}
+                            <div className="w-px h-4 bg-white/10 shrink-0" />
+                            <button
+                                onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
+                                tabIndex={(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? 0 : -1}
+                                aria-hidden={!(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource)}
+                                className={cn(
+                                    "text-xs text-zinc-400 hover:text-white transition-colors font-medium flex items-center gap-1 shrink-0",
+                                    !(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) && "invisible"
+                                )}
+                            >
+                                <RefreshCw className="w-3 h-3" /> Reset
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -536,7 +523,7 @@ export function GalleryClient({
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                                 disabled={refreshingIds.has(build.id)}
-                                                className="p-1.5 bg-zinc-800/90 rounded-lg text-white hover:bg-zinc-700 transition-colors shadow-lg pointer-events-auto disabled:opacity-50"
+                                                className="p-1.5 bg-zinc-800/90 rounded-lg text-white hover:bg-zinc-700 transition-colors pointer-events-auto disabled:opacity-50"
                                                 title="Actualiser depuis Dofusbook"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", refreshingIds.has(build.id) && "animate-spin")} />
@@ -545,7 +532,7 @@ export function GalleryClient({
                                                 onClick={(e) => { e.stopPropagation(); handleVoteStuff(build); }}
                                                 disabled={votingIds.has(build.id)}
                                                 className={cn(
-                                                    "p-1.5 rounded-lg transition-colors shadow-lg pointer-events-auto disabled:opacity-50 flex items-center justify-center gap-1.5",
+                                                    "p-1.5 rounded-lg transition-colors pointer-events-auto disabled:opacity-50 flex items-center justify-center gap-1.5",
                                                     build.hasVoted 
                                                         ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30" 
                                                         : "bg-zinc-800/90 text-zinc-400 hover:text-yellow-400 hover:bg-zinc-700"
@@ -563,7 +550,7 @@ export function GalleryClient({
                                                     navigator.clipboard.writeText(build.url);
                                                     toast.success("Lien copié !");
                                                 }}
-                                                className="p-1.5 bg-zinc-800/90 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors shadow-lg pointer-events-auto"
+                                                className="p-1.5 bg-zinc-800/90 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors pointer-events-auto"
                                             >
                                                 <Copy className="w-3.5 h-3.5" />
                                             </button>
@@ -572,7 +559,7 @@ export function GalleryClient({
                                                     onClick={(e) => { e.stopPropagation(); handleShare(build.id, "STUFF", build.author.id); }}
                                                     disabled={sharingIds.has(build.id) || !stuffShareConfigured}
                                                     className={cn(
-                                                        "p-1.5 rounded-lg transition-colors shadow-lg pointer-events-auto disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed",
+                                                        "p-1.5 rounded-lg transition-colors pointer-events-auto disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed",
                                                         "bg-indigo-500 text-white hover:bg-indigo-400"
                                                     )}
                                                     title={stuffShareConfigured ? "Propulser sur Discord !" : "Non configuré (Admin)"}
@@ -584,7 +571,7 @@ export function GalleryClient({
                                                 href={build.url} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
-                                                className="p-1.5 bg-emerald-500 rounded-lg text-white hover:bg-emerald-400 transition-colors shadow-lg pointer-events-auto"
+                                                className="p-1.5 bg-emerald-500 rounded-lg text-white hover:bg-emerald-400 transition-colors pointer-events-auto"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
                                             </a>
@@ -599,14 +586,14 @@ export function GalleryClient({
                                                 {build.author.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[11px] text-zinc-500">
-                                            Par <span className="text-zinc-300 font-bold">{build.author.name}</span>
+                                        <span className="text-xs text-zinc-500">
+                                            Par <span className="text-zinc-300 font-semibold">{build.author.name}</span>
                                         </span>
                                         {build.createdAt && (
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <span className="text-[9px] text-zinc-600 font-medium ml-1 cursor-default">
+                                                        <span className="text-xs text-zinc-600 font-medium ml-1 cursor-default">
                                                             {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                                         </span>
                                                     </TooltipTrigger>
@@ -620,7 +607,7 @@ export function GalleryClient({
                                             </TooltipProvider>
                                         )}
                                     </div>
-                                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                    <span className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-md border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                                         DofusBook
                                     </span>
                                 </div>
@@ -654,9 +641,9 @@ export function GalleryClient({
 
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent p-4 flex flex-col justify-end">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h3 className="text-sm font-black text-white truncate max-w-[150px]">{skin.name}</h3>
+                                            <h3 className="text-sm font-semibold text-white truncate max-w-[150px]">{skin.name}</h3>
                                             <div className="flex items-center gap-1">
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/10 text-white/60 font-black uppercase tracking-tighter">
+                                                <span className="text-xs px-1.5 py-0.5 rounded-md bg-white/10 text-white/70 font-medium">
                                                     {skin.provider}
                                                 </span>
                                             </div>
@@ -684,7 +671,7 @@ export function GalleryClient({
                                                     onClick={(e) => { e.stopPropagation(); handleVoteSkin(skin); }}
                                                     disabled={votingIds.has(skin.id)}
                                                     className={cn(
-                                                        "p-1.5 rounded-lg transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center gap-1.5",
+                                                        "p-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5",
                                                         skin.hasVoted 
                                                             ? "bg-yellow-500 text-black" 
                                                             : "bg-zinc-800/90 text-zinc-400 hover:text-yellow-400 hover:bg-zinc-700"
@@ -692,7 +679,7 @@ export function GalleryClient({
                                                 >
                                                     <Star className={cn("w-3.5 h-3.5", skin.hasVoted && "fill-current")} />
                                                     {skin.votesCount > 0 && (
-                                                        <span className="text-[10px] font-black">{skin.votesCount}</span>
+                                                        <span className="text-xs font-semibold">{skin.votesCount}</span>
                                                     )}
                                                 </button>
                                                 {currentProfileId === skin.author.id && (
@@ -700,7 +687,7 @@ export function GalleryClient({
                                                          onClick={(e) => { e.stopPropagation(); handleShare(skin.id, "SKIN"); }}
                                                          disabled={sharingIds.has(skin.id) || !skinShareConfigured}
                                                          className={cn(
-                                                             "p-1.5 rounded-lg transition-colors shadow-lg disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center",
+                                                             "p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center",
                                                              "bg-indigo-500 text-white hover:bg-indigo-400"
                                                          )}
                                                          title={skinShareConfigured ? "Partager sur Discord" : "Non configuré (Admin)"}
@@ -718,7 +705,7 @@ export function GalleryClient({
                                                     href={skin.url} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
-                                                    className="p-1.5 bg-zinc-800/90 border border-white/10 rounded-lg text-white hover:bg-zinc-700 transition-colors shadow-lg flex items-center justify-center"
+                                                    className="p-1.5 bg-zinc-800/90 border border-white/10 rounded-lg text-white hover:bg-zinc-700 transition-colors flex items-center justify-center"
                                                     title={`Voir sur ${skin.provider === 'BARBOFUS' ? 'Barbofus' : skin.provider === 'DOFUSSKINMANGA' ? 'SkinManga' : 'Source'}`}
                                                 >
                                                     <img 

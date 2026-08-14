@@ -96,6 +96,8 @@ export type DjPostWithDetails = {
         createdAt: Date;
         classe?: string | null;
         message?: string | null;
+        /** #26 multi : index du donjon rejoint (0-based dans post.dungeonsJson). */
+        dungeonIndex?: number | null;
         profile: {
             id: string;
             discordNickname: string | null;
@@ -290,6 +292,22 @@ async function sendDiscordNotification(
  * PAR donjon + UN SEUL ping (créateur + rôles autorisés). UNE seule rangée de
  * boutons (S'inscrire / Se désinscrire / Voir le site) pour le post unique.
  */
+
+/** Rangée de boutons PAR donjon (max 5 rangées, ≤5 donjons) — bouton « S'inscrire »
+ *  libellé avec le nom du donjon + index (dj:join:{postId}:{idx}). */
+function buildMultiButtonRows(post: any, guildId: string) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const entries: any[] = post.dungeonsJson ?? [];
+    return entries.map((entry: any, idx: number) => ({
+        type: 1,
+        components: [
+            { type: 2, style: 1, label: `S'inscrire — ${(entry.name || "Donjon").substring(0, 40)}`, emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}:${idx}` },
+            { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${post.id}:${idx}` },
+            { type: 2, style: 5, label: "Voir le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+        ],
+    }));
+}
+
 async function sendMultiDiscordNotification(
     guildId: string,
     post: any,
@@ -313,14 +331,7 @@ async function sendMultiDiscordNotification(
         const isForumChannel = channelData.type === 15;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
-        const rows = [{
-            type: 1,
-            components: [
-                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}` },
-                { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${post.id}` },
-                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
-            ],
-        }];
+        const rows = buildMultiButtonRows(post, guildId);
 
         const mentions = [
             creatorDiscordId ? `<@${creatorDiscordId}>` : "",
@@ -375,17 +386,17 @@ async function sendMultiDiscordNotification(
  * Construit UN embed PAR donjon du mode multi (#26) : nom, image, succès visés,
  * date prévue, note, classes recherchées + membres (partagés sur la session).
  */
-async function buildMultiPostEmbeds(post: any, authorName: string, guildId: string): Promise<any[]> {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[]> {
     const entries: any[] = post.dungeonsJson ?? [];
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const totalCount = acceptedParts.length + 1;
     const participantLines = acceptedParts.map((p: any) => {
         const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
-        return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
+        const djName = entries[p.dungeonIndex]?.name;
+        return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}${djName ? ` — ${djName}` : ""}`;
     });
 
-    return entries.map((entry: any) => {
+    return entries.map((entry: any, idx: number) => {
         const fields: any[] = [];
         fields.push({
             name: "📍 Donjon",
@@ -415,13 +426,12 @@ async function buildMultiPostEmbeds(post: any, authorName: string, guildId: stri
         });
 
         return {
-            title: "⚔️ MULTI-DONJON",
-            description: `🔗 **${entries.length} donjons** — rejoins la session !`,
+            title: `⚔️ MULTI-DONJON — ${entry.name}`,
+            description: `${idx + 1}/${entries.length} · rejoins la session !`,
             color: 0x818cf8,
             fields,
             thumbnail: entry.imageUrl && entry.imageUrl.startsWith("https://") ? { url: entry.imageUrl } : undefined,
-            footer: { text: "SigilOS — Donjons & Quêtes (multi-donjons)" },
-            url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes`,
+            footer: { text: `SigilOS — Donjon ${idx + 1}/${entries.length}` },
             timestamp: new Date().toISOString(),
         };
     });
@@ -448,31 +458,43 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
         const token = process.env.DISCORD_BOT_TOKEN;
         if (!token) return;
         const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
-        const embed = await buildPostEmbed(post, authorName, guildId, post.participants);
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const isMulti = (post.dungeonsJson ?? []).length > 0;
         const isOpen = post.status === "OPEN" || post.status === "FULL";
-        const buttonComponents: any[] = isOpen ? [
-            { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
-            { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
-            { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
-        ] : [
-            { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
-        ];
 
-        if (post.dungeon?.dofuspourlesnoobsUrl || (post.questUrl && post.questUrl.includes("dofuspourlesnoobs"))) {
-            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.dungeon?.dofuspourlesnoobsUrl || post.questUrl });
-        }
-        if (post.dungeon?.dofensiveUrl) {
-            buttonComponents.push({ type: 2, style: 5, label: "Dofensive", emoji: { name: "🛡️" }, url: post.dungeon.dofensiveUrl });
-        }
-        if (post.questId && post.questId !== -1) {
-            buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
+        let patchBody: Record<string, unknown>;
+        if (isMulti) {
+            // #26 multi : rafraîchit UN embed PAR donjon + boutons par donjon
+            const embeds = await buildMultiPostEmbeds(post, authorName);
+            const components = buildMultiButtonRows(post, guildId);
+            patchBody = { embeds, components };
+        } else {
+            const embed = await buildPostEmbed(post, authorName, guildId, post.participants);
+            const buttonComponents: any[] = isOpen ? [
+                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
+                { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
+                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+            ] : [
+                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+            ];
+
+            if (post.dungeon?.dofuspourlesnoobsUrl || (post.questUrl && post.questUrl.includes("dofuspourlesnoobs"))) {
+                buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.dungeon?.dofuspourlesnoobsUrl || post.questUrl });
+            }
+            if (post.dungeon?.dofensiveUrl) {
+                buttonComponents.push({ type: 2, style: 5, label: "Dofensive", emoji: { name: "🛡️" }, url: post.dungeon.dofensiveUrl });
+            }
+            if (post.questId && post.questId !== -1) {
+                buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
+            }
+
+            const components = [{ type: 1, components: buttonComponents }];
+            patchBody = { embeds: [embed], components };
         }
 
-        const components = [{ type: 1, components: buttonComponents }];
         const patchRes = await fetch(
             `https://discord.com/api/v10/channels/${post.discordChannelId}/messages/${post.discordMessageId}`,
-            { method: "PATCH", headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ embeds: [embed], components }) }
+            { method: "PATCH", headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(patchBody) }
         );
         if (!patchRes.ok) logger.error("[updateDjDiscordEmbed] PATCH failed:", patchRes.status);
     } catch (err) { logger.error("[updateDjDiscordEmbed]", err); }
@@ -1009,7 +1031,8 @@ export async function createDjPosts(
         // Discord : UN seul message, UN embed PAR donjon, UN seul ping
         if (rest.isDiscordPublished) {
             const authorName = user.name || "Membre";
-            const embeds = await buildMultiPostEmbeds(post, authorName, guildId);
+            const embeds = await buildMultiPostEmbeds(post, authorName);
+            logger.debug(`[createDjPosts] ${embeds.length} embed(s) Discord multi-donjons`);
             const creatorDiscordId = await getDiscordId(user.id || "");
             await sendMultiDiscordNotification(guildId, post, embeds, mentionRoleId, creatorDiscordId);
         }
@@ -1427,7 +1450,8 @@ export async function leaveDjPost(
 export async function internalJoinDjPost(
     postId: string,
     profileId: string,
-    userId: string
+    userId: string,
+    dungeonIndex?: number
 ): Promise<ActionResponse> {
     try {
         const post = await (db as any).djSearchPost.findUnique({
@@ -1442,6 +1466,13 @@ export async function internalJoinDjPost(
 
         if (post.profileId === profileId) return { success: false, error: "Tu es le créateur de ce post" };
 
+        // #26 multi-donjons : borne l'index du donjon rejoint (0-based, < nb de donjons)
+        const multiEntries: any[] = post.dungeonsJson ?? [];
+        const joinedDungeonIndex =
+            multiEntries.length > 0
+                ? (Number.isFinite(dungeonIndex) ? Math.max(0, Math.min(dungeonIndex as number, multiEntries.length - 1)) : undefined)
+                : undefined;
+
         const existing = await (db as any).djSearchParticipant.findFirst({
             where: { postId, profileId },
         });
@@ -1452,7 +1483,7 @@ export async function internalJoinDjPost(
         }
 
         await (db as any).djSearchParticipant.create({
-            data: { postId, profileId, userId, status: "ACCEPTED" },
+            data: { postId, profileId, userId, status: "ACCEPTED", dungeonIndex: joinedDungeonIndex },
         });
 
         const newCount = post.participants.length + 1;

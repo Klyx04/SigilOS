@@ -1386,6 +1386,11 @@ model DjSearchParticipant {
   userId      String
   classe      String?
   message     String?
+  /**
+   * #26 multi-donjons : index (0-based) du donjon rejoint dans post.dungeonsJson
+   * — sert à afficher « a rejoint X » sur la carte/embed. null = post simple.
+   */
+  dungeonIndex Int?
   status      DjParticipantStatus @default(PENDING)
   createdAt   DateTime            @default(now())
   respondedAt DateTime?

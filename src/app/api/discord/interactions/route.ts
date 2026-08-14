@@ -91,7 +91,9 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            const [prefix, action, entityId] = custom_id.split(":");
+            const [prefix, action, entityId, extra] = custom_id.split(":");
+            // #26 multi-donjons : custom_id = dj:join:{postId}:{idx} → index du donjon
+            const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
 
             const account = await findUserByDiscordId(member.user.id);
             if (!account && prefix !== "ticket") {
@@ -279,7 +281,7 @@ export async function POST(request: NextRequest) {
 
                     if (action === "join") {
                         const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                        result = await internalJoinDjPost(entityId, profile.id, account!.userId);
+                        result = await internalJoinDjPost(entityId, profile.id, account!.userId, dungeonIndex);
 
                         if (result?.success) {
                             return NextResponse.json({

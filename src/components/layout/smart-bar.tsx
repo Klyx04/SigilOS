@@ -5,6 +5,7 @@ import { PresenceModal } from "./presence-modal";
 import { getActivePresence } from "@/server/actions/presence-actions";
 import { useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useDashboardPresence } from "@/hooks/use-dashboard-presence";
 
 interface SmartBarProps {
     memberCount?: number;
@@ -17,6 +18,9 @@ export function SmartBar({ memberCount, onlineCount, canSearch = false }: SmartB
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const { guildId } = useParams() as { guildId: string };
+
+    // Chantier #39 : notifications temps réel « X est arrivé / a quitté le dashboard ».
+    useDashboardPresence({ guildId, enabled: !!guildId });
 
     const [liveOnlineCount, setLiveOnlineCount] = useState(onlineCount);
 

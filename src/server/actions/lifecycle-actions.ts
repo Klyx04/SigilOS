@@ -190,9 +190,13 @@ export async function sendLifecycleNotification(
         const emoji = LIFECYCLE_EMOJIS[type] || "📋";
         const title = `${emoji} ${LIFECYCLE_TITLES[type] || "Événement Membre"}`;
         
-        const discordName = profile.user?.name || profile.discordNickname || "Inconnu";
+        // #45 : pseudo SERVEUR en priorité (discordNickname), jamais user.name
+        // (nom de compte Discord global). Le pseudo Dofus reste le plus lisible
+        // pour une guilde, on le met devant, le pseudo serveur en 2e.
+        const serverPseudo = profile.discordNickname || profile.discordInfo?.nickname || "";
         const dofusPseudo = profile.pseudoDofus;
-        const displayName = dofusPseudo || discordName;
+        const displayName = dofusPseudo || serverPseudo || getDisplayName(profile) || "Inconnu";
+        const discordName = serverPseudo || dofusPseudo || "Inconnu";
         
         // Avatar URL from Discord
         const userAvatar = profile.user?.image || undefined;

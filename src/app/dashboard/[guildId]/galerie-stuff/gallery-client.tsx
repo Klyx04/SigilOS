@@ -642,7 +642,7 @@ export function GalleryClient({
                                             src={skin.thumbnailUrl} 
                                             alt={skin.name} 
                                             fill 
-                                            className="object-contain group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
+                                            className="object-contain object-[50%_42%] group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-zinc-950">
@@ -661,7 +661,7 @@ export function GalleryClient({
                                         </div>
 
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex items-center gap-1.5 mb-0.5">
                                                 {skin.metadata?.class && DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.icon && (
                                                     <div className="w-6 h-6 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center" title={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.name || skin.metadata.class}>
                                                         <NextImage 

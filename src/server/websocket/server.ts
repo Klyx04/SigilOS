@@ -11,6 +11,7 @@ import { rateLimit } from "../../lib/ratelimit";
 import { getRushActiveMembers } from "../actions/rush-actions";
 import { logger as AppLogger } from "../../lib/logger";
 import { createGuidePresence } from "./guide-presence";
+import { createDofusPresence } from "./dofus-presence";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
@@ -279,6 +280,15 @@ const guidePresence = createGuidePresence({
     isMemberOfGuild,
 });
 
+// === PAGE PAR-DOFUS — présence temps réel (chantier #37, suite) ===
+// Room `guild:<guildId>:dofus:<slug>` + canal Redis `dofus:*`.
+const dofusPresence = createDofusPresence({
+    io,
+    subClient,
+    wsAuthEnabled: WS_AUTH_ENABLED,
+    isMemberOfGuild,
+});
+
 // Gestionnaire global des connexions
 io.on("connection", (socket: Socket) => {
     let guildId = socket.handshake.query.guildId as string;
@@ -398,6 +408,20 @@ io.on("connection", (socket: Socket) => {
         guildId?: string; guideSlug?: string; milestoneId?: string; userName?: string; userAvatar?: string;
     }) => {
         guidePresence.handleHeartbeat(socket, data).catch(() => {});
+    });
+
+    // === PAGE PAR-DOFUS PRESENCE (chantier #37, suite) ===
+    // Room `guild:<guildId>:dofus:<slug>`, position courante = questId.
+    socket.on("dofus:join", (data: { guildId?: string; dofusSlug?: string }) => {
+        dofusPresence.handleJoin(socket, data).catch(() => {});
+    });
+    socket.on("dofus:leave", (data: { guildId?: string; dofusSlug?: string }) => {
+        dofusPresence.handleLeave(socket, data).catch(() => {});
+    });
+    socket.on("dofus:heartbeat", (data: {
+        guildId?: string; dofusSlug?: string; questId?: string; userName?: string; userAvatar?: string;
+    }) => {
+        dofusPresence.handleHeartbeat(socket, data).catch(() => {});
     });
 
     // === DASHBOARD PRESENCE (temps réel qui se connecte / quitte, chantier #39) ===

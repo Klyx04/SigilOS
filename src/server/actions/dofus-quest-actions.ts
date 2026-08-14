@@ -6,6 +6,7 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { DofusQuestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { publishDofusEvent } from "@/lib/dofus-realtime";
 
 export type ActionResponse<T = void> = {
     success: boolean;
@@ -960,7 +961,7 @@ export async function toggleQuestStatus(
         try {
             const questEntry = await (db as any).dofusQuestEntry.findUnique({
                 where: { id: questEntryId },
-                select: { chain: { select: { dofusId: true } } },
+                select: { chain: { select: { dofusId: true, dofus: { select: { slug: true } } } } },
             });
             const dofusId = questEntry?.chain?.dofusId;
             if (dofusId && ctx.profileId) {
@@ -989,6 +990,28 @@ export async function toggleQuestStatus(
         } catch (e) {
             // Non-blocking: cache refresh failure should not break the toggle
             logger.error("[toggleQuestStatus] completionPercent refresh failed:", { error: e });
+        }
+
+        // Temps réel (#37 suite) : broadcast « quête basculée » (best-effort, fail-closed).
+        // Les autres membres de la page par-Dofus rafraîchissent leur synergie en live.
+        try {
+            const slugEntry = await (db as any).dofusQuestEntry.findUnique({
+                where: { id: questEntryId },
+                select: { chain: { select: { dofus: { select: { slug: true } } } } },
+            });
+            const dofusSlug = slugEntry?.chain?.dofus?.slug;
+            if (dofusSlug) {
+                await publishDofusEvent(guildId, dofusSlug, {
+                    type: "quest:status",
+                    profileId: ctx.profileId,
+                    userName: ctx.pseudoDofus || ctx.name || "Membre",
+                    userAvatar: ctx.image || undefined,
+                    questId: questEntryId,
+                    status: newStatus,
+                });
+            }
+        } catch (err) {
+            logger.warn("[toggleQuestStatus] publish temps réel échoué (non bloquant)", { error: err });
         }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);

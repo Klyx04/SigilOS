@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { DofusQuestStatus } from "@prisma/client";
 import { toast } from "sonner";
+import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
 
 interface DofusTimelineQuestProps {
   guildId: string;
@@ -23,6 +24,10 @@ interface DofusTimelineQuestProps {
   synergy?: Record<string, { profileId: string; pseudo: string; image: string | null; status: string }[]>;
   currentUser?: { pseudo: string; image: string | null };
   prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
+  /** #37 suite — présence live WS de la page (membres + quête qu'ils regardent). */
+  presence?: DofusPresenceMember[];
+  presenceConnected?: boolean;
+  onFocusedQuestChange?: (questId: string | null) => void;
 }
 
 function parseObjectiveText(raw: string): string {
@@ -47,9 +52,10 @@ function ScrollToTopButton() {
 }
 
 // ─── Inline quest detail ──────────────────────────────────────────────────
-function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQuest }: {
+function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQuest, liveViewers = [] }: {
   quest: any; color: string; isCompleted: boolean; onToggle: (s: DofusQuestStatus) => void;
   synergyForQuest?: { profileId: string; pseudo: string; image: string | null; status: string }[];
+  liveViewers?: DofusPresenceMember[];
 }) {
   const coords = quest.coords as any;
   const objectives = quest.objectives as any[] | any;
@@ -105,6 +111,21 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           )}
         </div>
 
+        {liveViewers.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400/80 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> En direct
+            </span>
+            <div className="flex -space-x-1.5">
+              {liveViewers.map((m) => (
+                <div key={m.profileId} title={`${m.userName} regarde cette quête`} className="w-5 h-5 rounded-full border-2 border-emerald-500/60 overflow-hidden bg-zinc-700 shrink-0">
+                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-[6px] font-black text-emerald-300 flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Position de lancement */}
         <div className="flex flex-wrap items-center gap-2 text-[10px]">
           <span className="text-zinc-600 font-bold uppercase tracking-widest">Position de lancement</span>
@@ -151,11 +172,12 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
 }
 
 // ─── Quest Row ────────────────────────────────────────────────────────────
-function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSelected, synergyForQuest = [], currentUser, prereqs = [], onFocusPrereq, onClick, onToggle }: {
+function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSelected, synergyForQuest = [], currentUser, prereqs = [], liveViewers = [], onFocusPrereq, onClick, onToggle }: {
   quest: any; color: string; isCompleted: boolean; isLast: boolean; isNext: boolean; isBlocked: boolean; isSelected: boolean;
   synergyForQuest?: any[];
   currentUser?: { pseudo: string; image: string | null };
   prereqs?: { fromQuestId: string; name: string }[];
+  liveViewers?: DofusPresenceMember[];
   onFocusPrereq?: (questId: string) => void;
   onClick: () => void; onToggle: (status: DofusQuestStatus) => void;
 }) {
@@ -192,6 +214,11 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
               {isNext && !isCompleted && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
               {isBlocked && <Lock className="w-2.5 h-2.5 text-zinc-600" />}
               <span className={`text-xs font-bold leading-tight ${isCompleted ? "text-emerald-300" : isBlocked ? "text-zinc-500" : "text-white"}`}>{quest.name}</span>
+              {liveViewers.length > 0 && (
+                <span className="flex items-center gap-1 text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider" title={`${liveViewers.map((v) => v.userName).join(", ")} regarde(nt) cette quête`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {liveViewers.length} en direct
+                </span>
+              )}
               {quest.isDungeon && <span className="text-[8px] font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Donjon</span>}
               {quest.isOptional && <span className="text-[8px] font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Optionnel</span>}
               {quest.level && <span className="text-[8px] font-black text-zinc-600">N{quest.level}</span>}
@@ -284,7 +311,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
 }
 
 // ─── Chain Section ────────────────────────────────────────────────────────
-function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser, collapsed, onToggleCollapse, prereqsByQuestId, onFocusPrereq }: {
+function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser, collapsed, onToggleCollapse, prereqsByQuestId, onFocusPrereq, presence }: {
   chain: any; color: string; completedIds: Set<string>; onToggleStatus: (q: string, s: DofusQuestStatus) => void;
   onQuestClick: (q: any) => void; expandedQuest: string | null; setExpandedQuest: (id: string | null) => void; guildId: string;
   synergy: Record<string, any[]>;
@@ -292,6 +319,7 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
   collapsed: boolean; onToggleCollapse: (id: string) => void;
   prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
   onFocusPrereq?: (questId: string) => void;
+  presence?: DofusPresenceMember[];
 }) {
   const entries = chain.entries || [];
   const completedCount = entries.filter((e: any) => completedIds.has(e.id)).length;
@@ -341,6 +369,7 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
                 const isSelected = expandedQuest === entry.id;
                 const entryPrereqs = prereqsByQuestId?.[entry.id] || [];
                 const blockedByPrereqs = entryPrereqs.some((p) => !completedIds.has(p.fromQuestId));
+                const liveViewers = (presence || []).filter((p) => p.questId === entry.id);
                 return (
                   <div key={entry.id}>
                     <QuestRow quest={entry} color={color} isCompleted={completedIds.has(entry.id)} isLast={idx === entries.length - 1}
@@ -349,11 +378,12 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
                       synergyForQuest={synergy[entry.id] || []}
                       currentUser={currentUser}
                       prereqs={entryPrereqs}
+                      liveViewers={liveViewers}
                       onFocusPrereq={onFocusPrereq}
                       onClick={() => { setExpandedQuest(isSelected ? null : entry.id); onQuestClick(entry); }}
                       onToggle={(s) => onToggleStatus(entry.id, s)} />
                     <AnimatePresence>
-                      {isSelected && <QuestDetailInline quest={entry} color={color} isCompleted={completedIds.has(entry.id)} onToggle={(s) => onToggleStatus(entry.id, s)} />}
+                      {isSelected && <QuestDetailInline quest={entry} color={color} isCompleted={completedIds.has(entry.id)} onToggle={(s) => onToggleStatus(entry.id, s)} liveViewers={liveViewers} />}
                     </AnimatePresence>
                   </div>
                 );
@@ -439,7 +469,7 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────
-export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, prereqsByQuestId = {} }: DofusTimelineQuestProps) {
+export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, prereqsByQuestId = {}, presence = [], presenceConnected = false, onFocusedQuestChange }: DofusTimelineQuestProps) {
   const [expandedQuest, setExpandedQuest] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -447,6 +477,13 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
   const [collapsedChains, setCollapsedChains] = useState<Set<string>>(new Set());
 
   const synergyMap = useMemo(() => synergy || {}, [synergy]);
+
+  // #37 suite — nom de quête par id (tooltips de la présence live).
+  const questNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    chains.forEach((c: any) => (c.entries || []).forEach((e: any) => { if (e.id && e.name) map.set(e.id, e.name); }));
+    return map;
+  }, [chains]);
 
   const toggleChainCollapse = useCallback((id: string) => {
     setCollapsedChains((prev) => {
@@ -468,10 +505,11 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
       return next;
     });
     setExpandedQuest(questId);
+    onFocusedQuestChange?.(questId);
     setTimeout(() => {
       document.getElementById(`quest-${questId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 60);
-  }, [chains]);
+  }, [chains, onFocusedQuestChange]);
 
   const totalQuests = useMemo(() => chains.reduce((acc: number, c: any) => acc + (c.entries?.length || 0), 0), [chains]);
   const completedQuests = useMemo(() => chains.reduce((acc: number, c: any) => acc + (c.entries?.filter((e: any) => completedIds.has(e.id)).length || 0), 0), [chains, completedIds]);
@@ -493,12 +531,34 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
   };
 
   const handleQuestClick = (quest: any) => {
-    setExpandedQuest(expandedQuest === quest.id ? null : quest.id);
+    const next = expandedQuest === quest.id ? null : quest.id;
+    setExpandedQuest(next);
+    onFocusedQuestChange?.(next);
   };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start">
       <div className="flex-1 min-w-0 space-y-6">
+        {/* #37 suite — bandeau de présence live (qui est sur la page) */}
+        {presenceConnected && presence.length > 0 && (
+          <div className="flex items-center gap-3 flex-wrap px-4 py-2.5 rounded-2xl border border-emerald-500/15 bg-emerald-500/5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Temps réel" />
+            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 shrink-0">Présence live</span>
+            <div className="flex -space-x-1.5">
+              {presence.map((m) => (
+                <div
+                  key={m.profileId}
+                  title={m.questId ? `${m.userName} — ${questNameById.get(m.questId) || "parcourt la page"}` : m.userName}
+                  className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0"
+                >
+                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-[7px] font-black text-zinc-400 flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
+                </div>
+              ))}
+            </div>
+            <span className="text-[9px] text-zinc-400 font-medium">{presence.length} membre{presence.length > 1 ? "s" : ""} sur cette page</span>
+          </div>
+        )}
+
         {/* Barre de controle */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 bg-zinc-950/40 border border-white/5 rounded-2xl backdrop-blur-xl">
           <div className="relative flex-1">
@@ -534,7 +594,7 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
               onToggleStatus={handleQuestToggle} onQuestClick={handleQuestClick}
               expandedQuest={expandedQuest} setExpandedQuest={setExpandedQuest} guildId={guildId} synergy={synergyMap} currentUser={currentUser}
               collapsed={collapsedChains.has(chain.id)} onToggleCollapse={toggleChainCollapse}
-              prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} />
+              prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} presence={presence} />
           ))}
         </div>
 

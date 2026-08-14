@@ -196,6 +196,7 @@ export type UserContext = {
     canEditPresentation: boolean;
     canManageRelance: boolean;
     canManageRBAC: boolean;
+    canManagePoints: boolean;
     canViewSettings: boolean;
     canViewAuditLogs: boolean;
     // Global Access
@@ -332,6 +333,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditPresentation: false,
         canManageRelance: false,
         canManageRBAC: false,
+        canManagePoints: false,
         canViewSettings: false,
         canViewAuditLogs: false,
         hasPseudoIssue: false,
@@ -900,6 +902,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
     const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
     const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
     const canValidateMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
@@ -983,6 +986,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
         canManageRelance: !!canManageRelance,
         canManageRBAC: !!canManageRBAC,
+        canManagePoints: !!canManagePoints,
         canViewSettings: !!canViewSettings,
         canViewAuditLogs: !!canViewAuditLogs,
         isAdmin: !!isAdminFinal,
@@ -1049,6 +1053,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewDJQuests = false;
         finalContext.canEditPresentation = false;
         finalContext.canManageRelance = false;
+        finalContext.canManagePoints = false;
         finalContext.canViewAuditLogs = false;
     }
 

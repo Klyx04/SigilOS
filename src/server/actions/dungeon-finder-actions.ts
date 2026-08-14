@@ -167,6 +167,9 @@ const createMultiPostSchema = z.object({
     mentionRoleIds: z.array(z.string()).default([]),
 });
 
+/** Anti-spam : nombre max de posts DJ/quêtes actifs par membre (simple ET multi). */
+const MAX_ACTIVE_DJ_POSTS = 5;
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -877,8 +880,8 @@ export async function createDjPost(
                 status: "OPEN",
             },
         });
-        if (activeCount >= 3) {
-            return { success: false, error: "Tu as déjà 3 posts actifs. Ferme-en un pour en créer un nouveau." };
+        if (activeCount >= MAX_ACTIVE_DJ_POSTS) {
+            return { success: false, error: `Tu as déjà ${MAX_ACTIVE_DJ_POSTS} posts actifs. Ferme-en un pour en créer un nouveau.` };
         }
 
         let finalQuestUrl = rest.questUrl;
@@ -970,8 +973,8 @@ export async function createDjPosts(
                 status: "OPEN",
             },
         });
-        if (activeCount >= 3) {
-            return { success: false, error: "Tu as déjà 3 posts actifs. Ferme-en un pour en créer un nouveau." };
+        if (activeCount >= MAX_ACTIVE_DJ_POSTS) {
+            return { success: false, error: `Tu as déjà ${MAX_ACTIVE_DJ_POSTS} posts actifs. Ferme-en un pour en créer un nouveau.` };
         }
 
         // Charger les donjons avec leurs succès (snapshot pour l'embed + la carte)

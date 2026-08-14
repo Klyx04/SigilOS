@@ -8,9 +8,8 @@ import { toast } from "sonner";
 import {
     getGuildPointsConfig,
     updateGuildPointsConfig,
-    DEFAULT_POINTS_CONFIG,
-    type GuildPointsConfig,
 } from "@/server/actions/points-config-actions";
+import { DEFAULT_POINTS_CONFIG, type GuildPointsConfig } from "@/lib/points-config";
 
 type FieldKey = keyof GuildPointsConfig;
 type FieldGroup = "DJ & Quêtes" | "Songes";

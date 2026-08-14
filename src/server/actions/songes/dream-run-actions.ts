@@ -14,7 +14,7 @@ import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
 import { getDisplayName } from "@/lib/display-name";
-import { resolveSongesContributionPoints } from "../points-config-actions";
+import { resolveSongesContributionPoints } from "@/lib/points-config";
 
 // ============================================
 // CONSTANTS & HELPERS

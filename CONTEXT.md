@@ -26,8 +26,9 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 15/08 sur `feat/chantier-2026-08-14`
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
-> migrations 201 à jour, Sondages `polls=t`). Branche `feat/chantier-2026-08-14`
-> (base `origin/dev` = `e2549faee`) → PR vers dev.
+> migrations 201 à jour, Sondages `polls=t`). **PR #470 (session 14/08) MERGÉE dans dev**
+> (`d39d40e97`, base 8866229d7). Branche `feat/chantier-2026-08-14` porte les **11 commits 15/08**
+> (session 4e passe + correctif tags) **non encore mergés** → nouvelle PR à ouvrir vers dev.
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
 
 ### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons

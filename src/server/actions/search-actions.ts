@@ -1,6 +1,6 @@
 "use server";
 import { logger } from "@/lib/logger";
-
+import { z } from "zod";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -289,4 +289,86 @@ export async function globalSearch(query: string, guildId: string): Promise<Sear
     });
 
     return results;
+}
+
+// ===========================================================================
+// Recherche de membres scopée guilde (chantier #36 — « Membres En Ligne »)
+// ===========================================================================
+
+export type GuildMemberSearchResult = {
+    profileId: string;
+    name: string;
+    image: string | null;
+    pseudoDofus: string | null;
+    classe: string | null;
+    slug: string;
+};
+
+const MemberSearchSchema = z.object({
+    guildId: z.string().regex(/^\d{17,20}$/, "guildId invalide"),
+    query: z
+        .string()
+        .trim()
+        .min(2, "Recherche trop courte")
+        .max(60, "Recherche trop longue")
+        .refine((q) => !/[\u0000-\u001f\u007f]/.test(q), { message: "Caractères de contrôle interdits" }),
+});
+
+/**
+ * Recherche des membres ACTIFS de la guilde par pseudo/nick/ankamaId.
+ * Fail-closed : contexte requis, membre de la guilde, droit `canViewRoster` —
+ * sinon retour [] (jamais d'accès hors guilde, jamais de fail-open).
+ * Retour : résultats prêts à lier vers la page lecture seule du membre
+ * `/dashboard/{guildId}/members/{slug}`.
+ */
+export async function searchGuildMembers(guildId: string, query: string): Promise<GuildMemberSearchResult[]> {
+    const parsed = MemberSearchSchema.safeParse({ guildId, query });
+    if (!parsed.success) {
+        logger.warn("[searchGuildMembers] Requête rejetée (validation Zod)", { error: parsed.error.flatten() });
+        return [];
+    }
+    const { guildId: safeGuildId, query: safeQuery } = parsed.data;
+
+    // Fail-closed : le contexte est calculé pour CETTE guilde — un appelant d'une
+    // autre guilde est refusé, un non-membre est refusé.
+    const ctx = await getUserContext(safeGuildId);
+    if (!ctx.isAuthenticated || !ctx.isMember || !ctx.canViewRoster) {
+        logger.warn(`[searchGuildMembers] Accès refusé pour ${ctx.isAuthenticated ? ctx.id : "anonyme"} sur ${safeGuildId} (isMember=${ctx.isMember}, canViewRoster=${ctx.canViewRoster})`);
+        return [];
+    }
+
+    try {
+        const members = await db.userProfile.findMany({
+            where: {
+                guild: { discordGuildId: safeGuildId },
+                status: "ACTIVE",
+                OR: [
+                    { discordNickname: { contains: safeQuery, mode: "insensitive" } },
+                    { pseudoDofus: { contains: safeQuery, mode: "insensitive" } },
+                    { ankamaId: { contains: safeQuery, mode: "insensitive" } },
+                ],
+            },
+            select: {
+                id: true,
+                discordNickname: true,
+                pseudoDofus: true,
+                classe: true,
+                user: { select: { image: true } },
+            },
+            take: 8,
+            orderBy: { discordNickname: "asc" },
+        });
+
+        return members.map((m) => ({
+            profileId: m.id,
+            name: m.discordNickname || m.pseudoDofus || "Membre",
+            image: m.user.image,
+            pseudoDofus: m.pseudoDofus,
+            classe: m.classe,
+            slug: m.pseudoDofus || m.discordNickname || m.id,
+        }));
+    } catch (error) {
+        logger.error("[searchGuildMembers] Erreur:", error);
+        return [];
+    }
 }

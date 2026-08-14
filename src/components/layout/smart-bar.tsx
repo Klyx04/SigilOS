@@ -9,9 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface SmartBarProps {
     memberCount?: number;
     onlineCount?: number;
+    canSearch?: boolean;
 }
 
-export function SmartBar({ memberCount, onlineCount }: SmartBarProps) {
+export function SmartBar({ memberCount, onlineCount, canSearch = false }: SmartBarProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
@@ -101,6 +102,7 @@ export function SmartBar({ memberCount, onlineCount }: SmartBarProps) {
                 isOpen={isModalOpen}
                 onOpenChange={setIsModalOpen}
                 users={activeUsers}
+                canSearch={canSearch}
             />
         </div>
     );

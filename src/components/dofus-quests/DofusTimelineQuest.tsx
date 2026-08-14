@@ -76,7 +76,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
 
   const members = useMemo(() => {
     if (!synergyForQuest) return [];
-    // Affiche TOUS les membres présents sur la quête : ceux « rendu ici »
+    // Affiche TOUS les membres présents sur la quête : ceux « je suis ici »
     // (IN_PROGRESS) d'abord, puis ceux qui l'ont complétée — plus de plafond.
     return [...synergyForQuest].sort((a, b) =>
       a.status === b.status ? 0 : a.status === "IN_PROGRESS" ? -1 : 1
@@ -97,7 +97,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           {members.length > 0 && (
             <div className="flex flex-wrap gap-1 ml-auto justify-end">
               {members.map((m: any) => (
-                <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0" title={`${m.pseudo}${m.status === "COMPLETED" ? " — quête complétée" : " — rendu ici"}`}>
+                <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0" title={`${m.pseudo}${m.status === "COMPLETED" ? " — quête complétée" : " — je suis ici"}`}>
                   {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-[6px] font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
               ))}
@@ -207,14 +207,29 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                 </button>
               )}
               <button
-                onClick={(e) => { e.stopPropagation(); onToggle(isRenduIci ? "NOT_STARTED" : "IN_PROGRESS"); }}
-                title={isRenduIci ? "Retirer le repère \"Rendu ici\"" : "Marquer \"Rendu ici\" (quête en cours)"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isBlocked && !isRenduIci) return;
+                  onToggle(isRenduIci ? "NOT_STARTED" : "IN_PROGRESS");
+                }}
+                title={
+                  isRenduIci
+                    ? "Retirer mon repère \"Je suis ici\""
+                    : isBlocked
+                      ? "Prérequis non terminé — impossible de marquer cette quête"
+                      : "Marquer que je suis ici (quête en cours)"
+                }
+                disabled={isBlocked && !isRenduIci}
                 className={`ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all ${
-                  isRenduIci ? "bg-amber-500/15 border-amber-500/40 text-amber-300" : "bg-white/[0.03] border-white/10 text-zinc-500 hover:text-zinc-300 hover:border-white/25"
+                  isRenduIci
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                    : isBlocked
+                      ? "bg-white/[0.02] border-white/5 text-zinc-600 cursor-not-allowed opacity-50"
+                      : "bg-white/[0.03] border-white/10 text-zinc-500 hover:text-zinc-300 hover:border-white/25"
                 }`}
               >
                 <Flag className={`w-2.5 h-2.5 ${isRenduIci ? "fill-current" : ""}`} />
-                Rendu ici
+                Je suis ici
               </button>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-medium mt-1">
@@ -224,7 +239,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             {renduMembers.length > 0 && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowRendu(true); }}
-                title={`${renduMembers.length} membre${renduMembers.length > 1 ? "s" : ""} rendu${renduMembers.length > 1 ? "s" : ""} ici — clique pour voir`}
+                title={`${renduMembers.length} membre${renduMembers.length > 1 ? "s" : ""} ici — clique pour voir`}
                 className="flex items-center gap-1.5 mt-1.5 group/av"
               >
                 <div className="flex -space-x-1.5">
@@ -235,7 +250,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                   ))}
                 </div>
                 <span className="text-[8px] font-bold text-amber-300/80 uppercase tracking-wider group-hover/av:text-amber-300">
-                  {renduMembers.length} rendu{renduMembers.length > 1 ? "s" : ""} ici
+                  {renduMembers.length} membre{renduMembers.length > 1 ? "s" : ""} ici
                 </span>
               </button>
             )}
@@ -247,7 +262,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowRendu(false)}>
           <div className="w-full max-w-sm bg-zinc-950 border border-white/10 rounded-2xl p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-amber-400" /> Rendu ici</h4>
+              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-amber-400" /> Je suis ici</h4>
               <button onClick={() => setShowRendu(false)} className="text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
             <p className="text-[10px] text-zinc-500 font-medium mb-3">Sur « {quest.name} »</p>

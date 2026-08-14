@@ -390,9 +390,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
               >
                 {isThisBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
-                RENDU ICI
+                JE SUIS ICI
               </button>
-              {/* Avatars des membres bookmark — espacement aéré sous RENDU ICI */}
+              {/* Avatars des membres bookmark — espacement aéré sous JE SUIS ICI */}
               {isThisBookmarked && seqMembers.length > 0 && (
                 <button
                   type="button"
@@ -820,7 +820,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           <div className={`flex items-center gap-1.5 flex-shrink-0 ${isCompleted?"opacity-100":""}`}>
             {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
             <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
-            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${blockBookmarkSeqId?"bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/25":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-amber-300 hover:border-amber-500/30"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Rendu ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3 h-3"/>:<Flag className="w-3 h-3"/>}{blockBookmarkSeqId?"Repère":"Rendu ici"}</button>}
+            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${blockBookmarkSeqId?"bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/25":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-amber-300 hover:border-amber-500/30"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3 h-3"/>:<Flag className="w-3 h-3"/>}{blockBookmarkSeqId?"Repère":"Je suis ici"}</button>}
             <div className="text-zinc-500 ml-1">{expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
           </div>
         </div>
@@ -988,7 +988,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [completedIds,setCompletedIds]=useState<Set<string>>(()=>new Set(milestones.filter(ms=>ms.playerProgress?.[0]?.isCompleted).map(ms=>ms.id)));
   const [completedStepsByMs,setCompletedStepsByMs]=useState<Map<string,Set<string>>>(()=>{const m=new Map;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];m.set(ms.id,new Set(a));});return m;});
   useEffect(()=>{const nc=new Set<string>,ns=new Map<string,Set<string>>;milestones.forEach(ms=>{if(ms.playerProgress?.[0]?.isCompleted)nc.add(ms.id);const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];ns.set(ms.id,new Set(a));});setCompletedIds(nc);setCompletedStepsByMs(ns);},[milestones]);
-  // ─── Bookmark PAR BLOC (jalon) : 1 « Rendu ici » max par bloc ────────────
+  // ─── Bookmark PAR BLOC (jalon) : 1 « Je suis ici » max par bloc ────────────
   const [bookmarksByMs, setBookmarksByMs] = useState<Map<string, string>>(() => {
     const m = new Map<string, string>();
     for (const ms of milestones) {
@@ -1074,10 +1074,47 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));const wasMilestoneCompleted=completedIds.has(ms.id);setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success){if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}}else{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur");}}catch{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
+  // Ensemble de toutes les séquences complétées (à travers tous les blocs)
+  const allCompletedSeqIds = useMemo(() => {
+    const all = new Set<string>();
+    completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
+    return all;
+  }, [completedStepsByMs]);
+
+  // Séquences bloquées par un prérequis non terminé → impossible d'y poser son repère
+  const blockedSeqIds = useMemo(() => {
+    const out = new Set<string>();
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+      for (const seq of ms.sequences) {
+        const prereqNames = Array.isArray(seq.activityTags)
+          ? seq.activityTags.filter((x: any) => x.type === "prereq_text").map((x: any) => x.name?.toLowerCase()).filter(Boolean)
+          : [];
+        if (prereqNames.length === 0) continue;
+        const blocked = milestones.some((candidateMs: any) =>
+          candidateMs.type !== "SEPARATEUR" &&
+          candidateMs.type !== "INFO" &&
+          candidateMs.sequences.some((candidateSeq: any) => {
+            if (candidateSeq.id === seq.id) return false;
+            const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
+            return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
+          })
+        );
+        if (blocked) out.add(seq.id);
+      }
+    }
+    return out;
+  }, [milestones, allCompletedSeqIds]);
+
   // ─── Bookmark par séquence ─────────────────────────────────────────────
   // 1 max par bloc : bookmarker une quête remplace le repère du même bloc
   const handleBookmarkSequence = useCallback(async (seqId: string, ms: Milestone) => {
     const wasBookmarked = bookmarksByMs.get(ms.id) === seqId;
+    // 🚫 Refuser de poser un repère sur une quête bloquée par un prérequis non terminé
+    if (!wasBookmarked && blockedSeqIds.has(seqId)) {
+      toast.warning("Prérequis non terminé — impossible de poser votre repère sur cette quête.");
+      return;
+    }
     setBookmarksByMs(prev => {
       const next = new Map(prev);
       if (wasBookmarked) next.delete(ms.id);
@@ -1085,7 +1122,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       return next;
     });
     try { await updateBookmarkedStep(guildId, ms.id, wasBookmarked ? null : `seq:${seqId}`); } catch {}
-  }, [bookmarksByMs, guildId]);
+  }, [bookmarksByMs, guildId, blockedSeqIds]);
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/20"><Construction className="w-12 h-12 text-amber-400"/></motion.div><div><h2 className="text-2xl font-black text-white mb-2">En construction 🚧</h2><p className="text-zinc-400 text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string) => {
     let foundId: string | null = null;
@@ -1120,11 +1157,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       setTimeout(tryScroll, 300);
     }
   }, [milestones]);
-  const allCompletedSeqIds = useMemo(() => {
-    const all = new Set<string>();
-    completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
-    return all;
-  }, [completedStepsByMs]);
   const helpStorageKey = `rush-contextual-help:${guide.id}`;
   const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
   useEffect(() => {
@@ -1341,7 +1373,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
 
             <ContextualHelp label="Aide Rush Sylvestre">
               <p className="font-bold text-emerald-400 mb-1">📖 Guide Rush Sylvestre</p>
-              <p>Ce module interactif vous permet de suivre votre timeline pas à pas. Cliquez sur le bouton <strong className="text-amber-400">RENDU ICI</strong> pour poser votre repère de reprise visible par vos coéquipiers de guilde.</p>
+              <p>Ce module interactif vous permet de suivre votre timeline pas à pas. Cliquez sur le bouton <strong className="text-amber-400">JE SUIS ICI</strong> pour poser votre repère de reprise visible par vos coéquipiers de guilde.</p>
             </ContextualHelp>
 
             <QuestFeedbackButton

@@ -545,13 +545,15 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                         {/* Thumbnail Container */}
                         <div className="aspect-[4/5] relative bg-black/40">
                             {skin.thumbnailUrl ? (
-                                <NextImage 
-                                    src={skin.thumbnailUrl} 
-                                    alt={skin.name}
-                                    fill
-                                    className="object-contain p-4 transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-1"
-                                    unoptimized // Often useful for external thumbnails
-                                />
+                                <div className="absolute inset-x-0 top-0 bottom-14 flex items-center justify-center">
+                                    <NextImage 
+                                        src={skin.thumbnailUrl} 
+                                        alt={skin.name}
+                                        fill
+                                        className="object-contain object-[50%_20%] transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-1"
+                                        unoptimized // Often useful for external thumbnails
+                                    />
+                                </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
                                     <Sparkles className="w-12 h-12" />
@@ -664,7 +666,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                 if (res.success) toast.success("Partagé sur Discord !");
                                                 else toast.error(res.error || "Erreur lors du partage");
                                             }}
-                                            className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 hover:border-indigo-500/50 rounded-xl transition-all"
+                                            className="w-9 h-9 bg-[#5865F2]/15 border border-[#5865F2]/40 text-[#5865F2] hover:bg-[#5865F2]/25 hover:border-[#5865F2]/60 rounded-xl transition-all"
                                             title="Partager sur Discord"
                                         >
                                             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -882,7 +884,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="rounded-xl border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
+                                    className="rounded-xl border-[#5865F2]/40 bg-[#5865F2]/10 text-[#5865F2] hover:bg-[#5865F2] hover:text-white hover:border-[#5865F2] h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
                                     onClick={async () => {
                                         const res = await shareGalleryItemOnDiscord(guildId, selectedSkin.id, "SKIN", profileId);
                                         if (res.success) toast.success("Partagé sur Discord !");

@@ -82,8 +82,8 @@
     « X est arrivé(e) / a quitté le dashboard ». ⚠️ **redéployer le container WS** pour activer.
   - **#45** embeds lifecycle : pseudo **serveur** (`discordNickname`) en priorité, plus jamais `user.name` (bot inclus).
   - **#46** popup d'arrivée sous le bouton Don : Dialog shadcn `z-50`→`z-[110]` (close `z-[120]`), welcome modals `z-[120]` — au-dessus du SupportOrb `z-[100]`.
-  - **#42** galerie : icône principale remontée dans les miniatures (`object-[50%_25%]` après 3e passe user).
-  - **#43** boutons onglet Stuff du profil : tailles unifiées `w-9 h-9`, **teintes colorées** (Sync sky / Éditer ambre / Supprimer rouge / Copier emerald / **Discord en icône** logo).
+  - **#42** galerie + profil : icône remontée de façon robuste (wrapper `bottom-14` + `object-[50%_20%]`) sur `gallery-client.tsx` **et** `skin-library.tsx` (profil — non touché avant).
+  - **#43** boutons onglet Stuff du profil : tailles unifiées `w-9 h-9`, **teintes colorées** (Sync sky / Éditer ambre / Supprimer rouge / Copier emerald) + **logo Discord blurple #5865F2** (overlay + modale).
   - **#60** annuaire : bouton **« Copier »** visible (bordure emerald + libellé) → `/w pseudo`.
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 165/165** · build OK · pre-commit vert (2 commits).
 - 🔜 Prochaine session : #37 God quêtes-dofus, #38 Prêt/Coffre, #44 sondages UX, + rappels #34/#26/#27.

@@ -638,12 +638,14 @@ export function GalleryClient({
                                     className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 group-hover/card:border-sky-500/50 transition-all cursor-pointer"
                                 >
                                     {skin.thumbnailUrl ? (
-                                        <NextImage 
-                                            src={skin.thumbnailUrl} 
-                                            alt={skin.name} 
-                                            fill 
-                                            className="object-contain object-[50%_25%] group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
-                                        />
+                                        <div className="absolute inset-x-0 top-0 bottom-14 flex items-center justify-center">
+                                            <NextImage 
+                                                src={skin.thumbnailUrl} 
+                                                alt={skin.name} 
+                                                fill 
+                                                className="object-contain object-[50%_20%] group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
+                                            />
+                                        </div>
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-zinc-950">
                                             <NextImage src="/assets/dofus/logo-sigil.png" alt="Sigil" width={64} height={64} className="opacity-10 grayscale" />

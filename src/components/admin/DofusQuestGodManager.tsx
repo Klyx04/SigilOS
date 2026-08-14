@@ -66,7 +66,7 @@ export default function DofusQuestGodManager() {
         <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase">God Mode: Quêtes Dofus</h1>
+                    <h1 className="text-3xl font-black text-white tracking-tight">God Mode : Quêtes Dofus</h1>
                     <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest mt-1">Édition de la matrice</p>
                 </div>
             </div>
@@ -142,7 +142,7 @@ export default function DofusQuestGodManager() {
                             {selectedDofus.questChains.length === 0 ? (
                                 <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-3xl bg-zinc-900/10">
                                     <BookOpen className="w-16 h-16 text-zinc-800 mx-auto mb-6" />
-                                    <h4 className="text-xl font-black text-white italic mb-2">Structure Vide</h4>
+                                    <h4 className="text-xl font-black text-white mb-2">Structure Vide</h4>
                                     <p className="text-zinc-500 text-sm mb-8 max-w-md mx-auto">L'arbre de quête est totalement vierge.</p>
                                     <Button onClick={() => { setEditingChain({ dofusId: selectedDofus.id }); setIsChainDialogOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-xs tracking-widest rounded-xl h-12 px-8"><Plus className="w-4 h-4 mr-2" /> Ajouter une section</Button>
                                 </div>
@@ -153,11 +153,11 @@ export default function DofusQuestGodManager() {
                                         <div key={chain.id} className="relative z-10 group/chain">
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/30 border border-white/5 rounded-2xl p-4 md:p-5 hover:bg-zinc-900/50 transition-colors">
                                                 <div className="flex items-center gap-5">
-                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-lg ${chain.sectionType === "PREREQUISITE" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"}`}>
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${chain.sectionType === "PREREQUISITE" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"}`}>
                                                         {chain.sectionType === "PREREQUISITE" ? <Trophy className="w-6 h-6" /> : <BookOpen className="w-6 h-6" />}
                                                     </div>
                                                     <div>
-                                                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">{chain.sectionName}</h3>
+                                                        <h3 className="text-xl font-black text-white tracking-tight uppercase">{chain.sectionName}</h3>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <div className="w-2 h-2 rounded-full bg-zinc-600" />
                                                             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{chain.sectionType === "PREREQUISITE" ? "Conditions Initiales" : "Trame Narrative"}</p>
@@ -212,7 +212,7 @@ export default function DofusQuestGodManager() {
                                         </div>
                                     ))}
                                     <div className="pt-8 flex justify-center border-t border-white/5 mt-8 border-dashed">
-                                        <Button onClick={() => { setEditingChain({ dofusId: selectedDofus.id }); setIsChainDialogOpen(true); }} className="bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white font-black uppercase text-[10px] tracking-widest rounded-xl h-10 px-6 shadow-lg"><Plus className="w-3 h-3 mr-2" /> Nouvelle Section</Button>
+                                        <Button onClick={() => { setEditingChain({ dofusId: selectedDofus.id }); setIsChainDialogOpen(true); }} className="bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white font-black uppercase text-[10px] tracking-widest rounded-xl h-10 px-6"><Plus className="w-3 h-3 mr-2" /> Nouvelle Section</Button>
                                     </div>
                                 </div>
                             )}
@@ -221,13 +221,12 @@ export default function DofusQuestGodManager() {
                 ) : (
                     <div className="h-[500px] flex flex-col items-center justify-center p-12 text-center gap-6 animate-in fade-in duration-500">
                         <div className="relative">
-                            <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full" />
-                            <div className="w-24 h-24 rounded-[2rem] bg-zinc-950 border border-white/5 flex items-center justify-center text-zinc-800 shadow-2xl relative">
+                            <div className="w-24 h-24 rounded-[2rem] bg-zinc-950 border border-white/5 flex items-center justify-center text-zinc-800 relative">
                                 <Gem className="w-12 h-12" />
                             </div>
                         </div>
                         <div className="space-y-2 max-w-sm">
-                            <h3 className="text-2xl font-black text-white italic tracking-tighter">SÉLECTIONNEZ UN DOFUS</h3>
+                            <h3 className="text-2xl font-black text-white tracking-tight">SÉLECTIONNEZ UN DOFUS</h3>
                             <p className="text-zinc-500 text-sm leading-relaxed">Ouvrez le dictionnaire complet depuis le menu latéral.</p>
                         </div>
                     </div>
@@ -489,10 +488,10 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                         </div>
 
                         {/* Quest type + IDs */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-zinc-900/20 p-4 rounded-2xl border border-white/5">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-900/20 p-4 rounded-2xl border border-white/5">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Type</label>
-                                <select value={formData.questType} onChange={e => setFormData({...formData, questType: e.target.value})} className="w-full h-11 bg-black/40 border border-white/5 rounded-xl text-sm px-4 focus:outline-none">
+                                <select value={formData.questType} onChange={e => setFormData({...formData, questType: e.target.value})} className="w-full h-11 bg-black/40 border border-white/5 rounded-xl text-sm px-4 focus:outline-none focus:border-indigo-500/50">
                                     <option value="QUEST">📚 Quête</option>
                                     <option value="DUNGEON">🏰 Donjon</option>
                                     <option value="BOSS">👹 Boss</option>
@@ -503,16 +502,17 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">DofusDB ID</label>
                                 <Input type="number" value={formData.dofusdbId} onChange={e => setFormData({...formData, dofusdbId: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" placeholder="4294" />
+                                <p className="text-[9px] text-zinc-600">ID de liaison vers dofusdb.fr</p>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Coord X</label>
-                                <Input type="number" value={formData.coords?.x ?? ""} onChange={e => setFormData({...formData, coords: { ...formData.coords, x: parseInt(e.target.value) || null }})} className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400 h-11 rounded-xl text-center font-mono font-bold" />
+                                <Input type="number" value={formData.coords?.x ?? ""} onChange={e => setFormData({...formData, coords: { ...formData.coords, x: parseInt(e.target.value) || null }})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 block">Coord Y</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Coord Y</label>
                                 <div className="flex gap-1">
-                                    <Input type="number" value={formData.coords?.y ?? ""} onChange={e => setFormData({...formData, coords: { ...formData.coords, y: parseInt(e.target.value) || null }})} className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400 h-11 rounded-xl text-center font-mono font-bold" />
-                                    <button onClick={handlePasteCoords} className="h-11 w-11 shrink-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20" title="Coller les coordonnées">
+                                    <Input type="number" value={formData.coords?.y ?? ""} onChange={e => setFormData({...formData, coords: { ...formData.coords, y: parseInt(e.target.value) || null }})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" />
+                                    <button onClick={handlePasteCoords} className="h-11 w-11 shrink-0 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 hover:bg-indigo-500/20" title="Coller les coordonnées">
                                         <Crosshair className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -659,10 +659,10 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                     </div>
                 </div>
                 <div className="flex justify-between items-center p-6 border-t border-white/5 bg-zinc-900/30">
-                    {entry?.id ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Expulser</Button> : <div/>}
+                    {entry?.id ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div/>}
                     <div className="flex gap-3 ml-auto">
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-zinc-400 hover:text-white">Fermer</Button>
-                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black italic text-[10px] uppercase tracking-widest rounded-xl px-8 shadow-xl">Sauvegarder</Button>
+                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl px-8">Sauvegarder</Button>
                     </div>
                 </div>
             </DialogContent>

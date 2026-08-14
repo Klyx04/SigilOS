@@ -195,6 +195,15 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                         onClick={() => setExpandedId(expandedId === s.dungeon.id ? null : s.dungeon.id)}
                                         className="w-full flex items-center gap-2 p-3 text-left"
                                     >
+                                        {s.dungeon.imageUrl ? (
+                                            <span className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center">
+                                                <img src={s.dungeon.imageUrl} alt="" className="w-full h-full object-contain p-0.5" />
+                                            </span>
+                                        ) : (
+                                            <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                                <Swords className="w-4 h-4" />
+                                            </span>
+                                        )}
                                         <span className="flex-1 min-w-0">
                                             <span className="block text-xs font-bold text-white">{s.dungeon.name}</span>
                                             <span className="block text-[9px] text-zinc-500">
@@ -249,18 +258,18 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                             </div>
 
 
-                                            {/* Date */}
-                                            <div className="flex items-center gap-2">
-                                                <CalendarClock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                                                <div className="flex-1">
-                                                    <DateTimePicker
-                                                        value={s.targetDate}
-                                                        onChange={(v) => updateSelection(s.dungeon.id, { targetDate: v })}
-                                                        minDate={new Date()}
-                                                        placeholder="Date & heure prévues"
-                                                        timeOptional={true}
-                                                    />
-                                                </div>
+                                            {/* Date — OPTIONNELLE (heure facultative) */}
+                                            <div className="space-y-1.5">
+                                                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                                                    <CalendarClock className="w-3 h-3" /> Date prévue <span className="text-zinc-600 normal-case font-medium">(optionnelle — heure facultative)</span>
+                                                </p>
+                                                <DateTimePicker
+                                                    value={s.targetDate}
+                                                    onChange={(v) => updateSelection(s.dungeon.id, { targetDate: v })}
+                                                    minDate={new Date()}
+                                                    placeholder="Sans date (publié directement)"
+                                                    timeOptional={true}
+                                                />
                                             </div>
                                             {/* Note */}
                                             <textarea

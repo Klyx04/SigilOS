@@ -278,6 +278,16 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
         );
     }
 
+    // ── Blocage SUIVANT/CONFIRMER : message clair « pourquoi / à quel endroit » ──
+    const multiActive = (multiDungeons?.length ?? 0) >= 2;
+    const blockReason = (() => {
+        if (isPending) return null;
+        if (!multiActive && mode === "DONJON" && !selectedDungeon) return "Sélectionne un donjon dans la liste ci-dessus.";
+        if (!multiActive && mode === "QUETE" && !selectedQuest) return "Choisis une quête dans la recherche ci-dessus.";
+        if (!multiActive && !targetDate) return "Renseigne le champ « Date & Heure prévue » ci-dessus.";
+        return null;
+    })();
+
     async function handleSubmit() {
         if (step < 2) {
             setStep(2);
@@ -364,8 +374,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     return (
         <>
             <Dialog open={isOpen} onOpenChange={handleClose}>
-                <DialogContent className="w-[min(95vw,42rem)] max-w-[42rem] sm:min-w-[34rem] bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
-                <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40">
+                <DialogContent className="w-[min(95vw,42rem)] max-w-[42rem] sm:min-w-[34rem] bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
+                <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40 shrink-0">
                     <DialogTitle className="text-xl font-black flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                             <Plus className="w-5 h-5 text-amber-500" />
@@ -381,8 +391,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                     </DialogTitle>
                 </div>
 
-                {/* Content Area */}
-                <div className="p-6">
+                {/* Content Area — seule cette partie scrolle (header fixe, footer atteignable) */}
+                <div className="p-6 flex-1 overflow-y-auto premium-scrollbar min-h-0">
                         {step === 1 && (
                             <div className="space-y-6">
                                 {/* Mode Selector - Refined */}
@@ -826,7 +836,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                     : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
                                             }`}
                                             onClick={() => setStep(3)}
-                                            disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest) || !targetDate}
+                                            disabled={isPending || !!blockReason}
                                         >
                                             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
                                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
@@ -839,6 +849,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                             </div>
                                         </Button>
                                     </div>
+                                    {blockReason && (
+                                        <p className="text-[10px] font-bold text-amber-500/90 text-center mt-3 flex items-center justify-center gap-1.5">
+                                            <AlertTriangle className="w-3 h-3 shrink-0" /> {blockReason}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -1014,7 +1029,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                     : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
                                             }`}
                                             onClick={handleSubmit}
-                                            disabled={isPending || (!multiDungeons && !targetDate)}
+                                            disabled={isPending || !!blockReason}
                                         >
                                             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
                                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
@@ -1027,6 +1042,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                             </div>
                                         </Button>
                                     </div>
+                                    {blockReason && (
+                                        <p className="text-[10px] font-bold text-amber-500/90 text-center mt-3 flex items-center justify-center gap-1.5">
+                                            <AlertTriangle className="w-3 h-3 shrink-0" /> {blockReason}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}

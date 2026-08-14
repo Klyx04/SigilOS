@@ -334,6 +334,11 @@ export function DjPostDetailModal({
                                                 <div className="flex items-center gap-2">
                                                     <p className="text-sm font-bold text-slate-200 truncate group-hover:text-white transition-colors">{displayName(p.profile)}</p>
                                                     {p.classe && <Badge variant="outline" className="text-[9px] h-4 border-slate-700 text-slate-400 px-1.5">{p.classe}</Badge>}
+                                                    {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
+                                                        <Badge variant="outline" className="text-[9px] h-4 border-indigo-700 text-indigo-400 px-1.5 max-w-[120px] truncate">
+                                                            {(post.dungeonsJson as any[])[p.dungeonIndex]?.name}
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                                 {p.message && <p className="text-[11px] text-slate-500 italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
                                             </div>

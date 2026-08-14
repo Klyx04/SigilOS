@@ -75,7 +75,11 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
 
   const members = useMemo(() => {
     if (!synergyForQuest) return [];
-    return synergyForQuest.filter(m => m.status === "COMPLETED").slice(0, 6);
+    // Affiche TOUS les membres présents sur la quête : ceux « rendu ici »
+    // (IN_PROGRESS) d'abord, puis ceux qui l'ont complétée — plus de plafond.
+    return [...synergyForQuest].sort((a, b) =>
+      a.status === b.status ? 0 : a.status === "IN_PROGRESS" ? -1 : 1
+    );
   }, [synergyForQuest]);
 
   return (
@@ -90,9 +94,9 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
             {isCompleted ? <><CheckCircle2 className="w-4 h-4" /> Complétée <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onToggle("NOT_STARTED"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle("NOT_STARTED"); } }} className="ml-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-rose-400 text-[8px] cursor-pointer" title="Réinitialiser">↺</span></> : <><Circle className="w-4 h-4" /> Valider</>}
           </button>
           {members.length > 0 && (
-            <div className="flex -space-x-1 ml-auto">
+            <div className="flex flex-wrap gap-1 ml-auto justify-end">
               {members.map((m: any) => (
-                <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0" title={m.pseudo}>
+                <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0" title={`${m.pseudo}${m.status === "COMPLETED" ? " — quête complétée" : " — rendu ici"}`}>
                   {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-[6px] font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
               ))}
@@ -366,8 +370,8 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
         </h3>
         {guildName && <p className="text-[9px] text-zinc-600 font-bold mt-1">{guildName}</p>}
       </div>
-      <div className="p-3 space-y-2">
-        {members.slice(0, 8).map((m) => (
+      <div className="p-3 space-y-2 max-h-[480px] overflow-y-auto custom-scrollbar">
+        {members.map((m) => (
           <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/30 border border-white/5">
             <div className="w-8 h-8 rounded-full border-2 border-emerald-500/30 overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center">
               {m.image ? <img src={m.image} alt="" className="w-full h-full object-cover" /> : <span className="text-[9px] font-black text-zinc-500">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}

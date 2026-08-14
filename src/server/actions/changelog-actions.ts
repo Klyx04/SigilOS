@@ -297,13 +297,24 @@ export async function updatePlatformConfig(data: {
     nsfwFilterEnabled?: boolean,
     donationsEnabled?: boolean,
     questFeedbackChannelId?: string,
-    ladderManualFallback?: boolean
+    ladderManualFallback?: boolean,
+    // Chantier #68 — choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus
+    dofusQuestHeaderIcon?: string
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     const session = await auth();
     const actorId = session?.user?.id || null;
+
+    // Chantier #68 — validation Zod (fail-closed) : seules 2 icônes sont acceptées
+    if (data.dofusQuestHeaderIcon !== undefined) {
+        const iconSchema = z.enum(["serie-de-quete", "icone-succes"]);
+        const iconParsed = iconSchema.safeParse(data.dofusQuestHeaderIcon);
+        if (!iconParsed.success) {
+            return { success: false, error: "Icône du bloc quête invalide (serie-de-quete | icone-succes)" };
+        }
+    }
 
     try {
         const config = await (db.platformConfig as any).upsert({
@@ -328,6 +339,12 @@ export async function updatePlatformConfig(data: {
                     ladderManualFallback: data.ladderManualFallback,
                     ladderManualFallbackUpdatedAt: new Date(),
                     ladderManualFallbackUpdatedBy: actorId,
+                }),
+                // Chantier #68 — choix God de l'icône du bloc quêtes par Dofus
+                ...(data.dofusQuestHeaderIcon !== undefined && {
+                    dofusQuestHeaderIcon: data.dofusQuestHeaderIcon,
+                    dofusQuestHeaderIconUpdatedAt: new Date(),
+                    dofusQuestHeaderIconUpdatedBy: actorId,
                 })
             },
             create: { 
@@ -346,7 +363,8 @@ export async function updatePlatformConfig(data: {
                 nsfwFilterEnabled: data.nsfwFilterEnabled !== undefined ? data.nsfwFilterEnabled : true,
                 donationsEnabled: data.donationsEnabled !== undefined ? data.donationsEnabled : true,
                 questFeedbackChannelId: data.questFeedbackChannelId || null,
-                ladderManualFallback: data.ladderManualFallback ?? false
+                ladderManualFallback: data.ladderManualFallback ?? false,
+                dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete"
             }
         });
         revalidatePath('/');

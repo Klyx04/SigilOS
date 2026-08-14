@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { getDisplayName } from "@/lib/display-name";
+import { resolveDjContributionPoints } from "@/lib/points-config";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -1108,20 +1109,10 @@ export async function updateDjPost(
 }
 
 /**
- * Returns contribution points to award based on dungeon level.
- * Quête (no dungeon level) = 1 pt
- * Lvl   1-99  = 1 pt
- * Lvl 100-149 = 2 pts
- * Lvl 150-199 = 3 pts
- * Lvl 200+    = 4 pts  (endgame content)
+ * Points de contribution DJ / quêtes — calcul délégué à la config admin
+ * `GuildConfig.pointsConfig` (voir points-config-actions.ts, défauts alignés :
+ * quête = 1, lvl 1-99 = 1, 100-149 = 2, 150-199 = 3, 200+ = 4).
  */
-function getContributionPoints(dungeonLevel?: number | null): number {
-    if (!dungeonLevel) return 1;
-    if (dungeonLevel >= 200) return 4;
-    if (dungeonLevel >= 150) return 3;
-    if (dungeonLevel >= 100) return 2;
-    return 1;
-}
 
 /**
  * Close a DJ search post (creator only) and award contribution points to validated participants.
@@ -1155,7 +1146,12 @@ export async function closeDjPostWithContributions(
             return { success: false, error: "Seul le créateur peut valider la clôture" };
         }
 
-        const pts = getContributionPoints(post.dungeon?.level);
+        // Points de contribution personnalisables (config admin GuildConfig.pointsConfig)
+        const guildCfg = await (db as any).guildConfig.findUnique({
+            where: { id: post.guildId },
+            select: { pointsConfig: true },
+        });
+        const pts = resolveDjContributionPoints(post.dungeon?.level, guildCfg?.pointsConfig);
 
         // Close the post
         await (db as any).djSearchPost.update({

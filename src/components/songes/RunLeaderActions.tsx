@@ -170,7 +170,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                                             {date ? format(date, "PPP", { locale: fr }) : <span>Choisir</span>}
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-black border-white/10 z-[100]">
+                                    <PopoverContent className="w-auto p-0 bg-black border-white/10 z-[200]">
                                         <Calendar
                                             mode="single"
                                             selected={date}

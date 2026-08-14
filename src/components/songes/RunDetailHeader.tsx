@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target, BookOpen } from "lucide-react";
+import { ArrowLeft, Crown, Users, Clock, CheckCircle2, Loader2, PlayCircle, Trophy, Target, BookOpen, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -13,10 +13,13 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { DIFFICULTIES, OBJECTIVES, getEpreuve, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
-import { closeDreamRun } from "@/server/actions/songes/dream-run-actions";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, getEpreuve, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
+import { closeDreamRun, updateDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun, DreamRunMember } from "@prisma/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type RunWithMembers = DreamRun & {
     members: DreamRunMember[];
@@ -38,6 +41,78 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
     const isCompleted = optimisticStatus === "COMPLETED";
     const [loading, setLoading] = useState(false);
+
+    // ── Chantier Songes : édition de la run ──
+    const [editOpen, setEditOpen] = useState(false);
+    const [editPending, setEditPending] = useState(false);
+    const [editForm, setEditForm] = useState<{
+        difficulty: string;
+        objectives: string[];
+        epreuveCode: string;
+        date: string;
+        time: string;
+        currentFloor: string;
+    }>({
+        difficulty: run.difficulty,
+        objectives: Array.isArray(run.objectives) ? (run.objectives as string[]) : (run.objective ? [run.objective] : []),
+        epreuveCode: (run as any).epreuveCode || "",
+        date: "",
+        time: "21:00",
+        currentFloor: String(run.currentFloor),
+    });
+
+    const openEdit = () => {
+        const scheduled = run.scheduledAt ? new Date(run.scheduledAt) : null;
+        setEditForm({
+            difficulty: run.difficulty,
+            objectives: Array.isArray(run.objectives) ? (run.objectives as string[]) : (run.objective ? [run.objective] : []),
+            epreuveCode: (run as any).epreuveCode || "",
+            date: scheduled ? `${scheduled.getFullYear()}-${String(scheduled.getMonth() + 1).padStart(2, "0")}-${String(scheduled.getDate()).padStart(2, "0")}` : "",
+            time: scheduled ? `${String(scheduled.getHours()).padStart(2, "0")}:${String(scheduled.getMinutes()).padStart(2, "0")}` : "21:00",
+            currentFloor: String(run.currentFloor),
+        });
+        setEditOpen(true);
+    };
+
+    const toggleEditObjective = (key: string) => {
+        setEditForm(prev => ({
+            ...prev,
+            objectives: prev.objectives.includes(key)
+                ? prev.objectives.filter(o => o !== key)
+                : [...prev.objectives, key],
+        }));
+    };
+
+    const handleEditSubmit = async () => {
+        setEditPending(true);
+        try {
+            let scheduledAt: Date | null = null;
+            if (editForm.date) {
+                const [y, m, d] = editForm.date.split("-").map(Number);
+                const [hh, mm] = (editForm.time || "21:00").split(":").map(Number);
+                if (y && m && d) scheduledAt = new Date(y, m - 1, d, hh || 0, mm || 0, 0, 0);
+            }
+            const result = await updateDreamRun(guildId, run.id, {
+                difficulty: editForm.difficulty as any,
+                objectives: editForm.objectives as any,
+                epreuveCode: editForm.epreuveCode || null,
+                scheduledAt,
+                mentionRoleIds: [],
+                currentFloor: editForm.currentFloor ? Math.max(0, Math.min(26, parseInt(editForm.currentFloor, 10) || 0)) : undefined,
+            });
+            if (result.success) {
+                toast.success("Run mise à jour !");
+                setEditOpen(false);
+                router.refresh();
+            } else {
+                toast.error(result.error || "Erreur lors de la mise à jour");
+            }
+        } catch (e) {
+            toast.error("Erreur lors de la mise à jour");
+        } finally {
+            setEditPending(false);
+        }
+    };
 
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
@@ -274,6 +349,15 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                         {isLeader && (
                             <div className="flex flex-col gap-3">
                                 <span className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Actions Chef de Run</span>
+                                {!isCompleted && (
+                                    <Button
+                                        onClick={openEdit}
+                                        className="w-full bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest h-14 border border-white/10"
+                                    >
+                                        <Pencil className="w-5 h-5 mr-3" />
+                                        Modifier la Run
+                                    </Button>
+                                )}
                                 {optimisticStatus === "IN_PROGRESS" && (
                                     <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
                                         <DialogTrigger asChild>
@@ -318,6 +402,110 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 )}
                             </div>
                         )}
+
+                        {/* Chantier Songes — Modale d'édition de la run */}
+                        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                            <DialogContent className="bg-[#09090b] border-white/10 text-white sm:max-w-md max-h-[85vh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
+                                        <Pencil className="w-5 h-5 text-purple-400" />
+                                        Modifier la Run
+                                    </DialogTitle>
+                                </DialogHeader>
+                                <div className="py-4 space-y-5">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Difficulté</label>
+                                        <Select value={editForm.difficulty} onValueChange={(v) => setEditForm(prev => ({ ...prev, difficulty: v }))}>
+                                            <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
+                                                <SelectValue placeholder="Choisir la difficulté" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-zinc-950 border-white/10">
+                                                {Object.entries(DIFFICULTIES).map(([key, d]) => (
+                                                    <SelectItem key={key} value={key}>{d.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                                        <Select value={editForm.epreuveCode} onValueChange={(v) => setEditForm(prev => ({ ...prev, epreuveCode: v }))}>
+                                            <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
+                                                <SelectValue placeholder="Run standard" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-zinc-950 border-white/10">
+                                                <SelectItem value="">Run standard</SelectItem>
+                                                {EPREUVES_SONGE.map((e) => (
+                                                    <SelectItem key={e.code} value={e.code}>{e.icon} {e.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {!editForm.epreuveCode && (
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Objectifs</label>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {Object.entries(OBJECTIVES).map(([key, obj]) => (
+                                                        <button
+                                                            key={key}
+                                                            type="button"
+                                                            onClick={() => toggleEditObjective(key)}
+                                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
+                                                                editForm.objectives.includes(key)
+                                                                    ? "bg-purple-500/10 border-purple-500/40 text-white"
+                                                                    : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                            }`}
+                                                        >
+                                                            <span className="text-sm">{obj.icon}</span>
+                                                            <span className="text-xs font-bold">{obj.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Date de départ</label>
+                                            <Input
+                                                type="date"
+                                                value={editForm.date}
+                                                onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                                                className="bg-white/5 border-white/10 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Heure</label>
+                                            <Input
+                                                type="time"
+                                                value={editForm.time}
+                                                onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
+                                                className="bg-white/5 border-white/10 text-sm"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            max={26}
+                                            value={editForm.currentFloor}
+                                            onChange={(e) => setEditForm(prev => ({ ...prev, currentFloor: e.target.value }))}
+                                            className="bg-white/5 border-white/10 text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-3 mt-4">
+                                    <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-white/60 hover:text-white">Annuler</Button>
+                                    <Button onClick={handleEditSubmit} disabled={editPending} className="bg-purple-600 hover:bg-purple-500 text-white">
+                                        {editPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+                                        Enregistrer
+                                    </Button>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
 
                         {/* Metadata Card */}
                         <div className="bg-white/3 rounded-2xl p-5 border border-white/5 flex flex-col gap-4">

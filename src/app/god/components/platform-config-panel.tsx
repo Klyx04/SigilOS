@@ -56,6 +56,7 @@ interface PlatformConfigPanelProps {
         maintenanceMode: boolean;
         maintenanceMessage: string | null;
         ladderManualFallback: boolean;
+        dofusQuestHeaderIcon: string;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -80,7 +81,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         questFeedbackChannelId: config?.questFeedbackChannelId || "",
         maintenanceMode: config?.maintenanceMode || false,
         maintenanceMessage: config?.maintenanceMessage || "",
-        ladderManualFallback: config?.ladderManualFallback || false
+        ladderManualFallback: config?.ladderManualFallback || false,
+        dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete"
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -370,6 +372,27 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 </button>
                             );
                         })}
+                    </div>
+
+                    {/* Chantier #68 — Choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus */}
+                    <div className="space-y-2.5">
+                        <div className="space-y-1">
+                            <span className="text-xs font-black text-white uppercase block">Icône du bloc quêtes par Dofus</span>
+                            <p className="text-[10px] text-zinc-500 leading-normal">
+                                Icône affichée dans le bloc d'en-tête (à la place de l'image générique) sur chaque page quête par Dofus.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Select value={formData.dofusQuestHeaderIcon} onValueChange={(v) => setFormData(prev => ({ ...prev, dofusQuestHeaderIcon: v }))}>
+                                <SelectTrigger className="w-full bg-zinc-900 border-white/10 text-xs font-medium">
+                                    <SelectValue placeholder="Choisir une icône" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-white/10">
+                                    <SelectItem value="serie-de-quete">Serie de quête (Dofus vert)</SelectItem>
+                                    <SelectItem value="icone-succes">Succès</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
 

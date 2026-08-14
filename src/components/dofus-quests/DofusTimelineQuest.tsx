@@ -213,6 +213,9 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {isNext && !isCompleted && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
               {isBlocked && <Lock className="w-2.5 h-2.5 text-zinc-600" />}
+              {/* Chantier #68 — icône de quête dans chaque quête */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/icons/icone-quete.png" alt="" className="w-3.5 h-3.5 shrink-0 object-contain opacity-80" loading="lazy" />
               <span className={`text-xs font-bold leading-tight ${isCompleted ? "text-emerald-300" : isBlocked ? "text-zinc-500" : "text-white"}`}>{quest.name}</span>
               {liveViewers.length > 0 && (
                 <span className="flex items-center gap-1 text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider" title={`${liveViewers.map((v) => v.userName).join(", ")} regarde(nt) cette quête`}>

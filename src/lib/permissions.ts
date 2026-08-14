@@ -41,12 +41,13 @@ export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon:
     access: { label: "Accès & Identité", icon: "🚪", color: "#22c55e" },
     admin: { label: "Système & Staff", icon: "🛡️", color: "#f59e0b" },
     missions: { label: "Missions", icon: "📜", color: "#3b82f6" },
-    community: { label: "Communauté", icon: "🤝", color: "#6366f1" },
+    // Ordre aligné sur MODULE_ORDER (access, admin, missions, game, community, info)
     game: { label: "Activités Dofus", icon: "🎮", color: "#10b981" },
+    community: { label: "Communauté", icon: "🤝", color: "#6366f1" },
     info: { label: "Information", icon: "📖", color: "#a855f7" },
 };
 
-export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule; modules: string[] }> = {
+export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule; modules: string[]; sensitive?: boolean }> = {
     // Access
     [PERMISSIONS.DASHBOARD_LOGIN]: { 
         label: "Accès Dashboard", 
@@ -90,15 +91,17 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.SYSTEM_RBAC]: { 
         label: "Gestion des Accès", 
-        description: "Gérer le mapping des permissions pour les utilisateurs et attribuer des droits RBAC.", 
+        description: "Gérer le mapping des permissions pour les utilisateurs et attribuer des droits RBAC.",
         module: "admin",
-        modules: ["Matrice RBAC", "Permissions Individuelles"]
+        modules: ["Matrice RBAC", "Permissions Individuelles"],
+        sensitive: true,
     },
     [PERMISSIONS.SYSTEM_GOD]: { 
         label: "Administrateur Suprême", 
         description: "Bypass absolu de sécurité. Autorisation inconditionnelle et totale sur toutes les fonctionnalités.", 
         module: "admin",
-        modules: ["TOUS LES MODULES (Full Access)"]
+        modules: ["TOUS LES MODULES (Full Access)"],
+        sensitive: true,
     },
 
     // Community

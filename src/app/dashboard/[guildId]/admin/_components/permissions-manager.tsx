@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { updateRBACMapping } from "@/server/actions/admin-actions";
 import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, MODULE_ORDER as PERM_MODULE_ORDER, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
+import { type Option } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
 import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -125,14 +126,18 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     };
 
     const roleOptions = roles.map(r => ({ label: r.name, value: r.id, color: r.color }));
-    const memberOptions = members.map(m => {
-        // Find discord account ID
-        const discordAccount = m.user.accounts.find((a: any) => a.provider === "discord");
-        return {
+    // La clé du usersMapping DOIT être le Discord ID (snowflake) : getUserContext
+    // lit `individualMapping[discordUserId]`. Le fallback `|| m.userId` (UUID interne)
+    // rendait la permission silencieusement inopérante. Un membre sans compte Discord
+    // lié ne peut pas se connecter → il est exclu (aucune permission individuelle possible).
+    const memberOptions: Option[] = members.flatMap(m => {
+        const discordAccount = m.user.accounts?.find((a: any) => a.provider === "discord");
+        if (!discordAccount?.providerAccountId) return [];
+        return [{
             label: getDisplayName(m),
-            value: discordAccount?.providerAccountId || m.userId,
-            image: m.user.image
-        };
+            value: discordAccount.providerAccountId,
+            icon: m.user.image ?? undefined,
+        }];
     });
 
     const permissionsByModule = useMemo(() => {

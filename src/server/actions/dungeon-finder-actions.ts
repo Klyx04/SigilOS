@@ -55,6 +55,18 @@ export type DjPostWithDetails = {
     createdAt: Date;
     updatedAt: Date;
     _acceptedCount: number;
+    /** Mode multi-donjons (#26) : UN SEUL post portant N donjons (2-5). */
+    dungeonsJson?: {
+        dungeonId: string;
+        name: string;
+        bossName: string;
+        level: number;
+        imageUrl: string | null;
+        wantedAchievementIds: string[];
+        achievements: { id: string; name: string; iconUrl: string | null }[];
+        message: string | null;
+        targetDate: Date | null;
+    }[] | null;
     dungeon: {
         id: string;
         name: string;
@@ -274,13 +286,13 @@ async function sendDiscordNotification(
 }
 
 /**
- * Multi-donjons (chantier #26) : envoie UN SEUL message Discord contenant les
- * embeds de tous les donjons + UN SEUL ping (créateur + rôles autorisés).
- * Chaque donjon a sa rangée de boutons « S'inscrire » (custom_id dj:join:<id>).
+ * Mode multi-donjons (chantier #26) : UN SEUL message Discord avec UN embed
+ * PAR donjon + UN SEUL ping (créateur + rôles autorisés). UNE seule rangée de
+ * boutons (S'inscrire / Se désinscrire / Voir le site) pour le post unique.
  */
 async function sendMultiDiscordNotification(
     guildId: string,
-    posts: any[],
+    post: any,
     embeds: any[],
     mentionRoleId?: string | null,
     creatorDiscordId?: string | null
@@ -301,14 +313,14 @@ async function sendMultiDiscordNotification(
         const isForumChannel = channelData.type === 15;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
-        // Une rangée de boutons par donjon (max 5 rangées autorisées par message)
-        const rows = posts.map((post: any) => ({
+        const rows = [{
             type: 1,
             components: [
-                { type: 2, style: 1, label: `S'inscrire — ${(post.dungeon?.name || "Donjon").substring(0, 40)}`, emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}` },
+                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}` },
+                { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${post.id}` },
                 { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
             ],
-        }));
+        }];
 
         const mentions = [
             creatorDiscordId ? `<@${creatorDiscordId}>` : "",
@@ -318,10 +330,10 @@ async function sendMultiDiscordNotification(
         let discordChannelId: string | null = null;
         let discordMessageId: string | null = null;
 
+        const entryCount = (post.dungeonsJson ?? []).length;
+
         if (isForumChannel) {
-            const first = posts[0];
-            const contentName = (first?.dungeon?.name || "Multi-donjon").substring(0, 60);
-            const threadTitle = `⚔️ Multi-donjon - ${posts.length} donjons - ${contentName}`.substring(0, 100);
+            const threadTitle = `⚔️ Multi-donjon - ${entryCount} donjons`.substring(0, 100);
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
             const firstUsableTag = availableTags.find((t: { moderated?: boolean }) => !t.moderated);
             const forumBody: Record<string, unknown> = {
@@ -347,16 +359,72 @@ async function sendMultiDiscordNotification(
             else { logger.error("[DJ Multi Embed] Text channel error:", await res.json()); }
         }
 
-        // Attacher le message Discord à TOUS les posts créés
+        // Attacher le message Discord au post unique
         if (discordChannelId && discordMessageId) {
-            await (db as any).djSearchPost.updateMany({
-                where: { id: { in: posts.map((p: any) => p.id) } },
+            await (db as any).djSearchPost.update({
+                where: { id: post.id },
                 data: { discordMessageId, discordChannelId },
             });
         }
     } catch (error) {
         logger.error("[sendMultiDiscordNotification]", error);
     }
+}
+
+/**
+ * Construit UN embed PAR donjon du mode multi (#26) : nom, image, succès visés,
+ * date prévue, note, classes recherchées + membres (partagés sur la session).
+ */
+async function buildMultiPostEmbeds(post: any, authorName: string, guildId: string): Promise<any[]> {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const entries: any[] = post.dungeonsJson ?? [];
+    const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
+    const totalCount = acceptedParts.length + 1;
+    const participantLines = acceptedParts.map((p: any) => {
+        const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+        return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
+    });
+
+    return entries.map((entry: any) => {
+        const fields: any[] = [];
+        fields.push({
+            name: "📍 Donjon",
+            value: `**${entry.name}**\n*Niveau ${entry.level} — ${entry.bossName}*`,
+            inline: true,
+        });
+        if (entry.targetDate) {
+            const d = new Date(entry.targetDate);
+            const ts = Math.floor(d.getTime() / 1000);
+            fields.push({ name: "📅 Date prévue", value: `<t:${ts}:F>\n(<t:${ts}:R)>`, inline: true });
+        }
+        if ((entry.wantedAchievementIds ?? []).length > 0) {
+            const achNames = (entry.achievements ?? [])
+                .filter((a: any) => entry.wantedAchievementIds.includes(a.id))
+                .map((a: any) => `• ${a.name}`)
+                .join("\n");
+            if (achNames) fields.push({ name: "🏆 Succès visés", value: achNames, inline: true });
+        }
+        if (entry.message) fields.push({ name: "💬 Note", value: entry.message, inline: false });
+        if (post.requiredClasses?.length) {
+            fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.map((c: string) => `\`${c}\``).join(" "), inline: true });
+        }
+        fields.push({
+            name: `👥 Membres (${totalCount}/${post.maxMembers})`,
+            value: `**${authorName}**\n${participantLines.length > 0 ? participantLines.join("\n") : "*En attente de joueurs...*"}`,
+            inline: false,
+        });
+
+        return {
+            title: "⚔️ MULTI-DONJON",
+            description: `🔗 **${entries.length} donjons** — rejoins la session !`,
+            color: 0x818cf8,
+            fields,
+            thumbnail: entry.imageUrl && entry.imageUrl.startsWith("https://") ? { url: entry.imageUrl } : undefined,
+            footer: { text: "SigilOS — Donjons & Quêtes (multi-donjons)" },
+            url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes`,
+            timestamp: new Date().toISOString(),
+        };
+    });
 }
 
 /**
@@ -839,13 +907,13 @@ export async function createDjPost(
 }
 
 /**
- * Mode multi-donjons (chantier #26) : crée de 2 à 5 posts en une transaction,
- * puis UN SEUL message Discord (multi-embeds + UN ping).
+ * Mode multi-donjons (chantier #26) : UN SEUL post portant N donjons (2-5),
+ * puis UN SEUL message Discord avec UN embed PAR donjon + UN seul ping.
  */
 export async function createDjPosts(
     guildId: string,
     input: z.infer<typeof createMultiPostSchema>
-): Promise<ActionResponse<{ ids: string[] }>> {
+): Promise<ActionResponse<{ id: string }>> {
     const user = await getUserContext(guildId);
     if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
@@ -872,8 +940,7 @@ export async function createDjPosts(
             }
         }
 
-        // Anti-spam : 5 posts actifs max au total (mode multi inclus)
-        const MAX_ACTIVE_POSTS = 5;
+        // Anti-spam : UN post multi = UN post actif (même limite que les posts simples)
         const activeCount = await (db as any).djSearchPost.count({
             where: {
                 profileId: user.profileId,
@@ -881,72 +948,78 @@ export async function createDjPosts(
                 status: "OPEN",
             },
         });
-        if (activeCount + posts.length > MAX_ACTIVE_POSTS) {
-            return {
-                success: false,
-                error: `Tu as déjà ${activeCount} post(s) actif(s). Ferme-en avant d'en créer ${posts.length}.`,
-            };
+        if (activeCount >= 3) {
+            return { success: false, error: "Tu as déjà 3 posts actifs. Ferme-en un pour en créer un nouveau." };
         }
 
-        // Bornage : tous les donjons doivent exister (guild isolation + validation)
+        // Charger les donjons avec leurs succès (snapshot pour l'embed + la carte)
         const dungeonIds = [...new Set(posts.map((p) => p.dungeonId))];
-        const foundDungeons = await (db as any).dungeon.findMany({
+        const dungeons = await (db as any).dungeon.findMany({
             where: { id: { in: dungeonIds } },
-            select: { id: true },
+            include: {
+                achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true } } } },
+            },
         });
-        const foundIds = new Set(foundDungeons.map((d: any) => d.id));
-        if (dungeonIds.some((id) => !foundIds.has(id))) {
-            return { success: false, error: "Un ou plusieurs donjons sont invalides" };
+        const byId = new Map<string, any>(dungeons.map((d: any) => [d.id, d] as [string, any]));
+        for (const p of posts) {
+            if (!byId.has(p.dungeonId)) return { success: false, error: "Un ou plusieurs donjons sont invalides" };
         }
 
-        // Création des posts en transaction
-        const created = await (db as any).$transaction(
-            posts.map((p) => (db as any).djSearchPost.create({
-                data: {
-                    mode: "DONJON",
-                    dungeonId: p.dungeonId,
-                    questId: null,
-                    questName: null,
-                    questUrl: null,
-                    wantedAchievementIds: p.wantedAchievementIds,
-                    maxMembers: rest.maxMembers,
-                    message: p.message,
-                    targetDate: p.targetDate,
-                    requiredClasses: rest.requiredClasses,
-                    isDiscordPublished: rest.isDiscordPublished,
-                    mentionRoleId,
-                    guildId: guildConfig.id,
-                    profileId: user.profileId,
-                    expiresAt: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
-                },
-                include: {
-                    dungeon: {
-                        include: {
-                            achievements: {
-                                include: {
-                                    challenge: { select: { id: true, name: true, iconUrl: true } },
-                                },
-                            },
-                        },
-                    },
-                },
-            }))
-        );
+        // Snapshot JSON des N donjons (mode multi = UN SEUL post bien foutu)
+        const dungeonsJson = posts.map((p) => {
+            const d = byId.get(p.dungeonId);
+            return {
+                dungeonId: p.dungeonId,
+                name: d.name,
+                bossName: d.bossName,
+                level: d.level,
+                imageUrl: d.imageUrl ?? null,
+                wantedAchievementIds: p.wantedAchievementIds,
+                achievements: (d.achievements ?? []).map((a: any) => ({
+                    id: a.id,
+                    name: a.challenge?.name ?? "Succès",
+                    iconUrl: a.challenge?.iconUrl ?? null,
+                })),
+                message: p.message,
+                targetDate: p.targetDate,
+            };
+        });
 
-        // Discord : UN seul message, multi-embeds, UN seul ping
+        const post = await (db as any).djSearchPost.create({
+            data: {
+                mode: "DONJON",
+                dungeonId: null,
+                dungeonsJson,
+                questId: null,
+                questName: null,
+                questUrl: null,
+                wantedAchievementIds: [],
+                maxMembers: rest.maxMembers,
+                message: null,
+                targetDate: null,
+                requiredClasses: rest.requiredClasses,
+                isDiscordPublished: rest.isDiscordPublished,
+                mentionRoleId,
+                guildId: guildConfig.id,
+                profileId: user.profileId,
+                expiresAt: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
+            },
+        });
+
+        // Discord : UN seul message, UN embed PAR donjon, UN seul ping
         if (rest.isDiscordPublished) {
             const authorName = user.name || "Membre";
-            const embeds = await Promise.all(created.map((post: any) => buildPostEmbed(post, authorName, guildId)));
+            const embeds = await buildMultiPostEmbeds(post, authorName, guildId);
             const creatorDiscordId = await getDiscordId(user.id || "");
-            await sendMultiDiscordNotification(guildId, created, embeds, mentionRoleId, creatorDiscordId);
+            await sendMultiDiscordNotification(guildId, post, embeds, mentionRoleId, creatorDiscordId);
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
-        return { success: true, data: { ids: created.map((p: any) => p.id) } };
+        return { success: true, data: { id: post.id } };
     } catch (error) {
         logger.error("[createDjPosts]", error);
-        return { success: false, error: "Erreur lors de la création des posts" };
+        return { success: false, error: "Erreur lors de la création du post" };
     }
 }
 

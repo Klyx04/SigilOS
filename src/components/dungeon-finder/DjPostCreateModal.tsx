@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 
 import { useState, useEffect, useTransition, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -362,8 +362,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     }
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="w-[95vw] max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
+        <>
+            <Dialog open={isOpen} onOpenChange={handleClose}>
+                <DialogContent className="w-[min(95vw,42rem)] max-w-[42rem] sm:min-w-[34rem] bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
                 <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40">
                     <DialogTitle className="text-xl font-black flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -382,11 +383,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
 
                 {/* Content Area */}
                 <div className="p-6">
-                    <AnimatePresence mode="wait">
                         {step === 1 && (
-                            <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-6">
+                            <div className="space-y-6">
                                 {/* Mode Selector - Refined */}
-                                <div className="grid grid-cols-2 bg-zinc-900/80 border border-white/5 p-1 rounded-xl w-full">
+                                <div className="grid grid-cols-2 relative bg-zinc-900/80 border border-white/5 p-1 rounded-xl w-full">
                                     <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-zinc-800 border border-white/10 rounded-xl transition-all duration-500 ease-out z-0 ${mode === "QUETE" ? "translate-x-full" : "translate-x-0"}`} />
                                     <button
                                         onClick={() => setMode("DONJON")}
@@ -469,7 +469,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
 
                                 {/* Mode multi-donjons (2 à 5) — chantier #26 */}
                                 {mode === "DONJON" && (
-                                    <div className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-white/5 bg-zinc-900/40">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-white/5 bg-zinc-900/40">
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                                                 <Layers className="w-4 h-4 text-amber-500" />
@@ -559,11 +559,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </Button>
                                     </div>
                                 )}
-                            </motion.div>
+                            </div>
                         )}
 
                         {step === 2 && (
-                            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="space-y-6">
                                 {multiDungeons && multiDungeons.length >= 2 ? (
                                     <div className="flex items-center justify-between gap-3 bg-zinc-900/60 rounded-3xl p-5 border border-white/10">
                                         <div className="flex items-center gap-3 min-w-0">
@@ -575,9 +575,25 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 <p className="text-[11px] text-zinc-500 truncate">{multiDungeons.map(s => s.dungeon.name).join(" · ")}</p>
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="sm" onClick={() => setIsMultiOpen(true)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 shrink-0">
-                                            MODIFIER
-                                        </Button>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => { setMultiDungeons(null); setSelectedDungeon(null); setSelectedAchievements([]); setTargetDate(""); setStep(1); }}
+                                                title="Revenir au mode simple (un donjon ou une quête)"
+                                                className="h-9 px-3 rounded-xl text-[10px] font-black whitespace-nowrap text-zinc-500 hover:text-amber-400 bg-white/5 hover:bg-white/10"
+                                            >
+                                                <X className="w-3 h-3 mr-1" /> Mode simple
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setIsMultiOpen(true)}
+                                                className="h-9 px-4 rounded-xl text-[10px] font-black whitespace-nowrap text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10"
+                                            >
+                                                MODIFIER
+                                            </Button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
@@ -726,14 +742,17 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                     {!multiDungeons && (
                                         <div className="space-y-3">
                                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Date & Heure prévue</p>
-                                        <DateTimePicker
-                                            value={targetDate}
-                                            onChange={setTargetDate}
-                                            minDate={new Date()}
-                                            placeholder="Choisir date & heure"
-                                            timeOptional={true}
-                                        />
-                                    </div>
+                                            <DateTimePicker
+                                                value={targetDate}
+                                                onChange={setTargetDate}
+                                                minDate={new Date()}
+                                                placeholder="Choisir date & heure"
+                                                timeOptional={true}
+                                            />
+                                            {!targetDate && (
+                                                <p className="text-[10px] text-amber-500/90 font-bold ml-1">Date requise pour continuer.</p>
+                                            )}
+                                        </div>
                                     )}
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Taille du groupe</p>
@@ -755,9 +774,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between ml-1">
                                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Besoin spécifique (Options)</p>
-                                        <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter bg-zinc-900 px-2 py-0.5 rounded border border-white/5">{requiredClasses.length} SÉLECTIONNÉES</span>
+                                        <span className="text-[9px] font-bold text-zinc-600 uppercase whitespace-nowrap bg-zinc-900 px-3 py-0.5 rounded border border-white/5">{requiredClasses.length} sél.</span>
                                     </div>
-                                    <div className="grid grid-cols-6 sm:grid-cols-10 gap-2 p-4 rounded-3xl bg-zinc-900/40 border border-white/5 backdrop-blur-sm">
+                                    <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 p-4 rounded-3xl bg-zinc-900/40 border border-white/5">
                                         {DOFUS_CLASSES.map((c) => {
                                             const isSelected = requiredClasses.includes(c.name);
                                             return (
@@ -769,7 +788,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                         ? "border-amber-500/50 bg-amber-500/10" 
                                                         : "border-transparent opacity-30 hover:opacity-100 hover:bg-zinc-800 hover:border-white/10"}`}
                                                 >
-                                                    <img src={c.icon} alt={c.name} className="w-7 h-7 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                    <img src={c.icon} alt={c.name} className="w-9 h-9 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
                                                 </button>
                                             );
                                         })}
@@ -821,11 +840,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </Button>
                                     </div>
                                 </div>
-                            </motion.div>
+                            </div>
                         )}
 
                         {step === 3 && (
-                            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="space-y-6">
                                 <div className="text-center space-y-3 mb-8">
                                     <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]">
                                         <Hash className="w-8 h-8 text-indigo-400" />
@@ -1009,13 +1028,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </Button>
                                     </div>
                                 </div>
-                            </motion.div>
+                            </div>
                         )}
-                    </AnimatePresence>
                 </div>
             </DialogContent>
+            </Dialog>
 
-            {/* Modale imbriquée : sélection multi-donjons (2 à 5) */}
+            {/* Modale multi-donjons (SIBLING du Dialog parent — évite l'imbrication
+                de Dialog Radix qui provoquait une couche/largeur résiduelle) */}
             <DjMultiDungeonModal
                 isOpen={isMultiOpen}
                 initial={multiDungeons ?? undefined}
@@ -1026,6 +1046,6 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                     if (step < 2) setStep(2);
                 }}
             />
-        </Dialog>
+        </>
     );
 }

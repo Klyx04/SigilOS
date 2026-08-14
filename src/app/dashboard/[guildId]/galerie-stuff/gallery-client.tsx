@@ -483,21 +483,24 @@ export function GalleryClient({
                         </div>
                         
                         <div className="flex items-center gap-3">
-                            <p className="text-sm text-zinc-500 flex items-center gap-2">
+                            <p className="text-sm text-zinc-500 flex items-center gap-2 tabular-nums">
                                 <span className="text-white font-semibold">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
                                 <span> sur {activeTab === "STUFF" ? stuffTotal : skinTotal} item{ (activeTab === "STUFF" ? stuffTotal : skinTotal) !== 1 ? "s" : ""}</span>
                             </p>
-                            {(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? (
-                                <>
-                                    <div className="w-px h-4 bg-white/10 shrink-0" />
-                                    <button
-                                        onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
-                                        className="text-xs text-zinc-400 hover:text-white transition-colors font-medium flex items-center gap-1 shrink-0"
-                                    >
-                                        <RefreshCw className="w-3 h-3" /> Reset
-                                    </button>
-                                </>
-                            ) : null}
+                            {/* Espace du bouton Reset TOUJOURS réservé → pas de saut de page
+                                quand un filtre devient actif (#67 anti-layout-shift) */}
+                            <div className="w-px h-4 bg-white/10 shrink-0" />
+                            <button
+                                onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
+                                tabIndex={(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? 0 : -1}
+                                aria-hidden={!(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource)}
+                                className={cn(
+                                    "text-xs text-zinc-400 hover:text-white transition-colors font-medium flex items-center gap-1 shrink-0",
+                                    !(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) && "invisible"
+                                )}
+                            >
+                                <RefreshCw className="w-3 h-3" /> Reset
+                            </button>
                         </div>
                     </div>
                 </div>

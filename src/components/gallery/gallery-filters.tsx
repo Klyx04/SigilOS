@@ -44,18 +44,19 @@ export function AdvancedTagFilter({
         <Popover>
             <PopoverTrigger asChild>
                 <button className={cn(
-                    "h-8 px-3 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0",
-                    activeInAdvanced ? `${activeInAdvanced.className} shadow-md` : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+                    "h-8 px-3 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0",
+                    activeInAdvanced ? `${activeInAdvanced.className} ring-1 ring-white/10` : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
                 )}>
-                    {activeInAdvanced ? activeInAdvanced.text : "Tags Avancés"}
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", activeInAdvanced ? "bg-current" : "bg-zinc-600")} />
+                    Tags Avancés
                     <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[340px] bg-zinc-950/95 backdrop-blur-xl border-white/10 rounded-2xl p-4 shadow-2xl" align="start" side="bottom">
+            <PopoverContent className="w-[340px] bg-zinc-950 border-white/10 rounded-2xl p-4 shadow-lg" align="start" side="bottom">
                 <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
                     {categories.map(cat => (
                         <div key={cat.title} className="space-y-2.5">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest pl-1">{cat.title}</p>
+                            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide pl-1">{cat.title}</p>
                             <div className="flex flex-wrap gap-1.5">
                                 {cat.tags.map(tid => {
                                     const tag = DO_TAGS.find(t => t.id === tid);
@@ -65,8 +66,8 @@ export function AdvancedTagFilter({
                                             key={tag.id}
                                             onClick={() => onSelectTag(selectedTag === tag.id ? null : tag.id)}
                                             className={cn(
-                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all border",
-                                                selectedTag === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/10 scale-[1.02]` : "text-zinc-400 bg-white/5 border-transparent hover:text-white hover:bg-white/10 hover:border-white/10"
+                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border",
+                                                selectedTag === tag.id ? `${tag.className} ring-1 ring-white/10` : "text-zinc-400 bg-white/5 border-transparent hover:text-white hover:bg-white/10 hover:border-white/10"
                                             )}
                                         >
                                             {tag.text}
@@ -93,7 +94,7 @@ export function ClassFilter({
         <Popover>
             <PopoverTrigger asChild>
                 <button className={cn(
-                    "h-8 px-3 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0",
+                    "h-8 px-3 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 min-w-[6.5rem] justify-between",
                     active ? "bg-white/10 text-white border border-white/20" : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
                 )}>
                     {active ? (
@@ -105,7 +106,7 @@ export function ClassFilter({
                     <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 bg-zinc-950 border-white/10 rounded-2xl p-2 shadow-2xl" align="start" side="bottom">
+            <PopoverContent className="w-64 bg-zinc-950 border-white/10 rounded-2xl p-2 shadow-lg" align="start" side="bottom">
                 <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest px-2 pt-1 pb-2">Filtrer par {label.toLowerCase()}</p>
                 <div className="grid grid-cols-3 gap-1">
                     {DOFUS_CLASSES.map(cls => {
@@ -138,12 +139,12 @@ export function GenderFilter({
     selectedGender, onSelectGender
 }: { selectedGender: string | null; onSelectGender: (gender: string | null) => void }) {
     return (
-        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-2xl border border-white/5">
+        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
             <button
                 onClick={() => onSelectGender(selectedGender === "M" ? null : "M")}
                 className={cn(
-                    "w-8 h-8 rounded-xl flex items-center justify-center transition-all",
-                    selectedGender === "M" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "text-zinc-500 hover:text-blue-400 hover:bg-white/5"
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    selectedGender === "M" ? "bg-blue-500 text-white" : "text-zinc-500 hover:text-blue-400 hover:bg-white/5"
                 )}
                 title="Sexe Masculin"
             >
@@ -152,8 +153,8 @@ export function GenderFilter({
             <button
                 onClick={() => onSelectGender(selectedGender === "F" ? null : "F")}
                 className={cn(
-                    "w-8 h-8 rounded-xl flex items-center justify-center transition-all",
-                    selectedGender === "F" ? "bg-pink-500 text-white shadow-lg shadow-pink-500/20" : "text-zinc-500 hover:text-pink-400 hover:bg-white/5"
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    selectedGender === "F" ? "bg-pink-500 text-white" : "text-zinc-500 hover:text-pink-400 hover:bg-white/5"
                 )}
                 title="Sexe Féminin"
             >

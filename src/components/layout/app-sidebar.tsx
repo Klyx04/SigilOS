@@ -40,6 +40,7 @@ import {
     Rocket,
     History,
     Bug,
+    Coins,
     Map
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
@@ -158,7 +159,10 @@ export function AppSidebar({
     const [pinnedOpen, setPinnedOpen] = useState(true);
 
     // --- NAVIGATION GROUPS ---
-    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || false;
+    // #66bis/#72 : reflète l'ensemble des cartes du Centre Admin — inclut les RBAC
+    // déléguables (points, validation, relances). Sans cela, un membre autorisé
+    // accédait à sa page admin en URL directe sans voir le « Centre Admin ».
+    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageRelance || user.canManageMissions || user.canValidateMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || user.canManagePoints || false;
 
     // 1. HORS SECTION
     const NAV_GLOBAL = [
@@ -200,9 +204,11 @@ export function AppSidebar({
         aliases: [
             `/dashboard/${guildId}/admin/permissions`,
             `/dashboard/${guildId}/admin/settings`,
+            `/dashboard/${guildId}/admin/modules`,
             `/dashboard/${guildId}/admin/presentation`,
             `/dashboard/${guildId}/admin/validation`,
             `/dashboard/${guildId}/admin/members`,
+            `/dashboard/${guildId}/admin/points`,
             `/dashboard/${guildId}/missions/manage`,
             `/dashboard/${guildId}/admin/logs`,
         ]
@@ -234,12 +240,13 @@ export function AppSidebar({
 
         // ADMIN SUB-ROUTES (Searchable & Pinnable)
         { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
-        { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.isDiscordAdmin },
+        { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
         { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
         { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation },
         { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions },
         { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions },
         { name: "Gestion des Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
+        { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
         { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "zinc", visible: user.canViewAuditLogs },
         { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
         { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },

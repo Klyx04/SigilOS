@@ -34,7 +34,7 @@ vi.mock("@/server/actions/user-actions", () => ({
 }));
 
 // Import after mocks
-import { requireGuildAdmin, requireGuildMember } from "@/server/actions/guards";
+import { requireGuildAdmin, requireGuildMember, requireRbacManagement } from "@/server/actions/guards";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { isGuildAllowed, isSuperAdmin } from "@/server/actions/super-admin-actions";
@@ -225,6 +225,83 @@ describe("guards.ts", () => {
 
             expect(result.isAuthorized).toBe(false);
             expect(result.error).toBe("Permission check failed");
+        });
+    });
+
+    describe("requireRbacManagement", () => {
+        it("blocks unauthenticated users", async () => {
+            mockAuth.mockResolvedValue(null);
+
+            const result = await requireRbacManagement("123456789");
+
+            expect(result.isAuthorized).toBe(false);
+            expect(result.error).toBe("Unauthorized");
+        });
+
+        it("blocks users without Discord account linked", async () => {
+            mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+            mockDbAccountFindFirst.mockResolvedValue(null);
+
+            const result = await requireRbacManagement("123456789");
+
+            expect(result.isAuthorized).toBe(false);
+            expect(result.error).toBe("No Discord account linked");
+        });
+
+        it("accepts a Discord admin (owner) avec rbacLevel discord-admin", async () => {
+            mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+            mockDbAccountFindFirst.mockResolvedValue({ providerAccountId: "discord-owner-id" });
+
+            const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+            // requireGuildAdmin fait un Promise.all sur les 3 appels Discord : tout mocker.
+            (fetchGuild as ReturnType<typeof vi.fn>).mockResolvedValue({ owner_id: "discord-owner-id" });
+            (fetchGuildMember as ReturnType<typeof vi.fn>).mockResolvedValue({ roles: [] });
+            (fetchGuildRoles as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+            const result = await requireRbacManagement("123456789");
+
+            expect(result.isAuthorized).toBe(true);
+            expect(result.rbacLevel).toBe("discord-admin");
+        });
+
+        it("accepte un gestionnaire délégué (system:rbac) sans rôle Discord Admin", async () => {
+            mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+            mockDbAccountFindFirst.mockResolvedValue({ providerAccountId: "discord-member-id" });
+
+            const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+            (fetchGuild as ReturnType<typeof vi.fn>).mockResolvedValue({ owner_id: "someone-else" });
+            (fetchGuildMember as ReturnType<typeof vi.fn>).mockResolvedValue({ roles: ["member-role-id"] });
+            (fetchGuildRoles as ReturnType<typeof vi.fn>).mockResolvedValue([
+                { id: "member-role-id", permissions: "0" }, // PAS admin Discord
+            ]);
+
+            const { getUserContext } = await import("@/server/actions/user-actions");
+            (getUserContext as ReturnType<typeof vi.fn>).mockResolvedValue({ canManageRBAC: true });
+
+            const result = await requireRbacManagement("123456789");
+
+            expect(result.isAuthorized).toBe(true);
+            expect(result.rbacLevel).toBe("delegated");
+        });
+
+        it("refuse un membre sans rôle Discord Admin et sans system:rbac", async () => {
+            mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+            mockDbAccountFindFirst.mockResolvedValue({ providerAccountId: "discord-member-id" });
+
+            const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+            (fetchGuild as ReturnType<typeof vi.fn>).mockResolvedValue({ owner_id: "someone-else" });
+            (fetchGuildMember as ReturnType<typeof vi.fn>).mockResolvedValue({ roles: ["member-role-id"] });
+            (fetchGuildRoles as ReturnType<typeof vi.fn>).mockResolvedValue([
+                { id: "member-role-id", permissions: "0" },
+            ]);
+
+            const { getUserContext } = await import("@/server/actions/user-actions");
+            (getUserContext as ReturnType<typeof vi.fn>).mockResolvedValue({ canManageRBAC: false });
+
+            const result = await requireRbacManagement("123456789");
+
+            expect(result.isAuthorized).toBe(false);
+            expect(result.error).toBe("Admin permission required");
         });
     });
 });

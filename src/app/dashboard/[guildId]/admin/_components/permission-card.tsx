@@ -70,6 +70,19 @@ export function PermissionCard({
                         <h3 className="text-sm font-semibold text-white tracking-tight leading-none">
                             {details.label}
                         </h3>
+                        {details.sensitive && (
+                            <span
+                                className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wide border"
+                                style={{
+                                    color: moduleColor,
+                                    borderColor: `${moduleColor}50`,
+                                    backgroundColor: `${moduleColor}15`,
+                                }}
+                                title="Réservée aux administrateurs Discord : un gestionnaire délégué ne peut ni l'octroyer ni la révoquer."
+                            >
+                                🔐 Sensible
+                            </span>
+                        )}
                     </div>
                     <p className="text-xs text-zinc-300 leading-relaxed max-w-[240px]">
                         {details.description}

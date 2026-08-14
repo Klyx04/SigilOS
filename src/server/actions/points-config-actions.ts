@@ -41,12 +41,12 @@ export async function getGuildPointsConfig(guildId: string) {
     }
 }
 
-/** Mise à jour de la config de points — admin de guilde OU « Organisation d'Activités » (GAME_OPERATIONS). */
+/** Mise à jour de la config de points — RBAC dédié `points:manage` (admin bypass). */
 export async function updateGuildPointsConfig(guildId: string, input: unknown) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!ctx.isAdmin && !ctx.canCreateSonges && !ctx.canViewFinder) {
-        return { success: false, error: "Permission requise (admin ou organisation d'activités)" };
+    if (!ctx.canManagePoints) {
+        return { success: false, error: "Permission requise (Gestion des Points de Contribution)" };
     }
 
     const parsed = POINTS_FIELD_SCHEMA.safeParse(input);

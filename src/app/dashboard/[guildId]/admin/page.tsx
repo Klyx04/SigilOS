@@ -134,7 +134,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Points de Contribution",
                     description: "Personnalisez les points de la clôture des posts DJ / quêtes et des runs Songes.",
                     accent: "amber",
-                    permission: (u) => u.isAdmin,
+                    permission: (u) => u.isAdmin || u.canCreateSonges || u.canViewFinder,
                     tourId: "admin-overview-card-points",
                 },
             ],

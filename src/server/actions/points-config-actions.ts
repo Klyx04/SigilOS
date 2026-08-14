@@ -41,10 +41,13 @@ export async function getGuildPointsConfig(guildId: string) {
     }
 }
 
-/** Mise à jour de la config de points — admin de guilde uniquement, Zod borné. */
+/** Mise à jour de la config de points — admin de guilde OU « Organisation d'Activités » (GAME_OPERATIONS). */
 export async function updateGuildPointsConfig(guildId: string, input: unknown) {
     const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated || !ctx.isAdmin) return { success: false, error: "Permission administrateur requise" };
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isAdmin && !ctx.canCreateSonges && !ctx.canViewFinder) {
+        return { success: false, error: "Permission requise (admin ou organisation d'activités)" };
+    }
 
     const parsed = POINTS_FIELD_SCHEMA.safeParse(input);
     if (!parsed.success) return { success: false, error: "Configuration invalide (valeurs entières 0-100 requises)" };

@@ -18,7 +18,9 @@ export default async function AdminPointsPage({
     const user = await getUserContext(guildId);
 
     if (!user.isMember) return <AccessDenied />;
-    if (!user.isAdmin) return <AccessDenied />;
+    // RBAC : admin de guilde OU permission « Organisation d'Activités » (GAME_OPERATIONS)
+    // qui couvre déjà Songes & Donjons/Quêtes — pas de visibilité pour un simple membre.
+    if (!user.isAdmin && !user.canCreateSonges && !user.canViewFinder) return <AccessDenied />;
 
     return (
         <div className="p-6 space-y-6">

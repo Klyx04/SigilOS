@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { toast } from "sonner";
-import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock } from "lucide-react";
+import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock, Swords } from "lucide-react";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 
 type Dungeon = {
@@ -109,7 +109,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="w-[95vw] max-w-3xl bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto premium-scrollbar">
+            <DialogContent className="!z-[140] w-[95vw] max-w-3xl bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto premium-scrollbar">
                 <DialogHeader className="border-b border-white/5 p-5">
                     <DialogTitle className="flex items-center gap-3 text-lg font-black">
                         <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -155,7 +155,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                             type="button"
                                             disabled={atLimit}
                                             onClick={() => toggleDungeon(d)}
-                                            className={`text-left flex items-center gap-2 p-2.5 rounded-xl border transition-colors ${
+                                            className={`w-full text-left flex items-center gap-2 p-2.5 rounded-xl border transition-colors ${
                                                 isSelected
                                                     ? "bg-amber-500/10 border-amber-500/40"
                                                     : "bg-zinc-900/40 border-white/5 hover:border-white/20 " + (atLimit ? "opacity-40 cursor-not-allowed" : "")
@@ -164,6 +164,15 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                             <span className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center ${isSelected ? "bg-amber-500 border-amber-400" : "border-zinc-600"}`}>
                                                 {isSelected && <CheckCircle2 className="w-3 h-3 text-zinc-950" />}
                                             </span>
+                                            {d.imageUrl ? (
+                                                <span className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center">
+                                                    <img src={d.imageUrl} alt="" className="w-full h-full object-contain p-0.5" />
+                                                </span>
+                                            ) : (
+                                                <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                                    <Swords className="w-4 h-4" />
+                                                </span>
+                                            )}
                                             <span className="flex-1 min-w-0">
                                                 <span className="block text-xs font-bold text-white truncate">{d.name}</span>
                                                 <span className="block text-[9px] text-zinc-500">Niv. {d.level} — {d.bossName}</span>
@@ -222,12 +231,15 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                                     key={a.id}
                                                                     type="button"
                                                                     onClick={() => toggleAchievement(s.dungeon.id, a.id)}
-                                                                    className={`px-2 py-1 rounded-lg text-[9px] font-bold border transition-colors ${
+                                                                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-bold border transition-colors ${
                                                                         isOn
                                                                             ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
                                                                             : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20"
                                                                     }`}
                                                                 >
+                                                                    {a.challenge.iconUrl && (
+                                                                        <img src={a.challenge.iconUrl} alt="" className="w-3.5 h-3.5 object-contain rounded" />
+                                                                    )}
                                                                     {a.challenge.name}
                                                                 </button>
                                                             );

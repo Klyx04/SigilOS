@@ -62,6 +62,34 @@ async function isMemberOfGuild(userId: string, discordGuildId: string): Promise<
     }
 }
 
+/** Résout l'identité d'affichage (profil ACTIVE) pour la présence du dashboard. */
+async function resolveDashboardIdentity(
+    userId: string | undefined,
+    discordGuildId: string
+): Promise<{ profileId: string; userName: string; userAvatar?: string } | null> {
+    if (!userId) return null;
+    try {
+        const { db } = await import("../../lib/prisma");
+        const profile = await db.userProfile.findFirst({
+            where: { status: "ACTIVE", userId, guild: { discordGuildId } },
+            select: {
+                id: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: { select: { name: true, image: true } },
+            },
+        });
+        if (!profile) return null;
+        return {
+            profileId: profile.id,
+            userName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
+            userAvatar: profile.user?.image || undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
 // Load Geoguesser data
 WorldMapService.getInstance().loadData();
 
@@ -370,6 +398,45 @@ io.on("connection", (socket: Socket) => {
         guildId?: string; guideSlug?: string; milestoneId?: string; userName?: string; userAvatar?: string;
     }) => {
         guidePresence.handleHeartbeat(socket, data).catch(() => {});
+    });
+
+    // === DASHBOARD PRESENCE (temps réel qui se connecte / quitte, chantier #39) ===
+    // Events : `dashboard:presence:event` = { type: "join"|"leave", profileId, userName, userAvatar }.
+    // Broadcast aux AUTRES sockets de la guilde (socket.broadcast → pas de notif "toi").
+    socket.on("dashboard:join", async (data: { guildId?: string }) => {
+        if (!data.guildId) return;
+        if (WS_AUTH_ENABLED) {
+            const userId = socket.data.userId as string | undefined;
+            if (!userId) return;
+            const allowed = await isMemberOfGuild(userId, data.guildId);
+            if (!allowed) return;
+        }
+        socket.join(`guild:${data.guildId}`);
+        const identity = await resolveDashboardIdentity(socket.data.userId as string | undefined, data.guildId);
+        if (!identity) return;
+        socket.data.dashboardIdentity = identity;
+        logger.info(`[WS] 👋 ${socket.id} joined dashboard (${identity.userName})`);
+        socket.broadcast.to(`guild:${data.guildId}`).emit("dashboard:presence:event", {
+            type: "join",
+            profileId: identity.profileId,
+            userName: identity.userName,
+            userAvatar: identity.userAvatar,
+        });
+    });
+
+    socket.on("dashboard:leave", async (data: { guildId?: string }) => {
+        if (!data.guildId) return;
+        socket.leave(`guild:${data.guildId}`);
+        const identity = socket.data.dashboardIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
+        if (identity?.profileId) {
+            socket.broadcast.to(`guild:${data.guildId}`).emit("dashboard:presence:event", {
+                type: "leave",
+                profileId: identity.profileId,
+                userName: identity.userName,
+                userAvatar: identity.userAvatar,
+            });
+        }
+        socket.data.dashboardIdentity = undefined;
     });
 
     // Gestion de la déconnexion

@@ -472,7 +472,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                                 description: `Le membre **${displayName}** a quitté le serveur Discord.`,
                                 color: 0xf59e0b, // Amber
                                 fields: [
-                                    { name: 'Nom Discord', value: `@${member.user.username}`, inline: true },
+                                    { name: 'Nom Discord', value: `@${member.nickname || member.user.displayName || member.user.username}`, inline: true },
                                     { name: 'Nouveau Statut', value: '**Archivé**', inline: true },
                                     { name: 'Action effectuée par', value: '🤖 Bot Gateway (automatique)', inline: false },
                                     { name: 'Rétention des données', value: 'Profil archivé 30 jours', inline: false },

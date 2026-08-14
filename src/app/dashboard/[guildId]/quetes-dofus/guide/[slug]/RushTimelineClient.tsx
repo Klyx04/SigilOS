@@ -344,6 +344,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                     {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
                   </span>
                 )}
+                {/* Chantier #68 — icône de quête dans chaque quête */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/icons/icone-quete.png" alt="" className="inline-block w-3.5 h-3.5 mr-1 align-[-2px] object-contain opacity-80 shrink-0" loading="lazy" />
                 <span className="font-[family-name:var(--font-cinzel)] tracking-wide">{questName}</span>
               </span>
               {(()=>{

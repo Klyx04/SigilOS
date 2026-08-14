@@ -79,7 +79,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             return (
                                 <div
                                     key={item.itemName}
-                                    className={`rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-md ${isPositive
+                                    className={`rounded-2xl border p-5 flex items-start gap-4 transition-colors ${isPositive
                                         ? "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15"
                                         : "border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15"
                                         }`}
@@ -95,14 +95,14 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             />
                                         </div>
                                     ) : (
-                                        <div className={`h-12 w-12 shrink-0 rounded-xl flex items-center justify-center border shadow-inner ${isPositive ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400" : "border-rose-500/30 bg-rose-500/20 text-rose-400"
+                                        <div className={`h-12 w-12 shrink-0 rounded-xl flex items-center justify-center border ${isPositive ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400" : "border-rose-500/30 bg-rose-500/20 text-rose-400"
                                             }`}>
                                             <Package className="h-6 w-6" />
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-base font-black text-white truncate capitalize group-hover:text-cyan-400 transition-colors">{item.itemName}</p>
-                                        <p className={`text-3xl font-black mt-1 tracking-tight ${isPositive ? "text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)]"}`}>
+                                        <p className="text-base font-black text-white truncate capitalize">{item.itemName}</p>
+                                        <p className={`text-3xl font-black mt-1 tracking-tight ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                                             {isPositive ? "+" : ""}{formatQty(item.balance)}
                                         </p>
                                         <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500">
@@ -134,12 +134,12 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             <button
                                 key={f}
                                 onClick={() => setActionFilter(f)}
-                                className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all duration-300 ${actionFilter === f
+                                className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-colors ${actionFilter === f
                                     ? f === "ALL"
-                                        ? "border-zinc-500/60 bg-zinc-500/20 text-zinc-300 shadow-[0_0_15px_rgba(113,113,122,0.2)]"
+                                        ? "border-zinc-500/60 bg-zinc-500/20 text-zinc-300"
                                         : f === "DEPOSIT"
-                                            ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                                            : "border-orange-500/50 bg-orange-500/20 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.2)]"
+                                            ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+                                            : "border-orange-500/50 bg-orange-500/20 text-orange-400"
                                     : "border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                     }`}
                             >

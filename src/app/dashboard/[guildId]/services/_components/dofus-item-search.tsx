@@ -161,6 +161,9 @@ export function DofusItemSearch({
                             </li>
                         ))}
                     </ul>
+                    <p className="border-t border-white/5 px-3 py-1.5 text-[9px] text-zinc-600">
+                        Source : Dofusdude (api.dofusdu.de)
+                    </p>
                 </div>
             )}
 

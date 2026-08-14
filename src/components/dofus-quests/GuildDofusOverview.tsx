@@ -583,7 +583,7 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                                 {!member.isObtained && member.currentQuestNames && member.currentQuestNames.length > 0 && (
                                                     <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
                                                         <span className="shrink-0 inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-zinc-400">
-                                                            <Flag className="w-2.5 h-2.5" /> Rendu ici
+                                                            <Flag className="w-2.5 h-2.5" /> Je suis ici
                                                         </span>
                                                         <span className="truncate text-[9px] text-zinc-500 font-medium" title={member.currentQuestNames.join(", ")}>
                                                             {member.currentQuestNames.join(" · ")}

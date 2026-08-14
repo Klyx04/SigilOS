@@ -361,34 +361,50 @@ export async function deleteQuestEntry(id: string): Promise<ActionResponse> {
 
 /**
  * Move a quest chain (section) up or down in the dofus
+ * Approche robuste : on trie TOUS les frères (chainOrder asc + id en tie-break),
+ * on permute par index, puis on re-persiste des chainOrder CONTIGUS (0..N-1).
+ * → corrige les doublons/lacunes hérités du siphon (chainOrder @default(0))
+ *   qui provoquaient un faux « Déjà en dernière position ».
  */
 export async function reorderQuestChain(chainId: string, direction: "up" | "down"): Promise<ActionResponse> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 
+    const dir = z.enum(["up", "down"]).safeParse(direction);
+    if (!dir.success) return { success: false, error: "Direction invalide" };
+
     try {
         const chain = await (db as any).dofusQuestChain.findUnique({
             where: { id: chainId },
-            select: { id: true, dofusId: true, chainOrder: true }
+            select: { id: true, dofusId: true }
         });
 
         if (!chain) return { success: false, error: "Section introuvable" };
 
-        const neighbor = direction === "up"
-            ? await (db as any).dofusQuestChain.findFirst({
-                where: { dofusId: chain.dofusId, chainOrder: { lt: chain.chainOrder } },
-                orderBy: { chainOrder: "desc" }
-              })
-            : await (db as any).dofusQuestChain.findFirst({
-                where: { dofusId: chain.dofusId, chainOrder: { gt: chain.chainOrder } },
-                orderBy: { chainOrder: "asc" }
-              });
+        const siblings = await (db as any).dofusQuestChain.findMany({
+            where: { dofusId: chain.dofusId },
+            select: { id: true },
+            orderBy: [{ chainOrder: "asc" }, { id: "asc" }]
+        });
 
-        if (!neighbor) return { success: false, error: direction === "up" ? "Déjà en première position" : "Déjà en dernière position" };
+        const index = siblings.findIndex((s: any) => s.id === chainId);
+        if (index === -1) return { success: false, error: "Section introuvable" };
 
-        const tempOrder = chain.chainOrder;
-        await (db as any).dofusQuestChain.update({ where: { id: chain.id }, data: { chainOrder: neighbor.chainOrder } });
-        await (db as any).dofusQuestChain.update({ where: { id: neighbor.id }, data: { chainOrder: tempOrder } });
+        const target = direction === "up" ? index - 1 : index + 1;
+        if (target < 0 || target >= siblings.length) {
+            return { success: false, error: direction === "up" ? "Déjà en première position" : "Déjà en dernière position" };
+        }
+
+        // Swap positions
+        const list = siblings.map((s: any) => s.id);
+        [list[index], list[target]] = [list[target], list[index]];
+
+        // Re-persist contiguous chainOrder in one transaction
+        await (db as any).$transaction(
+            list.map((id: string, i: number) =>
+                (db as any).dofusQuestChain.update({ where: { id }, data: { chainOrder: i } })
+            )
+        );
 
         revalidatePath("/god/quetes-dofus");
         revalidatePath("/god/game-data");
@@ -401,36 +417,47 @@ export async function reorderQuestChain(chainId: string, direction: "up" | "down
 
 /**
  * Move a quest entry up or down in the chain order
+ * Même approche que reorderQuestChain : tri + swap par index + stepOrder contigus.
  */
 export async function reorderQuestEntry(entryId: string, direction: "up" | "down"): Promise<ActionResponse> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 
+    const dir = z.enum(["up", "down"]).safeParse(direction);
+    if (!dir.success) return { success: false, error: "Direction invalide" };
+
     try {
         const entry = await (db as any).dofusQuestEntry.findUnique({
             where: { id: entryId },
-            select: { id: true, chainId: true, stepOrder: true }
+            select: { id: true, chainId: true }
         });
 
         if (!entry) return { success: false, error: "Étape introuvable" };
 
-        // Find the neighbor entry to swap with
-        const neighbor = direction === "up"
-            ? await (db as any).dofusQuestEntry.findFirst({
-                where: { chainId: entry.chainId, stepOrder: { lt: entry.stepOrder } },
-                orderBy: { stepOrder: "desc" }
-              })
-            : await (db as any).dofusQuestEntry.findFirst({
-                where: { chainId: entry.chainId, stepOrder: { gt: entry.stepOrder } },
-                orderBy: { stepOrder: "asc" }
-              });
+        const siblings = await (db as any).dofusQuestEntry.findMany({
+            where: { chainId: entry.chainId },
+            select: { id: true },
+            orderBy: [{ stepOrder: "asc" }, { id: "asc" }]
+        });
 
-        if (!neighbor) return { success: false, error: direction === "up" ? "Déjà en première position" : "Déjà en dernière position" };
+        const index = siblings.findIndex((s: any) => s.id === entryId);
+        if (index === -1) return { success: false, error: "Étape introuvable" };
 
-        // Swap stepOrder
-        const tempOrder = entry.stepOrder;
-        await (db as any).dofusQuestEntry.update({ where: { id: entry.id }, data: { stepOrder: neighbor.stepOrder } });
-        await (db as any).dofusQuestEntry.update({ where: { id: neighbor.id }, data: { stepOrder: tempOrder } });
+        const target = direction === "up" ? index - 1 : index + 1;
+        if (target < 0 || target >= siblings.length) {
+            return { success: false, error: direction === "up" ? "Déjà en première position" : "Déjà en dernière position" };
+        }
+
+        // Swap positions
+        const list = siblings.map((s: any) => s.id);
+        [list[index], list[target]] = [list[target], list[index]];
+
+        // Re-persist contiguous stepOrder in one transaction
+        await (db as any).$transaction(
+            list.map((id: string, i: number) =>
+                (db as any).dofusQuestEntry.update({ where: { id }, data: { stepOrder: i } })
+            )
+        );
 
         revalidatePath("/god/quetes-dofus");
         revalidatePath("/god/game-data");

@@ -45,6 +45,11 @@ export type DofusItemWithProgress = {
     notes: string | null;
 };
 
+export type QuestPrereqLite = {
+    fromQuestId: string;
+    name: string;
+};
+
 export type DofusChainWithProgress = {
     id: string;
     sectionType: string;
@@ -311,6 +316,7 @@ export async function getDofusDetailWithChains(
     data?: {
         dofus: DofusItemWithProgress;
         chains: DofusChainWithProgress[];
+        prereqsByQuestId?: Record<string, QuestPrereqLite[]>;
     };
 }> {
     const ctx = await getUserContext(guildId);
@@ -403,6 +409,25 @@ export async function getDofusDetailWithChains(
             }),
         }));
 
+        // Prérequis — qui doit être terminé AVANT telle quête (rendu côté user)
+        let prereqsByQuestId: Record<string, QuestPrereqLite[]> = {};
+        const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+        if (allEntryIds.length > 0) {
+            const prereqs = await (db as any).dofusQuestPrerequisite.findMany({
+                where: { toQuestId: { in: allEntryIds } },
+                select: {
+                    toQuestId: true,
+                    fromQuestId: true,
+                    fromQuest: { select: { name: true } },
+                },
+            });
+            for (const p of prereqs) {
+                const list = prereqsByQuestId[p.toQuestId] ?? [];
+                list.push({ fromQuestId: p.fromQuestId, name: p.fromQuest?.name ?? "Quête prérequis" });
+                prereqsByQuestId[p.toQuestId] = list;
+            }
+        }
+
         const progress = item.playerProgress?.[0];
         
         // Fetch user profile for special progress (Ocre/Metamob)
@@ -482,7 +507,7 @@ export async function getDofusDetailWithChains(
             notes: progress?.notes ?? null,
         };
 
-        return { success: true, data: { dofus: dofusData, chains } };
+        return { success: true, data: { dofus: dofusData, chains, prereqsByQuestId } };
     } catch (error) {
         logger.error("[dofus-quest-actions] getDofusDetailWithChains error:", { error });
         return { success: false, error: "Erreur serveur" };

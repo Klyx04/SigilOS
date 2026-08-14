@@ -98,16 +98,10 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
         >
             <Link href={`/dashboard/${guildId}/sondages/${poll.id}`}>
                 <div className={cn(
-                    "group relative overflow-hidden rounded-[2rem] border transition-all duration-500",
-                    "bg-[#030303]/40 backdrop-blur-md hover:bg-[#050505]/60",
-                    "hover:scale-[1.01] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] cursor-pointer",
+                    "group relative overflow-hidden rounded-2xl border transition-colors",
+                    "bg-[#0a0a0f]/60 hover:bg-[#101018]/80 cursor-pointer",
                     isActive ? cat.borderColor : "border-white/5",
                 )}>
-                    {/* Category glow */}
-                    <div
-                        className="absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-1000 pointer-events-none"
-                        style={{ backgroundColor: cat.glowColor }}
-                    />
 
                     {/* Header bar */}
                     <div className={cn(
@@ -115,7 +109,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                         isActive ? "border-white/5" : "border-white/[0.03]",
                     )}>
                         <div className="flex items-center gap-2.5">
-                            <span className="text-lg drop-shadow-lg">{cat.emoji}</span>
+                            <span className="text-lg">{cat.emoji}</span>
                             <span className={cn("text-[10px] font-black uppercase tracking-[0.2em]", cat.color)}>{cat.label}</span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -142,14 +136,14 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                     <div className="px-6 py-7 space-y-7 relative z-10">
 
                         {poll.outcome && (
-                            <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">
+                            <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-emerald-500/10 border border-emerald-500/20">
                                 <Crown className="w-3.5 h-3.5 text-emerald-400" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Décision validée</span>
                             </div>
                         )}
 
                         <div>
-                            <h3 className="text-white font-black text-2xl sm:text-3xl tracking-tighter group-hover:text-cyan-400 transition-colors line-clamp-2 leading-[1.05]">
+                            <h3 className="text-white font-black text-2xl sm:text-3xl tracking-tight line-clamp-2 leading-[1.05]">
                                 {poll.title}
                             </h3>
                             {poll.description && (
@@ -179,26 +173,22 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                             </span>
                                         </div>
                                         <div className="h-1.5 rounded-full bg-white/[0.02] border border-white/5 overflow-hidden">
-                                            <motion.div
-                                                className={cn(
-                                                    "h-full rounded-full relative",
-                                                    isWinning ? "shadow-[0_0_15px_rgba(255,255,255,0.05)]" : "opacity-20"
-                                                )}
+                                            <div
+                                                className="h-full rounded-full"
                                                 style={{
+                                                    width: `${percent}%`,
                                                     background: isWinning
-                                                        ? `linear-gradient(90deg, ${cat.glowColor.replace("0.4", "1")}, ${cat.glowColor.replace("0.4", "0.6")})`
-                                                        : cat.glowColor.replace("0.4", "0.3")
+                                                        ? cat.glowColor.replace("0.4", "1")
+                                                        : cat.glowColor.replace("0.4", "0.3"),
+                                                    transition: "width 0.3s ease",
                                                 }}
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${percent}%` }}
-                                                transition={{ delay: index * 0.06 + 0.3, duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                                             />
                                         </div>
                                     </div>
                                 );
                             })}
                             {poll.options.length > 3 && (
-                                <p className="text-zinc-700 text-[9px] font-black uppercase tracking-[0.4em] text-center pt-2 italic opacity-60 group-hover:opacity-100 transition-opacity">
+                                <p className="text-zinc-700 text-[9px] font-black uppercase tracking-[0.3em] text-center pt-2 opacity-60">
                                     + {poll.options.length - 3} options supplémentaires
                                 </p>
                             )}
@@ -213,7 +203,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-black uppercase tracking-widest text-zinc-600">
                             <span className="flex items-center gap-2">
                                 <span className="opacity-40">Par</span>
-                                <span className="text-zinc-400 group-hover:text-cyan-400 transition-colors decoration-cyan-500/30 underline-offset-4 decoration-dotted underline">{poll.creatorName}</span>
+                                <span className="text-zinc-400">{poll.creatorName}</span>
                             </span>
                             <div className="flex items-center gap-5">
                                 <span className="flex items-center gap-2 text-zinc-500 border-l border-white/5 pl-5 first:border-0 first:pl-0">
@@ -228,7 +218,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                 )}
                             </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-zinc-800 group-hover:text-cyan-500 group-hover:translate-x-1.5 transition-all duration-300" />
+                        <ChevronRight className="w-5 h-5 text-zinc-800 group-hover:text-zinc-500 transition-colors" />
                     </div>
                 </div>
             </Link>

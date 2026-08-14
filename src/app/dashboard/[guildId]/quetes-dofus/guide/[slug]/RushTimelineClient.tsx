@@ -227,8 +227,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     return Array.from(new Map(raw.map(m => [m.profileId || m.userName, m])).values());
   }, [guildProgressBySeq, seq.id]);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
-  const [showAllTags, setShowAllTags] = useState(false);
-  const [linkChoice, setLinkChoice] = useState<{ dbUrl?: string|null; noobsUrl?: string|null; questName?: string } | null>(null);
   const maxFloatingAvatars = 5;
   const floatAvatars = seqMembers.slice(0, maxFloatingAvatars);
   const floatExtra = seqMembers.length - maxFloatingAvatars;
@@ -424,50 +422,22 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           )}
           </div>
 
-        {/* Liens externes — derrière un clic (progressive disclosure, Phase 3) */}
+        {/* Liens externes — icônes VISIBLES (retour user P3) */}
         {(dbUrl || noobsUrl) && (
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setLinkChoice({ dbUrl, noobsUrl, questName }); }}
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900 border border-white/10 text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-colors text-[8px] font-black uppercase tracking-wider cursor-pointer"
-              title="Consulter la quête sur DofusDB / DofusPourLesNoobs"
-            >
-              <ExternalLink className="w-3 h-3" />
-              {dbUrl && noobsUrl ? "Guides" : (dbUrl ? "DofusDB" : "Noobs")}
-            </button>
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            {noobsUrl && (
+              <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-colors text-[8px] font-black uppercase tracking-wider" title="DofusPourLesNoobs — tutoriel">
+                <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
+                <span>Noobs</span>
+              </a>
+            )}
+            {dbUrl && (
+              <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-[8px] font-black uppercase tracking-wider" title="DofusDB — base de données">
+                <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
+                <span>DofusDB</span>
+              </a>
+            )}
           </div>
-        )}
-        {linkChoice && (
-          <Dialog open={!!linkChoice} onOpenChange={(open) => { if (!open) setLinkChoice(null); }}>
-            <DialogContent className="sm:max-w-xs bg-zinc-950 border-white/10 rounded-2xl p-0 gap-0">
-              <DialogHeader className="p-4 border-b border-white/5">
-                <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
-                  <ExternalLink className="w-4 h-4 text-emerald-400" />
-                  Consulter « {linkChoice.questName} »
-                </DialogTitle>
-              </DialogHeader>
-              <div className="p-4 space-y-2">
-                {linkChoice.dbUrl && (
-                  <a href={linkChoice.dbUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-xs font-bold">
-                    <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-4 h-4 rounded-sm shrink-0" />
-                    Consulter sur DofusDB
-                    <ExternalLink className="w-3 h-3 ml-auto shrink-0" />
-                  </a>
-                )}
-                {linkChoice.noobsUrl && (
-                  <a href={linkChoice.noobsUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-colors text-xs font-bold">
-                    <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-4 h-4 rounded-sm shrink-0" />
-                    Consulter le tutoriel Noobs
-                    <ExternalLink className="w-3 h-3 ml-auto shrink-0" />
-                  </a>
-                )}
-              </div>
-              <DialogFooter className="p-3 border-t border-white/5">
-                <Button onClick={() => setLinkChoice(null)} variant="ghost" size="sm" className="text-zinc-400 text-xs">Fermer</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         )}
 
         {/* Badges & Tags */}
@@ -479,11 +449,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           {(() => {
             const visibleTags = Array.isArray(seq.activityTags) ? seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)) : [];
             if (visibleTags.length === 0) return null;
-            const shown = showAllTags ? visibleTags : visibleTags.slice(0, 2);
-            const hiddenCount = visibleTags.length - shown.length;
             return (
               <>
-                {shown.map((tag:any,i:number)=>{
+                {visibleTags.map((tag:any,i:number)=>{
                   if(tag.type==="solver"){
                     const su=tag.url||null;
                     return su ? (
@@ -521,11 +489,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                     </span>
                   );
                 })}
-                {hiddenCount > 0 && (
-                  <button type="button" onClick={(e)=>{e.stopPropagation();setShowAllTags(v=>!v);}} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-800 border border-white/10 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer" title={showAllTags?"Réduire les badges":"Afficher tous les badges"}>
-                    {showAllTags ? "Réduire" : `+${hiddenCount}`}
-                  </button>
-                )}
               </>
             );
           })()}

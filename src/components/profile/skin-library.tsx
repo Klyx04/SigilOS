@@ -603,7 +603,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         size="icon"
                                         onClick={() => handleRefreshMetadata(skin.id, skin.url)}
                                         disabled={isSubmitting}
-                                        className="w-9 h-9 bg-zinc-900/70 border border-white/10 hover:bg-sky-500/20 hover:border-sky-500/30 hover:text-sky-400 rounded-xl transition-all"
+                                        className="w-9 h-9 bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 hover:border-sky-500/50 rounded-xl transition-all"
                                         title="Synchroniser"
                                     >
                                         <RefreshCw className={cn("w-4 h-4", isSubmitting && "animate-spin")} />
@@ -617,7 +617,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                             setEditedUrl(skin.url);
                                             setIsEditOpen(true);
                                         }}
-                                        className="w-9 h-9 bg-zinc-900/70 border border-white/10 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/30 rounded-xl transition-all"
+                                        className="w-9 h-9 bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50 rounded-xl transition-all"
                                         title="Éditer"
                                     >
                                         <Pencil className="w-4 h-4" strokeWidth={2.5} />
@@ -631,7 +631,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                 setSkinToDelete(skin.id);
                                                 setIsDeleteOpen(true);
                                             }}
-                                            className="w-9 h-9 bg-zinc-900/70 border border-white/10 text-zinc-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400 rounded-xl transition-all"
+                                            className="w-9 h-9 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 rounded-xl transition-all"
                                             title="Supprimer"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -674,10 +674,10 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         </Button>
                                         <div className="w-[1px] h-6 bg-white/10" />
                                         <Button 
-                                            variant="ghost"
+                                            variant="outline"
                                             size="icon"
                                             onClick={() => handleCopyLink(skin.url)}
-                                            className="w-9 h-9 hover:bg-emerald-500/20 text-emerald-400 rounded-xl transition-all"
+                                            className="w-9 h-9 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 rounded-xl transition-all"
                                             title="Copier le lien"
                                         >
                                             <Copy className="w-3.5 h-3.5" />

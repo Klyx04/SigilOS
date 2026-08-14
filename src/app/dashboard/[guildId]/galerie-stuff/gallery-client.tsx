@@ -642,7 +642,7 @@ export function GalleryClient({
                                             src={skin.thumbnailUrl} 
                                             alt={skin.name} 
                                             fill 
-                                            className="object-contain object-[50%_42%] group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
+                                            className="object-contain object-[50%_34%] group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-zinc-950">

@@ -222,11 +222,12 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 <button
                                     type="button"
                                     onClick={handleCopyPseudo}
-                                    className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors shrink-0"
+                                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors shrink-0"
                                     title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
                                     aria-label="Copier le pseudo"
                                 >
                                     <Copy className="w-3.5 h-3.5" />
+                                    <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Copier</span>
                                 </button>
                                 {profile.isAdmin && (
                                     <TooltipProvider>

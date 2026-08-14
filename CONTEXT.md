@@ -72,8 +72,7 @@
     (poll BDD 10s) remplacé par présence WS + fallback props serveur, **polling `router.refresh()` 120s supprimé**,
     **mode discret** (localStorage `guide-incognito-{guildId}`) dans le menu Options, `LiveActivityTicker` réutilisé,
     modale « Membres sur le guide », `guide-styles.css` importé (tokens `--z-*` dispo sur la page Rush).
-  - **P3 densité** : checkbox 44px→22px, liens NOOBS/DOFUSDB derrière un clic (modale de choix, favicons conservés),
-    badges activityTags max 2 + « +N » dépliable, suppression du doublon « Position de lancement » (tips vs chip pos_tags).
+  - **P3 densité** : checkbox 44px→22px, suppression du doublon « Position de lancement » (tips vs chip pos_tags). **Icônes conservées visibles** (retour user 2e passe) : chips NOOBS/DOFUSDB restaurées avec favicons + tous les badges d'activité affichés.
   - **P4 glow** : textShadow/boxShadow ornés/drop-shadow retirés (bannières DofusObtained/Info/InfoSequence plates, hero plat).
   - **P2 hero** : carte **Metamob cliquable → `OcreProgressModal`** (nouvelle prop `ocreMonsters`), carte Alignement
     cliquable entière, **menu « Options »** (Masquer terminées / Mode discret / Aide / Réinitialiser) — 3 boutons retirés de la barre sticky.
@@ -83,9 +82,9 @@
     « X est arrivé(e) / a quitté le dashboard ». ⚠️ **redéployer le container WS** pour activer.
   - **#45** embeds lifecycle : pseudo **serveur** (`discordNickname`) en priorité, plus jamais `user.name` (bot inclus).
   - **#46** popup d'arrivée sous le bouton Don : Dialog shadcn `z-50`→`z-[110]` (close `z-[120]`), welcome modals `z-[120]` — au-dessus du SupportOrb `z-[100]`.
-  - **#42** galerie : icône principale remontée dans les miniatures (`object-[50%_42%]`) + badges classe remontés.
-  - **#43** boutons onglet Stuff du profil : tailles unifiées, surfaces plates, bouton Discord avec libellé.
-  - **#60** annuaire : bouton Copy `/w pseudo` sur chaque carte membre (presse-papier + toast).
+  - **#42** galerie : icône principale remontée dans les miniatures (`object-[50%_34%]` après 2e passe user).
+  - **#43** boutons onglet Stuff du profil : tailles unifiées `w-9 h-9`, **teintes colorées** (Sync sky / Éditer ambre / Supprimer rouge / Copier emerald / Discord indigo + libellé).
+  - **#60** annuaire : bouton **« Copier »** visible (bordure emerald + libellé) → `/w pseudo`.
 - Vérifs : tsc 0 · lint 0 erreur · **test:run 165/165** · build OK · pre-commit vert (2 commits).
 - 🔜 Prochaine session : #37 God quêtes-dofus, #38 Prêt/Coffre, #44 sondages UX, + rappels #34/#26/#27.
 

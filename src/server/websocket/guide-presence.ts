@@ -239,7 +239,7 @@ export function createGuidePresence(config: GuidePresenceConfig) {
 }
 
 /** Résout l'identité d'affichage (profileId + nom + avatar) d'un membre ACTIF. */
-async function resolveActiveProfileIdentity(
+export async function resolveActiveProfileIdentity(
   userId: string,
   discordGuildId: string
 ): Promise<{ profileId: string; userName: string; userAvatar?: string } | null> {

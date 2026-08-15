@@ -6,7 +6,6 @@ import { ArrowLeft, Rocket, CheckCircle2, Circle } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { auth } from "@/auth";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -64,11 +63,6 @@ export default async function PublicRoadmapPage() {
 
     return (
         <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-amber-500/30 landing-theme">
-            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40 mix-blend-screen" />
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-amber-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-            </div>
 
             <PublicHeader user={session?.user} activePage="roadmap" isMember={userContext.isMember} />
 

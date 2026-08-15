@@ -46,18 +46,18 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
-    default: "SigilOS — Le meilleur outil de gestion pour guilde Dofus",
+    default: "SigilOS — Organisez votre guilde Dofus",
     template: "%s | SigilOS",
   },
-  description: "SigilOS est la plateforme de gestion de guilde Dofus la plus complète en 2026. Bot Discord, suivi de quêtes (Ocre, Almanax, Songes Infinis), annuaire de guildes, ladder XP, Dungeon Finder et outils communautaires. Gratuit et open-source.",
+  description: "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
   keywords: ["dofus", "guilde", "gestion guilde dofus", "bot discord dofus", "sigilos", "quête ocre", "songes infinis", "almanax", "dungeon finder", "dofus 2026", "guilde dofus 3"],
   openGraph: {
     type: "website",
     locale: "fr_FR",
     url: getAppBaseUrl(),
     siteName: "SigilOS",
-    title: "SigilOS — Gestion de Guilde Dofus n°1",
-    description: "Le tableau de bord ultime pour les guildes Dofus : quêtes, missions, Songes, Dungeon Finder et ladder XP.",
+    title: "SigilOS — Gestion de guilde Dofus",
+    description: "Quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord.",
     images: [
       {
         url: new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString(),
@@ -70,8 +70,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SigilOS — Gestion de Guilde Dofus",
-    description: "La plateforme tout-en-un pour les guildes Dofus. Quêtes, Songes, Dungeon Finder, Ladder XP.",
+    title: "SigilOS — Gestion de guilde Dofus",
+    description: "Quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord.",
     images: [new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString()],
   },
   robots: {

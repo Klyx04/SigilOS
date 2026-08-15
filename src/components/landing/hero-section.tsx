@@ -1,15 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { AccessRequestModal } from "./AccessRequestModal";
 import Image from "next/image";
-import { User } from "next-auth";
 import Link from "next/link";
-import { ChevronRight, LayoutDashboard, Crown } from "lucide-react";
-import { DashboardDrawer } from "@/components/layout/dashboard-drawer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { User } from "next-auth";
+import { ChevronRight } from "lucide-react";
+import { AccessRequestModal } from "./AccessRequestModal";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -27,219 +23,89 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
     const [showAccessModal, setShowAccessModal] = useState(false);
 
     return (
-        <section className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6 pt-32 pb-20">
+        <section className="relative w-full border-b border-white/5 overflow-hidden">
+            <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 pt-32 pb-16 lg:pt-36 lg:pb-24">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
-            {/* Background Effects */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full " />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full " />
-                <div className="absolute inset-0 bg-[url(/noise.svg)] opacity-[0.03] mix-blend-overlay" />
+                    {/* Copy */}
+                    <div className="max-w-xl">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-5">
+                            SigilOS · Dofus Unity
+                        </p>
+                        <h1 className="text-[clamp(2.1rem,4.6vw,3.5rem)] font-bold tracking-tight text-white leading-[1.08] mb-5">
+                            Votre guilde mérite mieux
+                            qu&apos;un <span className="text-emerald-400">tableur Discord.</span>
+                        </h1>
+                        <p className="text-[15px] md:text-base text-zinc-400 leading-relaxed mb-8 max-w-md">
+                            Quêtes, sorties, membres et progression Dofus réunis dans un espace partagé, relié à Discord.
+                        </p>
 
-                {/* Grid Accent */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-            </div>
-
-            <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 w-full">
-
-                {/* Status Badge */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                    className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mx-auto"
-                >
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[11px] font-semibold text-white/50 uppercase tracking-wider">
-                        {user ? `Session Active : ${user.name}` : "Système Bêta Ouvert"}
-                    </span>
-                </motion.div>
-
-                <motion.h1
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.4 }}
-                    aria-hidden="true"
-                    className="text-[clamp(2.25rem,10vw,5rem)] font-semibold tracking-tighter text-white font-heading leading-[0.95] md:leading-[1.05]"
-                >
-                    {user ? (
-                        <span>
-                            Prenez les commandes <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">
-                                de votre empire Dofus.
-                            </span>
-                        </span>
-                    ) : (
-                        <span>
-                            L&apos;outil de gestion n°1 <br /><span className="italic text-emerald-400">pour votre guilde Dofus.</span>
-                        </span>
-                    )}
-                </motion.h1>
-
-                {/* Subtitle */}
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.5 }}
-                    className="text-lg md:text-xl text-white/40 max-w-2xl mx-auto leading-relaxed font-medium"
-                >
-                    {user
-                        ? "Centralisez la gestion de vos membres, suivez vos missions et coordonnez vos sorties depuis un cockpit unique."
-                        : "Le tableau de bord le plus complet pour piloter votre guilde : quêtes, missions, coordination et ladder."
-                    }
-                </motion.p>
-
-                {/* CTAs / Quick Access */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.6 }}
-                    className="pt-6 w-full flex flex-col items-center gap-8"
-                >
-                    {/* Logged In View: Quick Access + Request Access */}
-                    {user ? (
-                        <div className="w-full max-w-3xl flex flex-col items-center gap-8">
-                            {/* Guild Quick Links - Dashboard specialized */}
-                            {userGuilds.length > 0 && (
-                                <div className="space-y-6 w-full flex flex-col items-center animate-in fade-in zoom-in-95 duration-1000">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">
-                                            {userGuilds.length > 1 ? "Mes Guildes" : "Mon Accès Guilde"}
-                                        </h3>
-                                        <div className="h-px w-12 bg-emerald-500/30" />
-                                    </div>
-
-                                    <div className="flex flex-wrap justify-center gap-6 w-full">
-                                        {userGuilds.length === 1 ? (
-                                            /* Single Guild: Direct Link stay for speed */
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="w-full sm:w-[320px]"
-                                            >
-                                                <Link
-                                                    href={`/dashboard/${userGuilds[0].id}`}
-                                                    className="relative flex items-center gap-5 p-5 rounded-[2rem] bg-zinc-900/60 border border-white/10 hover:bg-zinc-900 hover:border-emerald-500/50 transition-all group overflow-hidden  hover:-translate-y-2 h-[100px]"
-                                                >
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                    {userGuilds[0].iconUrl ? (
-                                                        <Image src={userGuilds[0].iconUrl} alt={userGuilds[0].name} width={56} height={56} className="rounded-2xl relative z-10 border border-white/10" />
-                                                    ) : (
-                                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-xl font-semibold shrink-0 ">
-                                                            {userGuilds[0].name[0]}
-                                                        </div>
-                                                    )}
-                                                    <div className="text-left relative z-10 flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                            <div className="text-[11px] font-semibold text-emerald-400/80 uppercase tracking-wider leading-none">Entrée Directe</div>
-                                                        </div>
-                                                        <div className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors truncate tracking-tighter uppercase italic">{userGuilds[0].name}</div>
-                                                    </div>
-                                                    <ChevronRight className="w-5 h-5 text-zinc-700 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
-                                                </Link>
-                                            </motion.div>
-                                        ) : (
-                                            /* Multiple Guilds: Combined Stylé Cockpit Access */
-                                            <DashboardDrawer>
-                                                <motion.button
-                                                    initial={{ opacity: 0, y: 20 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    className="group relative flex items-center gap-6 p-6 rounded-[2.5rem] bg-zinc-900/80 border border-white/10 hover:border-emerald-500/50 transition-all  hover:-translate-y-2 w-full sm:w-auto min-w-[340px]"
-                                                >
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]" />
-
-                                                    <div className="flex -space-x-4 relative z-10">
-                                                        {userGuilds.slice(0, 3).map((g, idx) => (
-                                                            <div key={g.id} className="relative transition-transform group-hover:scale-110" style={{ zIndex: 10 - idx }}>
-                                                                <Avatar className="w-14 h-14 border-[3px] border-zinc-900 rounded-2xl ">
-                                                                    <AvatarImage src={g.iconUrl || ""} />
-                                                                    <AvatarFallback className="bg-zinc-800 text-zinc-500 font-semibold">{g.name[0]}</AvatarFallback>
-                                                                </Avatar>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="text-left relative z-10">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <div className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider leading-none">Gestion Multi-Guilde</div>
-                                                        </div>
-                                                        <div className="text-xl font-semibold text-white group-hover:text-emerald-400 transition-colors tracking-tighter uppercase italic">
-                                                            Mes {userGuilds.length} Guildes
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="ml-auto w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-700 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-inner">
-                                                        <LayoutDashboard className="w-6 h-6" />
-                                                    </div>
-                                                </motion.button>
-                                            </DashboardDrawer>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Main CTA: Only show 'Demander l'accès' if they have NO guilds yet */}
-                            {userGuilds.length === 0 && (
-                                <Button
-                                    variant="sigil-emerald"
-                                    onClick={() => setShowAccessModal(true)}
-                                    className="h-auto py-6 px-12 rounded-2xl"
+                        {/* CTAs */}
+                        {user && userGuilds.length > 0 ? (
+                            <div className="flex flex-col items-start gap-3">
+                                <Link
+                                    href="/dashboard"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#06241a] font-bold text-sm transition-colors"
                                 >
-                                    <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                        <span className="text-[11px] tracking-wider text-emerald-950/60 uppercase font-semibold">Chef de Guilde ?</span>
-                                        <span className="text-lg">Demander l&apos;accès</span>
-                                    </span>
-                                    <ChevronRight className="w-5 h-5 ml-2" />
-                                </Button>
-                            )}
-                        </div>
-                    ) : (
-                        /* Logged Out View */
-                        <div className="flex flex-col items-center gap-6">
-                            {/* CTA principal : membres d'une guilde */}
-                            <form action={loginWithDiscord} className="flex flex-col items-center">
-                                <Button
-                                    type="submit"
-                                    variant="sigil-emerald"
-                                    className="h-auto py-6 px-14 rounded-2xl "
-                                >
-                                    <DiscordIcon className="w-8 h-8 flex-shrink-0 text-white" />
-                                    <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                        <span className="text-[11px] tracking-wider text-emerald-950/80 uppercase font-semibold">Accès Membre</span>
-                                        <span className="text-xl">Se Connecter avec Discord</span>
-                                    </span>
-                                    <ChevronRight className="w-5 h-5 ml-2" />
-                                </Button>
-                                <span className="text-[11px] font-medium text-zinc-400 mt-2">
-                                    Accès direct pour tous les membres des guildes inscrites
-                                </span>
-                            </form>
-
-                            {/* Séparateur contextuel pour chefs de guilde */}
-                            <div className="flex items-center gap-4 w-full max-w-sm pt-4 border-t border-white/10">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-500/30" />
-                                <span className="text-[11px] font-semibold text-amber-400/90 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
-                                    <Crown className="w-3.5 h-3.5 text-amber-400" />
-                                    Vous gérez une guilde ?
-                                </span>
-                                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-500/30" />
+                                    Accéder au Dashboard
+                                    <ChevronRight className="w-4 h-4" />
+                                </Link>
                             </div>
+                        ) : user ? (
+                            <div className="flex flex-col items-start gap-3">
+                                <button
+                                    onClick={() => setShowAccessModal(true)}
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#06241a] font-bold text-sm transition-colors"
+                                >
+                                    Demander l&apos;accès pour ma guilde
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-start gap-4">
+                                <button
+                                    onClick={() => setShowAccessModal(true)}
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#06241a] font-bold text-sm transition-colors"
+                                >
+                                    Créer l&apos;espace de ma guilde
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                                <form action={loginWithDiscord}>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex items-center gap-2 text-[13px] text-zinc-400 hover:text-emerald-400 font-medium transition-colors"
+                                    >
+                                        <DiscordIcon className="w-4 h-4" />
+                                        Déjà membre ? Se connecter avec Discord
+                                    </button>
+                                </form>
+                            </div>
+                        )}
+                    </div>
 
-                            {/* CTA secondaire : inscription nouvelle guilde (admins/chefs) */}
-                            <Button
-                                variant="sigil"
-                                onClick={() => setShowAccessModal(true)}
-                                className="h-auto py-3.5 px-7 rounded-xl text-xs gap-2"
-                            >
-                                <span className="text-amber-100 font-bold">Activer SigilOS pour ma guilde</span>
-                                <ChevronRight className="w-3.5 h-3.5" />
-                            </Button>
+                    {/* Product visual */}
+                    <div className="relative">
+                        <div className="rounded-2xl border border-white/10 bg-[#101313] overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
+                            <div className="h-9 border-b border-white/10 flex items-center gap-1.5 px-4">
+                                <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
+                            </div>
+                            <div className="relative aspect-[16/10]">
+                                <Image
+                                    src="/assets/screenshots/screenshot1.png"
+                                    alt="Tableau de bord SigilOS : missions, sorties et progression de guilde"
+                                    fill
+                                    className="object-cover object-top"
+                                    sizes="(max-width: 1024px) 100vw, 560px"
+                                    priority
+                                />
+                            </div>
                         </div>
-                    )}
-                </motion.div>
+                    </div>
+                </div>
             </div>
 
-            {/* Modal */}
             <AccessRequestModal open={showAccessModal} onClose={() => setShowAccessModal(false)} />
         </section>
     );

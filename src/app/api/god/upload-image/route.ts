@@ -52,6 +52,17 @@ export async function POST(req: NextRequest) {
             case "item": folder = "items"; break;
             case "legendary": folder = "legendary"; break;
         }
+
+        // #47 — bornage fail-closed de la taille d'upload (anti-DoS) : 10 Mo max,
+        // refusé AVANT de lire le buffer en mémoire.
+        const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+        if (file.size > MAX_UPLOAD_BYTES) {
+            return NextResponse.json(
+                { success: false, error: `Fichier trop volumineux (max 10 Mo, reçu ${Math.round(file.size / 1024 / 1024 * 10) / 10} Mo)` },
+                { status: 413 }
+            );
+        }
+
         const destination = normalize(root + "/public/game-data/" + folder + "/" + identifier + ".webp");
 
         // 4. Read file buffer

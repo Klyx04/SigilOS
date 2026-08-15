@@ -75,6 +75,12 @@ export default async function PermissionsPage({
     const currentMapping = (config.rolesMapping || {}) as Record<string, PermissionId[]>;
     const currentUsersMapping = ((config as any).usersMapping || {}) as Record<string, PermissionId[]>;
 
+    // Chantier #72 — kill-switch God « Membres Spécifiques » : quand la plateforme
+    // désactive les permissions individuelles, on masque les sélecteurs par membre
+    // (lecture seule) et l'écriture est rejetée côté serveur (fail-closed).
+    const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
+    const rbacUsersMappingEnabled = await getRbacUsersMappingEnabled();
+
     return (
         <div className="space-y-8 pb-12">
             <div data-tour="admin-permissions-header">
@@ -101,6 +107,7 @@ export default async function PermissionsPage({
                     members={membersData.members || []}
                     currentMapping={currentMapping}
                     currentUsersMapping={currentUsersMapping}
+                    usersMappingEnabled={rbacUsersMappingEnabled}
                 />
             </div>
         </div>

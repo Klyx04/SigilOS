@@ -40,6 +40,7 @@ vi.mock("@/lib/prisma", () => ({
         account: { findFirst: vi.fn() },
         platformBan: { findUnique: vi.fn() },
         guildMemberBan: { findUnique: vi.fn().mockResolvedValue(null) },
+        platformConfig: { findUnique: vi.fn() },
     },
 }));
 vi.mock("@/lib/redis", () => ({
@@ -90,6 +91,7 @@ import {
 import { redis } from "@/lib/redis";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { validateGuildOwnership, getUserContext, revalidateUserContext } from "@/server/actions/user-actions";
+import { invalidateRbacUsersMappingCache } from "@/lib/platform-rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -372,6 +374,7 @@ describe("getUserContext — calcul des permissions RBAC", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.advanceTimersByTime(120_000);
+        invalidateRbacUsersMappingCache();
         mockIsGuildAllowed.mockResolvedValue(true);
         mockIsSuperAdmin.mockResolvedValue(false);
         mockDb.platformBan.findUnique.mockResolvedValue(null);
@@ -380,6 +383,8 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         mockAuth.mockResolvedValue({
             user: { id: "user-1", discordId: "discord-user-1", name: "Test" },
         });
+        // Kill-switch #72 : activé par défaut (les tests individuels s'appuient dessus)
+        mockDb.platformConfig.findUnique.mockResolvedValue({ rbacUsersMappingEnabled: true });
     });
 
     it("accorde canViewMissions si le rôle a MISSIONS_PLAY et le module est activé", async () => {
@@ -505,6 +510,30 @@ describe("getUserContext — calcul des permissions RBAC", () => {
 
         expect(ctx.canViewDashboard).toBe(true);
         expect(ctx.canViewStats).toBe(true);
+    });
+
+    it("ignore totalement usersMapping quand le kill-switch God #72 est OFF", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: [] }));
+        mockFetchRoles.mockResolvedValue([]);
+        // Kill-switch désactivé : même si usersMapping octroie des droits individuels,
+        // ils sont ignorés (fail-closed) → accès Dashboard refusé.
+        mockDb.platformConfig.findUnique.mockResolvedValue({ rbacUsersMappingEnabled: false });
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: {
+                    "some-role": [PERMISSIONS.DASHBOARD_LOGIN]
+                },
+                usersMapping: {
+                    "discord-user-1": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.STAFF_AUDIT],
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        // Pas de rôle direct → la permission individuelle est ignorée → refus
+        expect(ctx.canViewDashboard).toBe(false);
+        expect(ctx.canViewAuditLogs).toBe(false);
     });
 
     it("l'ancienne permission legacy 'stats:view' ne donne plus l'accès Audit Logs (#66bis)", async () => {

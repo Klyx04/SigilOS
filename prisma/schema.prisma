@@ -166,6 +166,13 @@ model PlatformConfig {
   dofusQuestHeaderIcon String   @default("serie-de-quete")
   dofusQuestHeaderIconUpdatedAt DateTime?
   dofusQuestHeaderIconUpdatedBy String?
+  // Chantier #72 — Toggle God : désactive globalement les permissions RBAC
+  // individuelles (« Membres Spécifiques », usersMapping). Kill-switch fail-closed :
+  // off → getUserContext ignore totalement usersMapping et updateRBACMapping refuse
+  // toute modification des permissions individuelles.
+  rbacUsersMappingEnabled Boolean @default(true)
+  rbacUsersMappingUpdatedAt DateTime?
+  rbacUsersMappingUpdatedBy String?
 }
 
 /// Délégation d'accès au dashboard God (sub-gods) avec scopes granulaires.

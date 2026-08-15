@@ -17,7 +17,8 @@ export default async function GodLogsPage() {
 
     // 🧹 Maintenance: Trigger background cleanup of old platform logs (30d retention)
     const { cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
-    cleanupGlobalAuditLogs().catch(err => console.error("[PlatformCleanup] Failed:", err));
+    const { logger } = await import("@/lib/logger");
+    cleanupGlobalAuditLogs().catch(err => logger.error("[PlatformCleanup] Failed:", { error: (err as Error).message }));
 
     const reasonLabels: Record<string, string> = {
         NO_MANAGED_GUILD: "Aucune guilde gérée / whitelistée",

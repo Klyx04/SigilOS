@@ -684,7 +684,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     // 1. Roles & Admin check
     const rolesMapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
-    const individualMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
+    // Chantier #72 — kill-switch God « Membres Spécifiques » : quand la plateforme
+    // désactive les permissions individuelles, usersMapping est TOTALEMENT ignoré
+    // (fail-closed). Aucune permission individuelle ne s'applique.
+    const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
+    const rbacUsersMappingEnabled = await getRbacUsersMappingEnabled();
+    const individualMapping = rbacUsersMappingEnabled
+        ? ((guildConfig?.usersMapping as Record<string, PermissionId[]>) || {})
+        : {};
 
     const isRbacConfigured = Object.values(rolesMapping).some(perms =>
         Array.isArray(perms) && (

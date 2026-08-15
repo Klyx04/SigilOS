@@ -1,4 +1,5 @@
 import { getAppBaseUrl } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -48,6 +49,20 @@ export function sanitizeMentions(text: string | null | undefined): string {
 
 async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
+
+    // F-16 CodeQL js/request-forgery : garde fail-closed à la source du fetch — l'hôte est
+    // restreint à l'API Discord (recommandation js/request-forgery : allow-list du hostname).
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        logger.warn("[Discord] fetchWithRetry: URL invalide refusée");
+        throw new Error("URL Discord invalide");
+    }
+    if (parsedUrl.hostname !== "discord.com") {
+        logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${parsedUrl.hostname})`);
+        throw new Error("Hôte Discord non autorisé");
+    }
 
     for (let i = 0; i < MAX_RETRIES; i++) {
         try {
@@ -672,9 +687,25 @@ export async function editInteractionMessage(
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
+    // F-16 CodeQL js/request-forgery : validation fail-closed des valeurs AVANT interpolation.
+    // Le sanitizer RECONNU par la query est `encodeURIComponent` (UriEncodingSanitizer — escape
+    // "/" → "%2F"), appliqué sur chaque segment dans l'URL ci-dessous. Fail-closed si un
+    // caractère hors-whitelist est présent.
+    const cleanAppId = applicationId.replace(/[^\d]/g, "").slice(0, 21);
+    const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 200);
+
+    if (cleanAppId !== applicationId || cleanToken !== interactionToken) {
+        logger.warn("[Discord] editInteractionMessage: caractère non autorisé (applicationId/interactionToken)");
+        return false;
+    }
+    if (!/^\d{15,21}$/.test(cleanAppId) || !/^[A-Za-z0-9._~-]{10,200}$/.test(cleanToken)) {
+        logger.warn("[Discord] editInteractionMessage: format invalide (applicationId/interactionToken)");
+        return false;
+    }
+
     try {
         const res = await fetchWithRetry(
-            `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`,
+            `https://discord.com/api/v10/webhooks/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanToken)}/messages/@original`,
             {
                 method: "PATCH",
                 headers: {

@@ -339,14 +339,14 @@ const ADMIN_PERMISSIONS_STEPS: TourStep[] = [
         title: "Rôles & Permissions",
         description: "Gestion fine des accès : définissez qui peut valider, modérer ou administrer.",
         placement: "bottom",
-        requiresPerm: "isDiscordAdmin"
+        requiresPerm: "canManageRBAC"
     },
     {
         target: '[data-tour="admin-permissions-matrix"]',
         title: "Matrice RBAC",
         description: "Attribuez des permissions aux rôles Discord pour contrôler l'accès au Dashboard.",
         placement: "top",
-        requiresPerm: "isDiscordAdmin"
+        requiresPerm: "canManageRBAC"
     }
 ];
 
@@ -497,9 +497,9 @@ const ADMIN_OVERVIEW_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-overview-card-permissions"]',
         title: "Rôles & Permissions",
-        description: "Le cœur de la sécurité : mappe les rôles Discord de ton serveur aux permissions SigilOS. Chaque rôle contrôle l'accès à tel ou tel module. Accessible uniquement aux admins Discord.",
+        description: "Le cœur de la sécurité : mappe les rôles Discord de ton serveur aux permissions SigilOS. Chaque rôle contrôle l'accès à tel ou tel module. Accessible aux admins Discord et aux détenteurs de la permission « Gestion des Accès » (system:rbac).",
         placement: "right",
-        requiresPerm: "isDiscordAdmin"
+        requiresPerm: "canManageRBAC"
     },
     {
         target: '[data-tour="admin-overview-card-modules"]',

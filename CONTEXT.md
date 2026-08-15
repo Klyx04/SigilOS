@@ -23,13 +23,21 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 15/08 sur `feat/chantier-2026-08-14`
+## 🧭 Chantier global (src/temp/chantier) — SESSION 16/08 sur `feat/rbac-audit-2026-08-16`
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
 > migrations 201 à jour, Sondages `polls=t`). **PR #470 (session 14/08) MERGÉE dans dev**
 > (`d39d40e97`, base 8866229d7). Branche `feat/chantier-2026-08-14` porte les **11 commits 15/08**
-> (session 4e passe + correctif tags) **non encore mergés** → nouvelle PR à ouvrir vers dev.
+> (session 4e passe + correctif tags) **non encore mergés** → nouvelle PR vers dev.
+> **Session 16/08 — #66bis (audit RBAC complet) + #72 (RBAC par membre / navbar admin) FAITS**
+> sur `feat/rbac-audit-2026-08-16` (branchée sur `feat/chantier-2026-08-14`).
 > Détail complet : `src/temp/memo-2026-08-13-chantier-global.md`.
+> **Session 16/08 (fin) — F-16 SSRF + #73 présence + #58 badge God FAITS** (commit
+> `fdf72c228` poussé sur `feat/rbac-audit-2026-08-16` → PR #473 mise à jour, CI relancée).
+> F-16 : CodeQL `js/request-forgery` (faux positif, hôte Discord fixe + sig Ed25519 vérifiée)
+> corrigé par bornage fail-closed dans `editInteractionMessage`. #73 : notif « a quitté »
+> réparée (broadcast `leave` idempotent dans `disconnect`). #58 : badges non-lus God rendus
+> (sidebar + topbar mobile).
 
 ### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons
 - **#68 icônes** : choix de l'icône du bloc d'en-tête des pages quêtes par Dofus **côté God**
@@ -66,6 +74,48 @@
 - **#70 croix fermer** : fix systémique `DialogContent`/`SheetContent` → bouton visible partout
   (bg-white/10, bordure, opacity-90, aria-label « Fermer »).
 - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **test:run 168/168** · build OK.
+
+### ✅ Session 16/08 — #66bis audit RBAC complet + #72 (RBAC par membre / navbar admin)
+- **#66bis audit RBAC** (sur `feat/rbac-audit-2026-08-16`) — 17 permissions auditées. Corrections :
+  - **`system:rbac` rendue réellement utile** (décision produit) : nouvelle guard `requireRbacManagement`
+    (guards.ts) accepte les admins Discord (niveau `discord-admin`) ET les détenteurs de `system:rbac`
+    (niveau `delegated`) → la page `/admin/permissions` + carte admin + sidebar + tour passent de
+    `isDiscordAdmin` à `canManageRBAC`. Un admin peut désigner un **successeur** (anti-blocage si
+    l'unique admin Discord disparaît).
+  - **🔒 Garde-fou anti-escalade** dans `updateRBACMapping` : un gestionnaire `delegated` ne peut NI
+    octroyer NI révoquer `system:god` / `system:rbac` (réservé aux admins Discord). Testé unitairement.
+  - **Validation fail-closed du payload** : permission inconnue rejetée, clé `usersMapping` non-snowflake
+    rejetée (un UUID interne ne matche jamais le Discord ID → permission silencieusement inopérante).
+  - **#72** : `hasAnyAdminPermission` (sidebar) complété (`canManagePoints`, `canValidateMissions`,
+    `canManageRelance`) → un membre `points:manage` voit enfin « Centre Admin » (avant : accès en URL
+    directe sans navbar) · carte « Points de Contribution » ajoutée au `NAV_REGISTRY` + aliases
+    `modules`/`points` · `memberOptions` n'utilise plus que le `providerAccountId` (avatar `icon`, fixé).
+  - **Sécurité legacy** : `stats:view` ne remappe plus vers `STAFF_AUDIT` (un rôle legacy obtient
+    maintenant `canViewStats` via `DASHBOARD_LOGIN` sans accès Audit Logs).
+  - **#66bis (2e volet)** : Galerie Stuff rattachée à `GAME_VIEW` uniquement (plus de chevauchement
+    `COMMUNITY_ACCESS` non documenté) · badge « 🔐 Sensible » sur `system:god`/`system:rbac` dans la
+    carte RBAC · ordre `PERMISSION_MODULES` aligné sur `MODULE_ORDER`.
+- Tests : **+16** (`rbac-update.test.ts` 8, guards +4, user-context +3) → **184/184**.
+- Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **test:run 184/184** · build OK.
+- ⚠️ **Aucune migration** (pur code). Déployable sur les 11 commits 15/08 (branche empilée).
+
+### ✅ Session 16/08 (fin) — F-16 SSRF (déblocage CI PR #473) + #73 présence + #58 badge God
+- **F-16 SSRF CodeQL** (faux positif, corrigé) : CodeQL `js/request-forgery` (critical) sur
+  `src/server/discord.ts:54` (`fetchWithRetry`), flow `interactions/route.ts` →
+  `editInteractionMessage` (webhook `@original`). Faux positif (hôte `discord.com` fixe +
+  signature Ed25519 vérifiée en amont) mais **bornage fail-closed** ajouté : `applicationId`
+  (`/^\d{15,21}$/`) + `interactionToken` (`/^[A-Za-z0-9._~-]{10,200}$/`) AVANT l'URL webhook
+  → débloque la CI de la **PR #473**. Alerte pré-existante sur dev (merge #447), pas introduite
+  par la PR.
+- **#73 présence** : la notif « a quitté le dashboard » ne partait jamais → le handler WS
+  `disconnect` broadcast maintenant un `leave` idempotent (`dashboardGuildId` mémorisé au
+  join, nettoyé au leave). Couvre onglet fermé + coupure réseau.
+- **#58 badge God** : `unreadCount`/`ticketCount` passés à `GodSidebar` mais jamais rendus →
+  badge rouge « Alertes Système » + badge indigo « Tickets » sur les items de sidebar +
+  cloche + badge dans le topbar mobile (`godRoute?tab=notifications`).
+- Commit `fdf72c228` poussé sur `feat/rbac-audit-2026-08-16` (aucune nouvelle branche).
+- Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · test:run 184/184 · build non
+  relancé localement (dev server actif) — la CI le validera.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
 - **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`

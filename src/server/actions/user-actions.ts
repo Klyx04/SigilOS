@@ -871,7 +871,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         "presentation:edit": PERMISSIONS.STAFF_CONTENT,
         "docs:view_admin": PERMISSIONS.STAFF_CONTENT,
         "admin:audit": PERMISSIONS.STAFF_AUDIT,
-        "stats:view": PERMISSIONS.STAFF_AUDIT,
+        // NOTE: l'ancienne permission "stats:view" n'est PAS remappée vers STAFF_AUDIT.
+        // La page Stats Guilde dépend de DASHBOARD_LOGIN (canViewStats) — mapper ici
+        // octroyait par accident l'accès Audit Logs à tout rôle legacy "stats:view".
         "admin:settings": PERMISSIONS.SYSTEM_CONFIG,
         "admin:full": PERMISSIONS.SYSTEM_GOD,
     };
@@ -902,7 +904,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
-const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
+    const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
     const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
     const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
     const canValidateMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
@@ -911,7 +913,9 @@ const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminF
     const canCreateSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canJoinSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canViewOcre = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
-    const canViewStuffGallery = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    // #66bis : la Galerie Stuff appartient à "Encyclopédie de jeu" (GAME_VIEW) uniquement.
+    // Avant : COMMUNITY_ACCESS suffisait (chevauchement non documenté). Décision produit 16/08.
+    const canViewStuffGallery = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewLadder = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewQuests = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewWorldmap = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;

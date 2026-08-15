@@ -1,4 +1,5 @@
 import Parser from 'rss-parser';
+import { logger } from "@/lib/logger";
 
 export interface ExtractedContent {
     type: "NEWS" | "TWITCH" | "YOUTUBE";
@@ -10,75 +11,135 @@ export interface ExtractedContent {
     description?: string;
 }
 
+// ─── Timeout / deadline helpers (perf #21) ───────────────────────────────────
+// Bornent chaque tentative externe (Ankama / DPLN / proxies) pour que l'onglet
+// « Dofus Patch Notes & Correctifs » ne bloque jamais la page plus de ~8-12s.
 
-async function fetchWithProxyFallback(url: string): Promise<string | null> {
-    // 1. Direct fetch attempt
+/** Bounds `fn()` execution to `budgetMs` and returns `fallback` on timeout. */
+async function withDeadline<T>(fn: () => Promise<T>, budgetMs: number, fallback: T): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), budgetMs);
+    });
+    try {
+        return await Promise.race([fn(), deadline]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+/**
+ * Resolves with the first non-null value among `promises` (which must never
+ * reject — callers catch internally and resolve null). Falls back to `null`
+ * once `deadlineMs` passes OR every promise resolved to null.
+ */
+async function firstNonNullWithDeadline<T>(
+    promises: Promise<T | null>[],
+    deadlineMs: number
+): Promise<T | null> {
+    return new Promise((resolve) => {
+        let settled = false;
+        let pending = promises.length;
+        const finish = (value: T | null) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(value);
+        };
+        const timer = setTimeout(() => finish(null), deadlineMs);
+        for (const p of promises) {
+            p.then((value) => {
+                if (value !== null) finish(value);
+                else if (--pending === 0) finish(null);
+            });
+        }
+    });
+}
+
+async function fetchViaTimeout(url: string, timeoutMs: number): Promise<string | null> {
     try {
         const res = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36', 'Accept': 'application/rss+xml, text/xml' },
-            next: { revalidate: 900 }
+            next: { revalidate: 900 },
+            signal: AbortSignal.timeout(timeoutMs)
         });
         if (res.ok) {
             const text = await res.text();
             if (text.length > 500) return text;
         }
-    } catch (e) {
-        console.warn(`[feed-aggregator] Direct fetch failed for ${url}, trying Curl...`);
+    } catch {
+        // fallthrough to next strategy
     }
+    return null;
+}
 
-    // 2. Curl attempt (Linux/Docker fallback)
+async function fetchViaCurl(url: string, timeoutMs: number): Promise<string | null> {
     try {
         const { exec } = await import("child_process");
         const { promisify } = await import("util");
         const execAsync = promisify(exec);
-        const { stdout } = await execAsync(`curl -L "${url}" -A "Mozilla/5.0" --max-time 15 --compressed`);
+        const { stdout } = await execAsync(`curl -L "${url}" -A "Mozilla/5.0" --max-time ${Math.ceil(timeoutMs / 1000)} --compressed`);
         if (stdout && stdout.length > 500) return stdout;
-    } catch (e) {
-        console.warn(`[feed-aggregator] Curl failed for ${url}, trying proxies...`);
+    } catch {
+        // fallthrough
     }
+    return null;
+}
 
-    // 3. Proxy attempts (Aggressive rotation)
+async function fetchViaProxy(proxyUrl: string, timeoutMs: number): Promise<string | null> {
+    try {
+        const res = await fetch(proxyUrl, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(timeoutMs),
+            headers: { 'User-Agent': 'SigilOS/1.0 (Research Bot)' }
+        });
+        if (!res.ok) return null;
+
+        const text = await res.text();
+
+        if (proxyUrl.includes('allorigins')) {
+            const json = JSON.parse(text);
+            if (json.contents) return json.contents;
+        } else if (proxyUrl.includes('htmldriven')) {
+            const json = JSON.parse(text);
+            if (json.body) return json.body;
+        } else {
+            if (text && text.length > 50) return text;
+        }
+    } catch {
+        // fallthrough
+    }
+    return null;
+}
+
+async function fetchWithProxyFallback(url: string, budgetMs = 12_000): Promise<string | null> {
+    // Stratégies en séquence (direct → curl → proxies les plus fiables),
+    // chacune bornée, le tout plafonné par un budget global (#21).
     const proxies = [
         (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
         (u: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-        (u: string) => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
-        // Backup: No-CORS proxy (unreliable but last resort)
-        (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`
     ];
 
-    for (const proxyFn of proxies) {
-        try {
-            const proxyUrl = proxyFn(url);
-            const res = await fetch(proxyUrl, { 
-                cache: 'no-store', 
-                signal: AbortSignal.timeout(12000),
-                headers: { 'User-Agent': 'SigilOS/1.0 (Research Bot)' }
-            });
-            if (!res.ok) continue;
+    return withDeadline(async () => {
+        const direct = await fetchViaTimeout(url, 5_000);
+        if (direct) return direct;
 
-            const text = await res.text();
-            
-            if (proxyUrl.includes('allorigins')) {
-                const json = JSON.parse(text);
-                if (json.contents) return json.contents;
-            } else if (proxyUrl.includes('htmldriven')) {
-                const json = JSON.parse(text);
-                if (json.body) return json.body;
-            } else {
-                if (text && text.length > 50) return text;
-            }
-        } catch (e) {
-            continue;
+        const curl = await fetchViaCurl(url, 8_000);
+        if (curl) return curl;
+
+        for (const proxyFn of proxies) {
+            const viaProxy = await fetchViaProxy(proxyFn(url), 6_000);
+            if (viaProxy) return viaProxy;
         }
-    }
-    return null;
+        return null;
+    }, budgetMs, null);
 }
 
 /**
  * Generic fetcher for Haapi JSON endpoints with proxy fallback
  */
 async function fetchHaapiWithFallback(url: string): Promise<any[] | null> {
-    // 1. Direct
+    // 1. Direct (borné 5s)
     try {
         const res = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -90,17 +151,17 @@ async function fetchHaapiWithFallback(url: string): Promise<any[] | null> {
             if (Array.isArray(data)) return data;
         }
     } catch (e) {
-        console.warn(`[feed-aggregator] Direct Haapi fetch failed for ${url}`);
+        logger.warn(`[feed-aggregator] Direct Haapi fetch failed for ${url}`, { error: (e as Error).message });
     }
 
-    // 2. Proxy Fallback
-    const raw = await fetchWithProxyFallback(url);
+    // 2. Proxy Fallback (borné par un budget global — perf #21)
+    const raw = await fetchWithProxyFallback(url, 8_000);
     if (raw) {
         try {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) return parsed;
         } catch (e) {
-            console.error(`[feed-aggregator] Failed to parse Haapi proxy response as JSON`, e);
+            logger.error(`[feed-aggregator] Failed to parse Haapi proxy response as JSON`, { error: (e as Error).message, url });
         }
     }
 
@@ -156,7 +217,7 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
 
         return feedItems;
     } catch (e) {
-        console.error("Failed to fetch Dofus Haapi API", e);
+        logger.error("Failed to fetch Dofus Haapi API", { error: (e as Error).message });
         return [];
     }
 }
@@ -164,8 +225,9 @@ export async function fetchDofusNews(): Promise<ExtractedContent[]> {
 export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
     const keys = ['PATCHNOTES', 'CHANGELOG', 'MAJ', 'CORRECTIFS'];
     let items: any[] | null = null;
-    
-    // Parallelize fetching to avoid sequential timeouts
+
+    // Race les 4 clés Haapi : on renvoie la 1ère qui répond, borné par une
+    // deadline globale (perf #21 — ne plus jamais attendre toutes les clés).
     const fetchPromises = keys.map(async (key) => {
         try {
             const url = `https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=${key}`;
@@ -174,16 +236,15 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
                 return { key, data };
             }
         } catch (e) {
-            /* ignore individual failures */
+            logger.warn(`[feed-aggregator] Changelog key failed: ${key}`, { error: (e as Error).message });
         }
         return null;
     });
 
-    const results = await Promise.all(fetchPromises);
-    const firstValid = results.find(r => r !== null);
-    
+    const firstValid = await firstNonNullWithDeadline(fetchPromises, 9_000);
+
     if (firstValid) {
-        console.log(`[feed-aggregator] Found changelogs with key: ${firstValid.key}`);
+        logger.info(`[feed-aggregator] Found changelogs with key: ${firstValid.key}`);
         items = firstValid.data;
     }
 
@@ -331,7 +392,7 @@ export async function fetchDPLNNews(): Promise<ExtractedContent[]> {
 
         return items;
     } catch (e) {
-        console.error("Failed to scrape DPLN homepage", e);
+        logger.error("Failed to scrape DPLN homepage", { error: (e as Error).message });
         return [];
     }
 }
@@ -376,7 +437,7 @@ export async function fetchTwitchLiveStreams(twitchUsernames: string[]): Promise
         return liveStreams;
 
     } catch (e) {
-        console.error("Failed to fetch Twitch streams", e);
+        logger.error("Failed to fetch Twitch streams", { error: (e as Error).message });
         return [];
     }
 }
@@ -422,7 +483,7 @@ export async function fetchYouTubeLatestVideos(youtubeHandles: string[]): Promis
         return videos;
 
     } catch (e) {
-        console.error("Failed to fetch YouTube videos", e);
+        logger.error("Failed to fetch YouTube videos", { error: (e as Error).message });
         return [];
     }
 }

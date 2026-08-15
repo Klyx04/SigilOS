@@ -1,5 +1,94 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { db } from "@/lib/prisma";
+
+// ─── Changelog DB Cache (perf #21) ───────────────────────────────────────
+// Tag dédié « Dofus-Changelog » : non purgé par feed-actions (qui ne touche
+// que TWITCH / « Ankama » / « DPLN ») → cache stable pour l'onglet Patch Notes.
+// Lecture en stale-while-revalidate : on sert le cache immédiatement, le refresh
+// externe (Ankama Haapi) ne bloque plus jamais la réponse.
+const CHANGELOG_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
+const CHANGELOG_CREATOR_ID = "Dofus-Changelog";
+
+interface DofusChangelogItem {
+    title: string;
+    link: string;
+    imageUrl?: string;
+    pubDate: string;
+    description: string;
+    category: string;
+}
+
+function mapRawDofusItem(item: { title: string; url: string; thumbnail: string | null; published: Date; description?: string }): DofusChangelogItem {
+    let isoDate = new Date().toISOString();
+    try {
+        if (item.published && !isNaN(item.published.getTime())) {
+            isoDate = item.published.toISOString();
+        }
+    } catch (e) { /* fallback to now */ }
+
+    return {
+        title: `[DOFUS] ${item.title}`,
+        link: item.url,
+        imageUrl: item.thumbnail || undefined,
+        pubDate: isoDate,
+        description: item.description || "",
+        category: "Dofus Update"
+    };
+}
+
+function mapCachedDofusItem(row: { title: string; url: string; thumbnail: string | null; published: Date; description: string | null }): DofusChangelogItem {
+    return {
+        title: `[DOFUS] ${row.title}`,
+        link: row.url,
+        imageUrl: row.thumbnail || undefined,
+        pubDate: row.published.toISOString(),
+        description: row.description || "",
+        category: "Dofus Update"
+    };
+}
+
+async function getCachedDofusChangelogs() {
+    return db.contentCache.findMany({
+        where: { type: "NEWS", creatorId: CHANGELOG_CREATOR_ID },
+        orderBy: { published: "desc" },
+        take: 10,
+    });
+}
+
+async function persistDofusChangelogs(items: { title: string; url: string; thumbnail: string | null; published: Date; description?: string }[]) {
+    const now = new Date();
+    await Promise.all(
+        items.slice(0, 10).map(item =>
+            db.contentCache.upsert({
+                where: {
+                    type_creatorId_url: {
+                        type: "NEWS",
+                        creatorId: CHANGELOG_CREATOR_ID,
+                        url: item.url,
+                    },
+                },
+                update: {
+                    title: item.title,
+                    thumbnail: item.thumbnail,
+                    description: item.description ?? null,
+                    published: item.published,
+                    fetchedAt: now,
+                },
+                create: {
+                    type: "NEWS",
+                    creatorId: CHANGELOG_CREATOR_ID,
+                    title: item.title,
+                    url: item.url,
+                    thumbnail: item.thumbnail,
+                    description: item.description ?? null,
+                    published: item.published,
+                    fetchedAt: now,
+                },
+            })
+        )
+    );
+}
 
 // ─── RSS Sources Dofus ────────────────────────────────────────────────────────
 
@@ -258,32 +347,14 @@ export async function GET(req: NextRequest) {
     }
     
     // ─── Custom Dofus Changelog Fetcher (Haapi API) ─────────────────────
+    // Perf #21 : le feed Dofus est mis en cache (ContentCache, tag dédié
+    // « Dofus-Changelog ») et servi en stale-while-revalidate → l'onglet
+    // « Dofus Patch Notes & Correctifs » répond toujours rapidement.
     if (feedKey === "changelog") {
         try {
-            const { fetchDofusChangelogs } = await import("@/lib/feed-aggregators");
             const { getChangelogEntries } = await import("@/server/actions/changelog-actions");
-            
-            // 1. Get Dofus Official Changelogs
-            const rawItems = await fetchDofusChangelogs();
-            const dofusItems = rawItems.map(item => {
-                let isoDate = new Date().toISOString();
-                try {
-                    if (item.published && !isNaN(item.published.getTime())) {
-                        isoDate = item.published.toISOString();
-                    }
-                } catch (e) { /* fallback to now */ }
 
-                return {
-                    title: `[DOFUS] ${item.title}`,
-                    link: item.url,
-                    imageUrl: item.thumbnail || undefined,
-                    pubDate: isoDate,
-                    description: item.description || "",
-                    category: "Dofus Update"
-                };
-            });
-
-            // 2. Get SigilOS Internal Changelogs
+            // 2. SigilOS Internal Changelogs (rapide, sert de base à toute réponse)
             const { getAppBaseUrl } = await import("@/lib/utils");
             const baseUrl = getAppBaseUrl();
             const sigilEntries = await getChangelogEntries(undefined, true);
@@ -296,17 +367,41 @@ export async function GET(req: NextRequest) {
                 category: "App Update"
             }));
 
-            // 3. Merge and sort
-            const items = [...sigilItems, ...dofusItems].sort((a, b) => 
-                new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
-            );
-
-            if (items.length > 0) {
+            const respond = (dofusItems: DofusChangelogItem[]) => {
+                const items = [...sigilItems, ...dofusItems].sort((a, b) =>
+                    new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+                );
                 return NextResponse.json(
                     { items, feedKey, label: "Changelog" },
-                    { headers: { "Cache-Control": "public, s-maxage=3600" } }
+                    { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } }
                 );
+            };
+
+            // 1. Lire le cache (fresh → réponse immédiate)
+            const cached = await getCachedDofusChangelogs();
+            const newestFetchedAt = cached[0]?.fetchedAt;
+            const isFresh = newestFetchedAt != null &&
+                Date.now() - newestFetchedAt.getTime() < CHANGELOG_CACHE_TTL_MS;
+
+            if (cached.length > 0 && isFresh) {
+                return respond(cached.map(mapCachedDofusItem));
             }
+
+            // 3. Refresh externe (borné par les deadlines de feed-aggregators)
+            const { fetchDofusChangelogs } = await import("@/lib/feed-aggregators");
+            const rawItems = await fetchDofusChangelogs();
+            if (rawItems.length > 0) {
+                await persistDofusChangelogs(rawItems);
+                return respond(rawItems.map(mapRawDofusItem));
+            }
+
+            // 4. Fetch échoué → servir le cache périmé plutôt que rien
+            if (cached.length > 0) {
+                return respond(cached.map(mapCachedDofusItem));
+            }
+
+            // 5. Aucune donnée Dofus → base SigilOS uniquement
+            return respond([]);
         } catch (err) {
             logger.error("Dofus Changelog format error", { error: err });
         }

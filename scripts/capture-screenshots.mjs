@@ -45,6 +45,8 @@ const OUT_DIR = path.join(ROOT, "public", "assets", "screenshots");
 const HEADLESS = process.env.HEADLESS === "1";
 const FULL_PAGE = process.env.FULL_PAGE === "1";
 const LOGIN_MODE = process.argv.includes("--login");
+// Filtre par fichier cible (ex. TARGET=screenshot1 pour re-capturer une seule page).
+const TARGETS_FILTER = process.env.TARGET ? process.env.TARGET.split(",") : null;
 
 const VIEWPORT = { width: 1920, height: 1080 };
 const DEVICE_SCALE_FACTOR = 2; // => sortie ~3260×2160
@@ -85,6 +87,19 @@ async function ensureLogin(page) {
   }
 }
 
+// Attend que la zone de contenu principale ait du vrai contenu rendu (texte).
+// Évite de capturer un dashboard encore vide (squelettes/loading) en dev.
+async function waitForMainContent(page) {
+  await page
+    .waitForFunction(() => {
+      const main = document.querySelector('main[data-scroll-container="true"]');
+      return !!main && main.innerText.replace(/\s+/g, " ").trim().length > 40;
+    }, { timeout: 25_000 })
+    .catch(() => {
+      console.warn("   ⚠️ contenu principal non détecté après 25 s — capture quand même");
+    });
+}
+
 // Masque les éléments flottants et remonte le conteneur de contenu en haut.
 async function prepareFrame(page) {
   await page.evaluate(
@@ -105,6 +120,7 @@ async function prepareFrame(page) {
 async function captureMainZone(page, target) {
   const out = path.join(OUT_DIR, target.file);
   const main = page.locator(MAIN_SELECTOR).first();
+  await main.waitFor({ state: "attached", timeout: 20_000 }).catch(() => {});
   const box = await main.boundingBox();
   if (!box || box.width === 0 || box.height === 0) {
     console.warn("   ⚠️ zone de contenu introuvable — capture viewport complète");
@@ -130,6 +146,7 @@ async function capture(page, target) {
   // Laisser les fonts/images/animations se stabiliser (images lazy + fonts).
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   await page.waitForTimeout(3000);
+  await waitForMainContent(page);
   await prepareFrame(page);
 
   const out = path.join(OUT_DIR, target.file);
@@ -140,6 +157,9 @@ async function capture(page, target) {
   }
 
   const size = statSync(out).size;
+  if (size < 30_000) {
+    console.warn("   ⚠️ capture suspecte (< 30 Ko) — la page est peut-être vide, re-vérifie");
+  }
   console.log(
     `   ✅ ${target.file} — ${Math.round(VIEWPORT.width * DEVICE_SCALE_FACTOR)}×${Math.round(VIEWPORT.height * DEVICE_SCALE_FACTOR)} (zone produit) — ${Math.round(size / 1024)} Ko — URL: ${page.url()}`
   );
@@ -159,12 +179,13 @@ async function main() {
     await ensureLogin(page);
   }
 
-  for (const target of TARGETS) {
+  const targets = TARGETS_FILTER ? TARGETS.filter((t) => TARGETS_FILTER.includes(t.file)) : TARGETS;
+  for (const target of targets) {
     await capture(page, target);
   }
 
   await context.close();
-  console.log(`\n✅ Terminé — ${TARGETS.length} captures produit dans ${OUT_DIR}`);
+  console.log(`\n✅ Terminé — ${targets.length} captures produit dans ${OUT_DIR}`);
 }
 
 main().catch((err) => {

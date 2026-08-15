@@ -70,6 +70,7 @@ const ChainSchema = z.object({
     sectionType: z.string(), // PREREQUISITE | MAIN_CHAIN | OPTIONAL
     sectionName: z.string().min(1),
     description: z.string().optional().nullable(),
+    sectionIcon: z.string().default("serie-de-quete"),
     chainOrder: z.number().int().default(0),
 });
 
@@ -97,6 +98,13 @@ const EntrySchema = z.object({
     objectives: z.array(z.any()).optional().default([]),
     itemsRequired: z.array(z.any()).optional().default([]),
     dungeonsRequired: z.array(z.any()).optional().default([]),
+    positions: z.array(z.object({
+        x: z.number(),
+        y: z.number(),
+        label: z.string().optional().nullable(),
+    })).optional().default([]),
+    dofusdbUrl: z.string().optional().nullable(),
+    dofuspourlesnoobsUrl: z.string().optional().nullable(),
 });
 
 // --- Actions ---

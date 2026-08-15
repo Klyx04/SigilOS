@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { getUserContext } from "./user-actions";
+import { rateLimit } from "@/lib/ratelimit";
 
 // ============================================================================
 // TYPES
@@ -126,6 +127,10 @@ export async function reportSecurityIncident(
     const session = await auth();
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // #55 — rate-limit des signalements (spam d'alertes God/Discord).
+    const rl = await rateLimit(`security-report:${session.user.id}`, 5, 60_000);
+    if (!rl.success) return { success: false, error: "Trop de signalements. Réessayez dans une minute." };
 
     try {
         // Try to get server context for accurate pseudo

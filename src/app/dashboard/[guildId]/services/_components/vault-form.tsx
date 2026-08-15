@@ -31,8 +31,15 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
     const [description, setDescription] = useState("");
     const [proofFile, setProofFile] = useState<File | null>(null);
     const [proofPreview, setProofPreview] = useState<string | null>(null);
+    const [nsfwChecking, setNsfwChecking] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [notifyDiscord, setNotifyDiscord] = useState(false);
+
+    // Pré-charge le modèle NSFWJS dès l'ouverture → le 1er collage est instantané
+    useEffect(() => {
+        if (!open) return;
+        import("@/lib/safety-client").then(({ warmUpSafetyModel }) => warmUpSafetyModel()).catch(() => {});
+    }, [open]);
 
     useEffect(() => {
         if (open) {
@@ -61,16 +68,27 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
             return;
         }
 
-        // 🛡️ NSFW Safety Check
-        const { analyzeImageSafety } = await import("@/lib/safety-client");
-        const safety = await analyzeImageSafety(file);
-        if (!safety.isSafe) {
-            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
-            return;
-        }
-
+        // 1. Aperçu IMMÉDIAT — pas d'attente invisible (le filtre tourne en arrière-plan)
         setProofFile(file);
         setProofPreview(URL.createObjectURL(file));
+        setNsfwChecking(true);
+
+        // 2. 🛡️ NSFW Safety Check (non bloquant pour l'UX, borné 6s côté client)
+        const { analyzeImageSafety, logNsfwAttempt } = await import("@/lib/safety-client");
+        const safety = await analyzeImageSafety(file);
+        setNsfwChecking(false);
+
+        if (!safety.isSafe) {
+            setProofFile(null);
+            setProofPreview(null);
+            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
+            // 🔐 Log tentatives NSFW côté guilde (audit) + côté God (notification)
+            await logNsfwAttempt(guildId, `Upload NSFW bloqué (fichier: ${file.name}).`);
+            return;
+        }
+        if (safety.warning) {
+            toast.warning(safety.warning);
+        }
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,6 +295,12 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                         {proofPreview ? (
                             <div className="relative h-48 rounded-xl overflow-hidden border border-white/10">
                                 <Image src={proofPreview} alt="Preuve" fill className="object-cover" />
+                                {nsfwChecking && (
+                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Analyse sécurité…</span>
+                                    </div>
+                                )}
                                 <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-white">
                                     <X className="h-3.5 w-3.5" />
                                 </Button>

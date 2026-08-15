@@ -43,6 +43,18 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
     const loansDiscordConfigured = !!guildConfig?.loansNotifyChannelId;
     const vaultDiscordConfigured = !!guildConfig?.vaultNotifyChannelId;
 
+    // #71 — prévisu du salon : résout le nom du canal « prêts » pour l'afficher dans la modale.
+    let loansChannelName: string | null = null;
+    if (guildConfig?.loansNotifyChannelId) {
+        try {
+            const { fetchChannel } = await import("@/server/discord");
+            const ch = await fetchChannel(guildConfig.loansNotifyChannelId);
+            loansChannelName = (ch as any)?.name || null;
+        } catch {
+            /* non bloquant */
+        }
+    }
+
     return (
         <div className="space-y-6 pb-12">
             <div data-tour="services-header">
@@ -69,6 +81,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
                     maintenance={statusRes.success ? JSON.parse(JSON.stringify(statusRes.data)) : undefined}
                     servicesDiscordConfigured={servicesDiscordConfigured}
                     loansDiscordConfigured={loansDiscordConfigured}
+                    loansChannelName={loansChannelName}
                     vaultDiscordConfigured={vaultDiscordConfigured}
                 />
             </div>

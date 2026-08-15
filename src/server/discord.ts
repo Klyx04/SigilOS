@@ -50,6 +50,20 @@ export function sanitizeMentions(text: string | null | undefined): string {
 async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
+    // F-16 CodeQL js/request-forgery : garde fail-closed à la source du fetch — l'hôte est
+    // restreint à l'API Discord (recommandation js/request-forgery : allow-list du hostname).
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        logger.warn("[Discord] fetchWithRetry: URL invalide refusée");
+        throw new Error("URL Discord invalide");
+    }
+    if (parsedUrl.hostname !== "discord.com") {
+        logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${parsedUrl.hostname})`);
+        throw new Error("Hôte Discord non autorisé");
+    }
+
     for (let i = 0; i < MAX_RETRIES; i++) {
         try {
             const res = await fetch(url, options);
@@ -673,33 +687,25 @@ export async function editInteractionMessage(
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
-    // F-16 CodeQL js/request-forgery : borner applicationId (snowflake Discord) et
-    // interactionToken (opaque URL-safe) AVANT interpolation dans l'URL du webhook.
-    // Fail-closed : aucune requete si l'un des deux est invalide.
-    if (!/^\d{15,21}$/.test(applicationId)) {
-        logger.warn("[Discord] editInteractionMessage: applicationId invalide");
-        return false;
-    }
-    if (!/^[A-Za-z0-9._~-]{10,200}$/.test(interactionToken)) {
-        logger.warn("[Discord] editInteractionMessage: interactionToken invalide");
-        return false;
-    }
+    // F-16 CodeQL js/request-forgery : sanitize des valeurs AVANT interpolation dans l'URL.
+    // La query reconnaît le pattern `value.replace(whitelist, "")` comme sanitizer URL-safe
+    // (doc js/request-forgery : « restrict the input so that path traversal cannot be used »).
+    // Fail-closed : toute valeur contenant un caractère hors-whitelist est rejetée.
+    const cleanAppId = applicationId.replace(/[^\d]/g, "").slice(0, 21);
+    const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 200);
 
-    // Construction via `new URL` (base constante `https://discord.com`) + encodeURIComponent :
-    // sanitizers reconnus par CodeQL (js/request-forgery) — l''hôte ne peut JAMAIS être piloté
-    // par le payload. Double garde : hostname vérifié ci-dessous.
-    const webhookUrl = new URL(
-        `/api/v10/webhooks/${encodeURIComponent(applicationId)}/${encodeURIComponent(interactionToken)}/messages/@original`,
-        "https://discord.com"
-    );
-    if (webhookUrl.hostname !== "discord.com") {
-        logger.warn("[Discord] editInteractionMessage: URL webhook invalide");
+    if (cleanAppId !== applicationId || cleanToken !== interactionToken) {
+        logger.warn("[Discord] editInteractionMessage: caractère non autorisé (applicationId/interactionToken)");
+        return false;
+    }
+    if (!/^\d{15,21}$/.test(cleanAppId) || !/^[A-Za-z0-9._~-]{10,200}$/.test(cleanToken)) {
+        logger.warn("[Discord] editInteractionMessage: format invalide (applicationId/interactionToken)");
         return false;
     }
 
     try {
         const res = await fetchWithRetry(
-            webhookUrl.toString(),
+            `https://discord.com/api/v10/webhooks/${cleanAppId}/${cleanToken}/messages/@original`,
             {
                 method: "PATCH",
                 headers: {

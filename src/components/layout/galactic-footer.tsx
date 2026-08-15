@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { BugReportButton } from "@/components/layout/bug-report-button";
 
 type SystemStatus = "online" | "degraded" | "offline";
 
@@ -111,20 +110,17 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                             </span>
                         </Link>
 
-                        {/* 3. SUPPORT */}
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="https://discord.gg/uX7G6SUDgN"
-                                target="_blank"
-                                className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors shrink-0 text-xs font-medium"
-                            >
-                                <span className="text-[10px] font-medium">Discord</span>
-                            </Link>
-
-                            <div className="scale-90 origin-right shrink-0">
-                                <BugReportButton />
-                            </div>
-                        </div>
+                        {/* 3. DISCORD SIGILOS */}
+                        <Link
+                            href="https://discord.gg/uX7G6SUDgN"
+                            target="_blank"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#5865F2] hover:text-white transition-colors shrink-0 text-xs font-semibold"
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" fill="currentColor">
+                                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                            </svg>
+                            Discord SigilOS
+                        </Link>
                     </div>
                 </footer>
             </div>
@@ -194,7 +190,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                                         <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
                                     </svg>
                                 </div>
-                                Discord
+                                Discord SigilOS
                             </Link>
                         </div>
                     </div>
@@ -213,10 +209,6 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                             SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.
                             Tous droits réservés. © 2026 Sigil Project.
                         </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 shrink-0">
-                        <BugReportButton />
                     </div>
                 </div>
             </div>

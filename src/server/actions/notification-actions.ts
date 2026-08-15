@@ -178,6 +178,8 @@ export async function markAsRead(notificationId: string, guildId?: string) {
             },
             data: { read: true },
         });
+        // #28 — purge du cache « unread » (sinon la bulle persiste jusqu'au TTL 10s).
+        invalidateUnreadCache(session.user.id, guildId);
         revalidatePath("/");
     } catch (error) {
         logger.error("Mark Read Error:", error);
@@ -207,6 +209,8 @@ export async function markAllAsRead(guildId?: string) {
             },
             data: { read: true },
         });
+        // #28 — purge du cache « unread » (sinon la bulle persiste jusqu'au TTL 10s).
+        invalidateUnreadCache(session.user.id, guildId);
         revalidatePath("/");
     } catch (error) {
         logger.error("Mark All Read Error:", error);
@@ -271,7 +275,22 @@ export async function createNotification(
                 guildId: internalGuildId,
             }
         });
+
+        // #28 — invalide le cache « unread » du destinataire → bulle à jour sans attendre le TTL 10s.
+        invalidateUnreadCache(userId, guildId);
     } catch (error) {
         logger.error("[Notification] Creation Failed:", error);
     }
+}
+
+/**
+ * #28 — purge les caches Redis « unread » (TTL 10s) après une lecture/écriture pour
+ * que la bulle de notifications se mette à jour immédiatement, partout (sidebar/topbar).
+ */
+function invalidateUnreadCache(userId: string, guildId?: string) {
+    const keys = [
+        `notifs:unread:${userId}`,
+        ...(guildId ? [`notifs:unread:${userId}:${guildId}`] : []),
+    ];
+    Promise.all(keys.map(k => redis.del(k).catch(() => {}))).catch(() => {});
 }

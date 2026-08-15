@@ -439,6 +439,7 @@ io.on("connection", (socket: Socket) => {
         const identity = await resolveDashboardIdentity(socket.data.userId as string | undefined, data.guildId);
         if (!identity) return;
         socket.data.dashboardIdentity = identity;
+        socket.data.dashboardGuildId = data.guildId;
         logger.info(`[WS] 👋 ${socket.id} joined dashboard (${identity.userName})`);
         socket.broadcast.to(`guild:${data.guildId}`).emit("dashboard:presence:event", {
             type: "join",
@@ -461,11 +462,25 @@ io.on("connection", (socket: Socket) => {
             });
         }
         socket.data.dashboardIdentity = undefined;
+        socket.data.dashboardGuildId = undefined;
     });
 
     // Gestion de la déconnexion
     socket.on("disconnect", (reason) => {
         logger.info(`[WS] 🔴 Client déconnecté: ${socket.id} (Raison: ${reason})`);
+        // #73 : presence dashboard sans leave explicite (onglet ferme, coupure reseau,
+        // ou emit non flushe cote client) -> broadcast un leave aux autres membres.
+        // Idempotent : dashboard:leave a deja nettoye dashboardIdentity -> aucun doublon.
+        const dashIdentity = socket.data.dashboardIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
+        const dashGuildId = socket.data.dashboardGuildId as string | undefined;
+        if (dashIdentity?.profileId && dashGuildId) {
+            socket.broadcast.to(`guild:${dashGuildId}`).emit("dashboard:presence:event", {
+                type: "leave",
+                profileId: dashIdentity.profileId,
+                userName: dashIdentity.userName,
+                userAvatar: dashIdentity.userAvatar,
+            });
+        }
         geoguesserManager.handleDisconnect(socket, reason);
         bombManager.handleDisconnect(socket);
     });

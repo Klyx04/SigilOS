@@ -10,6 +10,8 @@ import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 import { GodAccessBanner } from "./components/god-access-banner";
 import { getGodRoute } from "@/lib/god-route";
+import Link from "next/link";
+import { Bell } from "lucide-react";
 import { createGodAuditLog } from "@/server/actions/audit-actions";
 
 // R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
@@ -84,9 +86,23 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                             SIGIL<span className="text-amber-500">GOD</span>
                         </span>
                     </div>
-                    <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} accessibleBricks={accessibleBricks} godRoute={godRoute} />
-                    </Suspense>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href={`${godRoute}?tab=notifications`}
+                            aria-label="Notifications"
+                            className="relative flex p-2.5 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-colors"
+                        >
+                            <Bell className="w-5 h-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">
+                                    {unreadCount > 99 ? "99+" : unreadCount}
+                                </span>
+                            )}
+                        </Link>
+                        <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
+                            <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} accessibleBricks={accessibleBricks} godRoute={godRoute} />
+                        </Suspense>
+                    </div>
                 </div>
 
                 {/* Scrollable content view */}

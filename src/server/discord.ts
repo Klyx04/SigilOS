@@ -1,4 +1,5 @@
 import { getAppBaseUrl } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -671,6 +672,18 @@ export async function editInteractionMessage(
 ): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
+
+    // F-16 CodeQL js/request-forgery : borner applicationId (snowflake Discord) et
+    // interactionToken (opaque URL-safe) AVANT interpolation dans l'URL du webhook.
+    // Fail-closed : aucune requete si l'un des deux est invalide.
+    if (!/^\d{15,21}$/.test(applicationId)) {
+        logger.warn("[Discord] editInteractionMessage: applicationId invalide");
+        return false;
+    }
+    if (!/^[A-Za-z0-9._~-]{10,200}$/.test(interactionToken)) {
+        logger.warn("[Discord] editInteractionMessage: interactionToken invalide");
+        return false;
+    }
 
     try {
         const res = await fetchWithRetry(

@@ -2,14 +2,15 @@ import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import Script from "next/script";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { HeroSection } from "@/components/landing/hero-section";
-import { LandingCarousel } from "@/components/landing/landing-carousel";
+import { ProblemSolution } from "@/components/landing/problem-solution";
+import { ProductStory } from "@/components/landing/product-story";
+import { ThreePillars } from "@/components/landing/three-pillars";
 import { auth } from "@/auth";
 import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
 import { GuildShowcaseSection } from "@/components/landing/guild-showcase-section";
 import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { SaasFeatures } from "@/components/landing/saas-features";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 
@@ -87,26 +88,20 @@ export default async function Home({
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
 
-          {/* H1 SSR statique pour le SEO (le H1 client animé est masqué via aria-hidden dans HeroSection) */}
-          <h1 className="sr-only">
-            {session?.user
-              ? "Prenez les commandes de votre empire Dofus"
-              : "L'outil de gestion n°1 pour votre guilde Dofus"}
-          </h1>
-
           {/* Hero */}
           <HeroSection user={session?.user} userGuilds={userGuilds} />
 
-          {/* Screenshots */}
-          <section className="py-16 relative w-full max-w-[1400px] mx-auto px-6">
-            <LandingCarousel />
-          </section>
+          {/* Problème / solution */}
+          <ProblemSolution />
+
+          {/* Démo produit narrative */}
+          <ProductStory />
 
           {/* Showcase mini-dashboards par guilde (landing v3) */}
           {showcaseGuilds.length > 0 && <GuildShowcaseSection guilds={showcaseGuilds} />}
 
-          {/* Features (direction 2026 : section calme, showcase des fonctionnalités) */}
-          <SaasFeatures />
+          {/* Trois piliers */}
+          <ThreePillars />
 
           {/* Comment ça marche */}
           <HowItWorks />

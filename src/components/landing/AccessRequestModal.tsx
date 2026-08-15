@@ -1,10 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Crown, ChevronRight, Sparkles, LogIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -17,138 +13,39 @@ interface AccessRequestModalProps {
     onClose: () => void;
 }
 
-function ModalContent({ onClose }: { onClose: () => void }) {
+export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
     const discordInvite = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
     return (
-        <>
-            {/* Backdrop */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onClose}
-                className="fixed inset-0 bg-black/80 backdrop-blur-md"
-                style={{ zIndex: 9998 }}
-            />
+        <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+            <DialogContent className="max-w-md bg-zinc-950 border-white/10">
+                <DialogHeader className="text-left">
+                    <DialogTitle className="text-lg font-bold text-white">
+                        Demander l&apos;accès pour votre guilde
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-zinc-400 leading-relaxed">
+                        Un chef ou admin Discord ouvre un ticket sur le serveur SigilOS.
+                        Après validation, vous configurez vos modules puis invitez vos membres.
+                    </DialogDescription>
+                </DialogHeader>
 
-            {/* Modal */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.92, y: 32 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 32 }}
-                transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                className="fixed inset-0 flex items-center justify-center p-4"
-                style={{ zIndex: 9999 }}
-                onClick={e => e.target === e.currentTarget && onClose()}
-            >
-                <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-                    <div className="relative bg-zinc-950 border border-white/10 rounded-3xl overflow-hidden shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8)]">
+                <a
+                    href={discordInvite}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-3 w-full h-12 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-sm transition-colors"
+                >
+                    <DiscordIcon className="w-5 h-5" />
+                    Ouvrir un ticket sur Discord
+                </a>
 
-                        {/* Top gradient bar */}
-                        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
-
-                        {/* Background glow */}
-                        <div className="absolute top-[-40%] left-[-10%] w-[80%] h-[80%] bg-amber-500/6 rounded-full  pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full  pointer-events-none" />
-
-                        {/* Header */}
-                        <div className="relative flex items-start justify-between p-6 sm:p-10 pb-6 sm:pb-8">
-                            <div>
-                                <div className="flex items-center gap-2.5 mb-4">
-                                    <div className="h-8 w-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center">
-                                        <Crown className="w-4 h-4 text-amber-400" />
-                                    </div>
-                                    <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">Réservé Chefs de Guilde & Admins</span>
-                                </div>
-                                <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight leading-tight mb-3">
-                                    Activer SigilOS <br />
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">pour votre guilde.</span>
-                                </h2>
-                                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-sm">
-                                    Bêta privée réservée aux chefs de guilde et admins Discord sur Dofus Unity.<br />
-                                    Rejoins le Discord et ouvre un ticket — on répond sous 24-48h.
-                                </p>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-all ml-4"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="mx-6 sm:mx-10 h-px bg-white/5" />
-
-                        {/* CTA Zone */}
-                        <div className="relative p-6 sm:p-10 pt-6 sm:pt-8 space-y-4">
-
-                            {/* Member Clarification Alert */}
-                            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200/90 flex items-start gap-3">
-                                <LogIn className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                                <div>
-                                    <span className="font-bold text-white block mb-0.5">Vous êtes membre d&apos;une guilde déjà sur SigilOS ?</span>
-                                    <span>Vous n&apos;avez pas besoin d&apos;ouvrir un ticket. Fermez ce pop-up et cliquez sur <strong className="text-emerald-400 font-bold">Se Connecter avec Discord</strong>.</span>
-                                </div>
-                            </div>
-
-                            {/* Main Discord CTA */}
-                            <Button
-                                asChild
-                                variant="sigil"
-                                className="h-auto p-4 sm:p-6 rounded-2xl bg-indigo-500/10 border-indigo-500/25 justify-start text-left"
-                            >
-                                <a
-                                    href={discordInvite}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5"
-                                >
-                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center flex-shrink-0  group-hover:bg-indigo-500/30 transition-all">
-                                        <DiscordIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white/90" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <span className="font-semibold text-white text-lg sm:text-xl block mb-1 truncate">Ouvrir un ticket Discord</span>
-                                        <div className="text-[11px] sm:text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors flex flex-wrap items-center gap-x-2 gap-y-1">
-                                            <span>Salons <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span></span>
-                                            <span className="inline-flex items-center gap-1 text-emerald-400/80 font-semibold">
-                                                <Sparkles className="w-3 h-3" /> 24–48h
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <ChevronRight className="hidden sm:block w-6 h-6 ml-auto text-white/20 group-hover:text-white transition-all" />
-                                </a>
-                            </Button>
-
-                            {/* Already have access */}
-                            <p className="text-center text-[11px] sm:text-[11px] text-zinc-500 pt-1">
-                                Déjà membre ?{" "}
-                                <button onClick={onClose} className="text-emerald-400 font-semibold hover:text-emerald-300 underline underline-offset-2 transition-colors">
-                                    Fermer et se connecter via Discord ↑
-                                </button>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        </>
-    );
-}
-
-export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!mounted) return null;
-
-    return createPortal(
-        <AnimatePresence>
-            {open && <ModalContent onClose={onClose} />}
-        </AnimatePresence>,
-        document.body
+                <p className="text-[12px] text-zinc-500 leading-relaxed">
+                    Réponse généralement sous 24-48h. Déjà membre ? Fermez cette fenêtre et{" "}
+                    <button onClick={onClose} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+                        connectez-vous avec Discord
+                    </button>.
+                </p>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
-import { unlink } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
 import { sendChannelMessage } from "@/server/discord";
 import { logger } from "@/lib/logger";
 import { getDisplayName } from "@/lib/display-name";
+import { deleteProofFile } from "@/lib/storage-utils";
 
 // ---------------------------------------------------------------------------
 // CLEANUP: supprime les screenshots de preuve
@@ -16,57 +14,15 @@ import { getDisplayName } from "@/lib/display-name";
 // Appel depuis maintenance.sh (crontab 4h00):
 //   curl -s -X POST https://sigilos.fr/api/cron/cleanup-proofs \
 //     -H "Authorization: Bearer $CRON_SECRET"
+//
+// F-17 (17/08) : les uploads vivent désormais dans `private_uploads` avec des URLs
+// `/api/storage/...`. Les anciens helpers (`public/uploads` + `/uploads/...`) ne
+// supprimaient RIEN → fichiers orphelins à vie sur le VPS. On passe par
+// `deleteProofFile` (storage-utils) qui gère `/uploads/` ET `/api/storage/`.
 // ---------------------------------------------------------------------------
 
-const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads", "guilds");
 const PROOF_EXPIRY_DAYS = 7;
 const PENDING_EXPIRY_HOURS = 24;
-
-// Safely delete a local file from /uploads/guilds/{guildId}/proofs/{filename}
-async function deleteLocalProof(proofUrl: string, internalGuildId: string): Promise<boolean> {
-    try {
-        const expectedPrefix = `/uploads/guilds/${internalGuildId}/proofs/`;
-        if (!proofUrl.startsWith(expectedPrefix)) return false;
-
-        const filename = proofUrl.slice(expectedPrefix.length);
-        // Security: only allow UUID.webp filenames
-        if (!/^[a-f0-9-]{36}\.webp$/.test(filename)) return false;
-
-        const filePath = path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs", filename);
-        const normalizedPath = path.normalize(filePath);
-        const expectedBase = path.normalize(path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs"));
-        if (!normalizedPath.startsWith(expectedBase)) return false;
-
-        if (existsSync(filePath)) {
-            await unlink(filePath);
-        }
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-// Safely delete a mission/achievement proof from /uploads/proofs/{discordGuildId}/{filename}
-async function deleteMissionProof(proofUrl: string): Promise<boolean> {
-    try {
-        if (!proofUrl.startsWith("/uploads/proofs/")) return false;
-        const parts = proofUrl.replace("/uploads/proofs/", "").split("/");
-        if (parts.length !== 2) return false;
-        const [discordGuildId, filename] = parts;
-        // Security: only safe filename chars
-        if (!/^[a-f0-9-]{36}\.webp$/.test(filename)) return false;
-        if (!/^\d{17,20}$/.test(discordGuildId)) return false;
-
-        const filePath = path.join(process.cwd(), "public", "uploads", "proofs", discordGuildId, filename);
-        const safeBase = path.join(process.cwd(), "public", "uploads", "proofs", discordGuildId);
-        if (!path.normalize(filePath).startsWith(path.normalize(safeBase))) return false;
-
-        if (existsSync(filePath)) await unlink(filePath);
-        return true;
-    } catch {
-        return false;
-    }
-}
 
 // Get Discord user ID from NextAuth account
 async function getDiscordId(userId: string): Promise<string | null> {
@@ -147,10 +103,10 @@ export async function POST(request: NextRequest) {
             const urlsToDelete = [loan.proofUrl, loan.returnProofUrl].filter(Boolean) as string[];
 
             try {
-                // Delete files
+                // Delete files (F-17 : deleteProofFile gère les URLs /api/storage/ actuelles)
                 for (const url of urlsToDelete) {
-                    const deleted = await deleteLocalProof(url, loan.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    await deleteProofFile(url);
+                    stats.filesDeleted++;
                 }
 
                 // Clear URLs in DB
@@ -233,8 +189,8 @@ export async function POST(request: NextRequest) {
             stats.vaultProcessed++;
             try {
                 if (entry.proofUrl) {
-                    const deleted = await deleteLocalProof(entry.proofUrl, entry.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    await deleteProofFile(entry.proofUrl);
+                    stats.filesDeleted++;
                 }
 
                 await db.vaultEntry.update({
@@ -282,7 +238,7 @@ export async function POST(request: NextRequest) {
     const archiveCutoff = new Date();
     archiveCutoff.setDate(archiveCutoff.getDate() - ARCHIVE_EXPIRY_DAYS);
 
-    const extraStats = { loansDeleted: 0, archiveNotifsSent: 0 };
+    const extraStats = { loansDeleted: 0, archiveNotifsSent: 0, remindersSent: 0 };
 
     try {
         const expiredArchivedLoans = await db.guildLoan.findMany({
@@ -327,11 +283,11 @@ export async function POST(request: NextRequest) {
 
         for (const loan of expiredArchivedLoans) {
             try {
-                // 1. Cleanup fichiers physiques résiduels
+                // 1. Cleanup fichiers physiques résiduels (F-17)
                 const residualUrls = [loan.proofUrl, loan.returnProofUrl].filter(Boolean) as string[];
                 for (const url of residualUrls) {
-                    const deleted = await deleteLocalProof(url, loan.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    await deleteProofFile(url);
+                    stats.filesDeleted++;
                 }
 
                 // 2. Suppression hard en DB
@@ -396,7 +352,7 @@ export async function POST(request: NextRequest) {
 
         for (const donation of expiredKamaDonations) {
             try {
-                if (donation.proofUrl) { await deleteLocalProof(donation.proofUrl, donation.guildId); stats.filesDeleted++; }
+                if (donation.proofUrl) { await deleteProofFile(donation.proofUrl); stats.filesDeleted++; }
                 await (db as any).imageHash.deleteMany({ where: { guildId: donation.guildId, sourceType: "KAMA_DONATION", sourceId: donation.id } });
                 await kamaDb.kamaDonation.delete({ where: { id: donation.id } });
                 kamaStats.kamaExpired++;
@@ -417,7 +373,7 @@ export async function POST(request: NextRequest) {
 
         for (const sub of expiredSubmissions) {
             try {
-                if (sub.proofUrl) { await deleteMissionProof(sub.proofUrl); stats.filesDeleted++; }
+                if (sub.proofUrl) { await deleteProofFile(sub.proofUrl); stats.filesDeleted++; }
                 await (db as any).imageHash.deleteMany({ where: { sourceType: "MISSION", sourceId: sub.id } });
                 await db.submission.delete({ where: { id: sub.id } });
                 missionStats.missionsExpired++;
@@ -439,10 +395,9 @@ export async function POST(request: NextRequest) {
         for (const sub of expiredAchievements) {
             try {
                 if (sub.proofUrl) {
-                    // achievementSubmission proofs use /uploads/proofs/{discordGuildId}/ path
-                    // or /uploads/guilds/{internalId}/proofs/ — try both
-                    const deleted = await deleteMissionProof(sub.proofUrl) || await deleteLocalProof(sub.proofUrl, sub.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    // achievementSubmission proofs utilisent /api/storage/ (F-17)
+                    await deleteProofFile(sub.proofUrl);
+                    stats.filesDeleted++;
                 }
                 await (db as any).imageHash.deleteMany({ where: { sourceType: "ACHIEVEMENT", sourceId: sub.id } });
                 await (db as any).achievementSubmission.delete({ where: { id: sub.id } });
@@ -450,6 +405,24 @@ export async function POST(request: NextRequest) {
             } catch (err) { stats.errors.push(`Achievement ${sub.id}: ${err}`); }
         }
     } catch (err) { stats.errors.push(`Achievement submissions batch error: ${err}`); }
+
+    // ---------------------------------------------------------------------------
+    // 7. LOAN REMINDERS — rappels prêts non clos (#71)
+    //    Déclenchés avec le nettoyage nocturne (aucune ligne crontab à ajouter),
+    //    idempotent via lastReminderAt (max 1 rappel / 24h par prêt).
+    //    Une route dédiée `/api/cron/loan-reminders` existe aussi pour un créneau
+    //    matinal optionnel.
+    // ---------------------------------------------------------------------------
+    try {
+        const { sendLoanReminders } = await import("@/server/actions/loan-reminder-actions");
+        const reminderSummary = await sendLoanReminders();
+        extraStats.remindersSent = reminderSummary.reminded;
+        if (reminderSummary.failed > 0) {
+            stats.errors.push(`LoanReminders: ${reminderSummary.errors.join("; ")}`);
+        }
+    } catch (err) {
+        stats.errors.push(`LoanReminders batch error: ${err}`);
+    }
 
     logger.info("[cleanup-proofs] Done", { stats: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats } });
     return NextResponse.json({ success: true, ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });

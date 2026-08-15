@@ -120,7 +120,13 @@ async function captureMainZone(page, target) {
 
 async function capture(page, target) {
   console.log(`\n📸 ${target.label} — ${target.url}`);
-  await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  try {
+    await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  } catch (err) {
+    // net::ERR_ABORTED : la route redirige côté serveur (ex. onboarding/welcome) ou
+    // Turbopack recompile au premier hit. La navigation finale s'installe ensuite.
+    console.warn(`   ⚠️ navigation abortée (${String(err.message).slice(0, 90)}) — on laisse la page se poser…`);
+  }
   // Laisser les fonts/images/animations se stabiliser (images lazy + fonts).
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   await page.waitForTimeout(3000);
@@ -135,7 +141,7 @@ async function capture(page, target) {
 
   const size = statSync(out).size;
   console.log(
-    `   ✅ ${target.file} — ${Math.round(VIEWPORT.width * DEVICE_SCALE_FACTOR)}×${Math.round(VIEWPORT.height * DEVICE_SCALE_FACTOR)} (zone produit) — ${Math.round(size / 1024)} Ko`
+    `   ✅ ${target.file} — ${Math.round(VIEWPORT.width * DEVICE_SCALE_FACTOR)}×${Math.round(VIEWPORT.height * DEVICE_SCALE_FACTOR)} (zone produit) — ${Math.round(size / 1024)} Ko — URL: ${page.url()}`
   );
 }
 

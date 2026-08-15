@@ -12,9 +12,9 @@ function formatBytes(bytes: number): string {
 }
 
 const BREAKDOWN_LINK: Record<string, string> = {
-    MISSIONS: "/missions",
-    KAMA_LOANS: "/services?tab=prets",
-    ACHIEVEMENT: "/ladder",
+    MISSIONS: "/admin/validation",
+    KAMA_LOANS: "/admin/validation?tab=kamas",
+    ACHIEVEMENT: "/admin/validation?tab=succes",
     PRESENTATION: "/presentation",
     ASSETS: "/presentation",
 };

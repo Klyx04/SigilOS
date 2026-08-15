@@ -8,8 +8,15 @@ import { PrismaClient } from "@prisma/client";
 import { readdir, stat, unlink } from "fs/promises";
 import { join, normalize } from "path";
 import { existsSync } from "fs";
+import { rateLimit } from "@/lib/ratelimit";
 
 const kamaDb = db as unknown as PrismaClient;
+
+// ─── Cache court (60s) du scan disque ──────────────────────────────────────────
+// Le scan fait des `stat` récursifs sur le disque : on évite de le refaire à
+// chaque ouverture de l'onglet God (perf/stabilité). Invalidation : 60s.
+let storageScanCache: { at: number; data: StorageOverview } | null = null;
+const STORAGE_SCAN_CACHE_TTL_MS = 60_000;
 
 export type PendingFile = {
     filename: string;
@@ -130,10 +137,17 @@ async function getPendingFilesForGuild(
         for (const sub of missionSubs) {
             if (!sub.proofUrl) continue;
             try {
-                // Determine physical path from URL - Missions/Achiev are in /public/uploads/proofs/
+                // Missions/Achiev proofs : essaye d'abord l'ancien chemin public (post-migration),
+                // puis private_uploads (F-17) — robuste quel que soit l'historique.
                 const fileName = sub.proofUrl.split("/").pop();
-                const physicalPath = join(cwd, "public", "uploads", "proofs", discordGuildId, fileName || "");
-                const s = await stat(physicalPath);
+                if (!fileName) continue;
+                let physicalPath = join(cwd, "public", "uploads", "proofs", discordGuildId, fileName);
+                let s = await stat(physicalPath).catch(() => null);
+                if (!s) {
+                    physicalPath = join(cwd, "private_uploads", "proofs", discordGuildId, fileName);
+                    s = await stat(physicalPath).catch(() => null);
+                }
+                if (!s) continue;
                 pendingFiles.push({
                     filename: fileName || sub.id,
                     url: sub.proofUrl, sizeBytes: s.size,
@@ -182,6 +196,11 @@ async function getPendingFilesForGuild(
 
 export async function getStorageOverview(): Promise<{ success: boolean; data?: StorageOverview; error?: string }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    // Cache court (60s) — évite le re-scan récursif du disque à chaque ouverture.
+    if (storageScanCache && Date.now() - storageScanCache.at < STORAGE_SCAN_CACHE_TTL_MS) {
+        return { success: true, data: storageScanCache.data };
+    }
 
     try {
         const guilds = await db.guildConfig.findMany({
@@ -314,8 +333,9 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
             }
         });
 
-        const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes, 0);
-        const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount, 0);
+        // Totaux globaux : inclure aussi présentation + succès (pas seulement missions/kamas).
+        const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes + e.presentationBytes + e.achievementBytes, 0);
+        const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount + e.presentationCount + e.achievementCount, 0);
         
         const orphanFiles: DiskFile[] = [];
         const now = Date.now();
@@ -334,7 +354,9 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
             });
         });
 
-        return { success: true, data: { guilds: entries, totalBytes, totalFiles, orphanFiles } };
+        const result = { success: true as const, data: { guilds: entries, totalBytes, totalFiles, orphanFiles } };
+        storageScanCache = { at: Date.now(), data: result.data };
+        return result;
     } catch (error) {
         logger.error("[getStorageOverview]", { error });
         return { success: false, error: "Erreur serveur" };
@@ -350,6 +372,10 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
  */
 export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedCount?: number; freedBytes?: number; error?: string }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    // #55 — rate-limit action destructive (purge globale).
+    const rl = await rateLimit("god:storage:clean-orphans", 5, 60_000);
+    if (!rl.success) return { success: false, error: "Trop de purges. Réessayez dans une minute." };
 
     try {
         const overviewRes = await getStorageOverview();
@@ -422,6 +448,10 @@ export async function godDeleteFile(
     dbClear?: { guildId: string; field: AssetDbField }
 ): Promise<{ success: boolean; error?: string; message?: string; deletedPath?: string }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    // #55 — rate-limit suppression de fichier (action destructive).
+    const rl = await rateLimit("god:storage:delete-file", 20, 60_000);
+    if (!rl.success) return { success: false, error: "Trop de suppressions. Réessayez dans une minute." };
 
     if (!fileUrl.startsWith("/uploads/") && !fileUrl.startsWith("/api/storage/")) {
         return { success: false, error: "Chemin non autorisé (doit commencer par /uploads/ ou /api/storage/)" };

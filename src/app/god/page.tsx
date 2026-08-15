@@ -69,6 +69,7 @@ export default async function SuperAdminPage(props: {
         "mini-games": "game-data",
         guilds: "guilds",
         infrastructure: "maintenance",
+        storage: null,           // super-admin only (Stockage & Captures)
         notifications: null,     // super-admin only
         tickets: null,           // super-admin only
         security: "logs",
@@ -83,6 +84,7 @@ export default async function SuperAdminPage(props: {
         "mini-games": "mini-games",
         guilds: "guilds",
         infrastructure: "infrastructure",
+        storage: "storage",
         notifications: "notifications",
         tickets: "tickets",
         security: "security",
@@ -260,6 +262,18 @@ export default async function SuperAdminPage(props: {
                             </Suspense>
 
                             <BlacklistSection bans={resolvedData.platformBans as any} />
+                        </div>
+                    )}
+
+                    {tab === "storage" && (
+                        <div className="space-y-12">
+                            <div className="space-y-4 pb-12 border-b border-white/5">
+                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Stockage & Captures</h1>
+                                <p className="text-zinc-500 text-base md:text-lg font-medium">Espace disque par guilde : missions, kamas, prêts, succès et fichiers orphelins.</p>
+                            </div>
+                            <div className="w-full animate-in fade-in duration-500">
+                                <StorageOverviewPanel />
+                            </div>
                         </div>
                     )}
 

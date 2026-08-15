@@ -59,6 +59,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
 
     // Supervision
     { id: "infrastructure", name: "Système & Infra", icon: HardDrive, color: "text-amber-400", group: "supervision", scope: "maintenance", scopeLabel: "Maintenance", brickId: "infrastructure" },
+    { id: "storage", name: "Stockage & Captures", icon: HardDrive, color: "text-blue-400", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "storage" },
     { id: "notifications", name: "Alertes Système", icon: Bell, color: "text-rose-400", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "notifications" },
     { id: "mini-games", name: "Mini-Jeux", icon: Gamepad2, color: "text-amber-500", group: "supervision", sub: "mini-games", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
     { id: "geo-blacklist", name: "Blacklist Géoguesser", icon: Map, color: "text-rose-400", group: "supervision", sub: "mini-games", query: "sub=GUESSER", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },

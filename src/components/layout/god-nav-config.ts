@@ -55,10 +55,12 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "guilds", name: "Guildes & Users", icon: Settings2, color: "text-emerald-400", group: "administration", scope: "guilds", scopeLabel: "Guildes", brickId: "guilds" },
     { id: "delegates", name: "Sous-Gods", sub: "delegates", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users", brickId: "delegates" },
     { id: "security", name: "Sécurité & Logs", icon: ShieldAlert, color: "text-zinc-400", group: "administration", scope: "logs", scopeLabel: "Logs", brickId: "security" },
+    { id: "logs", name: "Audit Logs", sub: "logs", icon: History, color: "text-violet-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "logs" },
     { id: "tickets", name: "Tickets Support", icon: Ticket, color: "text-indigo-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "tickets" },
 
     // Supervision
     { id: "infrastructure", name: "Système & Infra", icon: HardDrive, color: "text-amber-400", group: "supervision", scope: "maintenance", scopeLabel: "Maintenance", brickId: "infrastructure" },
+    { id: "storage", name: "Stockage & Captures", icon: HardDrive, color: "text-blue-400", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "storage" },
     { id: "notifications", name: "Alertes Système", icon: Bell, color: "text-rose-400", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "notifications" },
     { id: "mini-games", name: "Mini-Jeux", icon: Gamepad2, color: "text-amber-500", group: "supervision", sub: "mini-games", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
     { id: "geo-blacklist", name: "Blacklist Géoguesser", icon: Map, color: "text-rose-400", group: "supervision", sub: "mini-games", query: "sub=GUESSER", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },

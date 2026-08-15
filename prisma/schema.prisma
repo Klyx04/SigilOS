@@ -298,6 +298,7 @@ model GuildConfig {
   iconUrl                          String?
   isActive                         Boolean                 @default(true)
   rolesMapping                     Json                    @default("{}")
+  storageLimitBytes                BigInt?
   createdAt                        DateTime                @default(now())
   updatedAt                        DateTime                @updatedAt
   absenceChannelId                 String?

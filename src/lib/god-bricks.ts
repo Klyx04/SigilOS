@@ -20,11 +20,13 @@ export const GOD_BRICKS = [
     { id: "overview",       label: "Command Center",        scope: null, group: "operations",  subGodAccess: false },
     { id: "telemetry",      label: "Activité Dashboard",    scope: null, group: "supervision", subGodAccess: false },
     { id: "infrastructure", label: "Système & Infra",       scope: null, group: "supervision", subGodAccess: false },
+    { id: "storage",        label: "Stockage & Captures",    scope: null, group: "supervision", subGodAccess: false },
     { id: "notifications",  label: "Alertes Système",       scope: null, group: "supervision", subGodAccess: false },
     { id: "mini-games",     label: "Mini-Jeux",             scope: null, group: "supervision", subGodAccess: false },
 
     // ─── Administration (sécurité) ─────────────────────────────────────────
     { id: "security",       label: "Sécurité & Logs",       scope: null, group: "admin",       subGodAccess: false },
+    { id: "logs",           label: "Audit Logs (Archive)",   scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
     { id: "onboarding",     label: "Onboarding B2B",        scope: null, group: "admin",       subGodAccess: false },
 

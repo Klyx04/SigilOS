@@ -2,10 +2,10 @@
 /**
  * Capture des captures d'écran 4K pour la landing SigilOS (#80).
  *
- * Les captures actuelles (public/assets/screenshots/*.png) sont des PNG basse
- * résolution (695→1695px) : elles paraissent floues sur écrans DPI élevés.
- * Ce script produit de vraies captures 4K (viewport 1920×1080, deviceScaleFactor
- * 2 => PNG 3840×2160) depuis l'app en local.
+ * Mode « capture produit » : on cadre sur la zone de contenu principale
+ * (`main[data-scroll-container="true"]`, sans la sidebar ni le chrome), on masque
+ * les éléments flottants (footer pill, support orb, toaster) et on produit des
+ * PNG nets (viewport 1920×1080, deviceScaleFactor 2 => sortie ~3260×2160).
  *
  * ── Prérequis (une fois) ──────────────────────────────────────────────
  *   npm i -D playwright
@@ -16,7 +16,7 @@
  *   node scripts/capture-screenshots.mjs --login    # 1ʳᵉ fois : se connecter avec Discord
  *   GUILD_ID=1290442961380835451 node scripts/capture-screenshots.mjs
  *   BASE_URL=https://beta.sigilos.fr node scripts/capture-screenshots.mjs --login
- *   FULL_PAGE=1 node scripts/capture-screenshots.mjs   # capture pleine page (au lieu du viewport)
+ *   FULL_PAGE=1 node scripts/capture-screenshots.mjs   # capture pleine page (au lieu du cadrage produit)
  *   HEADLESS=1 node scripts/capture-screenshots.mjs    # sans fenêtre (session déjà dans le profil)
  *
  *   Le profil de navigation est persisté dans .playwright-profile/ (gitignoré) :
@@ -47,13 +47,24 @@ const FULL_PAGE = process.env.FULL_PAGE === "1";
 const LOGIN_MODE = process.argv.includes("--login");
 
 const VIEWPORT = { width: 1920, height: 1080 };
-const DEVICE_SCALE_FACTOR = 2; // => PNG 3840×2160 (4K)
+const DEVICE_SCALE_FACTOR = 2; // => sortie ~3260×2160
+
+// Zone de contenu principale (sidebar exclue) dans le layout dashboard.
+const MAIN_SELECTOR = 'main[data-scroll-container="true"]';
+
+// Éléments flottants à masquer pour une capture propre.
+const FLOAT_SELECTORS = [
+  ".support-orb", // bouton « Soutenir SigilOS » (bas droite)
+  'div[class~="fixed"][class~="bottom-4"]', // footer pill compact
+  ".sonner-toaster", // toasts
+  '[data-slot="toaster"]',
+];
 
 const TARGETS = [
-  { file: "screenshot1.png", url: `${BASE_URL}/dashboard/${GUILD_ID}`, label: "Tableau de bord (hero)" },
-  { file: "guide-complet.png", url: `${BASE_URL}/dashboard/${GUILD_ID}/quetes-dofus/guide/rush-sylvestre`, label: "Guide quête (ProductStory 1)" },
-  { file: "screenshot3.png", url: `${BASE_URL}/dashboard/${GUILD_ID}/calendar`, label: "Calendrier (ProductStory 2)" },
-  { file: "screenshot6.png", url: `${BASE_URL}/dashboard/${GUILD_ID}/missions`, label: "Missions (ProductStory 3)" },
+  { file: "screenshot1.png", url: `${BASE_URL}/dashboard/${GUILD_ID}`, label: "Tableau de bord (hero)", zone: "main", heightRatio: 0.85 },
+  { file: "guide-complet.png", url: `${BASE_URL}/dashboard/${GUILD_ID}/quetes-dofus/guide/rush-sylvestre`, label: "Guide quête (ProductStory 1)", zone: "main", heightRatio: 0.9 },
+  { file: "screenshot3.png", url: `${BASE_URL}/dashboard/${GUILD_ID}/calendar`, label: "Calendrier (ProductStory 2)", zone: "main", heightRatio: 0.85 },
+  { file: "screenshot6.png", url: `${BASE_URL}/dashboard/${GUILD_ID}/missions`, label: "Missions (ProductStory 3)", zone: "main", heightRatio: 0.9 },
 ];
 
 function ask(question) {
@@ -74,23 +85,58 @@ async function ensureLogin(page) {
   }
 }
 
+// Masque les éléments flottants et remonte le conteneur de contenu en haut.
+async function prepareFrame(page) {
+  await page.evaluate(
+    (selectors) => {
+      for (const sel of selectors) {
+        document.querySelectorAll(sel).forEach((el) => {
+          el.style.display = "none";
+        });
+      }
+      document.querySelector('main[data-scroll-container="true"]')?.scrollTo({ top: 0 });
+    },
+    FLOAT_SELECTORS
+  );
+  await page.waitForTimeout(500);
+}
+
+// Capture « produit » : cadrage sur la zone de contenu principale (haut de zone).
+async function captureMainZone(page, target) {
+  const out = path.join(OUT_DIR, target.file);
+  const main = page.locator(MAIN_SELECTOR).first();
+  const box = await main.boundingBox();
+  if (!box || box.width === 0 || box.height === 0) {
+    console.warn("   ⚠️ zone de contenu introuvable — capture viewport complète");
+    await page.screenshot({ path: out });
+    return;
+  }
+  const height = Math.round(box.height * (target.heightRatio ?? 0.85));
+  await page.screenshot({
+    path: out,
+    clip: { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height },
+  });
+}
+
 async function capture(page, target) {
   console.log(`\n📸 ${target.label} — ${target.url}`);
   await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: 45_000 });
   // Laisser les fonts/images/animations se stabiliser (images lazy + fonts).
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   await page.waitForTimeout(3000);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(400);
+  await prepareFrame(page);
 
   const out = path.join(OUT_DIR, target.file);
-  await page.screenshot({ path: out, fullPage: FULL_PAGE });
+  if (!FULL_PAGE && target.zone === "main") {
+    await captureMainZone(page, target);
+  } else {
+    await page.screenshot({ path: out, fullPage: FULL_PAGE });
+  }
+
   const size = statSync(out).size;
-  const physical = {
-    width: Math.round(VIEWPORT.width * DEVICE_SCALE_FACTOR),
-    height: Math.round(VIEWPORT.height * DEVICE_SCALE_FACTOR),
-  };
-  console.log(`   ✅ ${target.file} — ${physical.width}×${physical.height} (${Math.round(size / 1024)} Ko)`);
+  console.log(
+    `   ✅ ${target.file} — ${Math.round(VIEWPORT.width * DEVICE_SCALE_FACTOR)}×${Math.round(VIEWPORT.height * DEVICE_SCALE_FACTOR)} (zone produit) — ${Math.round(size / 1024)} Ko`
+  );
 }
 
 async function main() {
@@ -112,7 +158,7 @@ async function main() {
   }
 
   await context.close();
-  console.log(`\n✅ Terminé — ${TARGETS.length} captures 4K dans ${OUT_DIR}`);
+  console.log(`\n✅ Terminé — ${TARGETS.length} captures produit dans ${OUT_DIR}`);
 }
 
 main().catch((err) => {

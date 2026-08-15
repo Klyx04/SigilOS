@@ -69,6 +69,7 @@ type Sequence = {
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
   dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null }[];
   isSuccess?: boolean;
+  icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: ActivityTag[];
 };
@@ -1191,6 +1192,10 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
+          {(seq as any).icon && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={`/assets/icons/${(seq as any).icon}.png`} alt="" className="w-4 h-4 object-contain shrink-0" />
+          )}
           <span className="text-xs text-zinc-300 font-medium">{seq.subGuideName || seq.subGuideRef}</span>
           {displayDungeons.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
@@ -1448,6 +1453,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [alignOrderReq, setAlignOrderReq] = useState(seq.alignOrderReq ? String(seq.alignOrderReq) : "");
   const [note, setNote] = useState(seq.note || "");
   const [isSuccess, setIsSuccess] = useState(seq.isSuccess ?? false);
+  const [icon, setIcon] = useState(seq.icon || "");
   const [metamobMonsterId, setMetamobMonsterId] = useState(seq.metamobMonsterId ? String(seq.metamobMonsterId) : "");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>(
     Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
@@ -1670,6 +1676,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
       note: note.trim() || undefined,
       isSuccess,
+      icon: icon.trim() || null,
       metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
       activityTags,
     });
@@ -1931,6 +1938,29 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       <div className="space-y-1.5">
         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">🏷️ Activités requises</label>
         <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
+      </div>
+
+      {/* Icône du bloc (optionnel) */}
+      <div className="space-y-1.5">
+        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">🖼️ Icône du bloc <span className="text-zinc-700 font-normal normal-case tracking-normal">(optionnel)</span></label>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[["", "Défaut"], ["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
+            <button
+              key={val || "none"}
+              type="button"
+              onClick={() => setIcon(val)}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"}`}
+            >
+              {val ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={`/assets/icons/${val}.png`} alt={label} className="w-4 h-4 object-contain" />
+              ) : (
+                <span className="w-4 h-4 flex items-center justify-center text-[8px]">✕</span>
+              )}
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Badges spéciaux */}

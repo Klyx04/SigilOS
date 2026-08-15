@@ -132,6 +132,8 @@
   ajout bloc « Positions GPS » + URLs. Membre : QuestActionsBlock (GPS positions[0] + URLs) + QuestChecklist
   (positions de lancement + icône section).
 - Commit `fa2c5f08c` poussé sur `feat/rbac-audit-2026-08-16`. Migrations appliquées en local (`prisma migrate deploy`).
+- **Rush Sylvestre — icône de bloc optionnelle** (`GuideSequence.icon`, migration `20260815120000_add_rush_sequence_icon`) : choix `serie-de-quete` / `icone-succes` (optionnel) dans l''éditeur Rush (« Icône du bloc ») ; rendu sur le bloc membre (RushTimelineClient) + liste God (SequenceRowAdmin). Commit `3760dcf5e`.
+- **Quêtes Dofus — membre** : l''icône générique (Layers) des sections est remplacée par l''icône de section agrandie (DofusTimelineQuest).
 - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · test:run 184/184.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)

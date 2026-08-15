@@ -443,7 +443,7 @@ export function StorageOverviewPanel() {
                                     </thead>
                                     <tbody>
                                         {pagedGuilds.map((guild) => (
-                                            <GuildRow key={guild.guildId} guild={guild} onReload={load} />
+                                            <GuildRow key={guild.guildId} guild={guild} onReload={() => load(true)} />
                                         ))}
                                     </tbody>
                                 </table>
@@ -539,7 +539,7 @@ export function StorageOverviewPanel() {
                 files={overview?.orphanFiles || []} 
                 label="Fichiers Orphelins" 
                 type="MISSION" 
-                onDeleted={load} 
+                onDeleted={() => load(true)} 
             />
         </div>
     );
@@ -714,6 +714,55 @@ function DeleteButton({ fileUrl, dbClear, onDeleted, label = "Supprimer" }: { fi
     );
 }
 
+function GuildAssetsStrip({ guild, onReload }: { guild: StorageGuildEntry; onReload: () => void }) {
+    const assets = guild.assets || [];
+    if (assets.length === 0) return null;
+    return (
+        <div className="mt-6 border-t border-white/[0.03] pt-5">
+            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <ImageIcon className="w-3 h-3" /> Assets Guilde (icône / bannière / photo)
+            </p>
+            <div className="flex flex-wrap gap-4">
+                {assets.map(asset => {
+                    const cfg = TYPE_CFG[asset.type as keyof typeof TYPE_CFG] || TYPE_CFG.ICON;
+                    return (
+                        <div key={asset.type} className="w-40">
+                            <div className="h-24 rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center">
+                                <img
+                                    src={asset.url}
+                                    alt={asset.label}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                />
+                            </div>
+                            <div className="mt-1.5 flex items-center justify-between gap-2">
+                                <span className={cn("text-[8px] font-black uppercase tracking-widest", cfg.color)}>{asset.label}</span>
+                                {asset.dbField && asset.isLocal ? (
+                                    <button
+                                        onClick={async () => {
+                                            const field = asset.dbField as AssetDbField;
+                                            if (!confirm(`Confirmer la suppression irréversible de : ${asset.url} ?`)) return;
+                                            const res = await godDeleteFile(asset.url, { guildId: guild.guildId, field });
+                                            if (res.success) { toast.success("Asset supprimé"); onReload(); }
+                                            else toast.error(res.error || "Erreur lors de la suppression");
+                                        }}
+                                        title={`Supprimer ${asset.label}`}
+                                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                ) : (
+                                    <a href={asset.url} target="_blank" rel="noreferrer" className="text-[8px] font-black text-zinc-500 underline decoration-dotted underline-offset-4 hover:text-white">Voir</a>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () => void }) {
     const subTotal = guild.missionsBytes + guild.kamaBytes + guild.achievementBytes + guild.presentationBytes;
     const totalCount = guild.missionsCount + guild.kamaCount + guild.achievementCount + guild.presentationCount;
@@ -816,6 +865,8 @@ function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () 
                             <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                             <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                         </div>
+
+                        <GuildAssetsStrip guild={guild} onReload={onReload} />
                     </td>
                 </tr>
             )}

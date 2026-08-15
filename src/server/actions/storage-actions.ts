@@ -237,13 +237,15 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
             guilds.map(async (g: any) => {
                 const missionsDir = join(cwd, "private_uploads", "proofs", g.discordGuildId);
                 const kamaDir = join(cwd, "private_uploads", "guilds", g.id, "proofs");
-                const presentationDir = join(cwd, "private_uploads", "guilds", g.id, "presentation");
+                // Les bannières/photos de présentation sont écrites par uploadGuildImage à la RACINE
+                // du dossier guilde (pas dans un sous-dossier presentation/) → on scanne la racine.
+                const presentationDir = join(cwd, "private_uploads", "guilds", g.id);
 
                 const achievementDir = join(cwd, "private_uploads", "guilds", g.id, "achievements");
 
                 const missionsUrlBase = `/api/storage/proofs/${g.discordGuildId}`;
                 const kamaUrlBase = `/api/storage/guilds/${g.id}/proofs`;
-                const presentationUrlBase = `/api/storage/guilds/${g.id}/presentation`;
+                const presentationUrlBase = `/api/storage/guilds/${g.id}`;
                 const achievementUrlBase = `/api/storage/guilds/${g.id}/achievements`;
 
                 const [missionsList, kamaList, presentationList, achievementList, pendingFiles] = await Promise.all([
@@ -519,6 +521,9 @@ export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedC
             logger.info(`[StorageCleanup] Cleaned ${deletedCount} orphan files (${(freedBytes/1024/1024).toFixed(2)} MB freed).`);
         }
 
+        // Invalide le cache court du scan → la liste God reflète la purge immédiatement.
+        storageScanCache = null;
+
         return { success: true, deletedCount, freedBytes };
     } catch (error) {
         logger.error("[cleanOrphanStorage]", { error: String(error) });
@@ -534,24 +539,60 @@ export type AssetDbField = "iconUrl" | "presentationBannerUrl" | "presentationPh
  * Après une suppression God, purge les références DB pointant vers ce fichier
  * (preuves de prêts/coffre/kamas/missions/succès) pour éviter les images cassées
  * et les références mortes. Best-effort : chaque table est traitée en try/catch.
+ *
+ * Match par NOM DE FICHIER (UUID unique) plutôt que par URL exacte → couvre les
+ * préfixes legacy `/uploads/...` ET actuels `/api/storage/...`.
+ * Les validations PENDING dont la preuve a été supprimée par le God sont rejetées
+ * automatiquement (elles sortent de la file de validation côté admin).
  */
 async function clearProofDbReferences(fileUrl: string): Promise<void> {
     if (!fileUrl) return;
+    const filename = fileUrl.split(/[/\\]/).pop();
+    if (!filename) return;
+
+    const byName = { contains: filename };
     const tasks: Promise<unknown>[] = [];
+
+    // Prêts & coffre : pas de file de validation en attente → on vide juste la preuve.
     try {
-        tasks.push(db.guildLoan.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: null } }));
-        tasks.push(db.guildLoan.updateMany({ where: { returnProofUrl: fileUrl }, data: { returnProofUrl: null } }));
+        tasks.push(db.guildLoan.updateMany({ where: { proofUrl: byName }, data: { proofUrl: null } }));
+        tasks.push(db.guildLoan.updateMany({ where: { returnProofUrl: byName }, data: { returnProofUrl: null } }));
+        tasks.push(db.vaultEntry.updateMany({ where: { proofUrl: byName }, data: { proofUrl: null } }));
+    } catch { /* best-effort */ }
+
+    // Missions / succès / kamas : rejette les validations PENDING (disparaissent de la file)
+    // + vide la référence sur les lignes non-PENDING pour ne laisser aucune image cassée.
+    try {
+        tasks.push(db.submission.updateMany({
+            where: { proofUrl: byName, status: "PENDING" },
+            data: { status: "REJECTED", proofUrl: "" },
+        }));
+        tasks.push(db.submission.updateMany({
+            where: { proofUrl: byName, status: { not: "PENDING" } },
+            data: { proofUrl: "" },
+        }));
     } catch { /* best-effort */ }
     try {
-        tasks.push(db.vaultEntry.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: null } }));
+        tasks.push((db as any).achievementSubmission.updateMany({
+            where: { proofUrl: byName, status: "PENDING" },
+            data: { status: "REJECTED", proofUrl: "" },
+        }).catch(() => {}));
+        tasks.push((db as any).achievementSubmission.updateMany({
+            where: { proofUrl: byName, status: { not: "PENDING" } },
+            data: { proofUrl: "" },
+        }).catch(() => {}));
     } catch { /* best-effort */ }
     try {
-        tasks.push((kamaDb as any).kamaDonation.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: null } }).catch(() => {}));
+        tasks.push((kamaDb as any).kamaDonation.updateMany({
+            where: { proofUrl: byName, status: "PENDING" },
+            data: { status: "REJECTED", proofUrl: "" },
+        }).catch(() => {}));
+        tasks.push((kamaDb as any).kamaDonation.updateMany({
+            where: { proofUrl: byName, status: { not: "PENDING" } },
+            data: { proofUrl: "" },
+        }).catch(() => {}));
     } catch { /* best-effort */ }
-    try {
-        tasks.push(db.submission.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: "" } }));
-        tasks.push((db as any).achievementSubmission.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: "" } }).catch(() => {}));
-    } catch { /* best-effort */ }
+
     await Promise.all(tasks.map((t) => t.catch(() => {})));
 }
 
@@ -606,6 +647,10 @@ export async function godDeleteFile(
     // 🔗 Purge des références de preuves (prêts/coffre/kamas/missions/succès) pour
     // ne jamais laisser d'image cassée ni de référence morte après suppression.
     await clearProofDbReferences(fileUrl);
+
+    // Invalide le cache court du scan → le fichier disparaît immédiatement de la liste God
+    // (un simple refresh de page ne doit plus renvoyer une liste périmée pendant 60s).
+    storageScanCache = null;
 
     return { 
         success: true, 

@@ -26,6 +26,7 @@ export const GOD_BRICKS = [
 
     // ─── Administration (sécurité) ─────────────────────────────────────────
     { id: "security",       label: "Sécurité & Logs",       scope: null, group: "admin",       subGodAccess: false },
+    { id: "logs",           label: "Audit Logs (Archive)",   scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
     { id: "onboarding",     label: "Onboarding B2B",        scope: null, group: "admin",       subGodAccess: false },
 

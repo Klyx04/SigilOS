@@ -55,6 +55,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "guilds", name: "Guildes & Users", icon: Settings2, color: "text-emerald-400", group: "administration", scope: "guilds", scopeLabel: "Guildes", brickId: "guilds" },
     { id: "delegates", name: "Sous-Gods", sub: "delegates", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users", brickId: "delegates" },
     { id: "security", name: "Sécurité & Logs", icon: ShieldAlert, color: "text-zinc-400", group: "administration", scope: "logs", scopeLabel: "Logs", brickId: "security" },
+    { id: "logs", name: "Audit Logs", sub: "logs", icon: History, color: "text-violet-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "logs" },
     { id: "tickets", name: "Tickets Support", icon: Ticket, color: "text-indigo-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "tickets" },
 
     // Supervision

@@ -34,6 +34,7 @@ import { DirectorySettingsClient } from "../_components/directory-settings-clien
 import { ServicesSettingsClient } from "../_components/services-settings-client";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
+import { GuildStorageCard } from "@/components/admin/guild-storage-card";
 
 // ============================================================================
 // NAV ITEMS
@@ -152,6 +153,9 @@ export default async function FeatureSettingsPage({
                     actions={<AdminTourReplay phase="adminSettings" />}
                 />
             </div>
+
+            {/* Quota & stockage visible par l'admin guilde */}
+            <GuildStorageCard guildId={guildId} />
 
             <div className="flex flex-col lg:flex-row gap-8 items-start relative">
                 {/* ── SIDEBAR NAVIGATION ── */}

@@ -74,7 +74,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Rôles & Permissions",
                     description: "Gestion fine des accès. Définissez qui peut valider, modérer ou administrer.",
                     accent: "blue",
-                    permission: (u) => u.isDiscordAdmin,
+                    permission: (u) => u.canManageRBAC,
                     tourId: "admin-overview-card-permissions",
                 },
                 {

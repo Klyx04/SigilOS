@@ -70,6 +70,12 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                                             {active && <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full" />}
                                             <page.icon className={cn("h-5 w-5 transition-colors duration-150", active ? "text-white" : "text-zinc-400 opacity-70 group-hover:opacity-100 group-hover:text-zinc-200")} />
                                             <span className="text-[13px] font-medium truncate flex-1">{page.name}</span>
+                                            {page.id === "notifications" && unreadCount > 0 && (
+                                                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                                            )}
+                                            {page.id === "tickets" && ticketCount > 0 && (
+                                                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-500 text-white text-[10px] font-bold leading-none">{ticketCount > 99 ? "99+" : ticketCount}</span>
+                                            )}
                                             <span className={cn("hidden md:inline-flex text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border",
                                                 page.scope === "all" ? "border-amber-500/30 text-amber-400/80 bg-amber-500/5" : "border-white/10 text-zinc-500 bg-white/5")}>
                                                 {page.scopeLabel || (page.scope === "all" ? "SU" : page.scope)}

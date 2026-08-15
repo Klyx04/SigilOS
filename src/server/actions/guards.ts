@@ -117,6 +117,109 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
     }
 }
 
+export type RbacManagementResult = GuardResult & {
+    /**
+     * "discord-admin" = propriétaire / permission native Discord 0x8 / God.
+     * "delegated"     = détenteur de la permission RBAC `system:rbac` (Gestion des Accès).
+     * Les détenteurs "delegated" ne peuvent PAS octroyer/révoquer system:god et system:rbac.
+     */
+    rbacLevel?: "discord-admin" | "delegated";
+};
+
+/**
+ * Require the current user to be allowed to manage the RBAC matrix.
+ *
+ * Deux chemins sont acceptés :
+ *  1. Discord Administrator (owner OU bit 0x8) — niveau "discord-admin".
+ *  2. Délégation RBAC `system:rbac` (canManageRBAC) — niveau "delegated".
+ *
+ * Le niveau est renvoyé pour permettre aux appelants (ex. updateRBACMapping) d'appliquer
+ * le garde-fou « les permissions sensibles restent réservées aux admins Discord ».
+ *
+ * @param guildId - Discord Guild ID
+ * @param context - Human-readable name of the action/page being accessed (for logging)
+ */
+export async function requireRbacManagement(guildId: string, context: string = "Gestion des Permissions (RBAC)"): Promise<RbacManagementResult> {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { isAuthorized: false, error: "Unauthorized" };
+    }
+
+    // Platform Guard: Is the guild allowed/active?
+    const allowed = await isGuildAllowed(guildId);
+    if (!allowed) {
+        return { isAuthorized: false, error: "This guild is currently deactivated or banned." };
+    }
+
+    const account = await db.account.findFirst({
+        where: { userId: session.user.id, provider: "discord" },
+        select: { providerAccountId: true }
+    });
+
+    if (!account) {
+        return { isAuthorized: false, error: "No Discord account linked" };
+    }
+
+    const discordUserId = account.providerAccountId;
+
+    // ─── Cache permission result for 30s (POSITIVE RESULTS ONLY) ───
+    const cacheKey = `guard:rbac:${discordUserId}:${guildId}`;
+    try {
+        const { redis } = await import("@/lib/redis");
+        if (redis.status === "ready") {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached) as { isAuthorized: boolean; discordUserId: string; rbacLevel: "discord-admin" | "delegated" };
+                if (parsed.isAuthorized) return parsed;
+                await redis.del(cacheKey).catch(() => {});
+            }
+        }
+    } catch { /* ignore cache errors, fall through to live check */ }
+
+    const cachePositive = async (result: RbacManagementResult) => {
+        try {
+            const { redis } = await import("@/lib/redis");
+            if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
+        } catch { /* ignore */ }
+    };
+
+    try {
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        if (await isSuperAdmin()) {
+            const result: RbacManagementResult = { isAuthorized: true, discordUserId, rbacLevel: "discord-admin" };
+            await cachePositive(result);
+            return result;
+        }
+
+        // Chemin 1 — Admin Discord natif (owner ou bit 0x8). Réutilise requireGuildAdmin
+        // (single source of truth Discord, zéro fallback RBAC redondant).
+        const adminGuard = await requireGuildAdmin(guildId, context);
+        if (adminGuard.isAuthorized && adminGuard.discordUserId) {
+            const result: RbacManagementResult = { isAuthorized: true, discordUserId, rbacLevel: "discord-admin" };
+            await cachePositive(result);
+            return result;
+        }
+
+        // Chemin 2 — Délégation RBAC : détenteur de `system:rbac` (canManageRBAC).
+        // Permet à une guilde de nommer un « successeur » qui gère les permissions
+        // SigilOS sans détenir le rôle Discord Admin (continuité si l'admin disparaît).
+        try {
+            const { getUserContext } = await import("./user-actions");
+            const userCtx = await getUserContext(guildId);
+            if (userCtx.canManageRBAC) {
+                const result: RbacManagementResult = { isAuthorized: true, discordUserId, rbacLevel: "delegated" };
+                await cachePositive(result);
+                return result;
+            }
+        } catch { /* RBAC fallback failed — proceed with denial */ }
+
+        return { isAuthorized: false, error: "Admin permission required" };
+    } catch (error) {
+        logger.error(`[Guard] RBAC management check failed for ${context}:`, { error: (error as Error).message });
+        return { isAuthorized: false, error: "Permission check failed" };
+    }
+}
+
 /**
  * Require the current user to have access to guild configuration settings.
  * 

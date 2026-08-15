@@ -506,6 +506,61 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         expect(ctx.canViewDashboard).toBe(true);
         expect(ctx.canViewStats).toBe(true);
     });
+
+    it("l'ancienne permission legacy 'stats:view' ne donne plus l'accès Audit Logs (#66bis)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-membre", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                // rolesMapping legacy contenant l'ancien format "stats:view"
+                rolesMapping: {
+                    "role-membre": [PERMISSIONS.DASHBOARD_LOGIN, "stats:view" as any],
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        // Stats Guilde reste accessible via DASHBOARD_LOGIN (canViewStats)
+        expect(ctx.canViewStats).toBe(true);
+        // Mais l'accès Audit Logs N'EST PLUS octroyé par la permission legacy
+        expect(ctx.canViewAuditLogs).toBe(false);
+    });
+
+    it("refuse canViewStuffGallery à un membre COMMUNITY_ACCESS seul (#66bis)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-community"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-community", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: {
+                    "role-community": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.COMMUNITY_ACCESS],
+                },
+                modules: { ...makeGuildConfig().modules, gallery: true },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewStuffGallery).toBe(false);
+        expect(ctx.canViewRoster).toBe(true); // COMMUNITY_ACCESS continue d'ouvrir l'Annuaire
+    });
+
+    it("accorde canViewStuffGallery à un membre GAME_VIEW (#66bis)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-game"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-game", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: {
+                    "role-game": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.GAME_VIEW],
+                },
+                modules: { ...makeGuildConfig().modules, gallery: true },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewStuffGallery).toBe(true);
+    });
 });
 
 describe("getUserContext — onboarding incomplete", () => {

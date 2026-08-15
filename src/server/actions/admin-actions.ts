@@ -130,12 +130,34 @@ export async function updateRBACMapping(
         return { success: false, error: "Too many requests. Please wait before updating roles again." };
     }
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "Modification des Permissions (RBAC)");
+    // SECURITY: Verify user is allowed to manage RBAC (Discord admin OU détenteur de system:rbac)
+    const { requireRbacManagement } = await import("./guards");
+    const guard = await requireRbacManagement(guildId, "Modification des Permissions (RBAC)");
     if (!guard.isAuthorized) {
         logger.warn(`[Security] updateRoleMapping blocked: ${guard.error} for user ${session.user.id}`);
         return { success: false, error: guard.error };
+    }
+
+    // ─── Validation fail-closed du payload (indépendante du type TS) ─────────────
+    // Les valeurs transmises par le client sont du JSON arbitraire : on valide tout
+    // à l'exécution. Une permission inconnue ou une clé utilisateur non-snowflake
+    // (ex. UUID interne, qui ne matche jamais le Discord ID) est rejetée.
+    const ALL_PERMISSION_IDS = Object.values(PERMISSIONS) as string[];
+    const isValidPermList = (value: unknown): value is PermissionId[] =>
+        Array.isArray(value) && value.every(p => typeof p === "string" && ALL_PERMISSION_IDS.includes(p));
+    const isValidMapping = (value: unknown, requireSnowflakeKeys: boolean): value is Record<string, PermissionId[]> => {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+        return Object.entries(value as Record<string, unknown>).every(([key, perms]) => {
+            if (typeof key !== "string" || key.length === 0) return false;
+            // usersMapping est indexé par Discord ID (snowflake) côté getUserContext.
+            if (requireSnowflakeKeys && !/^\d{17,20}$/.test(key)) return false;
+            return isValidPermList(perms);
+        });
+    };
+
+    if (!isValidMapping(rolesMapping, false) || !isValidMapping(usersMapping, true)) {
+        logger.warn(`[Security] updateRoleMapping invalid payload rejected for user ${session.user.id}`, { guildId });
+        return { success: false, error: "Payload RBAC invalide" };
     }
 
     try {
@@ -147,6 +169,30 @@ export async function updateRBACMapping(
 
         const oldRolesMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
         const oldUsersMapping = (currentConfig?.usersMapping || {}) as Record<string, PermissionId[]>;
+
+        // ─── Garde-fou : permissions sensibles réservées aux admins Discord ──────
+        // Un gestionnaire délégué (system:rbac sans rôle Discord Admin) peut gérer
+        // toutes les permissions SAUF octroyer/révoquer system:god (Administrateur
+        // Suprême) et system:rbac (Gestion des Accès) — évite l'escalade en chaîne.
+        const SENSITIVE_RBAC_PERMS = new Set<string>([PERMISSIONS.SYSTEM_GOD, PERMISSIONS.SYSTEM_RBAC]);
+        const sensitiveUnchanged = (oldMap: Record<string, PermissionId[]>, newMap: Record<string, PermissionId[]>) => {
+            const allKeys = new Set([...Object.keys(oldMap), ...Object.keys(newMap)]);
+            for (const key of allKeys) {
+                const oldSensitive = (oldMap[key] || []).filter(p => SENSITIVE_RBAC_PERMS.has(p));
+                const newSensitive = (newMap[key] || []).filter(p => SENSITIVE_RBAC_PERMS.has(p));
+                if (oldSensitive.length !== newSensitive.length || oldSensitive.some(p => !newSensitive.includes(p))) return false;
+            }
+            return true;
+        };
+        if (guard.rbacLevel !== "discord-admin") {
+            if (!sensitiveUnchanged(oldRolesMapping, rolesMapping) || !sensitiveUnchanged(oldUsersMapping, usersMapping)) {
+                logger.warn(`[Security] updateRoleMapping blocked (permissions sensibles) for delegated manager ${session.user.id}`);
+                return {
+                    success: false,
+                    error: "Seuls les administrateurs Discord peuvent modifier les permissions sensibles (Administrateur Suprême / Gestion des Accès)."
+                };
+            }
+        }
 
         // Calculate permission changes
         const changes: Array<{

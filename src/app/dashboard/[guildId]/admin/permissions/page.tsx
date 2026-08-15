@@ -24,7 +24,10 @@ export default async function PermissionsPage({
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    if (!user.isDiscordAdmin) {
+    // #66bis : l'accès à la matrice est ouvert aux admins Discord natifs ET aux
+    // détenteurs de la permission RBAC « Gestion des Accès » (system:rbac), ce qui
+    // permet à une guilde de désigner un successeur même sans rôle Discord Admin.
+    if (!user.canManageRBAC) {
         await logAdminAccessDenied(guildId, "/admin/permissions");
         return <AccessDenied />;
     }
@@ -83,11 +86,11 @@ export default async function PermissionsPage({
                     actions={<AdminTourReplay phase="adminPermissions" />}
                 />
             </div>
-            <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 shadow-lg mb-8">
+            <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 mb-8">
                 <AlertTriangle className="h-5 w-5 !text-amber-500" />
-                <AlertTitle className="pl-8 font-black uppercase tracking-widest text-amber-500">Accès Restreint : Administrateurs Discord</AlertTitle>
+                <AlertTitle className="pl-8 font-black uppercase tracking-widest text-amber-500">Accès restreint : qui peut gérer les permissions ?</AlertTitle>
                 <AlertDescription className="pl-8 mt-2 leading-relaxed text-amber-500/90 font-medium">
-                    L'accès à cette page de gestion des permissions (RBAC) est <strong>strictement réservé au Propriétaire du serveur Discord et à ses Administrateurs</strong> (permission native Discord). Il n'est pas possible d'assigner l'accès à ce système via la matrice ci-dessous afin de prévenir toute usurpation de privilèges.
+                    Deux profils peuvent gérer cette matrice : les <strong>Administrateurs Discord</strong> (propriétaire ou permission native) et les détenteurs de la permission RBAC <strong>« Gestion des Accès »</strong> (<code>system:rbac</code>) — donnée par un administrateur pour désigner un successeur. Les permissions <strong>« Administrateur Suprême »</strong> et <strong>« Gestion des Accès »</strong> elles-mêmes restent réservées aux administrateurs Discord : un gestionnaire délégué ne peut pas les octroyer ni les révoquer (anti-escalade).
                 </AlertDescription>
             </Alert>
 

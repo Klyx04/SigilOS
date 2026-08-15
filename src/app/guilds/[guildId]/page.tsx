@@ -55,9 +55,9 @@ export default async function GuildPresentationPage({ params }: Props) {
     const { guildId } = await params;
     const guild = await getGuildPresentation(guildId);
 
-    // Auth check for header
+    // Auth check for header — #59 : membership scoped à CETTE guilde (pas la guilde par défaut).
     const { getUserContext } = await import("@/server/actions/user-actions");
-    const userContext = await getUserContext();
+    const userContext = await getUserContext(guildId);
 
     if (!guild) {
         // Check if it exists but is private

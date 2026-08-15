@@ -128,6 +128,29 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
             {/* Sticky Header Nav (Consistent with Directory) */}
             <PublicHeader backHref="/guilds" backLabel="Annuaire" isMember={isMember} />
 
+            {/* #59 — Badge connecté : le visiteur est membre de cette guilde */}
+            {isMember && (
+                <div className="relative z-30 max-w-7xl mx-auto px-6 md:px-8 -mt-4 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md">
+                        <div className="flex items-center gap-3">
+                            <span className="relative flex h-3 w-3 shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
+                            </span>
+                            <p className="text-sm font-bold text-emerald-300">
+                                Vous êtes membre de cette guilde ✅
+                            </p>
+                        </div>
+                        <Link href={`/dashboard/${guild.discordGuildId}`}>
+                            <Button className="h-10 px-5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all hover:scale-[1.02] flex items-center gap-2">
+                                <Sparkles className="w-4 h-4" />
+                                Ouvrir le Dashboard
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             {/* Guild Header Content (Overlapping Hero) */}
             <div className="relative z-20 -mt-32 md:-mt-40 max-w-7xl mx-auto px-6 md:px-8 pb-12">
                 <div className="flex flex-col md:flex-row items-end gap-8">

@@ -685,9 +685,21 @@ export async function editInteractionMessage(
         return false;
     }
 
+    // Construction via `new URL` (base constante `https://discord.com`) + encodeURIComponent :
+    // sanitizers reconnus par CodeQL (js/request-forgery) — l''hôte ne peut JAMAIS être piloté
+    // par le payload. Double garde : hostname vérifié ci-dessous.
+    const webhookUrl = new URL(
+        `/api/v10/webhooks/${encodeURIComponent(applicationId)}/${encodeURIComponent(interactionToken)}/messages/@original`,
+        "https://discord.com"
+    );
+    if (webhookUrl.hostname !== "discord.com") {
+        logger.warn("[Discord] editInteractionMessage: URL webhook invalide");
+        return false;
+    }
+
     try {
         const res = await fetchWithRetry(
-            `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`,
+            webhookUrl.toString(),
             {
                 method: "PATCH",
                 headers: {

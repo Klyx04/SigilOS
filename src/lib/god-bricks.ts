@@ -20,6 +20,7 @@ export const GOD_BRICKS = [
     { id: "overview",       label: "Command Center",        scope: null, group: "operations",  subGodAccess: false },
     { id: "telemetry",      label: "Activité Dashboard",    scope: null, group: "supervision", subGodAccess: false },
     { id: "infrastructure", label: "Système & Infra",       scope: null, group: "supervision", subGodAccess: false },
+    { id: "storage",        label: "Stockage & Captures",    scope: null, group: "supervision", subGodAccess: false },
     { id: "notifications",  label: "Alertes Système",       scope: null, group: "supervision", subGodAccess: false },
     { id: "mini-games",     label: "Mini-Jeux",             scope: null, group: "supervision", subGodAccess: false },
 

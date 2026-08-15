@@ -165,6 +165,23 @@ else
     echo "⚠️  Sync membres ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6b. Rappel automatique des prêts non clos (chantier #71)
+# Envoyé avec la maintenance quotidienne → aucun créneau dédié à ajouter.
+# (Idempotent via lastReminderAt : max 1 rappel / 24h par prêt.)
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    REMINDER_RESPONSE=$(curl -s -o /tmp/loan-reminders-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/loan-reminders")
+    if [ "$REMINDER_RESPONSE" -eq 200 ]; then
+        REMINDED=$(cat /tmp/loan-reminders-response.json | grep -o '"reminded":[0-9]*' | grep -o '[0-9]*' || echo "?")
+        echo "✅ Rappels prêts envoyés — $REMINDED prêt(s) relancé(s)"
+    else
+        echo "⚠️  Rappels prêts : HTTP $REMINDER_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Rappels prêts ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
 # 7. Audit Final
 echo "🩺 Lancement de l'audit de santé..."
 bash "$(dirname "$0")/audit.sh"

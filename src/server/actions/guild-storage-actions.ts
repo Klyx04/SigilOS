@@ -63,7 +63,7 @@ export async function getGuildStorageUsage(guildId: string) {
             overLimit,
             breakdown: [
                 { key: "MISSIONS", label: "Missions", bytes: missions.bytes, files: missions.count },
-                { key: "KAMA_LOANS", label: "Kamas & Prêts", bytes: kamaLoans.bytes, files: kamaLoans.count },
+                { key: "KAMA_LOANS", label: "Kamas, Prêts & Coffre", bytes: kamaLoans.bytes, files: kamaLoans.count },
                 { key: "ACHIEVEMENT", label: "Succès", bytes: achievements.bytes, files: achievements.count },
                 { key: "PRESENTATION", label: "Présentation", bytes: presentation.bytes, files: presentation.count },
                 { key: "ASSETS", label: "Icône & Bannière", bytes: assets.bytes, files: assets.count },

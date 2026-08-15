@@ -46,6 +46,20 @@
 > `40a76738b` + `3760dcf5e`) : les sections quêtes affichent l''icône choisie (serie-de-quete /
 > icone-succes) à la place de l''icône générique ; Rush Sylvestre : « Icône du bloc » optionnelle
 > dans l''éditeur (`GuideSequence.icon`, migration `20260815120000`).
+> **Session 16/08 (5e) — Lots 1-3 du chantier (5 commits, base `1f8fb6e4e` → `f48f4dd12`, poussés) :**
+> 🔐 **Lot 1** (`4e60158e9`) : **#72 toggle God « Membres Spécifiques »** (`PlatformConfig.rbacUsersMappingEnabled`,
+> migration `20260816100000_add_rbac_users_mapping_toggle`, kill-switch fail-closed lecture+écriture+UI,
+> helper `src/lib/platform-rbac.ts`) · **#47** blindage God (`api/god/notify` Zod+temps constant, `api/god/upload-image` 10 Mo)
+> · **#75** traçage God (`GOD_CONFIG_OVERRIDE`/`GOD_MAINTENANCE_MODE`) · **#55** rate-limits (relance 5/min+bornage 200,
+> nudge 10/min, poll 5/30/min, calendrier 10/min, quêtes 60/min).
+> 🎨 **Lot 2** (`33bf6c781`) : **#62** favoris navbar (garde anti-race `localPinMutations`) · **#63** anti-layout-shift
+> onglet quête dofus (skeleton 60vh + fade pur) · **#59** landing guilde/annuaire « connecté » (badge + CTA Dashboard)
+> · **#23** avatars Discord (`src/lib/discord-avatars.ts`, `?size=256`, webp) · **#69** profil lecture seule dé-sloppé +
+> croquette conditionnelle.
+> 🧩 **Lot 3** : **#74** interface « Relancer » dédiée solo/bulk (`240e4de30`) · **#40/#41** proxy dofusbook durci +
+> alerte God throttlée panne/schéma FM (`6bbcb74a3`) · **#71** prêts : limite 5 actifs, « pas d'échéance », prévisu salon (`f48f4dd12`).
+> Vérifs : tsc 0 · lint 0 erreur · test:run **187/187** · build OK. ⚠️ Migration à vérifier au deploy :
+> `20260816100000_add_rbac_users_mapping_toggle` (appliquée en local).
 
 ### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons
 - **#68 icônes** : choix de l'icône du bloc d'en-tête des pages quêtes par Dofus **côté God**

@@ -47,6 +47,8 @@ interface PassagesClientProps {
     servicesDiscordConfigured?: boolean;
     loansDiscordConfigured?: boolean;
     vaultDiscordConfigured?: boolean;
+    // #71 — prévisu du salon dans la modale de prêt
+    loansChannelName?: string | null;
 }
 
 const TAB_CONFIG: { key: Tab; label: string; icon: typeof Key; color: string; activeClass: string; glow: string }[] = [
@@ -89,6 +91,7 @@ export function PassagesClient({
     servicesDiscordConfigured = false,
     loansDiscordConfigured = false,
     vaultDiscordConfigured = false,
+    loansChannelName = null,
 }: PassagesClientProps) {
     const [tab, setTab] = useState<Tab>("services");
 
@@ -443,6 +446,7 @@ export function PassagesClient({
                 guildId={guildId}
                 currentProfileId={profileId}
                 isDiscordConfigured={loansDiscordConfigured}
+                channelName={loansChannelName}
             />
             <VaultForm
                 open={showVaultForm}

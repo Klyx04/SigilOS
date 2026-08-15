@@ -176,6 +176,19 @@ export async function createLoan(
             return { success: false, error: "L'emprunteur ne fait pas partie de cette guilde." };
         }
 
+        // #71 — limite de sécurité : maximum 5 prêts ACTIFS par emprunteur.
+        // Évite l'accumulation de prêts ouverts (posts Discord illimités).
+        const activeLoans = await db.guildLoan.count({
+            where: {
+                guildId: guildConfig.id,
+                borrowerId: parsed.data.borrowerProfileId,
+                status: "ACTIVE",
+            },
+        });
+        if (activeLoans >= 5) {
+            return { success: false, error: "Cet emprunteur a déjà 5 prêts actifs. Clôturez un prêt avant d'en créer un nouveau." };
+        }
+
         // Handle proof upload
         let proofUrl: string | null = null;
         let finalImageHash: string | null = null;

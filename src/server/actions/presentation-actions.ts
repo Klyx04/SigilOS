@@ -12,6 +12,7 @@ import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES } from "@/lib/presentation-cons
 // SANITIZATION UTILITIES
 // ============================================================================
 import { sanitizeHtml, sanitizeDiscordLink, sanitizeName } from "@/lib/security";
+import { buildDiscordAvatarUrl } from "@/lib/discord-avatars";
 
 // Local validation helpers
 function validateServerName(server: string | null): string | null {
@@ -385,9 +386,8 @@ export async function getDiscordMembersForSelection(
             .map((m: any) => ({
                 id: m.user.id,
                 name: m.nick || m.user.global_name || m.user.username,
-                avatar: m.user.avatar
-                    ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
-                    : null,
+                // #23 — avatar Discord borné en taille (webp 256px) → chargement fiable.
+                avatar: buildDiscordAvatarUrl(m.user.id, m.user.avatar),
             }))
             .sort((a: DiscordMemberOption, b: DiscordMemberOption) =>
                 a.name.localeCompare(b.name)

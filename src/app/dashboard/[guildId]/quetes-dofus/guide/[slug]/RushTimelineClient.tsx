@@ -47,7 +47,7 @@ import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButt
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
 type ActivityTag = { type: string; name?: string; level?: number; count?: number; color?: string; url?: string };
-type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderReq?: number|null; isSuccess?: boolean; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
+type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 const ACTIVITY_TAGS: { type: string; imagePath: string; label: string; color: string }[] = [
   { type:"combat_tactique", imagePath:"/assets/rush-sylvestre/combat-tactique.png", label:"Combat Tactique", color:"#ef4444" },
   { type:"combat_vagues", imagePath:"/assets/rush-sylvestre/combat-vagues.png", label:"Combat à vagues", color:"#3b82f6" },
@@ -343,6 +343,10 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   <span className="mr-1.5 text-zinc-400 font-[family-name:var(--font-cinzel)] uppercase tracking-widest">
                     {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
                   </span>
+                )}
+                {seq.icon && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={`/assets/icons/${seq.icon}.png`} alt="" className="inline-block w-5 h-5 mr-1 align-[-4px] object-contain shrink-0" loading="lazy" />
                 )}
                 {/* Chantier #68 — icône de quête dans chaque quête */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}

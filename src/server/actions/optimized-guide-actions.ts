@@ -2142,6 +2142,7 @@ export async function upsertRushSequence(data: {
   note?: string;
   order?: number;
   isSuccess?: boolean;
+  icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: Array<{ type: string; name?: string; level?: number }>;
 }) {
@@ -2160,6 +2161,7 @@ export async function upsertRushSequence(data: {
     note: data.note,
     order: data.order ?? undefined,
     isSuccess: data.isSuccess ?? false,
+    icon: data.icon ?? null,
     metamobMonsterId: data.metamobMonsterId ?? null,
     activityTags: data.activityTags ?? [],
     dungeonIds: data.dungeonIds ?? undefined,

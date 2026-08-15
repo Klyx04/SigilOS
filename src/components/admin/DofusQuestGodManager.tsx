@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { 
     Gem, Plus, Trash2, Edit2, ChevronRight, 
     MapPin, BookOpen, Castle, Trophy, Search,
-    ArrowUp, ArrowDown, Crosshair, Package, Sword,
+    ArrowUp, ArrowDown,
     ExternalLink, Info
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -153,8 +153,11 @@ export default function DofusQuestGodManager() {
                                         <div key={chain.id} className="relative z-10 group/chain">
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/30 border border-white/5 rounded-2xl p-4 md:p-5 hover:bg-zinc-900/50 transition-colors">
                                                 <div className="flex items-center gap-5">
-                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${chain.sectionType === "PREREQUISITE" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"}`}>
-                                                        {chain.sectionType === "PREREQUISITE" ? <Trophy className="w-6 h-6" /> : <BookOpen className="w-6 h-6" />}
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${chain.sectionType === "PREREQUISITE" ? "bg-amber-500/10 border-amber-500/20" : "bg-indigo-500/10 border-indigo-500/20"}`}>
+                                                        {chain.sectionIcon ? (
+                                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                                            <img src={`/assets/icons/${chain.sectionIcon}.png`} alt="" className="w-9 h-9 object-contain" />
+                                                        ) : chain.sectionType === "PREREQUISITE" ? <Trophy className="w-6 h-6 text-amber-500" /> : <BookOpen className="w-6 h-6 text-indigo-400" />}
                                                     </div>
                                                     <div>
                                                         <h3 className="text-xl font-black text-white tracking-tight uppercase">{chain.sectionName}</h3>
@@ -278,11 +281,11 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
 
 // ─── Chain Edit Dialog ─────────────────────────────────────────────────────
 function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any) {
-    const [formData, setFormData] = useState<any>({ dofusId: "", sectionType: "MAIN_CHAIN", sectionName: "", description: "", chainOrder: 0 });
+    const [formData, setFormData] = useState<any>({ dofusId: "", sectionType: "MAIN_CHAIN", sectionName: "", description: "", chainOrder: 0, sectionIcon: "serie-de-quete" });
     const [loading, setLoading] = useState(false);
     useEffect(() => {
         if (chain) setFormData({ ...chain, dofusId: chain.dofusId || dofusId });
-        else setFormData({ dofusId: dofusId || "", sectionType: "MAIN_CHAIN", sectionName: "", description: "", chainOrder: 0 });
+        else setFormData({ dofusId: dofusId || "", sectionType: "MAIN_CHAIN", sectionName: "", description: "", chainOrder: 0, sectionIcon: "serie-de-quete" });
     }, [chain, dofusId, open]);
     async function handleSubmit(e: any) { e.preventDefault(); setLoading(true); const res = await upsertQuestChain(chain?.id || null, formData); if (res.success) { toast.success("Section sauvegardée"); onOpenChange(false); onSuccess(); } else toast.error(res.error); setLoading(false); }
     async function handleDelete() { if (!confirm("Supprimer la section entière ?")) return; setLoading(true); const res = await deleteQuestChain(chain.id); if (res.success) { toast.success("Section supprimée"); onOpenChange(false); onSuccess(); } else toast.error(res.error); setLoading(false); }
@@ -301,6 +304,19 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                         </select>
                     </div>
                     <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Titre</label><Input value={formData.sectionName} onChange={e => setFormData({...formData, sectionName: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Icône du bloc</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
+                                <button key={val} type="button" onClick={() => setFormData({ ...formData, sectionIcon: val })}
+                                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${formData.sectionIcon === val ? "border-indigo-500/60 bg-indigo-500/15" : "border-white/10 bg-black/40 hover:border-white/20"}`}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={`/assets/icons/${val}.png`} alt={label} className="w-8 h-8 object-contain" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-300">{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <div className="flex justify-between items-center pt-8 border-t border-white/5 mt-8">
                         {chain?.id ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-rose-500 hover:bg-rose-500/10 rounded-xl"><Trash2 className="w-4 h-4" /></Button> : <div />}
                         <div className="flex gap-3 ml-auto">
@@ -319,12 +335,10 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     const [formData, setFormData] = useState<any>({
         chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
         isOptional: false, isLast: false, isDungeon: false,
-        dofusdbId: "", mapId: "", level: "", npcName: "", npcSubArea: "",
-        coords: { x: null, y: null },
+        level: "", npcName: "", npcSubArea: "",
         notes: "", externalRef: "",
-        itemsRequired: [] as string[],
-        dungeonsRequired: [] as string[],
-        objectives: [] as string[],
+        positions: [] as { x: number; y: number; label?: string }[],
+        dofusdbUrl: "", dofuspourlesnoobsUrl: "",
         weight: 1
     });
     const [prerequisites, setPrerequisites] = useState<any[]>([]);
@@ -333,10 +347,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     const [prereqSearch, setPrereqSearch] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // New item/objective input states
-    const [newItem, setNewItem] = useState("");
-    const [newDungeon, setNewDungeon] = useState("");
-    const [newObjective, setNewObjective] = useState("");
+    // Position GPS input state
+    const [positionsInput, setPositionsInput] = useState("");
 
     useEffect(() => {
         if (entry?.id && open) {
@@ -354,9 +366,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
 
     useEffect(() => {
         if (entry) {
-            const items = entry.itemsRequired as any[] || [];
-            const dungeons = entry.dungeonsRequired as any[] || [];
-            const objs = entry.objectives as any[] || [];
+            const positions = entry.positions as any[] || [];
             setFormData({
                 chainId: entry.chainId || "",
                 name: entry.name || "",
@@ -366,26 +376,28 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 isOptional: entry.isOptional || false,
                 isLast: entry.isLast || false,
                 isDungeon: entry.isDungeon || false,
-                dofusdbId: entry.dofusdbId || "",
-                mapId: entry.mapId || "",
                 level: entry.level || "",
                 npcName: entry.npcName || "",
                 npcSubArea: entry.npcSubArea || "",
-                coords: entry.coords || { x: null, y: null },
                 notes: entry.notes || "",
                 externalRef: entry.externalRef || "",
-                itemsRequired: Array.isArray(items) ? items.map((i: any) => typeof i === "string" ? i : i.name || String(i)) : [],
-                dungeonsRequired: Array.isArray(dungeons) ? dungeons.map((d: any) => typeof d === "string" ? d : d.name || String(d)) : [],
-                objectives: Array.isArray(objs) ? objs.map((o: any) => typeof o === "string" ? o : o.description || o.name || String(o)) : [],
+                positions: Array.isArray(positions) ? positions.map((p: any) => ({
+                    x: typeof p?.x === "number" ? p.x : parseInt(p?.x, 10) || 0,
+                    y: typeof p?.y === "number" ? p.y : parseInt(p?.y, 10) || 0,
+                    label: p?.label || "",
+                })) : [],
+                dofusdbUrl: entry.dofusdbUrl || "",
+                dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl || "",
                 weight: entry.weight ?? 1
             });
         } else {
             setFormData({
                 chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
                 isOptional: false, isLast: false, isDungeon: false,
-                dofusdbId: "", mapId: "", level: "", npcName: "", npcSubArea: "",
-                coords: { x: null, y: null }, notes: "", externalRef: "",
-                itemsRequired: [], dungeonsRequired: [], objectives: [], weight: 1
+                level: "", npcName: "", npcSubArea: "",
+                notes: "", externalRef: "",
+                positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
+                weight: 1
             });
         }
     }, [entry, open]);
@@ -401,15 +413,12 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             stepOrder: parseInt(formData.stepOrder) || 0,
             isOptional: formData.isOptional,
             isLast: formData.isLast,
-            dofusdbId: formData.dofusdbId ? parseInt(formData.dofusdbId) : null,
-            mapId: formData.mapId ? parseInt(formData.mapId) : null,
-            coords: formData.coords,
             requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea },
             notes: formData.notes,
             externalRef: formData.externalRef,
-            dungeonsRequired: formData.dungeonsRequired,
-            itemsRequired: formData.itemsRequired,
-            objectives: formData.objectives,
+            positions: formData.positions,
+            dofusdbUrl: formData.dofusdbUrl,
+            dofuspourlesnoobsUrl: formData.dofuspourlesnoobsUrl,
         } as any);
         if (res.success) { toast.success("Étape enregistrée"); onOpenChange(false); onSuccess(); }
         else toast.error(res.error);
@@ -425,29 +434,21 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         setLoading(false);
     }
 
-    // Quick coords copy from clipboard
-    const handlePasteCoords = async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            const match = text.match(/([-0-9]+)[,\s]+([-0-9]+)/);
-            if (match) {
-                setFormData((prev: any) => ({ ...prev, coords: { x: parseInt(match[1]), y: parseInt(match[2]) } }));
-                toast.success("Coordonnées collées !");
-            } else toast.error("Colle une chaîne comme '3, -5'");
-        } catch { toast.error("Impossible de lire le presse-papier"); }
+    // Add a GPS launch position from text "x, y" (façon Rush Sylvestre)
+    const addPositionFromInput = () => {
+        const text = positionsInput.trim();
+        if (!text) return;
+        const match = text.match(/(-?\d+)[,\s]+(-?\d+)/);
+        if (match) {
+            const pos = { x: parseInt(match[1], 10), y: parseInt(match[2], 10) };
+            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), pos] }));
+            setPositionsInput("");
+            toast.success(`📍 ${pos.x}, ${pos.y} ajouté`, { duration: 1500 });
+        } else toast.error("Format attendu : -2, 0 ou 10, -22");
     };
 
-    // Add item to list
-    const addItem = (field: "itemsRequired" | "dungeonsRequired" | "objectives", value: string) => {
-        if (!value.trim()) return;
-        setFormData((prev: any) => ({ ...prev, [field]: [...prev[field], value.trim()] }));
-        if (field === "itemsRequired") setNewItem("");
-        else if (field === "dungeonsRequired") setNewDungeon("");
-        else setNewObjective("");
-    };
-
-    const removeItem = (field: "itemsRequired" | "dungeonsRequired" | "objectives", idx: number) => {
-        setFormData((prev: any) => ({ ...prev, [field]: prev[field].filter((_: any, i: number) => i !== idx) }));
+    const removePosition = (idx: number) => {
+        setFormData((prev: any) => ({ ...prev, positions: (prev.positions || []).filter((_: any, i: number) => i !== idx) }));
     };
 
     return (
@@ -486,39 +487,6 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 <Input value={formData.npcSubArea || ""} onChange={e => setFormData({...formData, npcSubArea: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" placeholder="Cité d'Astrub" />
                             </div>
                         </div>
-
-                        {/* Quest type + IDs */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-900/20 p-4 rounded-2xl border border-white/5">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Type</label>
-                                <select value={formData.questType} onChange={e => setFormData({...formData, questType: e.target.value})} className="w-full h-11 bg-black/40 border border-white/5 rounded-xl text-sm px-4 focus:outline-none focus:border-indigo-500/50">
-                                    <option value="QUEST">📚 Quête</option>
-                                    <option value="DUNGEON">🏰 Donjon</option>
-                                    <option value="BOSS">👹 Boss</option>
-                                    <option value="ITEM">📦 Objet</option>
-                                    <option value="ACHIEVEMENT">🏆 Succès</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">DofusDB ID</label>
-                                <Input type="number" value={formData.dofusdbId} onChange={e => setFormData({...formData, dofusdbId: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" placeholder="4294" />
-                                <p className="text-[9px] text-zinc-600">ID de liaison vers dofusdb.fr</p>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Coord X</label>
-                                <Input type="number" value={formData.coords?.x ?? ""} onChange={e => setFormData({...formData, coords: { ...formData.coords, x: parseInt(e.target.value) || null }})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Coord Y</label>
-                                <div className="flex gap-1">
-                                    <Input type="number" value={formData.coords?.y ?? ""} onChange={e => setFormData({...formData, coords: { ...formData.coords, y: parseInt(e.target.value) || null }})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" />
-                                    <button onClick={handlePasteCoords} className="h-11 w-11 shrink-0 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 hover:bg-indigo-500/20" title="Coller les coordonnées">
-                                        <Crosshair className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Options toggles */}
                         <div className="flex flex-wrap gap-3">
                             <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-900/30 border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
@@ -534,74 +502,36 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Optionnelle</span>
                             </label>
                         </div>
-
-                        {/* Objectives */}
+                        {/* Positions GPS (façon Rush Sylvestre) */}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><Crosshair className="w-3 h-3 text-emerald-400" /> Objectifs</label>
-                            <div className="space-y-1.5">
-                                {formData.objectives.map((obj: string, idx: number) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                        <span className="text-[10px] text-zinc-600 font-mono w-5">#{idx + 1}</span>
-                                        <Input value={obj} onChange={e => {
-                                            const newObjs = [...formData.objectives];
-                                            newObjs[idx] = e.target.value;
-                                            setFormData((prev: any) => ({ ...prev, objectives: newObjs }));
-                                        }} className="bg-black/40 border-white/5 h-9 rounded-xl text-xs flex-1" />
-                                        <button onClick={() => removeItem("objectives", idx)} className="text-rose-500/50 hover:text-rose-400 shrink-0"><Trash2 className="w-3 h-3" /></button>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                                <Input value={newObjective} onChange={e => setNewObjective(e.target.value)} placeholder="Vaincre Bouftou Royal" className="bg-black/40 border-white/5 h-9 rounded-xl text-xs flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addItem("objectives", newObjective))} />
-                                <button onClick={() => addItem("objectives", newObjective)} className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-wider shrink-0">+</button>
-                            </div>
-                        </div>
-
-                        {/* Items Required */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><Package className="w-3 h-3 text-amber-400" /> Objets requis</label>
-                            {formData.itemsRequired.length > 0 && (
+                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-zinc-600 font-normal normal-case tracking-normal">(ex: -2, 0 ; 10, -22)</span></label>
+                            {formData.positions.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
-                                    {formData.itemsRequired.map((item: string, idx: number) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold">
-                                            {item}
-                                            <button onClick={() => removeItem("itemsRequired", idx)} className="text-amber-400/50 hover:text-rose-400"><Trash2 className="w-2.5 h-2.5" /></button>
+                                    {formData.positions.map((p: any, idx: number) => (
+                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold font-mono">
+                                            {p.x}, {p.y}
+                                            <button type="button" onClick={() => removePosition(idx)} className="text-emerald-400/50 hover:text-rose-400"><Trash2 className="w-2.5 h-2.5" /></button>
                                         </span>
                                     ))}
                                 </div>
                             )}
                             <div className="flex gap-2">
-                                <Input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="10x Poil de Bouftou" className="bg-black/40 border-white/5 h-9 rounded-xl text-xs flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addItem("itemsRequired", newItem))} />
-                                <button onClick={() => addItem("itemsRequired", newItem)} className="h-9 px-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 text-[10px] font-black uppercase tracking-wider shrink-0">+</button>
+                                <Input value={positionsInput} onChange={e => setPositionsInput(e.target.value)} placeholder="10, -22" className="bg-black/40 border-emerald-500/20 h-9 rounded-xl text-xs font-mono flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                                <button type="button" onClick={addPositionFromInput} className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-wider shrink-0">📍 Ajouter</button>
                             </div>
                         </div>
 
-                        {/* Dungeons Required */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><Sword className="w-3 h-3 text-sky-400" /> Donjons requis</label>
-                            {formData.dungeonsRequired.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                    {formData.dungeonsRequired.map((dungeon: string, idx: number) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-bold">
-                                            {dungeon}
-                                            <button onClick={() => removeItem("dungeonsRequired", idx)} className="text-sky-400/50 hover:text-rose-400"><Trash2 className="w-2.5 h-2.5" /></button>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            <div className="flex gap-2">
-                                <Input value={newDungeon} onChange={e => setNewDungeon(e.target.value)} placeholder="Antre du Bouftou" className="bg-black/40 border-white/5 h-9 rounded-xl text-xs flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addItem("dungeonsRequired", newDungeon))} />
-                                <button onClick={() => addItem("dungeonsRequired", newDungeon)} className="h-9 px-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/20 text-[10px] font-black uppercase tracking-wider shrink-0">+</button>
-                            </div>
-                        </div>
-
-                        {/* Lien DPLN + Notes */}
+                        {/* Liens DofusDB / DofusNoobs + Notes */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2"><BookOpen className="w-3 h-3" /> Lien DofusNoobs</label>
-                                <Input value={formData.externalRef || ""} onChange={e => setFormData({...formData, externalRef: e.target.value})} className="bg-indigo-500/10 border-indigo-500/20 h-11 rounded-xl text-xs" placeholder="https://www.dofuspourlesnoobs.com/..." />
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><ExternalLink className="w-3 h-3 text-sky-400" /> URL DofusDB</label>
+                                <Input value={formData.dofusdbUrl || ""} onChange={e => setFormData({...formData, dofusdbUrl: e.target.value})} className="bg-sky-500/10 border-sky-500/20 h-11 rounded-xl text-xs" placeholder="https://dofusdb.fr/fr/database/quest/..." />
                             </div>
                             <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2"><BookOpen className="w-3 h-3" /> URL DofusNoobs</label>
+                                <Input value={formData.dofuspourlesnoobsUrl || ""} onChange={e => setFormData({...formData, dofuspourlesnoobsUrl: e.target.value})} className="bg-indigo-500/10 border-indigo-500/20 h-11 rounded-xl text-xs" placeholder="https://www.dofuspourlesnoobs.com/..." />
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><Info className="w-3 h-3" /> Notes</label>
                                 <textarea value={formData.notes || ""} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full h-20 bg-black/40 border border-white/5 rounded-xl text-xs p-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/50 resize-none" placeholder="Infos complémentaires..." />
                             </div>

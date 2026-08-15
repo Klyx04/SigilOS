@@ -27,6 +27,9 @@ interface QuestActionsBlockProps {
         name: string;
         externalRef?: string | null;
         coords?: { x: number; y: number; worldId?: number } | null;
+        positions?: { x: number; y: number; label?: string }[];
+        dofusdbUrl?: string | null;
+        dofuspourlesnoobsUrl?: string | null;
     };
     guildId: string;
     dofusColor: string;
@@ -77,10 +80,12 @@ export function QuestActionsBlock({
 
     const copyTravelCoords = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (entry.coords) {
-            copyWithToast(`/travel ${entry.coords.x} ${entry.coords.y}`);
+        const pos = entry.coords || (Array.isArray(entry.positions) ? entry.positions[0] : null);
+        if (pos) {
+            copyWithToast(`/travel ${pos.x} ${pos.y}`);
         }
     };
+    const autopilotPos = entry.coords || (Array.isArray(entry.positions) ? entry.positions[0] : null);
 
     return (
         <div className="pt-4 border-t border-white/5 space-y-4">
@@ -92,7 +97,7 @@ export function QuestActionsBlock({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {/* 1. DofusDB */}
                 <a
-                    href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
+                    href={entry.dofusdbUrl || `https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="relative group overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#0d0e15]/60 p-4 hover:border-indigo-500/40 hover:bg-[#10121d]/80 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px]"
@@ -122,7 +127,7 @@ export function QuestActionsBlock({
 
                 {/* 2. Dofus pour les Noobs */}
                 <a
-                    href={entry.externalRef || (() => {
+                    href={entry.dofuspourlesnoobsUrl || entry.externalRef || (() => {
                         const slug = entry.name
                             .toLowerCase()
                             .normalize("NFD")
@@ -164,7 +169,7 @@ export function QuestActionsBlock({
                 {/* 3. Autopilote (Travel) */}
                 <button
                     onClick={copyTravelCoords}
-                    disabled={!entry.coords}
+                    disabled={!autopilotPos}
                     className="relative group overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0d0e15]/60 p-4 hover:border-emerald-500/40 hover:bg-[#0e1512]/80 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
                 >
                     <div className="flex justify-between items-start">
@@ -177,10 +182,10 @@ export function QuestActionsBlock({
                         <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-emerald-400 transition-colors">
                             Autopilote
                         </h4>
-                        {entry.coords ? (
+                        {autopilotPos ? (
                             <div className="flex items-center gap-1 mt-1">
                                 <span className="text-[8px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.5 rounded">
-                                    [{entry.coords.x}, {entry.coords.y}]
+                                    [{autopilotPos.x}, {autopilotPos.y}]
                                 </span>
                                 <Copy className="w-2.5 h-2.5 text-emerald-500/50" />
                             </div>

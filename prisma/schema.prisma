@@ -1883,6 +1883,7 @@ model DofusQuestChain {
   sectionType   String
   sectionName   String
   description   String?
+  sectionIcon   String            @default("serie-de-quete")
   chainOrder    Int               @default(0)
   coordinatesV3 Json?
   dofus         DofusItem         @relation(fields: [dofusId], references: [id], onDelete: Cascade)
@@ -1921,6 +1922,9 @@ model DofusQuestEntry {
   externalRef        String?
   weight             Int                        @default(1)
   dungeonsRequired   Json?
+  positions          Json?                      @default("[]")
+  dofusdbUrl         String?
+  dofuspourlesnoobsUrl String?
   chain              DofusQuestChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
   playerProgress     PlayerDofusQuestProgress[]
   prerequisitesFrom  DofusQuestPrerequisite[]   @relation("PrerequisiteFrom")

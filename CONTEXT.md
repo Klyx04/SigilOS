@@ -42,6 +42,10 @@
 > poussé) : icônes Dofus réelles restaurées sur les pages par-Dofus (DofusIcon) ; choix d''icône
 > `serie-de-quete` / `icone-succes` par SECTION dans « Éditer la Section » ; éditeur de quêtes façon
 > Rush Sylvestre (positions GPS + URLs DofusDB/DofusNoobs, anciens champs retirés).
+> **Session 16/08 (4e) — icône de section membre agrandie + icône de bloc Rush** (commits
+> `40a76738b` + `3760dcf5e`) : les sections quêtes affichent l''icône choisie (serie-de-quete /
+> icone-succes) à la place de l''icône générique ; Rush Sylvestre : « Icône du bloc » optionnelle
+> dans l''éditeur (`GuideSequence.icon`, migration `20260815120000`).
 
 ### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons
 - **#68 icônes** : choix de l'icône du bloc d'en-tête des pages quêtes par Dofus **côté God**

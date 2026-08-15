@@ -24,11 +24,15 @@ type Props = {
     members: any[];
     currentMapping: Record<string, PermissionId[]>;
     currentUsersMapping: Record<string, PermissionId[]>;
+    // Chantier #72 — kill-switch God « Membres Spécifiques » (PlatformConfig) :
+    // quand la plateforme le désactive, les sélecteurs par membre sont masqués
+    // (lecture seule) ; le serveur rejette de toute façon toute écriture.
+    usersMappingEnabled: boolean;
 };
 
 const MODULE_ORDER = PERM_MODULE_ORDER;
 
-export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping }: Props) {
+export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping, usersMappingEnabled }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
     const initialPermState: Record<PermissionId, string[]> = Object.values(PERMISSIONS).reduce((acc, perm) => {
         acc[perm] = [];
@@ -102,15 +106,25 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
 
             // Reconstruct usersMapping
             const usersMapping: Record<string, PermissionId[]> = {};
-            Object.entries(userState).forEach(([permId, userIds]) => {
-                userIds.forEach(userId => {
-                    const discordUserId = userId; // The ID passed should be the discord provider account ID
-                    if (!usersMapping[discordUserId]) usersMapping[discordUserId] = [];
-                    if (!usersMapping[discordUserId].includes(permId as PermissionId)) {
-                        usersMapping[discordUserId].push(permId as PermissionId);
-                    }
+            // Chantier #72 — kill-switch God « Membres Spécifiques » : quand la plateforme
+            // désactive les permissions individuelles, on renvoie l'existant INCHANGÉ
+            // (jamais un payload vide ou recalculé qui ferait « semblant » d'effacer
+            // des grants ; le serveur rejette toute modification de toute façon).
+            if (usersMappingEnabled) {
+                Object.entries(userState).forEach(([permId, userIds]) => {
+                    userIds.forEach(userId => {
+                        const discordUserId = userId; // The ID passed should be the discord provider account ID
+                        if (!usersMapping[discordUserId]) usersMapping[discordUserId] = [];
+                        if (!usersMapping[discordUserId].includes(permId as PermissionId)) {
+                            usersMapping[discordUserId].push(permId as PermissionId);
+                        }
+                    });
                 });
-            });
+            } else {
+                Object.entries(currentUsersMapping).forEach(([discordUserId, perms]) => {
+                    usersMapping[discordUserId] = [...perms];
+                });
+            }
 
             const res = await updateRBACMapping(guildId, rolesMapping, usersMapping);
             if (res.success) {
@@ -229,6 +243,23 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                 </div>
             )}
 
+            {/* ⚠️ Chantier #72 — kill-switch God « Membres Spécifiques » désactivé */}
+            {!usersMappingEnabled && (
+                <div className="flex items-start gap-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl px-6 py-4">
+                    <span className="text-2xl mt-0.5">🚫</span>
+                    <div>
+                        <p className="text-rose-400 font-black uppercase tracking-widest text-sm">
+                            Permissions « Membres Spécifiques » désactivées par la plateforme
+                        </p>
+                        <p className="text-rose-400/80 text-xs mt-1 leading-relaxed">
+                            L'option par membre est temporairement coupée (panel God). Les sélecteurs individuels
+                            sont masqués et aucune modification ne sera enregistrée. Les permissions de <strong>rôles</strong>
+                            restent entièrement configurables.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Sticky Action Bar — Sigma 2026 Style */}
             <div className="flex flex-col sm:flex-row justify-between items-center bg-zinc-800/90 backdrop-blur-2xl px-6 py-5 rounded-[2rem] border border-white/20 sticky top-4 z-20 gap-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]">
                 <div className="flex items-center gap-5">
@@ -334,7 +365,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                 onSave={handleSave}
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
                                 locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
-                                hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN}
+                                hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
                             />
                         ))
                     )}
@@ -399,7 +430,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                             onSave={handleSave}
                                             moduleColor={module.color}
                                             locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
-                                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN}
+                                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
                                         />
                                     ))}
                                 </div>
@@ -426,7 +457,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             onSave={handleSave}
                             moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
                             locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
-                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN}
+                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
                         />
                     ))}
                 </div>

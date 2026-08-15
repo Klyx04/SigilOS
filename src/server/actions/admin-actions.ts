@@ -170,6 +170,27 @@ export async function updateRBACMapping(
         const oldRolesMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
         const oldUsersMapping = (currentConfig?.usersMapping || {}) as Record<string, PermissionId[]>;
 
+        // ─── Chantier #72 : kill-switch God « Membres Spécifiques » ────────────
+        // Quand la plateforme désactive les permissions individuelles (toggle God),
+        // toute MODIFICATION de usersMapping est rejetée (fail-closed). Un payload
+        // identique à l'existant (no-op) reste accepté pour ne pas bloquer la
+        // sauvegarde des permissions de rôles, et on force l'écriture à l'existant
+        // pour garantir qu'aucune dérive ne passe.
+        const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
+        const usersMappingEnabled = await getRbacUsersMappingEnabled();
+        let resolvedUsersMapping = usersMapping;
+        if (!usersMappingEnabled) {
+            const unchangedUsers = JSON.stringify(oldUsersMapping) === JSON.stringify(usersMapping);
+            if (!unchangedUsers) {
+                logger.warn(`[Security] updateRoleMapping blocked (usersMapping) — option désactivée par la plateforme, user ${session.user.id}`, { guildId });
+                return {
+                    success: false,
+                    error: "L'option « Membres Spécifiques » est désactivée par la plateforme. Réactivez-la (panel God) pour modifier les permissions individuelles."
+                };
+            }
+            resolvedUsersMapping = oldUsersMapping;
+        }
+
         // ─── Garde-fou : permissions sensibles réservées aux admins Discord ──────
         // Un gestionnaire délégué (system:rbac sans rôle Discord Admin) peut gérer
         // toutes les permissions SAUF octroyer/révoquer system:god (Administrateur
@@ -221,7 +242,7 @@ export async function updateRBACMapping(
             where: { discordGuildId: guildId },
             data: {
                 rolesMapping: rolesMapping,
-                usersMapping: usersMapping
+                usersMapping: resolvedUsersMapping
             }
         });
 
@@ -257,7 +278,7 @@ export async function updateRBACMapping(
             action: "RBAC_UPDATE",
             targetType: "PERMISSION",
             oldValue: { roles: oldRolesMapping, users: oldUsersMapping },
-            newValue: { roles: rolesMapping, users: usersMapping },
+            newValue: { roles: rolesMapping, users: resolvedUsersMapping },
             metadata: {
                 changes: formattedChanges,
                 rolesAffected: changes.length,

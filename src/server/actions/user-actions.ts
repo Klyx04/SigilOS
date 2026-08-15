@@ -13,6 +13,7 @@ import { emitGuildActivity } from "./activity-actions";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
+import { buildDiscordAvatarUrl, buildGuildAvatarUrl } from "@/lib/discord-avatars";
 
 import { redis } from "@/lib/redis";
 
@@ -684,7 +685,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     // 1. Roles & Admin check
     const rolesMapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
-    const individualMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
+    // Chantier #72 — kill-switch God « Membres Spécifiques » : quand la plateforme
+    // désactive les permissions individuelles, usersMapping est TOTALEMENT ignoré
+    // (fail-closed). Aucune permission individuelle ne s'applique.
+    const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
+    const rbacUsersMappingEnabled = await getRbacUsersMappingEnabled();
+    const individualMapping = rbacUsersMappingEnabled
+        ? ((guildConfig?.usersMapping as Record<string, PermissionId[]>) || {})
+        : {};
 
     const isRbacConfigured = Object.values(rolesMapping).some(perms =>
         Array.isArray(perms) && (
@@ -945,11 +953,16 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isAuthenticated: true,
         id: session.user.id,
         name: displayName,
-        image: member?.user?.avatar
-            ? `https://cdn.discordapp.com/avatars/${discordUserId}/${member.user.avatar}.png`
-            : member?.avatar
-                ? `https://cdn.discordapp.com/guilds/${effectiveGuildId}/users/${discordUserId}/avatars/${member.avatar}.png`
-                : session.user.image || undefined,
+        image: (() => {
+            // #23 — avatars Discord bornés en taille (`?size=256`, webp) → chargement fiable.
+            if (member?.user?.avatar) {
+                return buildDiscordAvatarUrl(discordUserId, member.user.avatar) || undefined;
+            }
+            if (member?.avatar) {
+                return buildGuildAvatarUrl(effectiveGuildId, discordUserId, member.avatar) || undefined;
+            }
+            return session.user.image || undefined;
+        })(),
         roleName: isGod && roleName === "Membre" ? "Administrateur" : roleName,
         roleNames: memberRoles.map(rId => (guildInfo as any)?.roles?.find((r: any) => r.id === rId)?.name || "Inconnu"),
         roleColor: isGod && roleColor === 0 ? 0x5865F2 : roleColor,

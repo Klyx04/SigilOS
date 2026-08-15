@@ -32,11 +32,13 @@ interface LoanFormProps {
     guildId: string;
     currentProfileId?: string;
     isDiscordConfigured?: boolean;
+    // #71 — prévisu du salon cible (nom du canal prêts)
+    channelName?: string | null;
 }
 
 const TYPES = Object.entries(LOAN_TYPE_LABELS) as [LoanType, string][];
 
-export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDiscordConfigured = false }: LoanFormProps) {
+export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDiscordConfigured = false, channelName = null }: LoanFormProps) {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
@@ -47,6 +49,8 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
     const [amount, setAmount] = useState("");
     const [resourceQty, setResourceQty] = useState("");
     const [dueDate, setDueDate] = useState("");
+    // #71 — option « pas d'échéance » (prêt ouvert indéfiniment)
+    const [noDueDate, setNoDueDate] = useState(false);
     const [notes, setNotes] = useState("");
     const [linkedItem, setLinkedItem] = useState<DofusItem | null>(null);
     const [proofFile, setProofFile] = useState<File | null>(null);
@@ -280,12 +284,25 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Échéance</Label>
-                                <Input
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={(e) => setDueDate(e.target.value)}
-                                    className="bg-white/5 border-white/10 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                                />
+                                <div className="space-y-2">
+                                    <Input
+                                        type="date"
+                                        value={noDueDate ? "" : dueDate}
+                                        onChange={(e) => { setNoDueDate(false); setDueDate(e.target.value); }}
+                                        disabled={noDueDate}
+                                        className="bg-white/5 border-white/10 text-white [&::-webkit-calendar-picker-indicator]:invert disabled:opacity-40"
+                                    />
+                                    {/* #71 — option « pas d'échéance » */}
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={noDueDate}
+                                            onChange={(e) => { setNoDueDate(e.target.checked); if (e.target.checked) setDueDate(""); }}
+                                            className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-amber-500"
+                                        />
+                                        <span className="text-[11px] text-zinc-400 font-medium">Pas d'échéance (prêt ouvert)</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -388,7 +405,11 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                     <Send className={`h-4 w-4 ${notifyDiscord && isDiscordConfigured ? 'text-indigo-400' : 'text-zinc-500'}`} />
                                     <div>
                                         <p className={`text-xs font-bold ${notifyDiscord && isDiscordConfigured ? 'text-indigo-300' : 'text-zinc-300'}`}>Notifier sur Discord</p>
-                                        <p className="text-[10px] text-zinc-600">Envoyer un embed dans le salon prêts</p>
+                                        <p className="text-[10px] text-zinc-600">
+                                            {channelName
+                                                ? <>Envoyer un embed dans <span className="text-indigo-400 font-bold">#{channelName}</span></>
+                                                : "Envoyer un embed dans le salon prêts"}
+                                        </p>
                                     </div>
                                 </div>
                                 <button

@@ -38,6 +38,28 @@
 > corrigé par bornage fail-closed dans `editInteractionMessage`. #73 : notif « a quitté »
 > réparée (broadcast `leave` idempotent dans `disconnect`). #58 : badges non-lus God rendus
 > (sidebar + topbar mobile).
+> **Session 16/08 (3e) — #68 corrigé + refonte éditeur de quêtes façon Rush** (commit `fa2c5f08c`
+> poussé) : icônes Dofus réelles restaurées sur les pages par-Dofus (DofusIcon) ; choix d''icône
+> `serie-de-quete` / `icone-succes` par SECTION dans « Éditer la Section » ; éditeur de quêtes façon
+> Rush Sylvestre (positions GPS + URLs DofusDB/DofusNoobs, anciens champs retirés).
+> **Session 16/08 (4e) — icône de section membre agrandie + icône de bloc Rush** (commits
+> `40a76738b` + `3760dcf5e`) : les sections quêtes affichent l''icône choisie (serie-de-quete /
+> icone-succes) à la place de l''icône générique ; Rush Sylvestre : « Icône du bloc » optionnelle
+> dans l''éditeur (`GuideSequence.icon`, migration `20260815120000`).
+> **Session 16/08 (5e) — Lots 1-3 du chantier (5 commits, base `1f8fb6e4e` → `f48f4dd12`, poussés) :**
+> 🔐 **Lot 1** (`4e60158e9`) : **#72 toggle God « Membres Spécifiques »** (`PlatformConfig.rbacUsersMappingEnabled`,
+> migration `20260816100000_add_rbac_users_mapping_toggle`, kill-switch fail-closed lecture+écriture+UI,
+> helper `src/lib/platform-rbac.ts`) · **#47** blindage God (`api/god/notify` Zod+temps constant, `api/god/upload-image` 10 Mo)
+> · **#75** traçage God (`GOD_CONFIG_OVERRIDE`/`GOD_MAINTENANCE_MODE`) · **#55** rate-limits (relance 5/min+bornage 200,
+> nudge 10/min, poll 5/30/min, calendrier 10/min, quêtes 60/min).
+> 🎨 **Lot 2** (`33bf6c781`) : **#62** favoris navbar (garde anti-race `localPinMutations`) · **#63** anti-layout-shift
+> onglet quête dofus (skeleton 60vh + fade pur) · **#59** landing guilde/annuaire « connecté » (badge + CTA Dashboard)
+> · **#23** avatars Discord (`src/lib/discord-avatars.ts`, `?size=256`, webp) · **#69** profil lecture seule dé-sloppé +
+> croquette conditionnelle.
+> 🧩 **Lot 3** : **#74** interface « Relancer » dédiée solo/bulk (`240e4de30`) · **#40/#41** proxy dofusbook durci +
+> alerte God throttlée panne/schéma FM (`6bbcb74a3`) · **#71** prêts : limite 5 actifs, « pas d'échéance », prévisu salon (`f48f4dd12`).
+> Vérifs : tsc 0 · lint 0 erreur · test:run **187/187** · build OK. ⚠️ Migration à vérifier au deploy :
+> `20260816100000_add_rbac_users_mapping_toggle` (appliquée en local).
 
 ### ✅ Session 15/08 — #68 icônes (choix God), Songe « éditer une run », #63, vérif multi-donjons
 - **#68 icônes** : choix de l'icône du bloc d'en-tête des pages quêtes par Dofus **côté God**
@@ -116,6 +138,21 @@
 - Commit `fdf72c228` poussé sur `feat/rbac-audit-2026-08-16` (aucune nouvelle branche).
 - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · test:run 184/184 · build non
   relancé localement (dev server actif) — la CI le validera.
+
+### ✅ Session 16/08 (3e) — #68 corrigé (icônes Dofus réelles + icône par section) + refonte éditeur de quêtes façon Rush
+- **#68 corrigé** (retour user) : les pages par-Dofus affichent de nouveau l''icône **réelle du Dofus**
+  (`DofusIcon`, `/module-dofus/Dofus_*.png`) dans le hero ; le choix `serie-de-quete` / `icone-succes`
+  est déplacé **par SECTION** (`DofusQuestChain.sectionIcon`, migration `20260815100000_add_quest_section_icon`)
+  dans « Éditer la Section » (God) et rendu à côté du nom de chaque bloc (God + membre).
+- **Refonte éditeur de quêtes façon Rush Sylvestre** : `DofusQuestEntry` + `positions` (GPS `[{x,y}]`),
+  `dofusdbUrl`, `dofuspourlesnoobsUrl` (migration `20260815110000_add_quest_entry_positions_sources`) ;
+  suppression de Objectifs / Objets requis / Donjons requis / Type / DofusDB ID / Coord X-Y dans l''éditeur ;
+  ajout bloc « Positions GPS » + URLs. Membre : QuestActionsBlock (GPS positions[0] + URLs) + QuestChecklist
+  (positions de lancement + icône section).
+- Commit `fa2c5f08c` poussé sur `feat/rbac-audit-2026-08-16`. Migrations appliquées en local (`prisma migrate deploy`).
+- **Rush Sylvestre — icône de bloc optionnelle** (`GuideSequence.icon`, migration `20260815120000_add_rush_sequence_icon`) : choix `serie-de-quete` / `icone-succes` (optionnel) dans l''éditeur Rush (« Icône du bloc ») ; rendu sur le bloc membre (RushTimelineClient) + liste God (SequenceRowAdmin). Commit `3760dcf5e`.
+- **Quêtes Dofus — membre** : l''icône générique (Layers) des sections est remplacée par l''icône de section agrandie (DofusTimelineQuest).
+- Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · test:run 184/184.
 
 ### ✅ Session 14/08 (suite 5) — #37 présence WS par-Dofus + #26/#27 Donjons (7 commits)
 - **`71fc3c148` — #37 présence WS temps réel page par-Dofus** : module WS `dofus-presence.ts`

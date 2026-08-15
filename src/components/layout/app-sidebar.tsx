@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import {
@@ -89,6 +89,12 @@ export function AppSidebar({
     const [notifications, setNotifications] = useState<any[]>([]);
     const pathname = usePathname();
 
+    // #62 — garde anti-race : quand un changement local (pin/hide) est en vol,
+    // on N'ÉCRASE PAS l'état optimiste avec des props serveur potentiellement
+    // obsolètes. Sans cela, un pin récent « clignote » ou saute (perçu comme
+    // « les onglets se mettent en favoris tout seuls »).
+    const localPinMutations = useRef(0);
+
     useEffect(() => {
         setMounted(true);
         const fetchNotifs = async () => {
@@ -123,6 +129,11 @@ export function AppSidebar({
     const hiddenHrefsString = JSON.stringify(user.hiddenNavItems || []);
 
     useEffect(() => {
+        // #62 — on ne resynchronise l'état local QUE si aucun changement local
+        // n'est en vol (compteur de mutations). Sinon, une révalidation serveur
+        // avec des props obsolètes écraserait le pin optimiste → « les onglets se
+        // mettent en favoris tout seuls » (ou au contraire disparaissent).
+        if (localPinMutations.current > 0) return;
         setLocalPinnedHrefs(user.pinnedNavItems || []);
         setLocalHiddenHrefs(user.hiddenNavItems || []);
     }, [pinnedHrefsString, hiddenHrefsString]);
@@ -278,6 +289,7 @@ export function AppSidebar({
 
     const handleTogglePin = async (href: string) => {
         // Optimistic Update
+        localPinMutations.current++;
         setLocalPinnedHrefs(prev => 
             prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href]
         );
@@ -291,11 +303,14 @@ export function AppSidebar({
         } catch (error) {
             toast.error("Erreur serveur");
             setLocalPinnedHrefs(user.pinnedNavItems || []);
+        } finally {
+            localPinMutations.current--;
         }
     };
 
     const handleToggleHide = async (href: string) => {
         // Optimistic Update
+        localPinMutations.current++;
         setLocalHiddenHrefs(prev => 
             prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href]
         );
@@ -309,6 +324,8 @@ export function AppSidebar({
         } catch (error) {
             toast.error("Erreur serveur");
             setLocalHiddenHrefs(user.hiddenNavItems || []);
+        } finally {
+            localPinMutations.current--;
         }
     };
 

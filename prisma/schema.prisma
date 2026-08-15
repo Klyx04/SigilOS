@@ -166,6 +166,13 @@ model PlatformConfig {
   dofusQuestHeaderIcon String   @default("serie-de-quete")
   dofusQuestHeaderIconUpdatedAt DateTime?
   dofusQuestHeaderIconUpdatedBy String?
+  // Chantier #72 — Toggle God : désactive globalement les permissions RBAC
+  // individuelles (« Membres Spécifiques », usersMapping). Kill-switch fail-closed :
+  // off → getUserContext ignore totalement usersMapping et updateRBACMapping refuse
+  // toute modification des permissions individuelles.
+  rbacUsersMappingEnabled Boolean @default(true)
+  rbacUsersMappingUpdatedAt DateTime?
+  rbacUsersMappingUpdatedBy String?
 }
 
 /// Délégation d'accès au dashboard God (sub-gods) avec scopes granulaires.
@@ -1883,6 +1890,7 @@ model DofusQuestChain {
   sectionType   String
   sectionName   String
   description   String?
+  sectionIcon   String            @default("serie-de-quete")
   chainOrder    Int               @default(0)
   coordinatesV3 Json?
   dofus         DofusItem         @relation(fields: [dofusId], references: [id], onDelete: Cascade)
@@ -1921,6 +1929,9 @@ model DofusQuestEntry {
   externalRef        String?
   weight             Int                        @default(1)
   dungeonsRequired   Json?
+  positions          Json?                      @default("[]")
+  dofusdbUrl         String?
+  dofuspourlesnoobsUrl String?
   chain              DofusQuestChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
   playerProgress     PlayerDofusQuestProgress[]
   prerequisitesFrom  DofusQuestPrerequisite[]   @relation("PrerequisiteFrom")
@@ -2136,6 +2147,7 @@ model GuideSequence {
 
   // Types spéciaux d'étapes
   isSuccess         Boolean  @default(false)  // true = étape de succès (icône trophée)
+  icon              String?  // Icône optionnelle du bloc (serie-de-quete | icone-succes) — null = défaut
   metamobMonsterId  Int?                       // ID du monstre Metamob lié (Ocre / Quête Éternelle Moisson)
   activityTags      Json     @default("[]")   // Tags d'activité : [{ type: string, name?: string, level?: number }]
 

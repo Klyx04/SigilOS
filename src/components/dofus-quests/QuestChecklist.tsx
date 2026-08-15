@@ -282,6 +282,22 @@ function QuestEntryRow({
                                 </div>
                             )}
 
+                            {/* Positions de lancement */}
+                            {Array.isArray((entry as any).positions) && (entry as any).positions.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="text-[10px] font-black text-emerald-500/80 uppercase tracking-widest italic mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Positions de lancement</div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {(entry as any).positions.map((p: any, i: number) => (
+                                            <button key={i} onClick={(e) => { e.stopPropagation(); copyWithToast(`/travel ${p.x} ${p.y}`); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold font-mono hover:bg-emerald-500/20 transition-colors">
+                                                <MapPin className="w-2.5 h-2.5" />
+                                                {p.x}, {p.y}
+                                                <Copy className="w-2.5 h-2.5 text-emerald-500/50" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Objectives */}
                             {Array.isArray((entry as any).objectives) && (entry as any).objectives.length > 0 && (
                                 <div className="space-y-2">
@@ -343,6 +359,10 @@ function ChainSection({
         <div className="flex flex-col gap-2">
             <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-3 w-full text-left group">
                 <SectionBadge type={chain.sectionType} />
+                {(chain as any).sectionIcon && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={`/assets/icons/${(chain as any).sectionIcon}.png`} alt="" className="w-5 h-5 object-contain shrink-0" />
+                )}
                 <span className="text-sm font-semibold text-white/80 flex-1">{chain.sectionName}</span>
                 {chain.description && (
                     <span className="text-xs text-white/30 hidden sm:block truncate max-w-[180px]">{chain.description}</span>

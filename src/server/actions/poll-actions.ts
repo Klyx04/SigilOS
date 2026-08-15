@@ -15,6 +15,7 @@ import { sendChannelMessage, deleteChannelMessage, validateChannelBelongsToGuild
 import { createAuditLog } from "@/server/actions/audit-actions";
 import { getGameDisplayName } from "@/lib/display-name";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
+import { rateLimit } from "@/lib/ratelimit";
 
 /**
  * Generates a visual progress bar for Discord embeds.
@@ -417,6 +418,12 @@ export async function createPoll(
     const canCreate = await canCreatePoll(data.guildId, session.user.id);
     if (!canCreate) return { success: false, error: "Vous n'avez pas la permission de créer des sondages." };
 
+    // #55 — rate-limit création de sondages (spam anti-discord).
+    const rateLimitResult = await rateLimit(`poll:create:${session.user.id}`, 5, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de sondages créés, réessaie dans une minute." };
+    }
+
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({
             where: { discordGuildId: data.guildId },
@@ -659,6 +666,12 @@ export async function castVote(
 
     const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
+
+    // #55 — rate-limit vote (anti-spam de clics, sync WS).
+    const rateLimitResult = await rateLimit(`poll:vote:${session.user.id}:${discordGuildId}`, 30, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de votes, réessaie dans une minute." };
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({

@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { getDofusWeek } from "@/lib/date-utils";
 import { getGameDisplayName } from "@/lib/display-name";
 import { z } from "zod";
+import { rateLimit } from "@/lib/ratelimit";
 
 export type ActionResponse<T = any> = {
     success: boolean;
@@ -180,6 +181,16 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
     const user = await getUserContext(guildId);
     if (!user.isAdmin && !user.canManageRelance) return { success: false, error: "Unauthorized" };
 
+    // #55 — rate-limit strict : relancer ping des membres = spam Discord potentiel.
+    // 5 envois / minute / (user + guilde) ; bornage cible (max 200 pings) fail-closed.
+    const rateLimitResult = await rateLimit(`relance:${session.user.id}:${guildId}`, 5, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de relances envoyées, réessaie dans une minute." };
+    }
+    if (targetUserIds.length > 200) {
+        return { success: false, error: "Maximum 200 membres par relance." };
+    }
+
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId }
@@ -286,6 +297,12 @@ export async function sendManualNudge(guildId: string, targetDiscordId: string):
     const user = await getUserContext(guildId);
     if (!user.isAdmin && !user.canManageRelance && !user.canManageMembers) {
         return { success: false, error: "Unauthorized" };
+    }
+
+    // #55 — rate-limit sur les nudges manuels (DM envoyés via le bot).
+    const rateLimitResult = await rateLimit(`nudge:${session.user.id}:${guildId}`, 10, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de relances envoyées, réessaie dans une minute." };
     }
 
     try {

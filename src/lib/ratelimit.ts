@@ -1,4 +1,5 @@
 import { redis } from "./redis";
+import { logger } from "./logger";
 
 // Fallback memory cache if Redis is down
 const memoryCache = new Map<string, { count: number; reset: number }>();
@@ -46,7 +47,7 @@ export async function rateLimit(
     // If Redis is down, use the bounded memory cache to ENFORCE limits
     // (Fail-Closed principle for rate limiting — do not silently allow).
     if (redis.status !== "ready") {
-        console.warn("[RateLimit] Redis unavailable - using memory fallback for enforcement");
+        logger.warn("[RateLimit] Redis unavailable - using memory fallback for enforcement");
         pruneMemoryCache(now);
 
         const entry = memoryCache.get(key);
@@ -86,7 +87,7 @@ export async function rateLimit(
         // FAIL-CLOSED: an unexpected Redis error must NOT open the floodgates.
         // This helper only guards mutations/auth actions — blocking them is safe
         // and preferable to a silent bypass of the protection.
-        console.error("[RateLimit] Redis error — FAIL CLOSED (request rejected):", e);
+        logger.error("[RateLimit] Redis error — FAIL CLOSED (request rejected):", { error: (e as Error).message });
         return { success: false, remaining: 0, reset: now + windowMs };
     }
 }

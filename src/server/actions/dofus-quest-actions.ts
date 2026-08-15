@@ -7,6 +7,7 @@ import { DofusQuestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { publishDofusEvent } from "@/lib/dofus-realtime";
+import { rateLimit } from "@/lib/ratelimit";
 
 export type ActionResponse<T = void> = {
     success: boolean;
@@ -933,6 +934,13 @@ export async function toggleQuestStatus(
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Accès refusé" };
     if (!ctx.profileId) return { success: false, error: "Profil introuvable" };
+
+    // #55 — rate-limit bascule quêtes (60/min — aligné sur les mutations guide).
+    // L'id utilisateur vient du contexte (ctx.id = session.user.id).
+    const rateLimitResult = await rateLimit(`quest:toggle:${ctx.id}:${guildId}`, 60, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de changements, réessaie dans une minute." };
+    }
 
     // Resolve internal guild ID
     const guildConfig = await (db as any).guildConfig.findFirst({

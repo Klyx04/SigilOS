@@ -9,8 +9,10 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
+import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
+import { rateLimit } from "@/lib/ratelimit";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -501,9 +503,16 @@ function isPastDay(date: Date): boolean {
  * Create a new guild event
  */
 export async function createCalendarEvent(guildId: string, data: GuildEventInput) {
+    const session = await auth();
     const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isAuthenticated || !session?.user?.id) return { success: false, error: "Non authentifié" };
     if (!ctx.canManageCalendar) return { success: false, error: "Permission requise: Gérer le calendrier" };
+
+    // #55 — rate-limit création d'événements (spam embed Discord).
+    const rateLimitResult = await rateLimit(`calendar:create:${session.user.id}:${guildId}`, 10, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop d'événements créés, réessaie dans une minute." };
+    }
 
     const validated = GuildEventSchema.safeParse(data);
     if (!validated.success) return { success: false, error: validated.error.errors[0].message };

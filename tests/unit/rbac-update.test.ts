@@ -26,6 +26,10 @@ vi.mock("@/lib/ratelimit", () => ({
     rateLimit: vi.fn(),
 }));
 
+vi.mock("@/lib/platform-rbac", () => ({
+    getRbacUsersMappingEnabled: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("@/server/actions/guards", () => ({
     requireRbacManagement: vi.fn(),
 }));
@@ -56,6 +60,7 @@ vi.mock("next/cache", () => ({
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
+import { getRbacUsersMappingEnabled } from "@/lib/platform-rbac";
 import { requireRbacManagement } from "@/server/actions/guards";
 import { invalidateGuildCache, flushGuildUserContextCache } from "@/server/actions/user-actions";
 import { logAction } from "@/server/actions/audit-actions";
@@ -66,6 +71,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 const mockAuth = auth as ReturnType<typeof vi.fn>;
 const mockDb = db as any;
 const mockRateLimit = rateLimit as ReturnType<typeof vi.fn>;
+const mockGetRbacUsersMappingEnabled = getRbacUsersMappingEnabled as ReturnType<typeof vi.fn>;
 const mockRequireRbacManagement = requireRbacManagement as ReturnType<typeof vi.fn>;
 const mockInvalidateGuildCache = invalidateGuildCache as ReturnType<typeof vi.fn>;
 const mockFlushGuildUserContextCache = flushGuildUserContextCache as ReturnType<typeof vi.fn>;
@@ -213,6 +219,49 @@ describe("updateRBACMapping — validation fail-closed & garde-fou (#66bis)", ()
 
         expect(res.success).toBe(true);
         expect(mockDb.guildConfig.update).toHaveBeenCalled();
+    });
+
+    it("bloque une modification usersMapping quand le kill-switch God #72 est OFF", async () => {
+        mockGetRbacUsersMappingEnabled.mockResolvedValue(false);
+        mockDb.guildConfig.findUnique.mockResolvedValue({
+            id: "guild-uuid-1",
+            rolesMapping: {},
+            usersMapping: {},
+        });
+
+        const res = await updateRBACMapping(
+            GUILD_ID,
+            { [ROLE_ID]: [PERMISSIONS.DASHBOARD_LOGIN] },
+            { [USER_ID]: [PERMISSIONS.STAFF_AUDIT] }
+        );
+
+        expect(res.success).toBe(false);
+        expect(res.error).toContain("Membres Spécifiques");
+        expect(mockDb.guildConfig.update).not.toHaveBeenCalled();
+    });
+
+    it("accepte un usersMapping identique (no-op) quand le kill-switch God #72 est OFF", async () => {
+        mockGetRbacUsersMappingEnabled.mockResolvedValue(false);
+        const existingUsers = { [USER_ID]: [PERMISSIONS.STAFF_AUDIT] };
+        mockDb.guildConfig.findUnique.mockResolvedValue({
+            id: "guild-uuid-1",
+            rolesMapping: {},
+            usersMapping: existingUsers,
+        });
+
+        const res = await updateRBACMapping(
+            GUILD_ID,
+            { [ROLE_ID]: [PERMISSIONS.DASHBOARD_LOGIN] },
+            { [USER_ID]: [PERMISSIONS.STAFF_AUDIT] }
+        );
+
+        // No-op accepté (sauvegarde des rôles possible), et l'écriture force l'existant
+        expect(res.success).toBe(true);
+        expect(mockDb.guildConfig.update).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ usersMapping: existingUsers }),
+            })
+        );
     });
 });
 

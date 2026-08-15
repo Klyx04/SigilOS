@@ -299,7 +299,9 @@ export async function updatePlatformConfig(data: {
     questFeedbackChannelId?: string,
     ladderManualFallback?: boolean,
     // Chantier #68 — choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus
-    dofusQuestHeaderIcon?: string
+    dofusQuestHeaderIcon?: string,
+    // Chantier #72 — toggle God « Membres Spécifiques » (permissions RBAC individuelles)
+    rbacUsersMappingEnabled?: boolean
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -314,6 +316,11 @@ export async function updatePlatformConfig(data: {
         if (!iconParsed.success) {
             return { success: false, error: "Icône du bloc quête invalide (serie-de-quete | icone-succes)" };
         }
+    }
+
+    // Chantier #72 — le toggle « Membres Spécifiques » est un booléen strict (fail-closed).
+    if (data.rbacUsersMappingEnabled !== undefined && typeof data.rbacUsersMappingEnabled !== "boolean") {
+        return { success: false, error: "Valeur invalide pour rbacUsersMappingEnabled (booléen requis)" };
     }
 
     try {
@@ -345,6 +352,12 @@ export async function updatePlatformConfig(data: {
                     dofusQuestHeaderIcon: data.dofusQuestHeaderIcon,
                     dofusQuestHeaderIconUpdatedAt: new Date(),
                     dofusQuestHeaderIconUpdatedBy: actorId,
+                }),
+                // Chantier #72 — toggle God « Membres Spécifiques » (kill-switch fail-closed)
+                ...(data.rbacUsersMappingEnabled !== undefined && {
+                    rbacUsersMappingEnabled: data.rbacUsersMappingEnabled,
+                    rbacUsersMappingUpdatedAt: new Date(),
+                    rbacUsersMappingUpdatedBy: actorId,
                 })
             },
             create: { 
@@ -364,9 +377,31 @@ export async function updatePlatformConfig(data: {
                 donationsEnabled: data.donationsEnabled !== undefined ? data.donationsEnabled : true,
                 questFeedbackChannelId: data.questFeedbackChannelId || null,
                 ladderManualFallback: data.ladderManualFallback ?? false,
-                dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete"
+                dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete",
+                rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true
             }
         });
+
+        // Chantier #72 — invalide le cache du kill-switch RBAC individuel (propagation immédiate)
+        if (data.rbacUsersMappingEnabled !== undefined) {
+            const { invalidateRbacUsersMappingCache } = await import("@/lib/platform-rbac");
+            invalidateRbacUsersMappingCache();
+            logger.info("[PlatformConfig] Toggle RBAC Membres Spécifiques modifié", {
+                enabled: data.rbacUsersMappingEnabled,
+                by: actorId,
+            });
+        }
+
+        // #75 — trace God des modifications de config plateforme (qui / quand / quoi)
+        const changedFields = Object.keys(data);
+        const { createGodAuditLog } = await import("./audit-actions");
+        await createGodAuditLog({
+            action: "GOD_CONFIG_OVERRIDE",
+            targetType: "CONFIG",
+            targetId: "singleton",
+            metadata: { changedFields, by: actorId },
+        });
+
         revalidatePath('/');
         revalidatePath('/god');
         revalidatePath('/god/roadmap');
@@ -398,6 +433,16 @@ export async function toggleMaintenanceMode(enabled: boolean, message?: string) 
                 maintenanceMessage: message || null,
             }
         });
+
+        // #75 — trace God du basculement maintenance
+        const { createGodAuditLog } = await import("./audit-actions");
+        await createGodAuditLog({
+            action: "GOD_MAINTENANCE_MODE",
+            targetType: "MAINTENANCE",
+            targetId: "singleton",
+            metadata: { enabled, message: message || null },
+        });
+
         revalidatePath('/');
         revalidatePath('/maintenance');
         revalidatePath('/god');

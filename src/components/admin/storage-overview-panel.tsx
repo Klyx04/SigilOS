@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-    getStorageOverview, godDeleteFile,
+    getStorageOverview, godDeleteFile, setGuildStorageLimit, getGuildLogsStats,
     type StorageGuildEntry, type StorageOverview, type PendingFile, type GuildAsset, type AssetDbField, type DiskFile
 } from "@/server/actions/storage-actions";
 import {
     HardDrive, FolderOpen, Loader2, RefreshCw,
     FileImage, Coins, Trophy, Shield, Search, Clock, Image as ImageIcon,
-    X, Trash2, ExternalLink, Handshake,
-    LayoutGrid, List, ChevronRight, Info
+    X, Trash2, Handshake, ScrollText, AlertTriangle,
+    LayoutGrid, List, ChevronRight
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,27 +41,31 @@ const TYPE_CFG = {
 
 // ─── Path Display ─────────────────────────────────────────────────────────────
 
-function PathDisplay({ path, colorClass }: { path: string; colorClass: string }) {
-    // Normalize path to look like project root path
-    const clean = path.replace(/^\/uploads\//, "private_uploads/").replace(/\/$/, "");
+function PathDisplay({ path, colorClass, guildName }: { path: string; colorClass: string; guildName?: string }) {
+    // Normalize path to look like project root path (F-17 affichage : URLs /api/storage/ → private_uploads/)
+    const clean = path
+        .replace(/^\/(api\/storage|uploads)\//, "private_uploads/")
+        .replace(/^\/private_uploads\//, "private_uploads/")
+        .replace(/\/$/, "");
     const segments = clean.split("/");
-    
+
     return (
         <div className="flex flex-wrap items-center gap-1.5 py-2">
             <span className="text-[10px] font-mono text-zinc-300 font-black tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2 py-1 rounded-lg border border-white/10 shadow-sm">SigilOS /</span>
             {segments.map((seg, i) => {
-                const isCuid = seg.length > 20 && /^[a-z0-9]+$/.test(seg);
+                const isId = (seg.length > 20 && /^[a-z0-9]+$/.test(seg)) || /^\d{17,20}$/.test(seg);
                 if (!seg) return null;
+                const label = isId && guildName ? guildName : seg;
                 return (
                     <div key={i} className="flex items-center gap-1.5">
                         <span 
-                            title={seg} 
+                            title={isId && guildName ? `${seg} (${guildName})` : seg} 
                             className={cn(
                                 "text-[10px] font-mono font-black px-2 py-1.5 rounded-lg border shadow-sm transition-all whitespace-nowrap",
-                                isCuid ? "text-indigo-400/80 bg-indigo-500/5 border-indigo-500/20" : `${colorClass} bg-zinc-900 border-white/[0.15] opacity-90`
+                                isId ? "text-emerald-400/80 bg-emerald-500/5 border-emerald-500/20" : `${colorClass} bg-zinc-900 border-white/[0.15] opacity-90`
                             )}
                         >
-                            {seg}
+                            {label}
                         </span>
                         {i < segments.length - 1 && <span className="text-zinc-700 text-[10px] font-mono font-black mx-0.5">/</span>}
                     </div>
@@ -299,6 +303,10 @@ export function StorageOverviewPanel() {
     const [orphansOpen, setOrphansOpen] = useState(false);
     const [systemStatus, setSystemStatus] = useState<any>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [sortBy, setSortBy] = useState<'size' | 'name' | 'files'>('size');
+    const [page, setPage] = useState(1);
+    const [logs, setLogs] = useState<Awaited<ReturnType<typeof getGuildLogsStats>>["data"] | null>(null);
+    const PAGE_SIZE = 25;
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -310,10 +318,27 @@ export function StorageOverviewPanel() {
 
     useEffect(() => { load(); }, [load]);
 
+    // Logs par guilde (30j) — chargés une fois à l'ouverture
+    useEffect(() => {
+        getGuildLogsStats().then((res) => { if (res.success && res.data) setLogs(res.data); }).catch(() => {});
+    }, []);
+
     const filteredGuilds = overview?.guilds.filter(g => 
         g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         g.discordGuildId.includes(searchTerm)
     ) || [];
+
+    const sortedGuilds = [...filteredGuilds].sort((a, b) => {
+        if (sortBy === 'name') return a.name.localeCompare(b.name);
+        if (sortBy === 'files') return (b.missionsCount + b.kamaCount + b.achievementCount + b.presentationCount) - (a.missionsCount + a.kamaCount + a.achievementCount + a.presentationCount);
+        return b.totalBytes - a.totalBytes;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(sortedGuilds.length / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const pagedGuilds = sortedGuilds.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    const changeSearch = (v: string) => { setSearchTerm(v); setPage(1); };
 
     if (loading && !overview) return (
         <div className="flex flex-col items-center justify-center py-40 gap-6">
@@ -393,18 +418,61 @@ export function StorageOverviewPanel() {
                             type="text"
                             placeholder="RECHERCHER UNE GUILDE..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => changeSearch(e.target.value)}
                             className="w-full bg-zinc-900/20 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-[10px] font-black uppercase tracking-widest focus:border-amber-500/50 focus:bg-zinc-900/40 transition-all outline-none"
                         />
                     </div>
                 </div>
 
                 <div className="flex-1 w-full overflow-hidden">
+                    {/* Tri + pagination (scalabilité : centaines de guildes) */}
+                    <div className="flex items-center justify-between gap-4 pb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Tri</span>
+                            <div className="flex gap-1 p-1 bg-white/[0.02] border border-white/5 rounded-xl">
+                                {([['size', 'Taille'], ['name', 'Nom'], ['files', 'Fichiers']] as const).map(([key, label]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setSortBy(key)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                            sortBy === key ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                                        )}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-mono font-black text-zinc-500">{sortedGuilds.length} guildes</span>
+                            {totalPages > 1 && (
+                                <div className="flex items-center gap-1.5">
+                                    <button
+                                        onClick={() => setPage(Math.max(1, currentPage - 1))}
+                                        disabled={currentPage <= 1}
+                                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-black disabled:opacity-30 transition-all"
+                                    >
+                                        ‹
+                                    </button>
+                                    <span className="text-[10px] font-mono font-black text-zinc-300">{currentPage} / {totalPages}</span>
+                                    <button
+                                        onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                                        disabled={currentPage >= totalPages}
+                                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-black disabled:opacity-30 transition-all"
+                                    >
+                                        ›
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {viewMode === 'grid' ? (
                         <div className={cn(
                             "grid gap-10 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3"
                         )}>
-                            {filteredGuilds.map((guild) => (
+                            {pagedGuilds.map((guild) => (
                                 <GuildCard key={guild.guildId} guild={guild} onReload={load} />
                             ))}
                         </div>
@@ -421,19 +489,61 @@ export function StorageOverviewPanel() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredGuilds.map((guild) => (
+                                    {pagedGuilds.map((guild) => (
                                         <GuildRow key={guild.guildId} guild={guild} onReload={load} />
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     )}
-                    {filteredGuilds.length === 0 && (
+                    {sortedGuilds.length === 0 && (
                         <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[3rem] text-zinc-700 text-xs font-black uppercase tracking-[0.3em]">
                             Aucune correspondance physique
                         </div>
                     )}
                 </div>
+
+                {/* Logs par guilde (30 jours) */}
+                {logs && (
+                    <div className="p-8 rounded-[3rem] bg-zinc-900/10 border border-white/5 backdrop-blur-3xl space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                                <ScrollText className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-white uppercase tracking-widest">Logs par Guilde</h3>
+                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">30 derniers jours — activité (services/modules) + audit sécurité</p>
+                            </div>
+                            <div className="ml-auto text-right">
+                                <p className="text-2xl font-black text-white leading-none">{logs.totals.total}</p>
+                                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-1">logs au total</p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto no-scrollbar">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-white/5">
+                                    <tr>
+                                        <th className="px-5 py-3 text-[9px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">Guilde</th>
+                                        <th className="px-5 py-3 text-[9px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Activité</th>
+                                        <th className="px-5 py-3 text-[9px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Audit</th>
+                                        <th className="px-5 py-3 text-[9px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {logs.rows.slice(0, 15).map((row) => (
+                                        <tr key={row.guildId} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                                            <td className="px-5 py-3 text-[11px] font-black text-white">{row.name}</td>
+                                            <td className="px-5 py-3 text-[11px] font-mono text-zinc-400 text-right">{row.serviceLogs}</td>
+                                            <td className="px-5 py-3 text-[11px] font-mono text-zinc-400 text-right">{row.auditLogs}</td>
+                                            <td className="px-5 py-3 text-[11px] font-mono font-black text-zinc-200 text-right">{row.total}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Orphans Modal */}
@@ -445,6 +555,45 @@ export function StorageOverviewPanel() {
                 type="MISSION" 
                 onDeleted={load} 
             />
+        </div>
+    );
+}
+
+function StorageLimitEditor({ guildId, limitBytes, onSaved }: { guildId: string; limitBytes: number; onSaved?: () => void }) {
+    const [value, setValue] = useState<string>(limitBytes ? String(Math.round(limitBytes / 1024 / 1024)) : "");
+    const [saving, setSaving] = useState(false);
+    const save = async () => {
+        const mb = Number(value);
+        const bytes = Number.isFinite(mb) && mb > 0 ? Math.round(mb * 1024 * 1024) : null;
+        setSaving(true);
+        const res = await setGuildStorageLimit(guildId, bytes);
+        setSaving(false);
+        if (res.success) {
+            toast.success(bytes ? `Limite réglée à ${mb} Mo` : "Limite par défaut (512 Mo) restaurée");
+            onSaved?.();
+        } else {
+            toast.error(res.error || "Erreur");
+        }
+    };
+    return (
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <input
+                type="number"
+                min={1}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="512"
+                title="Seuil de stockage (Mo) — vide = défaut 512 Mo"
+                className="w-16 h-7 rounded-lg bg-zinc-900 border border-white/10 text-[10px] font-mono px-2 text-zinc-200 focus:outline-none focus:border-emerald-500/40"
+            />
+            <span className="text-[9px] font-black text-zinc-500 uppercase">Mo</span>
+            <button
+                onClick={save}
+                disabled={saving}
+                className="h-7 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-zinc-300 disabled:opacity-50 transition-all"
+            >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : "OK"}
+            </button>
         </div>
     );
 }
@@ -467,19 +616,41 @@ function GuildCard({ guild, onReload }: { guild: StorageGuildEntry; onReload: ()
                         <p className="text-[10px] font-mono font-black text-zinc-400 tracking-tighter opacity-80">{guild.discordGuildId}</p>
                     </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end gap-1">
+                    {guild.overLimit && (
+                        <span className="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 text-red-500 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg">
+                            <AlertTriangle className="w-3 h-3" /> Seuil dépassé
+                        </span>
+                    )}
                     <p className="text-2xl font-black text-white tracking-tighter">{formatBytes(subTotal)}</p>
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest opacity-90">{totalCount} fichiers</p>
                 </div>
             </div>
 
+            {/* Seuil & utilisation */}
+            <div className="flex items-center gap-3 bg-black/30 border border-white/5 rounded-2xl px-4 py-3">
+                <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Utilisation du seuil</span>
+                        <span className="text-[10px] font-mono font-black text-zinc-300">{guild.usagePercent}%</span>
+                    </div>
+                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div className={cn("h-full rounded-full", guild.usagePercent > 100 ? "bg-red-500" : guild.usagePercent > 80 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${Math.min(100, guild.usagePercent)}%` }} />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Limite</span>
+                    <StorageLimitEditor guildId={guild.guildId} limitBytes={guild.limitBytes} onSaved={onReload} />
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
-                <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                <StorageMiniItem type="LOAN_PROOF" count={guild.loansProofsCount} bytes={guild.loansProofsBytes} files={guild.loansProofsFiles} dir={guild.loansProofsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                <StorageMiniItem type="LOAN_PROOF" count={guild.loansProofsCount} bytes={guild.loansProofsBytes} files={guild.loansProofsFiles} dir={guild.loansProofsDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                 <div className="col-span-2">
-                    <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                    <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                 </div>
             </div>
             
@@ -489,9 +660,9 @@ function GuildCard({ guild, onReload }: { guild: StorageGuildEntry; onReload: ()
 }
 
 function StorageMiniItem({ 
-    type, count, bytes, files, onReload, dir, pendingFiles 
+    type, count, bytes, files, onReload, dir, pendingFiles, guildName 
 }: { 
-    type: keyof typeof TYPE_CFG; count: number; bytes: number; files: DiskFile[]; onReload: () => void; dir: string; pendingFiles: PendingFile[] 
+    type: keyof typeof TYPE_CFG; count: number; bytes: number; files: DiskFile[]; onReload: () => void; dir: string; pendingFiles: PendingFile[]; guildName?: string 
 }) {
     const [explorerOpen, setExplorerOpen] = useState(false);
     const [pendingOpen, setPendingOpen] = useState(false);
@@ -504,6 +675,11 @@ function StorageMiniItem({
         if (pf.type === "ACHIEVEMENT") return type === "ACHIEVEMENT";
         return false;
     });
+
+    // Compte à rebours de la plus proche auto-suppression (fichiers en attente)
+    const earliestPending = myPending.length > 0
+        ? myPending.reduce((a, b) => new Date(a.expiresAt).getTime() < new Date(b.expiresAt).getTime() ? a : b)
+        : null;
 
     const icon = type === "MISSION" ? <FileImage className="w-4 h-4" /> :
                 type === "KAMA" ? <Coins className="w-4 h-4" /> :
@@ -558,7 +734,13 @@ function StorageMiniItem({
                             <HardDrive className="w-2.5 h-2.5" />
                             Chemin Physique
                         </p>
-                        <PathDisplay path={dir} colorClass={cfg.color} />
+                        <PathDisplay path={dir} colorClass={cfg.color} guildName={guildName} />
+                        {earliestPending && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <CountdownChip providedExpiresAt={earliestPending.expiresAt} labelPrefix="EXP : " />
+                                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">auto-suppression</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -682,11 +864,11 @@ function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () 
                 <tr className="bg-zinc-950 animate-in slide-in-from-top-2 duration-300">
                     <td colSpan={5} className="px-8 py-10">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-                            <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                            <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                            <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                            <StorageMiniItem type="LOAN_PROOF" count={guild.loansProofsCount} bytes={guild.loansProofsBytes} files={guild.loansProofsFiles} dir={guild.loansProofsDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
-                            <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} />
+                            <StorageMiniItem type="MISSION" count={guild.missionsCount} bytes={guild.missionsBytes} files={guild.missionsFiles} dir={guild.missionsDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                            <StorageMiniItem type="KAMA" count={guild.kamaCount} bytes={guild.kamaBytes} files={guild.kamaFiles} dir={guild.kamaDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                            <StorageMiniItem type="ACHIEVEMENT" count={guild.achievementCount} bytes={guild.achievementBytes} files={guild.achievementFiles} dir={guild.achievementDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                            <StorageMiniItem type="LOAN_PROOF" count={guild.loansProofsCount} bytes={guild.loansProofsBytes} files={guild.loansProofsFiles} dir={guild.loansProofsDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
+                            <StorageMiniItem type="PRESENTATION" count={guild.presentationCount} bytes={guild.presentationBytes} files={guild.presentationFiles} dir={guild.presentationDir} pendingFiles={guild.pendingFiles} onReload={onReload} guildName={guild.name} />
                         </div>
                     </td>
                 </tr>

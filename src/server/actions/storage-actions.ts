@@ -9,6 +9,7 @@ import { readdir, stat, unlink } from "fs/promises";
 import { join, normalize } from "path";
 import { existsSync } from "fs";
 import { rateLimit } from "@/lib/ratelimit";
+import { redis } from "@/lib/redis";
 
 const kamaDb = db as unknown as PrismaClient;
 
@@ -17,6 +18,11 @@ const kamaDb = db as unknown as PrismaClient;
 // chaque ouverture de l'onglet God (perf/stabilité). Invalidation : 60s.
 let storageScanCache: { at: number; data: StorageOverview } | null = null;
 const STORAGE_SCAN_CACHE_TTL_MS = 60_000;
+
+// ─── Seuil de stockage par guilde ─────────────────────────────────────────────
+const DEFAULT_GUILD_STORAGE_LIMIT = 512 * 1024 * 1024; // 512 Mo par défaut
+const STORAGE_ALERT_KEY = (guildId: string) => `storage:alert:${guildId}`;
+const STORAGE_ALERT_TTL_S = 24 * 60 * 60; // 1 alerte max / 24h par guilde
 
 export type PendingFile = {
     filename: string;
@@ -80,6 +86,11 @@ export type StorageGuildEntry = {
     achievementCount: number;
     achievementBytes: number;
     achievementFiles: DiskFile[];
+    // seuil & utilisation
+    totalBytes: number;
+    limitBytes: number;
+    usagePercent: number;
+    overLimit: boolean;
 };
 
 export type StorageOverview = {
@@ -210,6 +221,7 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                 presentationBannerUrl: true,
                 presentationBannerType: true,
                 presentationPhotoUrl: true,
+                storageLimitBytes: true,
             } as any,
             orderBy: { name: "asc" },
         });
@@ -261,6 +273,12 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                         : Promise.resolve(0),
                 ]);
 
+                // Seuil & utilisation (défaut global si non surchargé par guilde)
+                const totalBytes = missionsList.bytes + kamaList.bytes + achievementList.bytes + presentationList.bytes;
+                const limitBytes = g.storageLimitBytes != null ? Number(g.storageLimitBytes) : DEFAULT_GUILD_STORAGE_LIMIT;
+                const usagePercent = limitBytes > 0 ? Math.round((totalBytes / limitBytes) * 100) : 0;
+                const overLimit = totalBytes > limitBytes;
+
                 // Collect guild assets (icon, banner, photo)
                 const assets: GuildAsset[] = [];
                 if (g.iconUrl) assets.push({
@@ -310,9 +328,33 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     pendingKamas,
                     pendingFiles: pendingFiles || [],
                     assets,
+                    totalBytes,
+                    limitBytes,
+                    usagePercent,
+                    overLimit,
                 };
             })
         );
+
+        // ─── Alertes seuil de stockage (God, dedup 24h par guilde) ──────────────
+        for (const e of entries) {
+            if (!e.overLimit) continue;
+            try {
+                const alerted = await redis.get(STORAGE_ALERT_KEY(e.guildId));
+                if (alerted) continue;
+                const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                await notifyGod({
+                    title: `⚠️ Stockage dépassé : ${e.name}`,
+                    message: `${e.name} consomme ${(e.totalBytes / 1024 / 1024).toFixed(1)} Mo pour un seuil de ${(e.limitBytes / 1024 / 1024).toFixed(0)} Mo (${e.usagePercent}%). Nettoyage automatique des captures après 7 jours — pensez à ajuster la limite si nécessaire.`,
+                    type: "SYSTEM",
+                    success: false,
+                    metadata: { guildId: e.guildId, totalMo: Math.round(e.totalBytes / 1024 / 1024), limitMo: Math.round(e.limitBytes / 1024 / 1024), usage: `${e.usagePercent}%` },
+                });
+                await redis.set(STORAGE_ALERT_KEY(e.guildId), "1", "EX", STORAGE_ALERT_TTL_S);
+            } catch (err) {
+                logger.warn("[StorageAlert] failed", { error: String(err), guildId: e.guildId });
+            }
+        }
 
 
         // Calculate true orphan files
@@ -443,6 +485,31 @@ export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedC
 
 export type AssetDbField = "iconUrl" | "presentationBannerUrl" | "presentationPhotoUrl";
 
+/**
+ * Après une suppression God, purge les références DB pointant vers ce fichier
+ * (preuves de prêts/coffre/kamas/missions/succès) pour éviter les images cassées
+ * et les références mortes. Best-effort : chaque table est traitée en try/catch.
+ */
+async function clearProofDbReferences(fileUrl: string): Promise<void> {
+    if (!fileUrl) return;
+    const tasks: Promise<unknown>[] = [];
+    try {
+        tasks.push(db.guildLoan.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: null } }));
+        tasks.push(db.guildLoan.updateMany({ where: { returnProofUrl: fileUrl }, data: { returnProofUrl: null } }));
+    } catch { /* best-effort */ }
+    try {
+        tasks.push(db.vaultEntry.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: null } }));
+    } catch { /* best-effort */ }
+    try {
+        tasks.push((kamaDb as any).kamaDonation.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: null } }).catch(() => {}));
+    } catch { /* best-effort */ }
+    try {
+        tasks.push(db.submission.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: "" } }));
+        tasks.push((db as any).achievementSubmission.updateMany({ where: { proofUrl: fileUrl }, data: { proofUrl: "" } }).catch(() => {}));
+    } catch { /* best-effort */ }
+    await Promise.all(tasks.map((t) => t.catch(() => {})));
+}
+
 export async function godDeleteFile(
     fileUrl: string,
     dbClear?: { guildId: string; field: AssetDbField }
@@ -491,9 +558,80 @@ export async function godDeleteFile(
         }
     }
 
+    // 🔗 Purge des références de preuves (prêts/coffre/kamas/missions/succès) pour
+    // ne jamais laisser d'image cassée ni de référence morte après suppression.
+    await clearProofDbReferences(fileUrl);
+
     return { 
         success: true, 
         message: "Opération terminée", 
         deletedPath: absolutePath 
     };
+}
+
+/**
+ * Seuil de stockage personnalisé par guilde (octets).
+ * NULL → seuil global par défaut (512 Mo). Réservé super-admin.
+ */
+export async function setGuildStorageLimit(
+    guildId: string,
+    limitBytes: number | null
+): Promise<{ success: boolean; error?: string }> {
+    if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+    if (limitBytes !== null && (!Number.isFinite(limitBytes) || limitBytes < 0)) {
+        return { success: false, error: "Limite invalide (doit être un entier ≥ 0)" };
+    }
+    const rl = await rateLimit("god:storage:set-limit", 30, 60_000);
+    if (!rl.success) return { success: false, error: "Trop de modifications. Réessayez dans une minute." };
+
+    try {
+        await (db as any).guildConfig.update({
+            where: { id: guildId },
+            data: { storageLimitBytes: limitBytes === null ? null : BigInt(limitBytes) },
+        });
+        // Invalide le cache du scan pour refléter la nouvelle limite immédiatement.
+        storageScanCache = null;
+        return { success: true };
+    } catch (error) {
+        logger.error("[setGuildStorageLimit]", { error: String(error), guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Volume de logs par guilde (30 derniers jours) + totaux globaux.
+ * - ServiceActivityLog (logs d'activité services/modules par guilde)
+ * - AuditLog (logs d'audit sécurité par guilde, isGodLog=false)
+ * Réservé super-admin.
+ */
+export async function getGuildLogsStats(): Promise<{
+    success: boolean;
+    data?: { rows: { guildId: string; name: string; serviceLogs: number; auditLogs: number; total: number }[]; totals: { serviceLogs: number; auditLogs: number; total: number } };
+    error?: string;
+}> {
+    if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const guilds = await db.guildConfig.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+    });
+
+    const rows = await Promise.all(
+        guilds.map(async (g) => {
+            const [serviceLogs, auditLogs] = await Promise.all([
+                db.serviceActivityLog.count({ where: { guildId: g.id, createdAt: { gte: since } } }),
+                db.auditLog.count({ where: { guildId: g.id, isGodLog: false, createdAt: { gte: since } } }).catch(() => 0),
+            ]);
+            return { guildId: g.id, name: g.name, serviceLogs, auditLogs, total: serviceLogs + auditLogs };
+        })
+    );
+
+    rows.sort((a, b) => b.total - a.total);
+    const totals = rows.reduce(
+        (acc, r) => ({ serviceLogs: acc.serviceLogs + r.serviceLogs, auditLogs: acc.auditLogs + r.auditLogs, total: acc.total + r.total }),
+        { serviceLogs: 0, auditLogs: 0, total: 0 }
+    );
+
+    return { success: true, data: { rows, totals } };
 }

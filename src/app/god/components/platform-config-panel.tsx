@@ -57,6 +57,7 @@ interface PlatformConfigPanelProps {
         maintenanceMessage: string | null;
         ladderManualFallback: boolean;
         dofusQuestHeaderIcon: string;
+        rbacUsersMappingEnabled: boolean;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -82,7 +83,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         maintenanceMode: config?.maintenanceMode || false,
         maintenanceMessage: config?.maintenanceMessage || "",
         ladderManualFallback: config?.ladderManualFallback || false,
-        dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete"
+        dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete",
+        rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -350,7 +352,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             { key: "nsfwFilterEnabled", label: "IA Filtre NSFW", desc: "Inspection automatique des captures pour filtrer le contenu inapproprié." },
                             { key: "godNotifyWebEnabled", label: "Notifications Web Admin", desc: "Affichage des bannières d'alerte en temps réel sur l'interface." },
                             { key: "donationsEnabled", label: "Module Dons Orbes", desc: "Activation du widget de contribution financière sur les guildes." },
-                            { key: "ladderManualFallback", label: "Fallback Pseudo Manuel", desc: "Autorise la saisie manuelle du pseudo Dofus si la liaison Ankama est KO (évite de bloquer les nouveaux membres)." }
+                            { key: "ladderManualFallback", label: "Fallback Pseudo Manuel", desc: "Autorise la saisie manuelle du pseudo Dofus si la liaison Ankama est KO (évite de bloquer les nouveaux membres)." },
+                            { key: "rbacUsersMappingEnabled", label: "RBAC Membres Spécifiques", desc: "Autorise les permissions individuelles par membre (usersMapping). Désactiver en cas de bug = kill-switch global fail-closed (aucune permission individuelle appliquée)." }
                         ].map((opt) => {
                             const active = (formData as any)[opt.key];
                             return (

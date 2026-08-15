@@ -86,7 +86,7 @@ import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
 import { MemberBlacklist } from "@/components/admin/members/member-blacklist";
-import { sendManualNudge } from "@/server/actions/relance-actions";
+import { RelanceModal, type RelanceTarget } from "@/components/admin/members/relance-modal";
 
 // Static color map to avoid Tailwind CSS purging dynamic class names
 const STAT_COLORS = [
@@ -224,7 +224,8 @@ export default function MemberManagement({
 }: MemberManagementProps) {
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState("audit");
-    const [nudgingUser, setNudgingUser] = useState<string | null>(null);
+    // #74 — modale dédiée « Relancer » (solo ou bulk)
+    const [relanceTargets, setRelanceTargets] = useState<RelanceTarget[] | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -629,6 +630,21 @@ export default function MemberManagement({
                                             <SelectItem value="voir" className="uppercase text-[10px] font-black tracking-widest text">À voir</SelectItem>
                                         </SelectContent>
                                     </Select>
+
+                                    {/* #74 — Relance groupée sur les membres filtrés */}
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setRelanceTargets(
+                                            filteredAuditMembers.map(m => ({ id: m.discordId, name: m.displayName }))
+                                        )}
+                                        className="h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 text-[10px] font-black uppercase tracking-widest px-4 gap-2"
+                                    >
+                                        <Bell className="w-3.5 h-3.5" />
+                                        Relance groupée
+                                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[9px]">
+                                            {filteredAuditMembers.length}
+                                        </span>
+                                    </Button>
                                     </div>
                                 </div>
                             </div>
@@ -781,28 +797,9 @@ export default function MemberManagement({
                                                                  variant="outline" 
                                                                  size="sm" 
                                                                  className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-all text-[10px] font-black uppercase tracking-widest px-3 gap-1.5"
-                                                                 onClick={async () => {
-                                                                     setNudgingUser(member.discordId);
-                                                                     try {
-                                                                         const res = await sendManualNudge(guildId, member.discordId);
-                                                                         if (res.success) {
-                                                                             toast.success("Relance Discord envoyée avec succès par MP !");
-                                                                         } else {
-                                                                             toast.error(res.error || "Erreur de relance");
-                                                                         }
-                                                                     } catch (err) {
-                                                                         toast.error("Échec de la relance");
-                                                                     } finally {
-                                                                         setNudgingUser(null);
-                                                                     }
-                                                                 }}
-                                                                 disabled={nudgingUser === member.discordId}
+                                                                 onClick={() => setRelanceTargets([{ id: member.discordId, name: member.displayName }])}
                                                              >
-                                                                 {nudgingUser === member.discordId ? (
-                                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                                 ) : (
-                                                                     <Bell className="w-3.5 h-3.5" />
-                                                                 )}
+                                                                 <Bell className="w-3.5 h-3.5" />
                                                                  Relancer
                                                              </Button>
                                                          )}
@@ -876,6 +873,16 @@ export default function MemberManagement({
                     <MemberBlacklist guildId={guildId} />
                 </TabsContent>
             </Tabs>
+
+            {/* #74 — Modale dédiée « Relancer » (solo ou bulk) */}
+            {relanceTargets && (
+                <RelanceModal
+                    guildId={guildId}
+                    targets={relanceTargets}
+                    channels={channels}
+                    onClose={() => setRelanceTargets(null)}
+                />
+            )}
         </div>
     );
 }

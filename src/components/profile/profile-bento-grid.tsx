@@ -472,7 +472,7 @@ export function ProfileBentoGrid({
                 {/* Main Content Area (Full Width) */}
                 <div className="min-w-0 space-y-8">
                 {/* OVERVIEW TAB */}
-                <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="overview" className="animate-in fade-in duration-300">
                     <div id="profile-edit-section" className="flex flex-col gap-6">
                         {/* Classes */}
                         <div data-tour="profile-class">
@@ -512,7 +512,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* INTRODUCTION / PRESENTATION TAB */}
-                <TabsContent value="intro" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="intro" className="animate-in fade-in duration-300">
                     {visitedTabs.has("intro") && (
                         <PresentationCard
                             introduction={localProfile.introduction || ""}
@@ -546,7 +546,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SERVICES TAB */}
-                <TabsContent value="services" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="services" className="animate-in fade-in duration-300">
                     {visitedTabs.has("services") && (
                         <ProfileServicesTab
                             guildId={guildId}
@@ -557,7 +557,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* ACTIVITY & PRESENCE TAB */}
-                <TabsContent value="activity" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="activity" className="animate-in fade-in duration-300">
                     {visitedTabs.has("activity") && (
                         <ProfileActivityTab
                             lastSeen={(localProfile as any).lastSeen || (localProfile as any).lastActivityAt}
@@ -574,7 +574,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* COMBAT TAB (Stuffs) */}
-                <TabsContent value="combat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="combat" className="animate-in fade-in duration-300">
                     {visitedTabs.has("combat") && (
                         <div className="w-full">
                             <BuildsCard
@@ -589,7 +589,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* SKINS TAB */}
-                <TabsContent value="skins" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="skins" className="animate-in fade-in duration-300">
                     {visitedTabs.has("skins") && (
                         <div className="w-full">
                             <SkinLibrary 
@@ -603,7 +603,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* MULES TAB */}
-                <TabsContent value="mules" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="mules" className="animate-in fade-in duration-300">
                     {visitedTabs.has("mules") && (
                         <div className="w-full">
                             <AltPseudos
@@ -617,7 +617,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* PLANNING TAB */}
-                <TabsContent value="planning" className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6">
+                <TabsContent value="planning" className="animate-in fade-in duration-300 flex flex-col gap-6">
                     {visitedTabs.has("planning") && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2">
@@ -648,7 +648,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                 {/* ACHIEVEMENTS TAB */}
-                <TabsContent value="achievements" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="achievements" className="animate-in fade-in duration-300">
                     {visitedTabs.has("achievements") && (
                         <SuccessSync
                             pseudoDofus={localProfile.pseudoDofus}
@@ -671,7 +671,7 @@ export function ProfileBentoGrid({
                 </TabsContent>
 
                  {/* MÉTIERS TAB */}
-                 <TabsContent value="metiers" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                 <TabsContent value="metiers" className="animate-in fade-in duration-300">
                      {visitedTabs.has("metiers") && (
                          <JobsGrid
                              jobs={localProfile.metiers || []}
@@ -688,7 +688,7 @@ export function ProfileBentoGrid({
                  </TabsContent>
 
                  {/* ARTISANAT TAB */}
-                 <TabsContent value="artisanat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                 <TabsContent value="artisanat" className="animate-in fade-in duration-300">
                      {visitedTabs.has("artisanat") && (
                          <div className="space-y-12">
                              <LegendaryCrafting 
@@ -697,13 +697,18 @@ export function ProfileBentoGrid({
                                  metiers={localProfile.metiers || []}
                                  readOnly={!canEdit}
                              />
-                             <div className="border-t border-white/5 pt-8">
-                                 <LegendaryPetToggle
-                                     guildId={guildId}
-                                     initialValue={localProfile.hasLegendaryPet ?? false}
-                                     readOnly={!canEdit}
-                                 />
-                             </div>
+                             {/* #69 — en lecture seule, la « Croquette Légendaire » n'apparaît QUE si
+                                 le joueur l'a activée dans son profil (pas de bloc mort « Service non
+                                 disponible » pour les autres). Côté éditable (profil perso), toujours visible. */}
+                             {(canEdit || localProfile.hasLegendaryPet) && (
+                                 <div className="border-t border-white/5 pt-8">
+                                     <LegendaryPetToggle
+                                         guildId={guildId}
+                                         initialValue={localProfile.hasLegendaryPet ?? false}
+                                         readOnly={!canEdit}
+                                     />
+                                 </div>
+                             )}
                          </div>
                      )}
                  </TabsContent>
@@ -712,7 +717,7 @@ export function ProfileBentoGrid({
 
                 {/* SETTINGS TAB */}
                 {canEdit && (
-                    <TabsContent value="settings" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <TabsContent value="settings" className="animate-in fade-in duration-300">
                         {visitedTabs.has("settings") && (
                             <UserSettings
                                 guildId={guildId}

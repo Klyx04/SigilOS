@@ -108,11 +108,18 @@ export function ProofUploadDialog({
 
         if (preview) URL.revokeObjectURL(preview);
 
-        // --- Added: NSFW/Safety Check ---
+        // 1. Aperçu IMMÉDIAT — pas d'attente invisible (le filtre tourne en arrière-plan)
+        setFile(selectedFile);
+        setPreview(URL.createObjectURL(selectedFile));
+        setError(null);
         setIsCheckingSafety(true);
+
+        // 2. NSFW/Safety Check (borné 6s côté client, non bloquant pour l'UX)
         try {
             const safety = await analyzeImageSafety(selectedFile);
             if (!safety.isSafe) {
+                setFile(null);
+                setPreview(null);
                 toast.error("INFRACTION DÉTECTÉE : Contenu inapproprié.", {
                     description: "Ce type de contenu est strictement interdit sur la plateforme. L'incident a été enregistré.",
                     duration: 8000,
@@ -123,7 +130,7 @@ export function ProofUploadDialog({
                     }
                 });
 
-                // Logging the incident
+                // Logging the incident (côté guilde)
                 reportSecurityIncident(
                     guildId,
                     "NSFW_ATTEMPT",
@@ -138,17 +145,27 @@ export function ProofUploadDialog({
                     }
                 ).catch((err: Error) => console.error("Failed to log incident", err));
 
+                // 🔐 Alerte God (côté plateforme)
+                try {
+                    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                    await notifyGod({
+                        title: "🚫 Upload NSFW bloqué",
+                        message: `Tentative NSFW sur la mission « ${missionTitle} » (fichier: ${selectedFile.name}).`,
+                        type: "SECURITY_ALERT",
+                        success: false,
+                        metadata: { guildId, missionTitle },
+                    });
+                } catch { /* best-effort */ }
+
                 resetState();
                 onOpenChange(false);
                 return;
             }
+            if (safety.warning) toast.warning(safety.warning);
         } finally {
             setIsCheckingSafety(false);
         }
 
-        setFile(selectedFile);
-        setPreview(URL.createObjectURL(selectedFile));
-        setError(null);
         setOcrResult(null);
     };
 
@@ -179,6 +196,12 @@ export function ProofUploadDialog({
 
         window.addEventListener("paste", handlePaste);
         return () => window.removeEventListener("paste", handlePaste);
+    }, [open]);
+
+    // Pré-charge le modèle NSFWJS dès l'ouverture → le 1er collage est instantané
+    useEffect(() => {
+        if (!open) return;
+        import("@/lib/safety-client").then(({ warmUpSafetyModel }) => warmUpSafetyModel()).catch(() => {});
     }, [open]);
 
 

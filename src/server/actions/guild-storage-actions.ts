@@ -10,11 +10,18 @@ const DEFAULT_GUILD_STORAGE_LIMIT = 512 * 1024 * 1024; // 512 Mo (aligné God)
 async function dirSizeBytes(dirPath: string): Promise<{ count: number; bytes: number }> {
     let count = 0;
     let bytes = 0;
+    const base = path.resolve(dirPath);
     try {
-        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        const entries = await fs.readdir(base, { withFileTypes: true });
         for (const f of entries) {
             if (!f.isFile()) continue; // on ignore les sous-dossiers (comptés séparément)
-            const s = await fs.stat(path.join(dirPath, f.name));
+            // 🔐 Anti-traversal (CodeQL) : readdir renvoie des noms sans séparateur,
+            // on refuse quand même . / .. / tout séparateur par défense en profondeur,
+            // et on re-vérifie que le fichier résolu reste bien sous le dossier scanné.
+            if (f.name === "." || f.name === ".." || f.name.includes("/") || f.name.includes("\\")) continue;
+            const child = path.resolve(base, f.name);
+            if (!child.startsWith(base + path.sep)) continue;
+            const s = await fs.stat(child);
             bytes += s.size;
             count++;
         }
@@ -37,13 +44,27 @@ export async function getGuildStorageUsage(guildId: string) {
     });
     if (!guild) return { success: false, error: "Guilde introuvable" };
 
+    // 🔐 CodeQL / Uncontrolled path — le dossier missions est construit avec le
+    // discordGuildId fourni par l'utilisateur : on exige un snowflake strict
+    // (17-20 chiffres) et on borne chaque chemin sous private_uploads.
+    if (!/^\d{17,20}$/.test(guildId)) return { success: false, error: "Guilde invalide" };
+
     const cwd = process.cwd();
+    const privateRoot = path.resolve(cwd, "private_uploads");
+    const buildDir = (...parts: string[]) => {
+        const p = path.resolve(privateRoot, ...parts);
+        if (p !== privateRoot && !p.startsWith(privateRoot + path.sep)) {
+            throw new Error("Invalid storage path");
+        }
+        return p;
+    };
+
     const [missions, kamaLoans, achievements, presentation, assets] = await Promise.all([
-        dirSizeBytes(path.join(cwd, "private_uploads", "proofs", guildId)),
-        dirSizeBytes(path.join(cwd, "private_uploads", "guilds", guild.id, "proofs")),
-        dirSizeBytes(path.join(cwd, "private_uploads", "guilds", guild.id, "achievements")),
-        dirSizeBytes(path.join(cwd, "private_uploads", "guilds", guild.id, "presentation")),
-        dirSizeBytes(path.join(cwd, "private_uploads", "guilds", guild.id)), // icône/bannière/photo (fichiers directs)
+        dirSizeBytes(buildDir("proofs", guildId)),
+        dirSizeBytes(buildDir("guilds", guild.id, "proofs")),
+        dirSizeBytes(buildDir("guilds", guild.id, "achievements")),
+        dirSizeBytes(buildDir("guilds", guild.id, "presentation")),
+        dirSizeBytes(buildDir("guilds", guild.id)), // icône/bannière/photo (fichiers directs)
     ]);
 
     const totalBytes = missions.bytes + kamaLoans.bytes + achievements.bytes + presentation.bytes + assets.bytes;

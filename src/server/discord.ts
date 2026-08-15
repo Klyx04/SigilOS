@@ -687,10 +687,10 @@ export async function editInteractionMessage(
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
-    // F-16 CodeQL js/request-forgery : sanitize des valeurs AVANT interpolation dans l'URL.
-    // La query reconnaît le pattern `value.replace(whitelist, "")` comme sanitizer URL-safe
-    // (doc js/request-forgery : « restrict the input so that path traversal cannot be used »).
-    // Fail-closed : toute valeur contenant un caractère hors-whitelist est rejetée.
+    // F-16 CodeQL js/request-forgery : validation fail-closed des valeurs AVANT interpolation.
+    // Le sanitizer RECONNU par la query est `encodeURIComponent` (UriEncodingSanitizer — escape
+    // "/" → "%2F"), appliqué sur chaque segment dans l'URL ci-dessous. Fail-closed si un
+    // caractère hors-whitelist est présent.
     const cleanAppId = applicationId.replace(/[^\d]/g, "").slice(0, 21);
     const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 200);
 
@@ -705,7 +705,7 @@ export async function editInteractionMessage(
 
     try {
         const res = await fetchWithRetry(
-            `https://discord.com/api/v10/webhooks/${cleanAppId}/${cleanToken}/messages/@original`,
+            `https://discord.com/api/v10/webhooks/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanToken)}/messages/@original`,
             {
                 method: "PATCH",
                 headers: {

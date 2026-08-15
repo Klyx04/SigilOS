@@ -6,8 +6,55 @@ import { getUserContext } from "./user-actions";
 import { fetchDofusNews, fetchTwitchLiveStreams, fetchYouTubeLatestVideos, fetchDPLNNews, ExtractedContent } from "@/lib/feed-aggregators";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
+import { redis } from "@/lib/redis";
 
 const CACHE_MINUTES = 15;
+
+// #29 — « non lu » fiable du feed RSS.
+// Les flux utilisent des dates pseudo-chronologiques (Date.now() - idx*60000)
+// qui changent à chaque refresh → l'ancien comptage (published > lastFeedViewedAt)
+// restait toujours > 0 même après lecture. On track maintenant les URLs déjà vues
+// par utilisateur dans un set Redis (TTL 30j) → stable quel que soit le refresh.
+const FEED_SEEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 jours
+const FEED_SEEN_KEY = (userId: string) => `feed:seen:${userId}`;
+
+async function computeFeedUnread(userId: string, items: { url: string }[]): Promise<number> {
+    try {
+        if (redis.status !== "ready") {
+            // Fallback (Redis down) : ancien comportement basé sur lastFeedViewedAt.
+            const rawUser = await db.user.findUnique({ where: { id: userId } });
+            // @ts-ignore
+            const lastSeen = rawUser?.lastFeedViewedAt || new Date(0);
+            return items.filter((item: any) => item.published > lastSeen).length;
+        }
+        const seen = await redis.smembers(FEED_SEEN_KEY(userId));
+        const seenSet = new Set(seen);
+        return items.filter((item) => !seenSet.has(item.url)).length;
+    } catch (error) {
+        logger.error("Failed to compute feed unread", { error: (error as Error).message, userId });
+        return 0;
+    }
+}
+
+async function persistFeedSeen(userId: string, urls: string[]): Promise<void> {
+    try {
+        if (redis.status !== "ready") {
+            await db.user.update({
+                where: { id: userId },
+                // @ts-ignore
+                data: { lastFeedViewedAt: new Date() }
+            });
+            return;
+        }
+        const key = FEED_SEEN_KEY(userId);
+        if (urls.length > 0) {
+            await redis.sadd(key, ...urls);
+        }
+        await redis.expire(key, FEED_SEEN_TTL_SECONDS);
+    } catch (error) {
+        logger.error("Failed to persist feed seen", { error: (error as Error).message, userId });
+    }
+}
 
 // The creators we want to track
 const TWITCH_HANDLES = ["huzounet", "skyziotv", "laniyelle", "barbe___douce", "sapeuh", "liche"];
@@ -126,14 +173,8 @@ export async function getAggregatedFeed(guildId: string, forceRefresh = false) {
             take: 30
         });
 
-        // Calculate "unread" items
-        const rawUser = await db.user.findUnique({
-            where: { id: ctx.id! }
-        });
-
-        // @ts-ignore
-        const lastSeen = rawUser?.lastFeedViewedAt || new Date(0);
-        const unreadCount = feed.filter((item: any) => item.published > lastSeen).length;
+        // Calculate "unread" items (#29 — basé sur les URLs vues, pas les dates pseudo-chrono)
+        const unreadCount = await computeFeedUnread(ctx.id!, feed as { url: string }[]);
 
         return {
             success: true,
@@ -181,11 +222,13 @@ export async function markFeedAsRead(guildId: string) {
     if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
-        await db.user.update({
-            where: { id: ctx.id! },
-            // @ts-ignore
-            data: { lastFeedViewedAt: new Date() }
+        // #29 — marquer les items actuels du feed comme vus (set Redis, TTL 30j).
+        // @ts-ignore
+        const feed = await db.contentCache.findMany({
+            orderBy: { published: 'desc' },
+            take: 30,
         });
+        await persistFeedSeen(ctx.id!, feed.map((item: any) => item.url));
 
         revalidatePath(`/dashboard/${guildId}`);
 

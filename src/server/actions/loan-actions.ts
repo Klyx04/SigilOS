@@ -28,6 +28,7 @@ import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
 import { hashImage } from "@/lib/llm-ocr";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { createNotification } from "./notification-actions";
+import { rateLimit } from "@/lib/ratelimit";
 
 const profileSelect = {
     id: true,
@@ -147,6 +148,12 @@ export async function createLoan(
             return { success: false, error: "Accès refusé" };
         }
         if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        // #55 — rate-limit création de prêt (spam Discord embed / uploads / hash CPU).
+        const loanCreateLimit = await rateLimit(`loan:create:${user.id || "anon"}:${guildId}`, 5, 10 * 60 * 1000);
+        if (!loanCreateLimit.success) {
+            return { success: false, error: "Trop de prêts créés. Veuillez patienter avant de réessayer." };
+        }
 
         const parsed = createLoanSchema.safeParse(input);
         if (!parsed.success) {
@@ -370,6 +377,12 @@ export async function markLoanReturned(
             return { success: false, error: "Accès refusé" };
         }
 
+        // #55 — rate-limit retour de prêt (embeds Discord / notifications).
+        const loanReturnLimit = await rateLimit(`loan:return:${user.id || "anon"}:${guildId}`, 10, 60_000);
+        if (!loanReturnLimit.success) {
+            return { success: false, error: "Trop d'actions. Veuillez patienter avant de réessayer." };
+        }
+
         const loan = await db.guildLoan.findUnique({
             where: { id: loanId },
             select: { lenderId: true, borrowerId: true, status: true, guildId: true },
@@ -474,6 +487,12 @@ export async function cancelLoan(
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated || !user.isMember) {
             return { success: false, error: "Accès refusé" };
+        }
+
+        // #55 — rate-limit annulation de prêt.
+        const loanCancelLimit = await rateLimit(`loan:cancel:${user.id || "anon"}:${guildId}`, 10, 60_000);
+        if (!loanCancelLimit.success) {
+            return { success: false, error: "Trop d'actions. Veuillez patienter avant de réessayer." };
         }
 
         const loan = await db.guildLoan.findUnique({

@@ -57,6 +57,7 @@ export type DofusChainWithProgress = {
     sectionName: string;
     description: string | null;
     chainOrder: number;
+    sectionIcon?: string;
     entries: DofusEntryWithProgress[];
 };
 
@@ -84,6 +85,9 @@ export type DofusEntryWithProgress = {
     isSynergyCandidate: boolean;
     weight: number; // V3: poids pondéré
     externalRef: string | null; // V3: lien guide externe
+    positions: { x: number; y: number; label?: string }[];
+    dofusdbUrl: string | null;
+    dofuspourlesnoobsUrl: string | null;
     // Computed
     status: DofusQuestStatus;
     completedAt: Date | null;
@@ -376,6 +380,7 @@ export async function getDofusDetailWithChains(
             sectionName: chain.sectionName,
             description: chain.description,
             chainOrder: chain.chainOrder,
+            sectionIcon: chain.sectionIcon ?? "serie-de-quete",
             entries: chain.entries.map((entry: any) => {
                 const prog = questProgressMap.get(entry.id);
                 return {
@@ -404,6 +409,9 @@ export async function getDofusDetailWithChains(
                     isSynergyCandidate: entry.isSynergyCandidate,
                     weight: entry.weight ?? 1, // V3
                     externalRef: entry.externalRef ?? null, // V3
+                    positions: entry.positions ?? [],
+                    dofusdbUrl: entry.dofusdbUrl ?? null,
+                    dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl ?? null,
                     status: prog?.status ?? "NOT_STARTED",
                     completedAt: prog?.completedAt ?? null,
                 };

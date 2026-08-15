@@ -23,6 +23,8 @@ const STORAGE_SCAN_CACHE_TTL_MS = 60_000;
 const DEFAULT_GUILD_STORAGE_LIMIT = 512 * 1024 * 1024; // 512 Mo par défaut
 const STORAGE_ALERT_KEY = (guildId: string) => `storage:alert:${guildId}`;
 const STORAGE_ALERT_TTL_S = 24 * 60 * 60; // 1 alerte max / 24h par guilde
+const STORAGE_CRITICAL_THRESHOLD = 85; // % — seuil « critique » (approche de la limite)
+const STORAGE_CRITICAL_KEY = (guildId: string) => `storage:critical:${guildId}`;
 
 export type PendingFile = {
     filename: string;
@@ -398,6 +400,46 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
                 }
             });
         });
+
+        // ─── Alertes seuil CRITIQUE (≥85%, avant dépassement) : God + admins guilde ──
+        // Dedup 24h par guilde. Notifie le God ET les admins de la guilde (notif dashboard).
+        for (const e of entries) {
+            if (e.usagePercent < STORAGE_CRITICAL_THRESHOLD || e.overLimit) continue;
+            try {
+                const cKey = STORAGE_CRITICAL_KEY(e.guildId);
+                const alerted = await redis.get(cKey);
+                if (alerted) continue;
+
+                const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                await notifyGod({
+                    title: `⚠️ Stockage critique : ${e.name}`,
+                    message: `${e.name} a atteint ${e.usagePercent}% de son seuil (${(e.totalBytes / 1024 / 1024).toFixed(1)} Mo / ${(e.limitBytes / 1024 / 1024).toFixed(0)} Mo). Prévoir un nettoyage ou un relèvement du seuil.`,
+                    type: "SYSTEM",
+                    success: false,
+                    metadata: { guildId: e.guildId, usage: `${e.usagePercent}%`, totalMo: Math.round(e.totalBytes / 1024 / 1024), limitMo: Math.round(e.limitBytes / 1024 / 1024) },
+                });
+
+                const { getGuildAdminsWithPermission } = await import("./admin-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const admins = await getGuildAdminsWithPermission(e.discordGuildId, PERMISSIONS.SYSTEM_CONFIG);
+                const { createNotification } = await import("./notification-actions");
+                for (const a of admins) {
+                    await createNotification(
+                        a.userId,
+                        "SYSTEM_INFO",
+                        "⚠️ Stockage de la guilde critique",
+                        `${e.name} a atteint ${e.usagePercent}% de sa limite. Vérifiez les captures (nettoyage auto 24h–7j) ou prévenez un super-admin.`,
+                        `/dashboard/${e.discordGuildId}/admin/settings`,
+                        e.discordGuildId,
+                        "SYSTEM" as any,
+                    );
+                }
+
+                await redis.set(cKey, "1", "EX", STORAGE_ALERT_TTL_S);
+            } catch (err) {
+                logger.warn("[StorageCriticalAlert] failed", { error: String(err), guildId: e.guildId });
+            }
+        }
 
         const result = { success: true as const, data: { guilds: entries, totalBytes, totalFiles, orphanFiles } };
         storageScanCache = { at: Date.now(), data: result.data };

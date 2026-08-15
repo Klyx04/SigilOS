@@ -408,11 +408,21 @@ export async function reviewKamaDonation(
                 status: newStatus,
                 validatedById: user.profileId,
                 validatedAt: new Date(),
+                proofUrl: null, // fichier supprimé physiquement (anti-gonflement VPS)
                 rejectedReason: parsed.data.action === "REJECT"
                     ? (parsed.data.rejectedReason || "Refuse par un administrateur")
                     : null,
             },
         });
+
+        // Delete proof file + image hash (validation ET rejet) — anti-gonflement VPS
+        if (donation.proofUrl) {
+            const { deleteProofFile } = await import("@/lib/storage-utils");
+            await deleteProofFile(donation.proofUrl);
+            await (kamaDb as any).imageHash.deleteMany({
+                where: { guildId: guildConfig.id, sourceType: "KAMA_DONATION", sourceId: donation.id },
+            });
+        }
 
         if (newStatus === "VALIDATED") {
             const tranches = Math.floor(donation.amount / KAMA_TRANCHE);

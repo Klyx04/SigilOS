@@ -179,7 +179,9 @@ async function main() {
     await ensureLogin(page);
   }
 
-  const targets = TARGETS_FILTER ? TARGETS.filter((t) => TARGETS_FILTER.includes(t.file)) : TARGETS;
+  const targets = TARGETS_FILTER
+    ? TARGETS.filter((t) => TARGETS_FILTER.some((f) => t.file === f || t.file.replace(/\.png$/, "") === f))
+    : TARGETS;
   for (const target of targets) {
     await capture(page, target);
   }

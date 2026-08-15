@@ -343,8 +343,13 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
     <div className="bg-zinc-900/30 border border-white/5 rounded-3xl overflow-hidden">
       <button onClick={() => onToggleCollapse(chain.id)} className="w-full flex items-center justify-between p-5 bg-zinc-900/40 hover:bg-zinc-900/60 transition-all text-left">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
-            <Layers className="w-5 h-5" style={{ color }} />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
+            {(chain as any).sectionIcon ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={`/assets/icons/${(chain as any).sectionIcon}.png`} alt="" className="w-9 h-9 object-contain" />
+            ) : (
+              <Layers className="w-5 h-5" style={{ color }} />
+            )}
           </div>
           <div>
             <h3 className="font-black text-sm text-white uppercase tracking-tight">{chain.sectionName}</h3>

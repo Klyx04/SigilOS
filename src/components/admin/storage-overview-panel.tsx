@@ -308,9 +308,9 @@ export function StorageOverviewPanel() {
     const [logs, setLogs] = useState<Awaited<ReturnType<typeof getGuildLogsStats>>["data"] | null>(null);
     const PAGE_SIZE = 25;
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (force = false) => {
         setLoading(true);
-        const [res, status] = await Promise.all([getStorageOverview(), getInternalSystemStatus()]);
+        const [res, status] = await Promise.all([getStorageOverview(force), getInternalSystemStatus()]);
         if (res.success && res.data) setOverview(res.data);
         if (status) setSystemStatus(status);
         setLoading(false);
@@ -379,7 +379,7 @@ export function StorageOverviewPanel() {
                                         <List className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <button onClick={load} className="p-2 text-zinc-500 hover:text-white transition-colors">
+                                <button onClick={() => load(true)} title="Rafraîchir le scan disque (force)" className="p-2 text-zinc-500 hover:text-white transition-colors">
                                     <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
                                 </button>
                             </div>

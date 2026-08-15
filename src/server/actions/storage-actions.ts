@@ -205,8 +205,11 @@ async function getPendingFilesForGuild(
 
 // ─── Main action ──────────────────────────────────────────────────────────────
 
-export async function getStorageOverview(): Promise<{ success: boolean; data?: StorageOverview; error?: string }> {
+export async function getStorageOverview(force = false): Promise<{ success: boolean; data?: StorageOverview; error?: string }> {
     if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    // `force=true` → invalide le cache court (60s) pour un re-scan immédiat.
+    if (force) storageScanCache = null;
 
     // Cache court (60s) — évite le re-scan récursif du disque à chaque ouverture.
     if (storageScanCache && Date.now() - storageScanCache.at < STORAGE_SCAN_CACHE_TTL_MS) {

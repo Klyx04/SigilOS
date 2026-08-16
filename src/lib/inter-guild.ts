@@ -74,6 +74,21 @@ export const INTER_GUILD_DEFAULTS: Record<InterGuildModuleKey, InterGuildScope> 
     quests: "SERVER",
 };
 
+/** Libellés UI des modules inter-guilde (panneau admin + interface God). */
+export const INTER_GUILD_MODULE_LABELS: Record<InterGuildModuleKey, string> = {
+    welcome: "Fil d'arrivées",
+    members: "Annuaire membres",
+    gallery: "Galerie de stuffs",
+    minigames: "Mini-jeux",
+    calendar: "Calendrier & Raids",
+    ladder: "Ladder",
+    ocre: "Quête Ocre (trades)",
+    songes: "Songes Infinis",
+    donjons: "Donjons & Quêtes",
+    services: "Services",
+    quests: "Suivi par Dofus / Rush",
+};
+
 /** Parse sûr d'un scope provenant d'un Json (fail-closed → OFF si invalide). */
 export function parseScope(value: unknown): InterGuildScope {
     return value === "SERVER" || value === "GLOBAL" ? value : "OFF";

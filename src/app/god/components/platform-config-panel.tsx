@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { updatePlatformConfig, testStatusPing, testBackupNotification, toggleMaintenanceMode } from "@/server/actions/changelog-actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { INTER_GUILD_MODULES, INTER_GUILD_MODULE_LABELS } from "@/lib/inter-guild";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,8 @@ interface PlatformConfigPanelProps {
         ladderManualFallback: boolean;
         dofusQuestHeaderIcon: string;
         rbacUsersMappingEnabled: boolean;
+        interGuildGlobalEnabled: boolean;
+        interGuildModules: Record<string, string> | null;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -85,7 +88,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         maintenanceMessage: config?.maintenanceMessage || "",
         ladderManualFallback: config?.ladderManualFallback || false,
         dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete",
-        rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true
+        rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true,
+        interGuildGlobalEnabled: config?.interGuildGlobalEnabled ?? true,
+        interGuildModules: (config?.interGuildModules as Record<string, string>) || {}
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -356,7 +361,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             { key: "godNotifyWebEnabled", label: "Notifications Web Admin", desc: "Affichage des bannières d'alerte en temps réel sur l'interface." },
                             { key: "donationsEnabled", label: "Module Dons Orbes", desc: "Activation du widget de contribution financière sur les guildes." },
                             { key: "ladderManualFallback", label: "Fallback Pseudo Manuel", desc: "Autorise la saisie manuelle du pseudo Dofus si la liaison Ankama est KO (évite de bloquer les nouveaux membres)." },
-                            { key: "rbacUsersMappingEnabled", label: "RBAC Membres Spécifiques", desc: "Autorise les permissions individuelles par membre (usersMapping). Désactiver en cas de bug = kill-switch global fail-closed (aucune permission individuelle appliquée)." }
+                            { key: "rbacUsersMappingEnabled", label: "RBAC Membres Spécifiques", desc: "Autorise les permissions individuelles par membre (usersMapping). Désactiver en cas de bug = kill-switch global fail-closed (aucune permission individuelle appliquée)." },
+                            { key: "interGuildGlobalEnabled", label: "Inter-Guilde (Global)", desc: "Kill-switch : OFF coupe l'inter-guilde PARTOUT, même si une guilde l'a activée (fail-closed prioritaire)." }
                         ].map((opt) => {
                             const active = (formData as any)[opt.key];
                             return (
@@ -434,6 +440,49 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             {formData.maintenanceMode ? "DÉSACTIVER LA MAINTENANCE (Site En Ligne)" : "ACTIVER LA MAINTENANCE (Verrouiller le site)"}
                         </button>
                     </div>
+                </div>
+            </div>
+
+            {/* Chantier Inter-Guilde — plafonds God par module (le plus restrictif gagne) */}
+            <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6">
+                <div className="border-b border-white/5 pb-4 space-y-1">
+                    <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-emerald-400" />
+                        Inter-Guilde — Plafonds par module
+                    </h4>
+                    <p className="text-zinc-500 text-xs font-medium">
+                        Plafond God : une guilde ne peut jamais dépasser ce réglage (« OFF » force la fermeture partout).
+                        « Défaut » = pas de plafond particulier (le réglage de la guilde s'applique).
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {INTER_GUILD_MODULES.map((module) => {
+                        const val = (formData.interGuildModules || {})[module] || "";
+                        return (
+                            <div key={module} className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-white/5 bg-zinc-900/30">
+                                <span className="text-xs font-bold text-white truncate">{INTER_GUILD_MODULE_LABELS[module]}</span>
+                                <Select
+                                    value={val || "__default__"}
+                                    onValueChange={(v) => setFormData(prev => {
+                                        const next = { ...(prev.interGuildModules || {}) };
+                                        if (v === "__default__") delete next[module];
+                                        else next[module] = v;
+                                        return { ...prev, interGuildModules: next };
+                                    })}
+                                >
+                                    <SelectTrigger className="w-40 bg-zinc-900 border-white/10 text-xs font-medium">
+                                        <SelectValue placeholder="Défaut" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-zinc-950 border-white/10">
+                                        <SelectItem value="__default__">Défaut</SelectItem>
+                                        <SelectItem value="OFF">OFF — Cloisonné</SelectItem>
+                                        <SelectItem value="SERVER">Même serveur</SelectItem>
+                                        <SelectItem value="GLOBAL">Toutes guildes</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 

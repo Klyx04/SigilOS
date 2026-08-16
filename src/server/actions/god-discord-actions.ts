@@ -6,6 +6,18 @@ import { fetchChannel, fetchBotGuilds } from "@/server/discord";
 import { db } from "@/lib/prisma";
 
 /**
+ * Bornage (perf #21) : un appel Discord ne doit jamais bloquer le diagnostic
+ * « Scan Accès » plus de quelques secondes.
+ */
+function withTimeout<T>(promise: Promise<T>, ms = 10_000): Promise<T> {
+    promise.catch(() => {}); // évite unhandled rejection si le timeout gagne la course
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout (${ms}ms)`)), ms)),
+    ]);
+}
+
+/**
  * Diagnostic tool for Discord Bot connectivity in God Dashboard
  */
 export async function diagnoseDiscordConnectivity() {
@@ -30,10 +42,10 @@ export async function diagnoseDiscordConnectivity() {
             return { success: true, results };
         }
 
-        // 1. Verify Token & Identity
-        const meRes = await fetch("https://discord.com/api/v10/users/@me", {
+        // 1. Verify Token & Identity (borné 8s)
+        const meRes = await withTimeout(fetch("https://discord.com/api/v10/users/@me", {
             headers: { Authorization: `Bot ${token}` }
-        });
+        }), 8_000);
 
         if (!meRes.ok) {
             results.token = { status: "ERROR", message: `Invalid Token (API returned ${meRes.status})` };
@@ -44,9 +56,9 @@ export async function diagnoseDiscordConnectivity() {
         results.token = { status: "OK", message: "Token valid" };
         results.botIdentity = { id: botData.id, username: botData.username };
 
-        // 2. Fetch Guilds
+        // 2. Fetch Guilds (borné 10s)
         try {
-            results.guilds = await fetchBotGuilds();
+            results.guilds = await withTimeout(fetchBotGuilds(), 10_000);
         } catch (e: any) {
             results.guilds_error = e.message;
         }
@@ -57,7 +69,7 @@ export async function diagnoseDiscordConnectivity() {
         const checkChan = async (channelId: string | null) => {
             if (!channelId) return { status: "EMPTY", message: "Non configuré" };
             try {
-                const chan = await fetchChannel(channelId);
+                const chan = await withTimeout(fetchChannel(channelId), 8_000);
                 if (!chan) return { status: "MISSING", message: "Introuvable (404)" };
                 return { status: "OK", message: `${chan.name} (#${chan.id})` };
             } catch (e: any) {

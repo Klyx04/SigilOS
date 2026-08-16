@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { 
     Settings, 
@@ -65,6 +65,7 @@ interface PlatformConfigPanelProps {
 
 export function PlatformConfigPanel({ config, availableGuilds, availableRoles }: PlatformConfigPanelProps) {
     const [isPending, startTransition] = useTransition();
+    const reportRef = useRef<HTMLDivElement>(null);
     const [formData, setFormData] = useState({
         hubChannelId: config?.hubChannelId || "",
         serviceStatusChannelId: config?.serviceStatusChannelId || "",
@@ -150,6 +151,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
             if (res.success) {
                 setDiagResults(res.results);
                 toast.success("Diagnostic terminé ! Regarde le rapport juste en dessous.");
+                // Scroll auto vers le rapport pour que le résultat soit visible immédiatement.
+                setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
             } else {
                 toast.error(res.error || "Échec du diagnostic");
             }
@@ -200,7 +203,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
 
             {/* RAPPORT DE DIAGNOSTIC DISCORD */}
             {diagResults && (
-                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-3xl p-6 space-y-4 animate-in slide-in-from-top-4 duration-300">
+                <div ref={reportRef} className="bg-indigo-500/10 border border-indigo-500/20 rounded-3xl p-6 space-y-4 animate-in slide-in-from-top-4 duration-300">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-black text-indigo-300 uppercase tracking-wider">
                             <ShieldCheck className="w-4 h-4" /> Rapport de Diagnostic Discord

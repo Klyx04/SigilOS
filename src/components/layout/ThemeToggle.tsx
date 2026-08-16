@@ -6,14 +6,16 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export function ThemeToggle({ className }: { className?: string }) {
-    const { theme, setTheme } = useTheme();
+    const { theme, setTheme, forcedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    if (!mounted) return null;
+    // #16 — kill-switch God « Forcer le mode sombre » : boutons masqués quand le
+    // thème est verrouillé (aucun moyen de repasser en clair, fail-closed).
+    if (!mounted || forcedTheme) return null;
 
     const toggleTheme = () => {
         setTheme(theme === "dark" || theme === "system" ? "light" : "dark");

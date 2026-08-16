@@ -45,29 +45,29 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`;
 
         const embed = {
-            embedTitle: `📅 Rapport Quotidien — ${config.name}`,
+            embedTitle: `📋 Rapport de guilde — ${config.name}`,
             embedUrl: dashboardUrl,
-            embedDescription: `Voici le résumé de l'activité du serveur pour ces dernières 24 heures.\n[Gérer les Membres et l'Audit ➡️](${dashboardUrl})`,
-            embedColor: 0x9333ea, // Purple
+            embedDescription: `Résumé de l'activité de la guilde sur les dernières 24 heures.\n[Gérer les membres et l'audit ➡️](${dashboardUrl})`,
+            embedColor: 0x10b981, // Emerald
             embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png",
             fields: [
                 {
-                    name: "👥 AUDIT MEMBRES",
-                    value: `Inscrits: **${config._count.profiles}**\nNon-identifiés: **${unregisteredCount}** ⚠️`,
+                    name: "👥 Membres",
+                    value: `Inscrits sur SigilOS: **${config._count.profiles}**\nSans profil encore: **${unregisteredCount}**`,
                     inline: true
                 },
                 {
-                    name: "🛰️ INFRASTRUCTURE",
-                    value: `Systèmes: **OPÉRATIONNELS**\nUptime: \`${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m\``,
+                    name: "⚙️ Services",
+                    value: "Tous les services sont opérationnels.",
                     inline: true
                 },
                 {
-                    name: "📈 ACTIVITÉ GLOBALE",
-                    value: `Utilisateurs actifs: **${stats.weeklyActiveUsers}** (semaine)\nMissions en cours: **${stats.totalMissions}**`,
+                    name: "📈 Activité (7 jours)",
+                    value: `Membres actifs: **${stats.weeklyActiveUsers}**\nMissions en cours: **${stats.totalMissions}**`,
                     inline: false
                 }
             ],
-            embedFooter: `SigilOS Intelligence Artificielle • Rapport du ${new Date().toLocaleDateString('fr-FR')}`,
+            embedFooter: `SigilOS • Rapport du ${new Date().toLocaleDateString('fr-FR')}`,
         };
 
         const messageId = await sendChannelMessage(config.systemNotifyChannelId, "", embed);

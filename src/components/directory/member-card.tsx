@@ -344,7 +344,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                                             )}
                                                         </div>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top" className="glass-premium border-white/10 text-caption font-black uppercase tracking-widest">
+                                                    <TooltipContent side="top" className="border-white/10 text-caption font-semibold">
                                                         <p>{mule.pseudo} (Nv. {mule.level || 200})</p>
                                                         <p className="text-zinc-500">{mCls?.name || "Classe inconnue"} - {mOrder?.name || "Sans ordre"}</p>
                                                     </TooltipContent>
@@ -363,7 +363,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <span className="text-caption text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
                                 <Palmtree className="w-3 h-3" /> Période d'absence
                             </span>
-                            <span className="text-caption text-zinc-300 font-black italic whitespace-nowrap">
+                            <span className="text-caption text-zinc-300 font-medium whitespace-nowrap">
                                 {format(vacationStart!, "d MMMM", { locale: fr })}
                                 {vacationEnd ? ` au ${format(vacationEnd, "d MMMM", { locale: fr })}` : " (indéfini)"}
                             </span>

@@ -736,6 +736,9 @@ export async function deleteDreamBonus(guildId: string, data: z.infer<typeof Del
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
+    const limiter = await rateLimit(`delete_dream_bonus:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
+
     const validated = DeleteBonusSchema.safeParse(data);
     if (!validated.success) return { success: false, error: "Données invalides" };
 
@@ -757,6 +760,9 @@ export async function deleteDreamBonus(guildId: string, data: z.infer<typeof Del
 export async function addDreamBonus(guildId: string, data: z.infer<typeof AddBonusSchema>) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`add_dream_bonus:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
 
     const validated = AddBonusSchema.safeParse(data);
     if (!validated.success) {
@@ -1069,6 +1075,9 @@ const RespondJoinRequestSchema = z.object({
 export async function respondToJoinRequest(guildId: string, data: z.infer<typeof RespondJoinRequestSchema>) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`respond_join_request:${ctx.userId}:${guildId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
 
     const validated = RespondJoinRequestSchema.safeParse(data);
     if (!validated.success) {
@@ -1457,6 +1466,9 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
 export async function updateCurrentFloor(guildId: string, runId: string, floorNumber: number) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`update_current_floor:${ctx.userId}:${runId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
 
     // Validate floor number
     if (floorNumber < 0 || floorNumber > 26) {
@@ -1889,6 +1901,9 @@ const UpdateStuffSchema = z.object({
 export async function updateMemberStuff(guildId: string, data: z.infer<typeof UpdateStuffSchema>) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié" };
+
+    const limiter = await rateLimit(`update_member_stuff:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
 
     const validated = UpdateStuffSchema.safeParse(data);
     if (!validated.success) return { success: false, error: "Données invalides" };

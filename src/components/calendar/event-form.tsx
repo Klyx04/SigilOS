@@ -11,7 +11,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parse, addHours, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
-import { motion, AnimatePresence } from "framer-motion";
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -556,15 +555,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-5">
-                <AnimatePresence mode="wait">
-                    {step === 1 && (
-                        <motion.div
-                            key="step1"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="space-y-5"
-                        >
+                {step === 1 && (
+                    <div className="space-y-5">
                             {/* ============ TYPE SELECTOR (4 types) ============ */}
                             <div className="space-y-3">
                     <FormLabel className="text-sm font-medium text-zinc-300">
@@ -582,21 +574,19 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     type="button"
                                     onClick={() => handleTypeChange(type)}
                                     className={cn(
-                                        "relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                                        "relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors",
                                         isSelected
-                                            ? cn(config.bg, config.border, "ring-2 ring-offset-2 ring-offset-zinc-900", config.border.replace("border-", "ring-"))
+                                            ? cn(config.bg, config.border)
                                             : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50"
                                     )}
                                 >
                                     <div className={cn(
-                                        "h-10 w-10 rounded-lg flex items-center justify-center transition-all",
-                                        isSelected
-                                            ? cn("bg-gradient-to-br", config.gradient, "shadow-lg")
-                                            : "bg-zinc-800"
+                                        "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
+                                        isSelected ? config.bg : "bg-zinc-800"
                                     )}>
                                         <Icon className={cn(
                                             "h-5 w-5 transition-colors",
-                                            isSelected ? "text-white" : "text-zinc-400"
+                                            isSelected ? config.text : "text-zinc-400"
                                         )} />
                                     </div>
                                     <span className={cn(
@@ -605,12 +595,6 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     )}>
                                         {config.shortLabel}
                                     </span>
-                                    {isSelected && (
-                                        <div className={cn(
-                                            "absolute -top-1 -right-1 h-3 w-3 rounded-full",
-                                            "bg-gradient-to-br", config.gradient
-                                        )} />
-                                    )}
                                 </button>
                             );
                         })}
@@ -1045,17 +1029,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         "Suivant"
                     )}
                 </Button>
-            </motion.div>
+            </div>
         )}
 
         {step === 2 && (
-            <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-6"
-            >
+            <div className="space-y-6">
                 {/* Header Recap */}
                 <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
@@ -1279,9 +1257,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         )}
                     </Button>
                 </div>
-            </motion.div>
+            </div>
         )}
-        </AnimatePresence>
     </form>
 </Form>
     );

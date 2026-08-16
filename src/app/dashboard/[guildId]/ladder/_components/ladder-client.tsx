@@ -227,8 +227,8 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
     return (
         <div className="space-y-12">
-            {/* Modern Tab Navigation (Glassmorphism 2026) */}
-            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/40 backdrop-blur-3xl border-b border-white/5 shadow-2xl transition-all duration-300">
+            {/* Navigation par onglets */}
+            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/60 backdrop-blur-xl border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center justify-between">
                         {/* Tab Container with Scroll Mask */}
@@ -241,7 +241,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             key={cat.id}
                                             onClick={() => setActiveTab(cat.id)}
                                             className={cn(
-                                                "relative z-10 flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 border-b-2 transition-all duration-300 group whitespace-nowrap",
+                                                "relative z-10 flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 border-b-2 transition-colors group whitespace-nowrap",
                                                 isActive 
                                                   ? "text-white" 
                                                   : "border-transparent text-zinc-500 hover:text-zinc-300"
@@ -251,46 +251,29 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             {cat.isImage ? (
                                                 <div 
                                                     className={cn(
-                                                        "w-5 h-5 transition-all duration-300 group- relative",
-                                                        isActive ? "scale-110" : "opacity-40 grayscale group-hover:opacity-100 group-hover:grayscale-0"
+                                                        "w-5 h-5 relative",
+                                                        isActive ? "opacity-100" : "opacity-40 grayscale group-hover:opacity-100 group-hover:grayscale-0"
                                                     )}
-                                                    style={isActive ? { 
-                                                        filter: `drop-shadow(0 0 8px ${cat.color}80)` 
-                                                    } : {}}
                                                 >
                                                     <Image src={cat.icon as string} fill alt="" className="object-contain" />
                                                 </div>
                                             ) : (
                                                 <cat.icon 
                                                     className={cn(
-                                                        "w-4 h-4 transition-all duration-300 group-", 
-                                                        isActive ? "scale-110" : "text-zinc-600 group-hover:text-zinc-400"
+                                                        "w-4 h-4",
+                                                        isActive ? "opacity-100" : "text-zinc-600 group-hover:text-zinc-400"
                                                     )} 
-                                                    style={isActive ? { 
-                                                        color: cat.color,
-                                                        filter: `drop-shadow(0 0 10px ${cat.color}60)` 
-                                                    } : {}}
+                                                    style={isActive ? { color: cat.color } : {}}
                                                 />
                                             )}
                                             <span className={cn(
-                                                "text-caption sm:text-caption font-black uppercase tracking-[0.2em] transition-all duration-300",
+                                                "text-caption sm:text-caption font-semibold",
                                                 isActive ? "opacity-100" : "group-hover:text-white"
                                             )}
-                                            style={isActive ? { 
-                                                color: cat.color,
-                                                textShadow: `0 0 20px ${cat.color}40`
-                                            } : {}}
+                                            style={isActive ? { color: cat.color } : {}}
                                             >
                                                 {cat.label}
                                             </span>
-
-                                            {/* Active Hover Background */}
-                                            {isActive && (
-                                                <div 
-                                                    className="absolute inset-0 -z-10 opacity-30 blur-2xl animate-pulse"
-                                                    style={{ background: `radial-gradient(circle, ${cat.color} 0%, transparent 80%)` }}
-                                                />
-                                            )}
                                         </button>
                                     );
                                 })}

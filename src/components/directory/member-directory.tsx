@@ -389,13 +389,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     setIsOpenAlignment(false);
                                                 }}
                                                 className={cn(
-                                                    "relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-300",
+                                                    "relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors",
                                                     isSelected
                                                         ? "border-indigo-500 bg-indigo-500/10 "
                                                         : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
                                                 )}
                                             >
-                                                <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                                                <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/10">
                                                     <Image
                                                         src={a.icon}
                                                         alt={a.name}
@@ -404,7 +404,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     />
                                                 </div>
                                                 <span className={cn(
-                                                    "text-caption font-black uppercase tracking-widest",
+                                                    "text-caption font-semibold",
                                                     isSelected ? "text-indigo-400" : "text-zinc-400"
                                                 )}>
                                                     {a.name}
@@ -424,12 +424,12 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 <Button
                                     variant="outline"
                                     className={cn(
-                                        "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                        selectedOrder && "border-amber-500/40 bg-amber-500/20 text-amber-500 shadow-amber-500/10"
+                                        "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors group/btn",
+                                        selectedOrder && "border-amber-500/40 bg-amber-500/20 text-amber-500"
                                     )}
                                 >
                                     <Sparkles className={cn(
-                                        "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500",
+                                        "w-4 h-4 transition-colors text-amber-500/50 group-hover/btn:text-amber-500",
                                         selectedOrder && "text-amber-500 opacity-100"
                                     )} />
                                     {selectedOrder ? (ORDERS as any)[selectedAlignment].find((o: any) => o.id === selectedOrder)?.name || "Ordre" : "Ordre"}
@@ -467,7 +467,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                         setIsOpenOrder(false);
                                                     }}
                                                     className={cn(
-                                                        "relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-300 text-center h-24",
+                                                        "relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-colors text-center h-24",
                                                         isSelected
                                                             ? "border-amber-500 bg-amber-500/10 "
                                                             : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
@@ -547,7 +547,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                         setIsOpenLegendary(false);
                                                     }}
                                                     className={cn(
-                                                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl cursor-pointer transition-all border border-transparent text-center h-28",
+                                                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl cursor-pointer transition-colors border text-center h-28",
                                                         selectedLegendary === item.id
                                                             ? "bg-purple-500/20 border-purple-500/40  text-white"
                                                             : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground"
@@ -587,8 +587,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                         variant="outline"
                         onClick={() => setFilterLegendaryPet(!filterLegendaryPet)}
                         className={cn(
-                            "h-11 border-amber-400/10 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn shrink-0",
-                            filterLegendaryPet && "border-amber-400/40 bg-amber-400/20 text-amber-300 shadow-amber-400/10"
+                            "h-11 border-amber-400/10 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors group/btn shrink-0",
+                            filterLegendaryPet && "border-amber-400/40 bg-amber-400/20 text-amber-300"
                         )}
                     >
                         <Image
@@ -597,9 +597,9 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             width={18}
                             height={18}
                             className={cn(
-                                "object-contain transition-all duration-300",
+                                "object-contain transition-colors",
                                 filterLegendaryPet
-                                    ? "drop-shadow-[0_0_6px_rgba(251,191,36,0.8)] scale-110"
+                                    ? "opacity-100"
                                     : "grayscale opacity-50 group-hover/btn:opacity-80 group-hover/btn:grayscale-0"
                             )}
                         />
@@ -628,10 +628,10 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             variant="ghost"
                             size="icon"
                             onClick={resetFilters}
-                            className="h-11 w-11 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/5 transition-all duration-300 group/reset"
+                            className="h-11 w-11 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/5 transition-colors"
                             title="Réinitialiser les filtres"
                         >
-                            <X className="w-5 h-5 transition-transform group-hover:rotate-90 group-active:scale-90" />
+                            <X className="w-5 h-5" />
                         </Button>
                     )}
                 </div>
@@ -639,7 +639,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
 
             {/* RESULT STATS */}
             <div className="flex items-center justify-between px-1 mb-6">
-                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest italic">
+                <p className="text-sm font-medium text-muted-foreground">
                     <span className="text-foreground">{filteredMembers.length}</span> membre{filteredMembers.length > 1 ? "s" : ""} trouvé{filteredMembers.length > 1 ? "s" : ""}
                 </p>
             </div>

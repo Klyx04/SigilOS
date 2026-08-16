@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/prisma";
 import { sendDailySummaryReport } from "@/server/actions/daily-report-actions";
 import { verifyCronSecret } from "@/lib/cron-auth";
+import { logger } from "@/lib/logger";
 
 /**
  * 🛰️ API CRON pour le rapport quotidien global.
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("[DailySummaryCron] Global Error:", error);
+        logger.error("[DailySummaryCron] Global Error:", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

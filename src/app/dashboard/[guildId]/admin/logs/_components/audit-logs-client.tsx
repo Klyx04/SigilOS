@@ -61,7 +61,7 @@ const ACTION_LABELS: Record<string, string> = {
     MEMBER_PURGED: "Données purgées",
     WEBHOOK_MEMBER_ADD: "Arrivée membre (Bot)",
     WEBHOOK_MEMBER_REMOVE: "Départ membre (Bot)",
-    WEBHOOK_MEMBER_UPDATE: "MàJ membre (Bot)",
+    WEBHOOK_MEMBER_UPDATE: "Profil Discord modifié (Bot)",
     PLATFORM_ARRIVAL: "🚀 Arrivée Plateforme",
     PLATFORM_DEPARTURE: "👋 Départ Plateforme",
     PROFILE_ARCHIVED: "📁 Profil Archivé",
@@ -149,6 +149,22 @@ function formatDate(date: string): string {
         hour: "2-digit",
         minute: "2-digit",
     }).format(new Date(date));
+}
+
+/**
+ * Résout une cible de log en libellé lisible.
+ * Priorité : pseudo d'utilisateur Discord / nom du soumetteur / description.
+ * Fallback pour un ID brut (ex. snowflake Discord) : « Membre Discord (ID 1056…8180) »
+ * pour que l'administrateur comprenne immédiatement de qui il s'agit (#89).
+ */
+function formatTargetLabel(targetId: string | null, meta: AuditMetadata | null): string {
+    const m = (meta || {}) as any;
+    const readable = m.username || m.submitterName || m.description;
+    if (readable) return String(readable);
+    if (targetId && targetId.length > 8) {
+        return `Membre Discord (ID ${targetId.slice(0, 4)}…${targetId.slice(-4)})`;
+    }
+    return targetId || "Membre Discord";
 }
 
 function PermissionChangesDisplay({
@@ -525,9 +541,9 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 {log.targetType === "PROFILE" && (
                                                     <div className="space-y-1.5 mt-1">
                                                         <div className="flex items-center gap-2 flex-wrap text-sm">
-                                                            <span className="text-zinc-500">Mise à jour pour</span>
+                                                            <span className="text-zinc-500">Mise à jour du profil de</span>
                                                             <span className="font-bold text-zinc-300">
-                                                                {(metadata as any).submitterName || metadata.description || log.targetId}
+                                                                {formatTargetLabel(log.targetId, log.metadata)}
                                                             </span>
                                                             
                                                             {(metadata as any).source && (

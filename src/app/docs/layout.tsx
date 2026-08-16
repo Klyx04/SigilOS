@@ -51,19 +51,19 @@ export default async function DocsLayout({
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.1),transparent_50%)] pointer-events-none" />
 
                     <div className="relative z-10 max-w-2xl">
-                        <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-red-500/20 to-rose-500/10 border border-red-500/30 flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-red-500/20 group">
-                            <ShieldCheck className="w-12 h-12 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] group- transition-transform duration-300" />
+                        <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-danger/20 to-danger/10 border border-danger/30 flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-red-500/20 group">
+                            <ShieldCheck className="w-12 h-12 text-danger drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] group- transition-transform duration-300" />
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight uppercase font-heading">
-                            Accès <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-400 italic">Réservé</span>
+                        <h1 className="text-4xl md:text-6xl font-black text-foreground mb-6 tracking-tight uppercase font-heading">
+                            Accès <span className="text-transparent bg-clip-text bg-gradient-to-r from-danger to-danger italic">Réservé</span>
                         </h1>
-                        <p className="text-zinc-400 max-w-lg mx-auto text-lg leading-relaxed mb-12 font-medium">
+                        <p className="text-muted-foreground max-w-lg mx-auto text-lg leading-relaxed mb-12 font-medium">
                             Le centre de documentation est exclusivement réservé aux membres des guildes partenaires du projet SigilOS.
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                             <Link
                                 href="/"
-                                className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-black font-black uppercase text-caption tracking-[0.2em]  transition-all shadow-2xl shadow-white/10 active:scale-95 group"
+                                className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-background text-foreground font-black uppercase text-caption tracking-[0.2em]  transition-all shadow-2xl shadow-white/10 active:scale-95 group"
                             >
                                 Retour à l'accueil
                                 <Home className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
@@ -71,7 +71,7 @@ export default async function DocsLayout({
 
                             <Button
                                 variant="outline"
-                                className="px-10 h-14 rounded-full border-white/10 hover:border-white/20 hover:bg-white/5 text-zinc-300 font-black uppercase text-caption tracking-[0.2em] transition-all"
+                                className="px-10 h-14 rounded-full border-border hover:border-border-strong hover:bg-surface text-foreground font-black uppercase text-caption tracking-[0.2em] transition-all"
                                 asChild
                             >
                                 <Link href="/guilds">Explorer l'Annuaire</Link>
@@ -108,7 +108,7 @@ export default async function DocsLayout({
     const categories = Object.keys(groupedDocs).sort();
 
     return (
-        <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-teal-500/30 text-zinc-100 fixed inset-0 landing-theme dashboard-layout">
+        <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-teal-500/30 text-foreground fixed inset-0 landing-theme dashboard-layout">
             {/* 1. DESKTOP SIDEBAR */}
             <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
                 <AppSidebar
@@ -117,12 +117,12 @@ export default async function DocsLayout({
                     guildData={guildData}
                     userGuilds={userGuilds}
                     modules={modules}
-                    className="h-full border-r border-white/5"
+                    className="h-full border-r border-border"
                 />
             </div>
 
             {/* 2. MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-black/40 backdrop-blur-3xl">
+            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-background/40 backdrop-blur-3xl">
                 
                 {/* Top Navigation */}
                 <div className="flex-shrink-0 z-50">
@@ -143,7 +143,7 @@ export default async function DocsLayout({
                             <div className="space-y-10">
                                 {/* Search Section */}
                                 <div>
-                                    <h4 className="text-caption font-black uppercase tracking-widest text-zinc-600 mb-4 px-1">Navigation</h4>
+                                    <h4 className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-4 px-1">Navigation</h4>
                                     <DocsSearch />
                                 </div>
 
@@ -153,7 +153,7 @@ export default async function DocsLayout({
                                         <div key={category} className="space-y-4">
                                             <div className="flex items-center gap-3 px-1">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-teal-500 " />
-                                                <h4 className="text-caption font-black uppercase tracking-widest text-zinc-400">
+                                                <h4 className="text-caption font-black uppercase tracking-widest text-muted-foreground">
                                                     {category}
                                                 </h4>
                                             </div>
@@ -167,17 +167,17 @@ export default async function DocsLayout({
                                                                 href={`/docs/${doc.slug}`}
                                                                 className={cn(
                                                                     "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-body-sm font-bold transition-all duration-300 relative overflow-hidden",
-                                                                    "text-zinc-500 hover:text-white hover:bg-white/[0.03] border border-transparent hover:border-white/5",
-                                                                    isSubPage && "ml-4 border-l border-white/5 rounded-l-none pl-4"
+                                                                    "text-muted-foreground hover:text-foreground hover:bg-background/[0.03] border border-transparent hover:border-border",
+                                                                    isSubPage && "ml-4 border-l border-border rounded-l-none pl-4"
                                                                 )}
                                                                 title={doc.title}
                                                             >
                                                                 {/* Hover Accent */}
                                                                 <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                                 
-                                                                <FileText className="w-4 h-4 text-zinc-700 group-hover:text-teal-400 transition-colors shrink-0" />
+                                                                <FileText className="w-4 h-4 text-muted-foreground group-hover:text-teal-400 transition-colors shrink-0" />
                                                                 <span className="truncate">{doc.title}</span>
-                                                                <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0 transition-all text-zinc-400" />
+                                                                <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0 transition-all text-muted-foreground" />
                                                             </Link>
                                                         </li>
                                                     );
@@ -189,7 +189,7 @@ export default async function DocsLayout({
                             </div>
                         </aside>
 
-                        <div className="flex-1 min-w-0 bg-zinc-900/20 border border-white/5 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl backdrop-blur-xl min-h-[600px]">
+                        <div className="flex-1 min-w-0 bg-surface/20 border border-border rounded-[2.5rem] p-8 sm:p-12 shadow-2xl backdrop-blur-xl min-h-[600px]">
                             {children}
                         </div>
                     </div>

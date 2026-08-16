@@ -235,7 +235,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                     <Input 
                                         value={welcomeBadgeName}
                                         onChange={(e) => setWelcomeBadgeName(e.target.value)}
-                                        className="bg-black/40 border-border h-12 text-foreground font-bold uppercase tracking-wider text-center rounded-xl focus:ring-warning/20 text-md"
+                                        className="bg-muted/40 border-border h-12 text-foreground font-bold uppercase tracking-wider text-center rounded-xl focus:ring-warning/20 text-md"
                                     />
                                     <Button onClick={handleSaveBadge} disabled={saving} className="bg-warning hover:bg-warning text-warning-foreground font-bold h-12 px-6 rounded-xl uppercase tracking-wider text-xs transition-all active:scale-95">
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Appliquer"}
@@ -295,10 +295,10 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                     <div className={cn("space-y-10 transition-all duration-300", !welcomeEnabled && "opacity-30 pointer-events-none grayscale blur-sm")}>
                         <Tabs defaultValue="dashboard" className="w-full">
                             <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-border p-1 rounded-2xl h-14">
-                                <TabsTrigger value="dashboard" className="data-[state=active]:bg-info data-[state=active]:text-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
+                                <TabsTrigger value="dashboard" className="data-[state=active]:bg-info data-[state=active]:text-info-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
                                     <LayoutDashboard className="w-4 h-4" /> Mur Social SigilOS
                                 </TabsTrigger>
-                                <TabsTrigger value="discord" className="data-[state=active]:bg-info data-[state=active]:text-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
+                                <TabsTrigger value="discord" className="data-[state=active]:bg-info data-[state=active]:text-info-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
                                     <Bell className="w-4 h-4" /> Alerte Discord
                                 </TabsTrigger>
                             </TabsList>

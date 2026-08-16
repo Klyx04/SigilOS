@@ -185,7 +185,7 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
                                         value={replyText}
                                         onChange={(e) => setReplyText(e.target.value)}
                                         placeholder="Saisissez votre message..."
-                                        className="bg-black/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-24 text-xs leading-relaxed"
+                                        className="bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-24 text-xs leading-relaxed"
                                         maxLength={500}
                                     />
                                 </div>

@@ -21,9 +21,9 @@ interface UpcomingEvent {
 
 const EVENT_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string; border: string }> = {
     RAID_OFFICIAL:    { label: "Raid Officiel",     icon: Swords,    color: "text-danger",     bg: "bg-danger/10",     border: "border-danger/20" },
-    EVENT_GUILD:      { label: "Événement",         icon: Star,      color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/20" },
+    EVENT_GUILD:      { label: "Événement",         icon: Star,      color: "text-warning",  bg: "bg-warning/10",  border: "border-warning/20" },
     SESSION_MISSIONS: { label: "Missions",          icon: Target,    color: "text-info",    bg: "bg-info/10",    border: "border-info/20" },
-    SORTIE_FARM:      { label: "Sortie Farm",       icon: Flame,     color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/20" },
+    SORTIE_FARM:      { label: "Sortie Farm",       icon: Flame,     color: "text-warning",  bg: "bg-warning/10",  border: "border-warning/20" },
     SONGES_RUN:       { label: "Songes",            icon: Infinity,  color: "text-info",  bg: "bg-info/10",  border: "border-info/20" },
     DUNGEON_FARM:     { label: "Donjons",           icon: Flame,     color: "text-warning",   bg: "bg-warning/10",   border: "border-warning/20" },
     SOCIAL:           { label: "Social",            icon: Coffee,    color: "text-pink-400",    bg: "bg-pink-500/10",    border: "border-pink-500/20" },
@@ -222,7 +222,7 @@ export function UpcomingEventsWidget({
                                                         fillPct >= 100
                                                             ? "bg-danger"
                                                             : fillPct >= 75
-                                                                ? "bg-orange-500"
+                                                                ? "bg-warning"
                                                                 : "bg-success"
                                                     )}
                                                     style={{ width: `${fillPct}%` }}

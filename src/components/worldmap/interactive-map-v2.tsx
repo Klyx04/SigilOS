@@ -1,4 +1,5 @@
 'use client';
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -1210,7 +1211,7 @@ export default function InteractiveMapV2({
                                         <button
                                             ref={worldDropdownBtnRef}
                                             onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
-                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-success/10 border border-success/30 text-foreground hover:bg-success/20 transition-colors"
+                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 transition-colors"
                                         >
                                             <MapIcon size={12} className="text-success" />
                                             <span className="text-caption sm:text-caption font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
@@ -1556,7 +1557,7 @@ export default function InteractiveMapV2({
                         </div>
                         <button
                             onClick={handleLeaveSession}
-                            className="fixed top-4 right-20 z-[10001] px-4 py-2.5 rounded-full bg-danger/90 border border-danger text-foreground font-black uppercase text-xs italic flex items-center gap-2 shadow-2xl hover:bg-danger transition-colors"
+                            className="fixed top-4 right-20 z-[10001] px-4 py-2.5 rounded-full bg-danger/90 border border-danger text-danger-foreground font-black uppercase text-xs italic flex items-center gap-2 shadow-2xl hover:bg-danger transition-colors"
                             title="Quitter la partie"
                         >
                             <LogOut size={16} />
@@ -1564,7 +1565,7 @@ export default function InteractiveMapV2({
                         </button>
                         <button
                             onClick={() => applyFullscreen(false)}
-                            className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-border-strong text-foreground flex items-center justify-center hover:bg-danger/90 hover:border-danger shadow-2xl transition-colors"
+                            className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-border-strong text-danger-foreground flex items-center justify-center hover:bg-danger/90 hover:border-danger shadow-2xl transition-colors"
                             title="Quitter le plein écran"
                         >
                             <X size={22} />
@@ -1595,7 +1596,7 @@ export default function InteractiveMapV2({
                                         {/* Close button for HD Map - User request */}
                                         <button 
                                             onClick={() => setShowHDMap(false)}
-                                            className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-border text-foreground flex items-center justify-center opacity-0 group-hover/hdmap:opacity-100 transition-all hover:bg-danger hover:border-danger active:scale-90"
+                                            className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-border text-danger-foreground flex items-center justify-center opacity-0 group-hover/hdmap:opacity-100 transition-all hover:bg-danger hover:border-danger active:scale-90"
                                             title="Fermer l'image HD"
                                         >
                                             <X size={20} />
@@ -1666,7 +1667,7 @@ export default function InteractiveMapV2({
                                                             {p.userAvatar ? (
                                                                 <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <div className={`w-full h-full flex items-center justify-center text-caption font-black italic ${i === 0 && p.score > 0 ? 'bg-warning text-warning-foreground' : 'bg-surface text-foreground/40'}`}>
+                                                                <div className={`w-full h-full flex items-center justify-center text-caption font-black italic ${i === 0 && p.score > 0 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
                                                                     {i === 0 && p.score > 0 ? '👑' : i + 1}
                                                                 </div>
                                                             )}
@@ -1674,7 +1675,7 @@ export default function InteractiveMapV2({
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-foreground text-caption font-black uppercase italic tracking-wider">{p.userName}</span>
-                                                                {isMe && <span className="px-1 py-0.5 rounded bg-success text-caption text-foreground font-black uppercase italic">Toi</span>}
+                                                                {isMe && <span className="px-1 py-0.5 rounded bg-success text-caption text-success-foreground font-black uppercase italic">Toi</span>}
                                                             </div>
                                                             {!p.hasGuessed ? (
                                                                 <span className="text-caption text-foreground/20 font-bold uppercase italic flex items-center gap-1">
@@ -1705,7 +1706,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setActivePanelTab('map')}
                                             className={cn(
                                                 "p-1.5 rounded-lg transition-all",
-                                                activePanelTab === 'map' ? "bg-success text-success-foreground shadow-lg" : "text-foreground/20 hover:text-foreground/40"
+                                                activePanelTab === 'map' ? "bg-success text-success-foreground shadow-lg" : "text-success-foreground/20 hover:text-success-foreground/40"
                                             )}
                                         >
                                             <MapIcon size={12} />
@@ -1714,7 +1715,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setActivePanelTab('scores')}
                                             className={cn(
                                                 "p-1.5 rounded-lg transition-all",
-                                                activePanelTab === 'scores' ? "bg-success text-success-foreground shadow-lg" : "text-foreground/20 hover:text-foreground/40"
+                                                activePanelTab === 'scores' ? "bg-success text-success-foreground shadow-lg" : "text-success-foreground/20 hover:text-success-foreground/40"
                                             )}
                                         >
                                             <Trophy size={12} />
@@ -2243,7 +2244,7 @@ export default function InteractiveMapV2({
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-caption font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-warning text-warning-foreground shadow-amber-500/30' : i === 1 ? 'bg-surface text-foreground' : i === 2 ? 'bg-warning text-foreground' : 'bg-surface text-foreground/40'}`}>
+                                                                <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-caption font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-warning text-warning-foreground shadow-amber-500/30' : i === 1 ? 'bg-surface text-warning-foreground' : i === 2 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
                                                                     {i + 1}
                                                                 </div>
                                                             </div>
@@ -2322,7 +2323,7 @@ export default function InteractiveMapV2({
                                 <div className="w-full space-y-3 mb-12 max-h-60 overflow-y-auto pr-2 scrollbar-hide">
                                     {activeSession.participants?.filter((p: any) => !p.isSpectator).sort((a: any, b: any) => b.score - a.score).map((p: any, i: number) => (
                                         <div key={p.userId} className={`flex items-center gap-4 p-4 rounded-2xl border ${p.userId === currentUserId ? 'bg-info/10 border-info/30' : 'bg-surface border-border'}`}>
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black italic ${i === 0 ? 'bg-warning text-warning-foreground' : i === 1 ? 'bg-surface text-foreground' : i === 2 ? 'bg-warning text-foreground' : 'bg-surface text-foreground/40'}`}>
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black italic ${i === 0 ? 'bg-warning text-warning-foreground' : i === 1 ? 'bg-surface text-warning-foreground' : i === 2 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
                                                 {i + 1}
                                             </div>
                                             <div className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center overflow-hidden">
@@ -2724,7 +2725,7 @@ export default function InteractiveMapV2({
                                                             "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg italic shrink-0",
                                                             index === 0 ? "bg-warning text-warning-foreground shadow-xl shadow-amber-500/40" :
                                                             index === 1 ? "bg-surface text-foreground shadow-xl shadow-slate-300/20" :
-                                                            index === 2 ? "bg-warning text-foreground shadow-xl shadow-amber-700/20" :
+                                                            index === 2 ? "bg-warning text-warning-foreground shadow-xl shadow-amber-700/20" :
                                                             "text-foreground/20 bg-surface border border-border"
                                                         )}>
                                                             {index === 0 ? <Crown size={20} /> : index + 1}
@@ -2819,7 +2820,7 @@ export default function InteractiveMapV2({
                                                                     socket?.emit("geoguesser:room:settings", { maxRounds: r });
                                                                     setActiveSession({ ...activeSession, maxRounds: r });
                                                                 }}
-                                                                className={`py-2 rounded-xl text-caption font-black transition-all ${activeSession.maxRounds === r ? 'bg-success text-success-foreground shadow-lg shadow-emerald-500/30' : 'bg-surface text-foreground/30 hover:bg-surface'}`}
+                                                                className={`py-2 rounded-xl text-caption font-black transition-all ${activeSession.maxRounds === r ? 'bg-success text-success-foreground shadow-lg shadow-emerald-500/30' : 'bg-surface text-success-foreground/30 hover:bg-surface'}`}
                                                             >
                                                                 {r}
                                                             </button>
@@ -2836,7 +2837,7 @@ export default function InteractiveMapV2({
                                                                 socket?.emit("geoguesser:room:settings", { gameMode: m });
                                                                 setActiveSession({ ...activeSession, gameMode: m });
                                                             }}
-                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${(!activeSession.gameMode || activeSession.gameMode === 'NORMAL') ? 'bg-info text-info-foreground shadow-lg shadow-indigo-500/30' : 'bg-surface text-foreground/30 hover:bg-surface'}`}
+                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${(!activeSession.gameMode || activeSession.gameMode === 'NORMAL') ? 'bg-info text-info-foreground shadow-lg shadow-indigo-500/30' : 'bg-surface text-info-foreground/30 hover:bg-surface'}`}
                                                         >
                                                             Normal
                                                         </button>
@@ -2847,7 +2848,7 @@ export default function InteractiveMapV2({
                                                                 socket?.emit("geoguesser:room:settings", { gameMode: m });
                                                                 setActiveSession({ ...activeSession, gameMode: m });
                                                             }}
-                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${activeSession.gameMode === 'SPECIAL' ? 'bg-info text-info-foreground shadow-lg shadow-indigo-500/30' : 'bg-surface text-foreground/30 hover:bg-surface'}`}
+                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${activeSession.gameMode === 'SPECIAL' ? 'bg-info text-info-foreground shadow-lg shadow-indigo-500/30' : 'bg-surface text-info-foreground/30 hover:bg-surface'}`}
                                                         >
                                                             Spécial
                                                         </button>
@@ -2871,7 +2872,7 @@ export default function InteractiveMapV2({
                                 <div className="flex items-center gap-2 mt-6">
                                     <button
                                         onClick={handleLeaveSession}
-                                        className="flex-1 py-5 rounded-2xl bg-danger/10 text-danger font-black uppercase text-caption italic hover:bg-danger hover:text-foreground transition-all border border-danger/10 shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                        className="flex-1 py-5 rounded-2xl bg-danger/10 text-danger font-black uppercase text-caption italic hover:bg-danger hover:text-danger-foreground transition-all border border-danger/10 shadow-lg active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         <LogOut size={14} />
                                         <span>{activeSession.hostId === currentUserId ? 'Dissoudre' : 'Quitter'}</span>
@@ -3164,7 +3165,7 @@ export default function InteractiveMapV2({
                                 {/* Bouton fermer — ferme la célébration immédiatement */}
                                 <button
                                     onClick={() => setShowPerfectCelebration(false)}
-                                    className="absolute top-5 right-5 z-10 w-12 h-12 rounded-full bg-surface border border-border-strong text-foreground flex items-center justify-center hover:bg-success hover:text-foreground hover:border-success shadow-lg active:scale-90 pointer-events-auto transition-all"
+                                    className="absolute top-5 right-5 z-10 w-12 h-12 rounded-full bg-surface border border-border-strong text-success-foreground flex items-center justify-center hover:bg-success hover:text-success-foreground hover:border-success shadow-lg active:scale-90 pointer-events-auto transition-all"
                                     title="Fermer"
                                     aria-label="Fermer la célébration"
                                 >
@@ -3176,7 +3177,7 @@ export default function InteractiveMapV2({
                                         rotate: [0, 8, -8, 0]
                                     }}
                                     transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-                                    className="w-40 h-40 rounded-full bg-success flex items-center justify-center text-foreground "
+                                    className="w-40 h-40 rounded-full bg-success flex items-center justify-center text-success-foreground "
                                 >
                                     <Sparkles size={80} />
                                 </motion.div>

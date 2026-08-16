@@ -64,7 +64,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                 isFixed ? "fixed top-0 left-0 right-0 z-50" : "relative z-50",
                 "transition-all duration-300",
                 scrolled
-                    ? "bg-[#0b0d0d]/95 backdrop-blur-md border-b border-white/10 py-2.5"
+                    ? "bg-background/95 backdrop-blur-md border-b border-border py-2.5"
                     : "bg-transparent border-b border-transparent py-4"
             )}
         >
@@ -82,8 +82,8 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                 className="object-contain"
                                 priority
                             />
-                            <span className="text-lg font-bold tracking-tight text-white leading-none">
-                                Sigil<span className="text-emerald-400">OS</span>
+                            <span className="text-lg font-bold tracking-tight text-foreground leading-none">
+                                Sigil<span className="text-success">OS</span>
                             </span>
                         </Link>
 
@@ -98,8 +98,8 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                         className={cn(
                                             "px-3 py-1.5 rounded-md text-body-sm font-medium transition-colors",
                                             isActive
-                                                ? "text-white bg-white/5"
-                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                                ? "text-foreground bg-surface"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
                                         {item.label}
@@ -121,48 +121,48 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                 >
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <button className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-emerald-500/30 transition-colors outline-none">
-                                                <Avatar className="w-10 h-10 border border-white/10 rounded-xl">
+                                            <button className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-xl bg-background/[0.05] border border-border hover:bg-background/[0.08] hover:border-success/30 transition-colors outline-none">
+                                                <Avatar className="w-10 h-10 border border-border rounded-xl">
                                                     <AvatarImage src={user.image || ""} />
-                                                    <AvatarFallback className="bg-zinc-800 text-white font-black">{user.name?.[0]}</AvatarFallback>
+                                                    <AvatarFallback className="bg-elevated text-foreground font-black">{user.name?.[0]}</AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col items-start -space-y-0.5 hidden sm:flex">
-                                                    <span className="text-caption font-black text-white/40 uppercase tracking-widest">Session</span>
-                                                    <span className="text-caption font-bold text-white">{user.name}</span>
+                                                    <span className="text-caption font-black text-foreground/40 uppercase tracking-widest">Session</span>
+                                                    <span className="text-caption font-bold text-foreground">{user.name}</span>
                                                 </div>
                                             </button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-64 bg-zinc-950 border border-white/10 rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)]" align="end">
+                                        <DropdownMenuContent className="w-64 bg-background border border-border rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)]" align="end">
                                             <DropdownMenuLabel className="px-4 py-3">
                                                 <div className="flex flex-col space-y-1">
-                                                    <p className="text-xs font-black text-white uppercase tracking-widest">Compte SigilOS</p>
-                                                    <p className="text-caption text-zinc-500 font-medium truncate">{user.email}</p>
+                                                    <p className="text-xs font-black text-foreground uppercase tracking-widest">Compte SigilOS</p>
+                                                    <p className="text-caption text-muted-foreground font-medium truncate">{user.email}</p>
                                                 </div>
                                             </DropdownMenuLabel>
-                                            <DropdownMenuSeparator className="bg-white/5 mx-2" />
+                                            <DropdownMenuSeparator className="bg-surface mx-2" />
                                             
                                             <DashboardDrawer clientId={clientId}>
                                                 <DropdownMenuItem 
                                                     onSelect={(e) => e.preventDefault()}
-                                                    className="focus:bg-emerald-500/10 focus:text-emerald-400 rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
+                                                    className="focus:bg-success/10 focus:text-success rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
                                                 >
                                                     <LayoutDashboard className="w-4 h-4" />
                                                     <span className="text-caption font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
                                                 </DropdownMenuItem>
                                             </DashboardDrawer>
 
-                                            <DropdownMenuItem asChild className="focus:bg-zinc-800 focus:text-white rounded-xl p-3 cursor-pointer outline-none">
+                                            <DropdownMenuItem asChild className="focus:bg-elevated focus:text-foreground rounded-xl p-3 cursor-pointer outline-none">
                                                 <Link href={dashboardHref} className="flex items-center gap-3 w-full">
                                                     <LayoutDashboard className="w-4 h-4 opacity-40" />
                                                     <span className="text-caption font-black uppercase tracking-widest">Dashboard Central</span>
                                                 </Link>
                                             </DropdownMenuItem>
 
-                                            <DropdownMenuSeparator className="bg-white/5 mx-2" />
+                                            <DropdownMenuSeparator className="bg-surface mx-2" />
                                             
                                             <DropdownMenuItem 
                                                 onSelect={() => logoutAction()}
-                                                className="focus:bg-rose-500/10 focus:text-rose-400 rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
+                                                className="focus:bg-danger/10 focus:text-danger rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
                                             >
                                                 <LogOut className="w-4 h-4" />
                                                 <span className="text-caption font-black uppercase tracking-widest text-left flex-1">Déconnexion</span>
@@ -178,8 +178,8 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                     className="hidden sm:block"
                                 >
                                     <form action={loginWithDiscord}>
-                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.08] text-body-sm font-semibold text-white transition-colors">
-                                            <DiscordIcon className="w-4 h-4 text-emerald-400" />
+                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-border hover:border-success/40 hover:bg-background/[0.08] text-body-sm font-semibold text-foreground transition-colors">
+                                            <DiscordIcon className="w-4 h-4 text-success" />
                                             Connexion
                                         </button>
                                     </form>
@@ -190,19 +190,19 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                         <div className="lg:hidden">
                             <Sheet>
                                 <SheetTrigger asChild>
-                                    <button aria-label="Ouvrir le menu" className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors outline-none">
+                                    <button aria-label="Ouvrir le menu" className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border text-foreground hover:bg-elevated transition-colors outline-none">
                                         <div className="space-y-1.5">
-                                            <div className="w-5 h-0.5 bg-white rounded-full" />
-                                            <div className="w-3 h-0.5 bg-white rounded-full ml-auto" />
-                                            <div className="w-5 h-0.5 bg-white rounded-full" />
+                                            <div className="w-5 h-0.5 bg-background rounded-full" />
+                                            <div className="w-3 h-0.5 bg-background rounded-full ml-auto" />
+                                            <div className="w-5 h-0.5 bg-background rounded-full" />
                                         </div>
                                     </button>
                                 </SheetTrigger>
-                                <SheetContent side="right" className="w-[300px] bg-zinc-950 border-l border-white/5 p-0 overflow-hidden flex flex-col">
+                                <SheetContent side="right" className="w-[300px] bg-background border-l border-border p-0 overflow-hidden flex flex-col">
                                     <div className="p-6 pb-2 flex flex-col gap-1 mt-8">
                                         <div className="flex items-center gap-2.5">
                                             <Image src="/assets/ui/logo-v2.png" alt="SigilOS" width={28} height={28} className="object-contain" />
-                                            <span className="text-lg font-bold tracking-tight text-white">Sigil<span className="text-emerald-400">OS</span></span>
+                                            <span className="text-lg font-bold tracking-tight text-foreground">Sigil<span className="text-success">OS</span></span>
                                         </div>
                                     </div>
 
@@ -211,18 +211,18 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                             <Link
                                                 key={item.id}
                                                 href={item.href}
-                                                className="flex items-center justify-between p-3 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
+                                                className="flex items-center justify-between p-3 rounded-lg text-sm font-medium text-foreground hover:text-foreground hover:bg-surface transition-colors"
                                             >
                                                 {item.label}
-                                                <ChevronRight className="w-4 h-4 text-zinc-600" />
+                                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
                                             </Link>
                                         ))}
                                     </nav>
 
                                     {!user && (
-                                        <div className="p-4 border-t border-white/10">
+                                        <div className="p-4 border-t border-border">
                                             <form action={loginWithDiscord}>
-                                                <button className="w-full h-11 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                                                <button className="w-full h-11 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-foreground text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                                                     <DiscordIcon className="w-4 h-4" />
                                                     Se connecter
                                                 </button>

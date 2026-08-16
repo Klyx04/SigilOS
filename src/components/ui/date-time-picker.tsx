@@ -194,7 +194,7 @@ export function DateTimePicker({
                             onSelect={handleDaySelect}
                             disabled={minDate ? { before: minDate } : undefined}
                             locale={fr}
-                            className="text-foreground [&_.rdp-day]:text-foreground [&_.rdp-day_button:hover]:bg-info/20 [&_.rdp-day_button[aria-selected=true]]:bg-info [&_.rdp-head_cell]:text-muted-foreground"
+                            className="text-foreground [&_.rdp-day]:text-foreground [&_.rdp-day_button:hover]:bg-info/20 [&_.rdp-day_button[aria-selected=true]]:bg-info [&_.rdp-day_button[aria-selected=true]]:text-info-foreground [&_.rdp-head_cell]:text-muted-foreground"
                         />
                         {selectedDate && !noTime && (
                             <div className="px-3 pb-3 pt-1 text-center">

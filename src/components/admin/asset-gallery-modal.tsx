@@ -95,7 +95,7 @@ export function AssetGalleryModal({
                                 onClick={() => setType("portraits")}
                                 className={cn(
                                     "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-caption sm:text-caption font-black uppercase italic transition-all flex items-center gap-2",
-                                    type === "portraits" ? "bg-warning text-warning-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                                    type === "portraits" ? "bg-warning text-warning-foreground shadow-lg" : "text-muted-foreground hover:text-warning-foreground"
                                 )}
                             >
                                 <ImageIconLucide size={14} />
@@ -105,7 +105,7 @@ export function AssetGalleryModal({
                                 onClick={() => setType("maps")}
                                 className={cn(
                                     "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-caption sm:text-caption font-black uppercase italic transition-all flex items-center gap-2",
-                                    type === "maps" ? "bg-warning text-warning-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                                    type === "maps" ? "bg-warning text-warning-foreground shadow-lg" : "text-muted-foreground hover:text-warning-foreground"
                                 )}
                             >
                                 <MapIcon size={14} />

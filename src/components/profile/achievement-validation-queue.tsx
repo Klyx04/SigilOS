@@ -102,10 +102,10 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                         return (
                             <div
                                 key={sub.id}
-                                className="flex flex-col bg-[#121417] border border-border rounded-2xl overflow-hidden shadow-xl hover:border-warning/20 transition-all duration-300"
+                                className="flex flex-col bg-surface border border-border rounded-2xl overflow-hidden shadow-xl hover:border-warning/20 transition-all duration-300"
                             >
                                 {/* Header sky (achievements usually use sky/amber) */}
-                                <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-sky-950/80 to-zinc-900/80 border-b border-sky-500/15">
+                                <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-sky-950/80 to-surface/80 border-b border-sky-500/15">
                                     <div className="p-1.5 bg-sky-500/15 rounded-lg border border-sky-500/20">
                                         <Trophy className="w-3.5 h-3.5 text-sky-400" />
                                     </div>
@@ -152,7 +152,7 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                 {/* Proof image */}
                                 {sub.proofUrl ? (
                                     <div
-                                        className="relative aspect-video bg-black overflow-hidden cursor-zoom-in group"
+                                        className="relative aspect-video bg-background overflow-hidden cursor-zoom-in group"
                                         onClick={() => setSelectedImage(sub.proofUrl)}
                                     >
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -161,7 +161,7 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                             alt="Preuve"
                                             className="w-full h-full object-contain"
                                         />
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-foreground text-xs">
+                                        <div className="absolute inset-0 bg-muted/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-foreground text-xs">
                                             <ZoomIn className="w-4 h-4" />
                                             Agrandir
                                         </div>

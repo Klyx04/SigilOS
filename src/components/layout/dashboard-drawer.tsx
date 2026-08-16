@@ -177,7 +177,7 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                                 <Link 
                                                     href={`https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(window.location.origin + '/onboarding/success')}&response_type=code`}
                                                     target="_blank"
-                                                    className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center text-success hover:bg-success hover:text-foreground transition-colors"
+                                                    className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center text-success hover:bg-success hover:text-success-foreground transition-colors"
                                                 >
                                                     <PlusCircle className="w-4 h-4" />
                                                 </Link>

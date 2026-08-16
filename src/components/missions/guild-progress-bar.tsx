@@ -66,7 +66,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                 return {
                     icon: Medal,
                     color: "text-foreground",
-                    borderColor: "border-slate-400/50",
+                    borderColor: "border-border/50",
                     bg: "bg-surface/80",
                     glow: "",
                     label: "Argent"
@@ -74,9 +74,9 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
             case 2: // Gold
                 return {
                     icon: Medal,
-                    color: "text-yellow-400",
-                    borderColor: "border-yellow-500/50",
-                    bg: "bg-yellow-950/80",
+                    color: "text-warning",
+                    borderColor: "border-warning/50",
+                    bg: "bg-warning/80",
                     glow: "",
                     label: "Or"
                 };
@@ -119,8 +119,8 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     {/* LEFT: Guild Identity */}
                     <div className="flex items-center gap-4 relative z-30 shrink-0">
                         <div className="p-3 rounded-2xl bg-foreground/[0.03] border border-border shadow-inner backdrop-blur-sm relative">
-                            <div className="absolute inset-0 bg-yellow-500/10 rounded-2xl blur-lg animate-pulse" />
-                            <Crown className="w-7 h-7 text-yellow-600 dark:text-yellow-500 relative z-10" />
+                            <div className="absolute inset-0 bg-warning/10 rounded-2xl blur-lg animate-pulse" />
+                            <Crown className="w-7 h-7 text-warning dark:text-warning relative z-10" />
                         </div>
                         <div className="space-y-0.5">
                             <h3 className="font-black text-foreground text-2xl tracking-tighter leading-none">

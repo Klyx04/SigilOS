@@ -86,7 +86,7 @@ export default function PresentationContent({
                                     className="object-cover"
                                 />
                             ) : (
-                                <div className="w-full h-full bg-linear-to-r from-zinc-800 to-zinc-900 flex items-center justify-center">
+                                <div className="w-full h-full bg-linear-to-r from-elevated to-surface flex items-center justify-center">
                                     <Globe className="w-12 h-12 text-muted-foreground" />
                                 </div>
                             )}
@@ -193,7 +193,7 @@ export default function PresentationContent({
                                 <div className="space-y-2">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">Co-leaders</p>
                                     {guild.coLeaders?.map((leader, i) => (
-                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-warning/5 border border-warning/10">
                                             <span className="text-sm">⭐</span>
                                             <p className="text-sm font-medium text-foreground">{leader}</p>
                                         </div>

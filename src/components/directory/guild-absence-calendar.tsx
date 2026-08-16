@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { startOfMonth, differenceInWeeks, addMonths, isSameMonth } from "date-fns";
 
 const SLOT_INFO: Record<TimeSlot, { icon: any, label: string, color: string, bg: string, border: string }> = {
-    matin: { icon: Sunrise, label: "Matin", color: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/20" },
+    matin: { icon: Sunrise, label: "Matin", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
     midi: { icon: Sun, label: "Midi", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
     soir: { icon: Sunset, label: "Soir", color: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/20" },
     nuit: { icon: Moon, label: "Nuit", color: "text-info", bg: "bg-info/10", border: "border-info/20" },

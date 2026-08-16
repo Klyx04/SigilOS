@@ -98,11 +98,11 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
     const isPending = bonus.status === "PURCHASED";
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent backdrop-blur-sm">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-surface via-surface/95 to-transparent backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 py-3">
                 <div className={`
                     rounded-lg border-2 p-4 transition-all
-                    ${isActive ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"}
+                    ${isActive ? "border-green-500/50 bg-green-500/5" : "border-warning/50 bg-warning/5"}
                 `}>
                     <div className="flex items-center justify-between gap-4">
                         {/* Icon + Name */}
@@ -110,7 +110,7 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
                             {isActive ? (
                                 <Sparkles className="w-6 h-6 text-green-400 animate-pulse" />
                             ) : (
-                                <Clock className="w-6 h-6 text-orange-400" />
+                                <Clock className="w-6 h-6 text-warning" />
                             )}
                             <div>
                                 <h3 className="font-bold text-foreground">{bonus.config.name}</h3>
@@ -125,7 +125,7 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
                                 <div
                                     className={`
                                         h-full transition-all duration-300 rounded-full
-                                        ${isActive ? "bg-gradient-to-r from-green-500 to-success" : "bg-gradient-to-r from-orange-500 to-yellow-400"}
+                                        ${isActive ? "bg-gradient-to-r from-green-500 to-success" : "bg-gradient-to-r from-warning to-warning"}
                                     `}
                                     style={{ width: `${progress}%` }}
                                 />
@@ -133,7 +133,7 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
 
                             {/* Time Label */}
                             <div className="flex items-center justify-between text-xs">
-                                <span className={isActive ? "text-green-400" : "text-orange-400"}>
+                                <span className={isActive ? "text-green-400" : "text-warning"}>
                                     {isPending ? "Activation dans" : "Expire dans"}
                                 </span>
                                 <span className="font-mono font-bold text-foreground">
@@ -145,7 +145,7 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
                         {/* Status Badge */}
                         <div className={`
                             px-3 py-1 rounded-full text-xs font-bold uppercase
-                            ${isActive ? "bg-green-500/20 text-green-400" : "bg-orange-500/20 text-orange-400"}
+                            ${isActive ? "bg-green-500/20 text-green-400" : "bg-warning/20 text-warning"}
                         `}>
                             {isActive ? "✨ Actif" : "⏳ En attente"}
                         </div>

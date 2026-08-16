@@ -156,14 +156,14 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
         <div className="space-y-8">
             {/* Active Bonus Warning */}
             {isAnyBonusActive && (
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                        <h3 className="font-bold text-orange-400 mb-1">Bonus actuellement disponible</h3>
-                        <p className="text-sm text-orange-300/80">
+                        <h3 className="font-bold text-warning mb-1">Bonus actuellement disponible</h3>
+                        <p className="text-sm text-warning/80">
                             Vous ne pouvez acheter qu'un seul bonus à la fois. N'importe quel membre de la guilde peut activer le bonus **en jeu** pendant ce délai de 24h.
                         </p>
-                        <div className="mt-2 text-xs text-orange-400">
+                        <div className="mt-2 text-xs text-warning">
                             <strong>Bonus actuel :</strong> {activeBonus?.config?.name || "Inconnu"}
                             <br />
                             <strong>Statut :</strong> {activeBonus?.status === "PURCHASED" ? "Disponible en jeu (24h)" : "Actif (en cours)"}
@@ -296,7 +296,7 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                                 <div className="flex items-center justify-between">
                                     <span className="text-muted-foreground">Coût total</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-3xl font-bold text-yellow-400">
+                                        <span className="text-3xl font-bold text-warning">
                                             {ALL_BONUSES.find(b => b.type === selectedBonus)?.cost}
                                         </span>
                                         <span className="text-sm text-muted-foreground">kamas</span>

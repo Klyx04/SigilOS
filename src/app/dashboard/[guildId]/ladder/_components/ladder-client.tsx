@@ -120,7 +120,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 );
             case "guildatons":
                 return (
-                    <div className="flex items-center gap-1.5 font-black text-yellow-500">
+                    <div className="flex items-center gap-1.5 font-black text-warning">
                         <span>{entry.value.toLocaleString()}</span>
                         <Image src="/guildatons.png" alt="G" width={16} height={16} className="object-contain" />
                     </div>
@@ -390,7 +390,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     <div className="flex items-center gap-3">
                         <div className={cn(
                             "w-2 h-2 rounded-full animate-pulse",
-                            activeTab === 'activity' ? 'bg-success' : activeTab === 'contribution' ? 'bg-info' : activeTab === 'seniority' ? 'bg-info' : activeTab === 'guildatons' ? 'bg-yellow-400' : 'bg-warning'
+                            activeTab === 'activity' ? 'bg-success' : activeTab === 'contribution' ? 'bg-info' : activeTab === 'seniority' ? 'bg-info' : activeTab === 'guildatons' ? 'bg-warning' : 'bg-warning'
                         )} />
                         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">
                              CLASSEMENT {

@@ -116,15 +116,15 @@ export default function QuestsStats({ quests }: QuestStatsProps) {
                 {/* Recent Dofus */}
                 <div className="space-y-4">
                     <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                        <Trophy className="w-3 h-3 text-yellow-500" />
+                        <Trophy className="w-3 h-3 text-warning" />
                         Mur de la Gloire
                     </h4>
                     <div className="space-y-2">
                         {quests.recentDofus.length > 0 ? (
                             quests.recentDofus.map((rd, idx) => (
-                                <div key={idx} className="flex flex-col p-2.5 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                                <div key={idx} className="flex flex-col p-2.5 rounded-lg bg-warning/5 border border-warning/10">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-caption font-black text-yellow-500 uppercase tracking-wider">{rd.name}</span>
+                                        <span className="text-caption font-black text-warning uppercase tracking-wider">{rd.name}</span>
                                         <span className="text-caption text-muted-foreground font-bold">
                                             {formatDistanceToNow(new Date(rd.obtainedAt), { addSuffix: true, locale: fr })}
                                         </span>

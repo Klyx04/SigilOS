@@ -53,7 +53,7 @@ const VISIBLE_CATEGORIES: { key: ServiceCategory; label: string; icon: React.Rea
     { key: "FORGEMAGIE", label: "Forgemagie", icon: <Hammer className="h-5 w-5" />, color: "from-warning/20 to-transparent", accent: "border-warning/60 bg-warning/15 text-warning" },
     { key: "METIER", label: "Métier", icon: <Wrench className="h-5 w-5" />, color: "from-success/20 to-transparent", accent: "border-success/60 bg-success/15 text-success" },
     { key: "QUETE", label: "Quête", icon: <ScrollText className="h-5 w-5" />, color: "from-violet-500/20 to-transparent", accent: "border-violet-500/60 bg-violet-500/15 text-violet-300" },
-    { key: "OCRE", label: "Quête Ocre", icon: <Crown className="h-5 w-5" />, color: "from-yellow-500/20 to-transparent", accent: "border-yellow-500/60 bg-yellow-500/15 text-yellow-300" },
+    { key: "OCRE", label: "Quête Ocre", icon: <Crown className="h-5 w-5" />, color: "from-warning/20 to-transparent", accent: "border-warning/60 bg-warning/15 text-warning" },
     { key: "TUTORAT", label: "Tutorat Classe", icon: <GraduationCap className="h-5 w-5" />, color: "from-pink-500/20 to-transparent", accent: "border-pink-500/60 bg-pink-500/15 text-pink-300" },
 ];
 
@@ -62,7 +62,7 @@ const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
     FORGEMAGIE: "border-warning/60 bg-warning/10 text-warning",
     METIER: "border-success/60 bg-success/10 text-success",
     QUETE: "border-violet-500/60 bg-violet-500/10 text-violet-300",
-    OCRE: "border-yellow-500/60 bg-yellow-500/10 text-yellow-300",
+    OCRE: "border-warning/60 bg-warning/10 text-warning",
     AUTRE: "border-border/60 bg-muted/10 text-foreground",
     TUTORAT: "border-pink-500/60 bg-pink-500/10 text-pink-300",
 };
@@ -432,10 +432,10 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         hoverShadow: ""
                                     },
                                     OCRE: { 
-                                        border: "hover:border-yellow-500/40", 
-                                        text: "text-yellow-400", 
-                                        bg: "bg-yellow-500/10", 
-                                        iconBorder: "group-hover:border-yellow-500/30",
+                                        border: "hover:border-warning/40", 
+                                        text: "text-warning", 
+                                        bg: "bg-warning/10", 
+                                        iconBorder: "group-hover:border-warning/30",
                                         hoverShadow: ""
                                     },
                                     AUTRE: { 
@@ -857,7 +857,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             emeraude: { ...prev.emeraude, active: !prev.emeraude.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.emeraude.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.emeraude.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-success-foreground"}`}
                                                     >
                                                         {eleveurOptions.emeraude.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -875,7 +875,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                     emeraude: { ...prev.emeraude, price: e.target.value }
                                                                 }))}
                                                                 placeholder="Ex: 500k ou Gratuit"
-                                                                className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                                className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                             />
                                                         </div>
                                                     </div>
@@ -898,7 +898,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             dragodinde: { ...prev.dragodinde, active: !prev.dragodinde.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.dragodinde.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.dragodinde.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-success-foreground"}`}
                                                     >
                                                         {eleveurOptions.dragodinde.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -914,7 +914,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         ...prev,
                                                                         dragodinde: { ...prev.dragodinde, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
                                                                     }))}
-                                                                    className="bg-black/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
+                                                                    className="bg-muted/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
                                                                 >
                                                                     <option value="all" className="bg-background text-foreground">Pack Complet 1→10</option>
                                                                     {Array.from({ length: 10 }).map((_, i) => (
@@ -933,7 +933,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         dragodinde: { ...prev.dragodinde, price: e.target.value }
                                                                     }))}
                                                                     placeholder="Tarif (kamas)"
-                                                                    className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                                    className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                                 />
                                                             </div>
                                                         </div>
@@ -957,7 +957,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             muldo: { ...prev.muldo, active: !prev.muldo.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.muldo.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.muldo.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-success-foreground"}`}
                                                      >
                                                         {eleveurOptions.muldo.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -973,7 +973,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         ...prev,
                                                                         muldo: { ...prev.muldo, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
                                                                     }))}
-                                                                    className="bg-black/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
+                                                                    className="bg-muted/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
                                                                 >
                                                                     <option value="all" className="bg-background text-foreground">Pack Complet 1→10</option>
                                                                     {Array.from({ length: 10 }).map((_, i) => (
@@ -992,7 +992,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         muldo: { ...prev.muldo, price: e.target.value }
                                                                     }))}
                                                                     placeholder="Tarif (kamas)"
-                                                                    className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                                    className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1016,7 +1016,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             volkorne: { ...prev.volkorne, active: !prev.volkorne.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.volkorne.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.volkorne.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-success-foreground"}`}
                                                      >
                                                         {eleveurOptions.volkorne.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -1032,7 +1032,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         ...prev,
                                                                         volkorne: { ...prev.volkorne, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
                                                                     }))}
-                                                                    className="bg-black/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
+                                                                    className="bg-muted/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
                                                                 >
                                                                     <option value="all" className="bg-background text-foreground">Pack Complet 1→10</option>
                                                                     {Array.from({ length: 10 }).map((_, i) => (
@@ -1051,7 +1051,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         volkorne: { ...prev.volkorne, price: e.target.value }
                                                                     }))}
                                                                     placeholder="Tarif (kamas)"
-                                                                    className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                                    className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1075,7 +1075,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             pack100: { ...prev.pack100, active: !prev.pack100.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack100.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack100.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-success-foreground"}`}
                                                     >
                                                         {eleveurOptions.pack100.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -1093,7 +1093,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                     pack100: { ...prev.pack100, price: e.target.value }
                                                                 }))}
                                                                 placeholder="Ex: 2M ou 2 000 000"
-                                                                className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                                className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                             />
                                                         </div>
                                                     </div>
@@ -1116,7 +1116,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             pack1000: { ...prev.pack1000, active: !prev.pack1000.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack1000.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack1000.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-success-foreground"}`}
                                                     >
                                                         {eleveurOptions.pack1000.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -1134,7 +1134,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                     pack1000: { ...prev.pack1000, price: e.target.value }
                                                                 }))}
                                                                 placeholder="Ex: 15M ou 15 000 000"
-                                                                className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                                className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                             />
                                                         </div>
                                                     </div>
@@ -1209,8 +1209,8 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {category === "OCRE" && (
                                 <div className="space-y-4">
                                     {/* Beautiful Dofus Card */}
-                                    <div className="flex gap-4 items-center p-3.5 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 ">
-                                        <div className="relative w-14 h-14 shrink-0 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 ">
+                                    <div className="flex gap-4 items-center p-3.5 rounded-2xl border border-warning/20 bg-warning/5 ">
+                                        <div className="relative w-14 h-14 shrink-0 bg-warning/10 rounded-xl flex items-center justify-center border border-warning/20 ">
                                             <Image
                                                 src="/assets/icons/ocre.png"
                                                 alt="Dofus Ocre"
@@ -1220,7 +1220,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             />
                                         </div>
                                         <div className="space-y-0.5">
-                                            <span className="text-caption text-yellow-500 font-black uppercase tracking-widest leading-none">L'Éternelle Moisson</span>
+                                            <span className="text-caption text-warning font-black uppercase tracking-widest leading-none">L'Éternelle Moisson</span>
                                             <h4 className="text-sm font-black text-foreground leading-tight">Dofus Ocre</h4>
                                             <p className="text-caption text-muted-foreground leading-normal">Configurez vos packs ou services liés à la quête Ocre.</p>
                                         </div>
@@ -1235,7 +1235,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     type="button"
                                                     onClick={() => setOcrePack(p.value)}
                                                     className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-black border transition-all duration-200 ${ocrePack === p.value
-                                                        ? "border-yellow-500 bg-yellow-500/15 text-yellow-300"
+                                                        ? "border-warning bg-warning/15 text-warning"
                                                         : "border-border bg-surface text-muted-foreground hover:border-border-strong"
                                                         }`}
                                                 >
@@ -1354,7 +1354,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             value={tutoratBasesPrice}
                                                             onChange={(e) => setTutoratBasesPrice(e.target.value)}
                                                             placeholder="Ex: 100k ou Gratuit"
-                                                            className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                            className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                         />
                                                     </div>
                                                 </div>
@@ -1389,7 +1389,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             value={tutoratAvancePrice}
                                                             onChange={(e) => setTutoratAvancePrice(e.target.value)}
                                                             placeholder="Ex: 200k ou Gratuit"
-                                                            className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                            className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                         />
                                                     </div>
                                                 </div>
@@ -1424,7 +1424,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             value={tutoratStuffPrice}
                                                             onChange={(e) => setTutoratStuffPrice(e.target.value)}
                                                             placeholder="Ex: Gratuit ou 150k"
-                                                            className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
+                                                            className="bg-muted/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                         />
                                                     </div>
                                                 </div>
@@ -1496,7 +1496,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             <Button
                                 onClick={handleSubmit}
                                 disabled={loading || !title.trim()}
-                                className={`flex-1 font-black h-12 text-foreground shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-info hover:bg-info shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-warning hover:bg-warning shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : CATEGORY_ACCENT[category].includes("pink") ? "bg-pink-600 hover:bg-pink-500 shadow-pink-900/20" : "bg-success hover:bg-success shadow-emerald-900/20"}`}
+                                className={`flex-1 font-black h-12 text-warning-foreground shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-info hover:bg-info shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-warning hover:bg-warning shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-warning hover:bg-warning shadow-yellow-900/20" : CATEGORY_ACCENT[category].includes("pink") ? "bg-pink-600 hover:bg-pink-500 shadow-pink-900/20" : "bg-success hover:bg-success shadow-emerald-900/20"}`}
                             >
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publier"}
                             </Button>

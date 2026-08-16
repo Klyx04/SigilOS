@@ -65,7 +65,7 @@ export default function MapPositionModal({ posX, posY, label, guildId, onClose }
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="w-full max-w-5xl bg-[#0a0d14] border border-border rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+          className="w-full max-w-5xl bg-background border border-border rounded-3xl overflow-hidden shadow-2xl flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-black/40"

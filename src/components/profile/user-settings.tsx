@@ -371,10 +371,10 @@ export function UserSettings({
                             {/* POLLS */}
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-surface group hover:border-orange-500/30 transition-all cursor-default">
+                                    <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-surface group hover:border-warning/30 transition-all cursor-default">
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                                            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                                                <PieChart className="w-4 h-4 text-orange-400" />
+                                            <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
+                                                <PieChart className="w-4 h-4 text-warning" />
                                             </div>
                                             <div className="min-w-0 pr-2">
                                                 <p className="text-caption font-semibold text-foreground truncate">Sondages</p>
@@ -421,9 +421,9 @@ export function UserSettings({
                             {isAdmin && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-zinc-400/5 group hover:border-border/30 transition-all cursor-default">
+                                        <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-muted/5 group hover:border-border/30 transition-all cursor-default">
                                             <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                <div className="w-8 h-8 rounded-lg bg-zinc-400/10 flex items-center justify-center shrink-0">
+                                                <div className="w-8 h-8 rounded-lg bg-muted/10 flex items-center justify-center shrink-0">
                                                     <ShieldCheck className="w-4 h-4 text-muted-foreground" />
                                                 </div>
                                                 <div className="min-w-0 pr-2">
@@ -579,7 +579,7 @@ export function UserSettings({
                         <div className="mt-8 pt-6 border-t border-danger/10 relative z-10">
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="sigil-destructive" className="w-full h-auto min-h-[3rem] py-2 whitespace-normal text-caption sm:text-xs md:text-sm gap-2 font-bold bg-danger/10 hover:bg-danger text-danger hover:text-foreground border border-danger/30 transition-all flex items-center justify-center text-center">
+                                    <Button variant="sigil-destructive" className="w-full h-auto min-h-[3rem] py-2 whitespace-normal text-caption sm:text-xs md:text-sm gap-2 font-bold bg-danger/10 hover:bg-danger text-danger hover:text-danger-foreground border border-danger/30 transition-all flex items-center justify-center text-center">
                                         <Trash2 className="w-4 h-4 shrink-0" />
                                         SUPPRIMER MON COMPTE SIGILOS
                                     </Button>

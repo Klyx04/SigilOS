@@ -61,7 +61,7 @@ export function SubmissionCountdown({ createdAt, className }: Props) {
             isUrgent
                 ? "bg-danger/40 text-danger border border-danger/60 animate-pulse"
                 : percentLeft < 50
-                    ? "bg-orange-500/40 text-orange-200 border border-orange-500/60"
+                    ? "bg-warning/40 text-warning border border-warning/60"
                     : "bg-elevated/80 text-foreground border border-border/80",
             className
         )}>
@@ -77,8 +77,8 @@ export function SubmissionCountdown({ createdAt, className }: Props) {
                         isUrgent
                             ? "bg-danger"
                             : percentLeft < 50
-                                ? "bg-orange-400"
-                                : "bg-zinc-400"
+                                ? "bg-warning"
+                                : "bg-muted"
                     )}
                     style={{ width: `${percentLeft}%` }}
                 />

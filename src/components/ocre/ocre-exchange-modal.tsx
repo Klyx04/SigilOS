@@ -289,14 +289,14 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                     <TabsList className="grid w-full grid-cols-2 bg-background/80 border border-border p-1 rounded-xl shrink-0 sm:w-auto">
                                         <TabsTrigger 
                                             value="monsters" 
-                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-foreground text-muted-foreground"
+                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-success-foreground text-muted-foreground"
                                         >
                                             <PackageOpen className="h-3.5 w-3.5 shrink-0" />
                                             <span>Par Monstre ({monstersList.length})</span>
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="members" 
-                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-foreground text-muted-foreground"
+                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-success-foreground text-muted-foreground"
                                         >
                                             <Users className="h-3.5 w-3.5 shrink-0" />
                                             <span>Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})</span>

@@ -179,7 +179,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 <div className={cn(
                                     "flex items-center justify-center w-6 h-6 rounded-full text-caption font-black transition-all duration-300 border shrink-0",
                                     i < step
-                                        ? "bg-success border-success text-foreground "
+                                        ? "bg-success border-success text-success-foreground "
                                         : i === step
                                             ? "bg-success/20 border-success/60 text-success ring-2 ring-success/40"
                                             : "bg-elevated border-border-strong text-foreground"

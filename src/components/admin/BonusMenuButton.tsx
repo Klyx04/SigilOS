@@ -216,13 +216,13 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                         {hasAnyBonus && (
                             <div className="space-y-2">
                                 {activeBonuses.map((bonus) => (
-                                    <div key={bonus.id} className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 flex items-center gap-3">
-                                        <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                                    <div key={bonus.id} className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-center gap-3">
+                                        <AlertCircle className="w-4 h-4 text-warning flex-shrink-0" />
                                         <div className="flex-1 min-w-0">
-                                            <span className="text-sm font-bold text-orange-400">
+                                            <span className="text-sm font-bold text-warning">
                                                 {bonus.config?.name || "Bonus"}
                                             </span>
-                                            <span className="text-xs text-orange-300/60 ml-2">
+                                            <span className="text-xs text-warning/60 ml-2">
                                                 ⏳ Dispo en jeu (24h max)
                                             </span>
                                         </div>
@@ -264,9 +264,9 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 className={cn(
                                                     "group relative flex flex-col items-center justify-center p-6 rounded-xl border-2 transition-all duration-300",
                                                     isActive && "border-green-500 bg-green-500/10 ",
-                                                    isPurchased && "border-orange-500 bg-orange-500/10 ",
+                                                    isPurchased && "border-warning bg-warning/10 ",
                                                     !isActive && !isPurchased && !isDisabled && "border-border bg-surface/30 hover:border-info hover:bg-info/20",
-                                                    isDisabled && !isActive && !isPurchased && "opacity-40 cursor-not-allowed border-zinc-900 bg-background"
+                                                    isDisabled && !isActive && !isPurchased && "opacity-40 cursor-not-allowed border-border bg-background"
                                                 )}
                                             >
                                                 <div className="mb-4 transform transition-transform group- duration-300 relative">
@@ -281,7 +281,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 <span className={cn(
                                                     "text-sm font-bold text-center mb-2",
                                                     isActive && "text-green-400",
-                                                    isPurchased && "text-orange-400",
+                                                    isPurchased && "text-warning",
                                                     !isActive && !isPurchased && "text-foreground"
                                                 )}>
                                                     {bonus.name}
@@ -295,7 +295,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                     </div>
                                                 )}
                                                 {isPurchased && (
-                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-orange-500 text-foreground text-caption font-bold uppercase">
+                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-warning text-warning-foreground text-caption font-bold uppercase">
                                                         24h
                                                     </div>
                                                 )}

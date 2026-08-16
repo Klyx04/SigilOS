@@ -99,7 +99,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
             <Link href={`/dashboard/${guildId}/sondages/${poll.id}`}>
                 <div className={cn(
                     "group relative overflow-hidden rounded-2xl border transition-colors",
-                    "bg-[#0a0a0f]/60 hover:bg-[#101018]/80 cursor-pointer",
+                    "bg-surface/60 hover:bg-elevated/80 cursor-pointer",
                     isActive ? cat.borderColor : "border-border",
                 )}>
 

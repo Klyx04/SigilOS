@@ -16,9 +16,9 @@ export function AdminTourReplay({ phase }: { phase: TourPhase }) {
         <button
             type="button"
             onClick={() => startTour(phase)}
-            className="inline-flex items-center gap-2 px-4 h-10 rounded-xl border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 hover:border-orange-500/50 text-xs font-black uppercase tracking-widest text-orange-300 transition-all active:scale-95"
+            className="inline-flex items-center gap-2 px-4 h-10 rounded-xl border border-warning/30 bg-warning/10 hover:bg-warning/20 hover:border-warning/50 text-xs font-black uppercase tracking-widest text-warning transition-all active:scale-95"
         >
-            <CircleHelp className="w-4 h-4 text-orange-400" />
+            <CircleHelp className="w-4 h-4 text-warning" />
             Tutoriel
         </button>
     );

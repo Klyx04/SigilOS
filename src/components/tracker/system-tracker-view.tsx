@@ -27,7 +27,7 @@ type Issue = {
 
 const PRIORITY_COLORS: Record<string, string> = {
     "Très important": "bg-danger/10 text-danger border-danger/20",
-    "Important": "bg-orange-500/10 text-orange-500 border-orange-500/20",
+    "Important": "bg-warning/10 text-warning border-warning/20",
     "Normal": "bg-info/10 text-info border-info/20",
     "Faible": "bg-muted/10 text-muted-foreground border-border",
 };

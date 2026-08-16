@@ -22,9 +22,9 @@ type FilterType = "all" | "missions" | "achievements" | "kamas" | "reactivations
 const FILTER_CFG: Record<FilterType, { label: string; color: string; textActive: string; textInactive: string; icon: any; shadow: string }> = {
     all: { 
         label: "Tout", 
-        color: "bg-orange-500", 
+        color: "bg-warning", 
         textActive: "text-foreground", 
-        textInactive: "text-orange-400", 
+        textInactive: "text-warning", 
         icon: Activity,
         shadow: "shadow-orange-500/20"
     },
@@ -46,9 +46,9 @@ const FILTER_CFG: Record<FilterType, { label: string; color: string; textActive:
     },
     kamas: { 
         label: "Kamas", 
-        color: "bg-yellow-500", 
+        color: "bg-warning", 
         textActive: "text-foreground", 
-        textInactive: "text-yellow-400", 
+        textInactive: "text-warning", 
         icon: Coins,
         shadow: "shadow-yellow-500/20"
     },
@@ -202,7 +202,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                         <motion.div 
                             initial={{ width: 0 }} 
                             animate={{ width: `${(pendingKamas / data.total) * 100}%` }} 
-                            className="h-full bg-yellow-400 rounded-sm " 
+                            className="h-full bg-warning rounded-sm " 
                         />
                     )}
                     {pendingReactivations > 0 && (

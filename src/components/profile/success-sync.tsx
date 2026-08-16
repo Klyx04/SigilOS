@@ -281,7 +281,7 @@ export function SuccessSync({
                                                         <span className="text-caption uppercase font-bold text-muted-foreground leading-none mb-1">Guilde</span>
                                                         <span className={cn(
                                                             "text-sm font-black tabular-nums",
-                                                            previewData.guildRank === 1 ? "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" : "text-foreground/90"
+                                                            previewData.guildRank === 1 ? "text-warning drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" : "text-foreground/90"
                                                         )}>
                                                             #{previewData.guildRank || '—'}
                                                         </span>

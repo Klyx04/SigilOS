@@ -17,7 +17,7 @@ const ACTION_COLORS: Record<string, string> = {
     CONFIG_UPDATED: "bg-info/20 text-info border-info/30",
     SETTINGS_UPDATED: "bg-info/20 text-info border-info/30",
     SECURITY_ALERT: "bg-danger/20 text-danger border-danger/30 animate-pulse",
-    ADMIN_FULL_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    ADMIN_FULL_DENIED: "bg-warning/20 text-warning border-warning/30",
     MEMBER_LEFT: "bg-muted/20 text-muted-foreground border-border",
     MEMBER_ARCHIVED: "bg-warning/20 text-warning border-warning/30",
     MEMBER_BANNED: "bg-danger/20 text-danger border-danger/30",
@@ -40,7 +40,7 @@ const ACTION_COLORS: Record<string, string> = {
     BONUS_CANCELLED: "bg-muted/20 text-muted-foreground border-border",
     // Polls
     POLL_CREATED: "bg-info/20 text-info border-info/30",
-    POLL_CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    POLL_CLOSED: "bg-warning/20 text-warning border-warning/30",
     POLL_DELETED: "bg-danger/20 text-danger border-danger/30",
     POLL_CREATOR_ROLE_ACQUIRED: "bg-info/10 text-info border-info/20 ",
     // GDPR

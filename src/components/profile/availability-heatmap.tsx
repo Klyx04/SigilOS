@@ -39,10 +39,10 @@ const TIME_SLOT_ICONS: Record<TimeSlot, React.ReactNode> = {
 
 const TIME_SLOT_COLORS: Record<TimeSlot, { bg: string; border: string; glow: string; text: string }> = {
     matin: {
-        bg: "bg-orange-500/20",
-        border: "border-orange-500/50",
+        bg: "bg-warning/20",
+        border: "border-warning/50",
         glow: "",
-        text: "text-orange-400",
+        text: "text-warning",
     },
     midi: {
         bg: "bg-warning/20",
@@ -289,7 +289,7 @@ export function AvailabilityHeatmap({
 
                                             {/* Vacation Indicator Badge */}
                                             {isVacationDay && (
-                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-info/90 text-caption text-foreground font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-info/90 text-caption text-info-foreground font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
                                                     <Plane className="w-2.5 h-2.5" />
                                                 </div>
                                             )}
@@ -357,7 +357,7 @@ export function AvailabilityHeatmap({
                                                         )}>
                                                             <div className={cn(
                                                                 "w-2.5 h-2.5 rounded-full shadow-sm",
-                                                                slot === "matin" && "bg-orange-400",
+                                                                slot === "matin" && "bg-warning",
                                                                 slot === "midi" && "bg-warning",
                                                                 slot === "soir" && "bg-violet-400",
                                                                 slot === "nuit" && "bg-info"
@@ -384,7 +384,7 @@ export function AvailabilityHeatmap({
 
             {/* Minimal Legend */}
             <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-border text-caption text-muted-foreground">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> Matin</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> Matin</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> Midi</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-400" /> Soir</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-info" /> Nuit</div>

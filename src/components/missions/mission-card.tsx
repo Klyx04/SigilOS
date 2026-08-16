@@ -291,7 +291,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
             style={{ '--ring-color': config.ringColor } as React.CSSProperties}
         >
             <Card className={cn(
-                "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-[#121417] shadow-2xl",
+                "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface shadow-2xl",
                 "hover:border-border ",
                 !vitrineMode && isValidated && "ring-1 ring-success/40",
                 !vitrineMode && isRejected && "ring-1 ring-danger/40",
@@ -339,7 +339,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     {/* Status Badges Pin to Right */}
                     <div className="ml-auto flex gap-2 relative z-10">
                         {!vitrineMode && isValidated && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/90 text-foreground font-black text-caption shadow-lg border border-border">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/90 text-success-foreground font-black text-caption shadow-lg border border-border">
                                 <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">VALIDÉ</span>
                             </div>
                         )}
@@ -349,7 +349,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             </div>
                         )}
                         {!vitrineMode && isRejected && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-danger/90 text-foreground font-black text-caption shadow-lg border border-border">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-danger/90 text-danger-foreground font-black text-caption shadow-lg border border-border">
                                 <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
                             </div>
                         )}
@@ -357,7 +357,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                 </div>
 
                 {/* ----------------- CONTENT BODY (Two Columns) ----------------- */}
-                <div className="relative z-10 flex min-h-[135px] overflow-hidden bg-gradient-to-b from-[#1a1c20] to-[#121417]">
+                <div className="relative z-10 flex min-h-[135px] overflow-hidden bg-gradient-to-b from-elevated to-surface">
 
                     {/* Sub-Atmosphere Glow */}
                     <div className={cn(
@@ -388,7 +388,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                     unoptimized={true}
                                 />
                                 {/* Cinematic Overlay: Gradient Fade to Right */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#1a1c20]/40 z-10" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-elevated/40 z-10" />
 
                                 {/* OBJECTIF MANUEL — gros badge exclamation sur l'image */}
                                 {mission.category === 'EVENT' && payload.eventType === 'OBJECTIF' && (
@@ -493,7 +493,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                 </div>
 
                 {/* ----------------- ACTION BAR (Bottom) ----------------- */}
-                <div className="relative z-20 flex flex-wrap gap-3 px-4 sm:px-5 py-3 bg-[#0d0f11] border-t border-border items-center justify-between">
+                <div className="relative z-20 flex flex-wrap gap-3 px-4 sm:px-5 py-3 bg-popover border-t border-border items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Button
                             size="sm"
@@ -501,7 +501,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 "h-9 px-4 sm:px-6 text-caption sm:text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg shrink-0",
                                 isInterested
                                     ? "bg-success/20 text-success border border-success/50 hover:bg-success/30"
-                                    : "bg-background text-foreground hover:bg-success hover:text-foreground  active:scale-95 border-none"
+                                    : "bg-background text-foreground hover:bg-success hover:text-success-foreground  active:scale-95 border-none"
                             )}
                             onClick={handleToggleInterest}
                             disabled={isPending || isRestricted}
@@ -613,7 +613,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             </DialogHeader>
                         </div>
 
-                        <ScrollArea className="max-h-[300px] w-full bg-[#121417]">
+                        <ScrollArea className="max-h-[300px] w-full bg-surface">
                             {isLoadingValidators ? (
                                 <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
                                     <Loader2 className="w-6 h-6 animate-spin mb-3 text-success/50" />

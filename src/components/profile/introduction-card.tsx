@@ -116,7 +116,7 @@ export function IntroductionCard({
                                     </div>
                                     <div className={cn(
                                         "text-caption font-black tabular-nums transition-colors px-2 py-1 rounded",
-                                        text.length > MAX_CHARS ? "text-danger bg-danger/10" : "text-muted-foreground bg-black/20"
+                                        text.length > MAX_CHARS ? "text-danger bg-danger/10" : "text-muted-foreground bg-muted/20"
                                     )}>
                                         {text.length} / {MAX_CHARS}
                                     </div>
@@ -160,7 +160,7 @@ export function IntroductionCard({
                             </div>
                         </div>
                     ) : (
-                        <div className="p-6 rounded-2xl bg-black/40 border border-border text-foreground text-sm leading-relaxed whitespace-pre-wrap min-h-[80px] group-hover:bg-black/60 transition-colors">
+                        <div className="p-6 rounded-2xl bg-muted/40 border border-border text-foreground text-sm leading-relaxed whitespace-pre-wrap min-h-[80px] group-hover:bg-muted/60 transition-colors">
                             {introduction ? (
                                 <div className="text-body-sm text-foreground/90 tracking-wide font-medium italic">
                                     "{introduction}"

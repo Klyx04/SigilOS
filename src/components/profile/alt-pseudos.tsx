@@ -334,7 +334,7 @@ export function AltPseudos({
                             "h-9 px-4 text-xs font-black uppercase tracking-wider transition-all border shadow-md rounded-xl cursor-pointer",
                             isEditing
                                 ? "bg-elevated text-foreground border-border hover:bg-muted"
-                                : "bg-info/10 text-info border-info/30 hover:bg-info/20 hover:text-foreground"
+                                : "bg-info/10 text-info border-info/30 hover:bg-info/20 hover:text-info"
                         )}
                     >
                         {isEditing ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Edit2 className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />}
@@ -457,7 +457,7 @@ export function AltPseudos({
                                                 </Button>
                                                 <button
                                                     onClick={() => handleRemovePseudo(mule.id!)}
-                                                    className="h-7 w-7 flex items-center justify-center text-danger hover:text-foreground hover:bg-danger/80 rounded-lg transition-all bg-danger/10 border border-danger/20 cursor-pointer"
+                                                    className="h-7 w-7 flex items-center justify-center text-danger hover:text-danger-foreground hover:bg-danger/80 rounded-lg transition-all bg-danger/10 border border-danger/20 cursor-pointer"
                                                     title="Supprimer"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
@@ -470,7 +470,7 @@ export function AltPseudos({
                         })}
                     </div>
                 ) : (
-                    <div className="text-xs font-bold text-muted-foreground italic py-12 border border-dashed border-border rounded-2xl flex flex-col items-center justify-center bg-black/40 gap-3">
+                    <div className="text-xs font-bold text-muted-foreground italic py-12 border border-dashed border-border rounded-2xl flex flex-col items-center justify-center bg-muted/40 gap-3">
                         <Users className="w-8 h-8 text-muted-foreground" />
                         Aucune mule enregistrée pour le moment.
                     </div>
@@ -650,7 +650,7 @@ export function AltPseudos({
                                                                 ? align.id === "bontarien" ? "bg-info/10 border-info/40 text-info font-black " :
                                                                   align.id === "brakmarien" ? "bg-danger/10 border-danger/40 text-danger font-black " :
                                                                   "bg-elevated border-border-strong text-foreground "
-                                                                : "bg-black/20 border-border text-muted-foreground hover:text-foreground"
+                                                                : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
                                                         <div className="relative w-7 h-7 rounded-full overflow-hidden shrink-0 border border-border shadow-md">
@@ -683,7 +683,7 @@ export function AltPseudos({
                                                                 "h-14 px-4 rounded-xl flex items-center gap-3 transition-all border text-left text-caption font-black uppercase tracking-widest relative overflow-hidden",
                                                                 isSel
                                                                     ? "bg-warning/10 border-warning/40 text-warning "
-                                                                    : "bg-black/20 border-border text-muted-foreground hover:text-foreground"
+                                                                    : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
                                                             )}
                                                         >
                                                             <div className="relative w-9 h-9 shrink-0 bg-black/60 rounded-lg border border-border flex items-center justify-center p-1 overflow-hidden shadow-inner">
@@ -714,7 +714,7 @@ export function AltPseudos({
                                                         "px-3 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
                                                         newAlignmentLevel === 0
                                                             ? "bg-warning/15 border-warning/40 text-warning"
-                                                            : "bg-black/20 border-border text-muted-foreground hover:text-foreground"
+                                                            : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
                                                     )}
                                                 >
                                                     Aucune
@@ -728,7 +728,7 @@ export function AltPseudos({
                                                             "px-3 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
                                                             newAlignmentLevel === level
                                                                 ? "bg-warning/15 border-warning/40 text-warning"
-                                                                : "bg-black/20 border-border text-muted-foreground hover:text-foreground"
+                                                                : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
                                                         )}
                                                         title={title || `Niveau ${level}`}
                                                     >

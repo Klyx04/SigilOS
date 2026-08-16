@@ -294,14 +294,14 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     <TabsList className="w-full bg-surface border border-white/8 p-1 rounded-lg mb-4">
                         <TabsTrigger
                             value="standard"
-                            className="flex-1 gap-2 data-[state=active]:bg-info data-[state=active]:text-foreground data-[state=active]: text-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]: text-info-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Swords className="w-3.5 h-3.5" />
                             Run Standard
                         </TabsTrigger>
                         <TabsTrigger
                             value="epreuve"
-                            className="flex-1 gap-2 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]: text-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]: text-warning-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Trophy className="w-3.5 h-3.5" />
                             Épreuve de Songe

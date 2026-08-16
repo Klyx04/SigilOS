@@ -107,7 +107,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                                 handleDismiss(e);
                             }
                         }}
-                        className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-foreground/20 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                        className="ml-1 p-0.5 rounded-full hover:bg-muted/20 text-foreground/20 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                         title="Cacher pour 4h"
                         aria-label="Cacher pour 4h"
                     >
@@ -149,7 +149,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                                             </AvatarFallback>
                                         </Avatar>
                                     </div>
-                                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-danger border-2 border-zinc-900 animate-pulse" />
+                                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-danger border-2 border-border animate-pulse" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-black text-foreground group-hover:text-foreground uppercase tracking-tight truncate">

@@ -1,4 +1,5 @@
 'use client';
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Rectangle, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet';
@@ -1289,7 +1290,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     <div class="w-7 h-7 rounded-full bg-surface/90 border-2 border-amber-500/80  flex items-center justify-center text-amber-400 group-hover:scale-125 group-hover:border-amber-400 transition-all duration-200 relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 20v-9H2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2Z"/><path d="M18 11V4H6v7"/><path d="M15 22v-4a3 3 0 0 0-3-3v0a3 3 0 0 0-3 3v4"/><path d="M22 11V9"/><path d="M2 11V9"/><path d="M6 4V2"/><path d="M18 4V2"/><path d="M10 4V2"/><path d="M14 4V2"/></svg>
                         ${isOcre ? `<img src="/module-dofus/Dofus_Ocre.png" alt="Quête Ocre" class="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full object-contain border border-border-strong bg-background " title="Donjon Quête Ocre" />` : ''}
-                        ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-foreground text-caption font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
+                        ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-warning-foreground text-caption font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
                     </div>`;
 
                     return (

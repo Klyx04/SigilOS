@@ -45,7 +45,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             <div className="flex flex-col items-start gap-3">
                                 <Link
                                     href="/dashboard"
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
                                 >
                                     Accéder au Dashboard
                                     <ChevronRight className="w-4 h-4" />
@@ -55,7 +55,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             <div className="flex flex-col items-start gap-3">
                                 <button
                                     onClick={() => setShowAccessModal(true)}
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
                                 >
                                     Demander l&apos;accès pour ma guilde
                                     <ChevronRight className="w-4 h-4" />
@@ -65,7 +65,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             <div className="flex flex-col items-start gap-4">
                                 <button
                                     onClick={() => setShowAccessModal(true)}
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
                                 >
                                     Créer l&apos;espace de ma guilde
                                     <ChevronRight className="w-4 h-4" />
@@ -85,7 +85,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
 
                     {/* Product visual */}
                     <div className="relative">
-                        <div className="rounded-2xl border border-border bg-[#101313] overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
+                        <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
                             <div className="h-9 border-b border-border flex items-center gap-1.5 px-4">
                                 <span className="w-2.5 h-2.5 rounded-full bg-muted" />
                                 <span className="w-2.5 h-2.5 rounded-full bg-muted" />

@@ -57,7 +57,7 @@ export default async function GettingStartedPage({
                 {/* Alerte critique si étapes obligatoires non complètes */}
                 {!progress.mandatoryComplete && (
                     <div className="mx-1 relative group">
-                        <div className="absolute -inset-px bg-gradient-to-r from-danger/40 to-orange-500/40 rounded-xl blur-sm opacity-70" />
+                        <div className="absolute -inset-px bg-gradient-to-r from-danger/40 to-warning/40 rounded-xl blur-sm opacity-70" />
                         <div className="relative flex items-start gap-4 bg-danger/10 border border-danger/30 rounded-xl p-5">
                             <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-danger/15 flex items-center justify-center text-danger">
                                 <AlertTriangle className="w-5 h-5" />

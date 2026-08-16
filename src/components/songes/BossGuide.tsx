@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, X, Star, Swords, Shield, Wind, BookOpen, Lightbulb, ChevronDown, ExternalLink, Dice5 } from "lucide-react";
@@ -395,7 +396,7 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                         </label>
                         <button
                             onClick={randomBoss}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 hover:text-foreground transition-all text-sm font-medium"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 hover:text-warning transition-all text-sm font-medium"
                         >
                             <Dice5 className="w-4 h-4" />
                             Boss aléatoire

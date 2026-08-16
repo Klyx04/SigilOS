@@ -20,7 +20,6 @@ interface PollSettingsClientProps {
 
 export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
-    const [roleId, setRoleId] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
@@ -35,7 +34,6 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
             ]);
             if (result.success && result.data) {
                 setChannelId(result.data.pollsNotifyChannelId || "");
-                setRoleId(result.data.pollsNotifyRoleId || "");
                 setIsConfigured(!!result.data.pollsNotifyChannelId);
                 setPollsPingRoleIds(result.data.pollsPingRoleIds || []);
             }
@@ -50,8 +48,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     const handleSave = () => {
         startTransition(async () => {
             const result = await updatePollSettings(guildId, {
-                pollsNotifyChannelId: channelId.trim() || null,
-                pollsNotifyRoleId: roleId.trim() || null
+                pollsNotifyChannelId: channelId.trim() || null
             });
             const pingRolesResult = await updateAllowedPingRolesAction(guildId, pollsPingRoleIds, "polls");
 
@@ -114,23 +111,6 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                         <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                         <p className="text-caption text-zinc-500 italic">
                             Le salon où les nouveaux sondages seront publiés automatiquement si l'option est cochée lors de la création.
-                        </p>
-                    </div>
-
-                    {/* Role ID */}
-                    <div className="space-y-2">
-                        <Label className="text-zinc-400 flex items-center gap-2">
-                            <Users className="w-3.5 h-3.5" />
-                            Rôle à mentionner par défaut
-                        </Label>
-                        <Input
-                            value={roleId}
-                            onChange={(e) => setRoleId(e.target.value)}
-                            placeholder="ID du rôle (laisser vide pour ne mentionner personne)"
-                            className="font-mono bg-black/20 border-white/10 focus:border-cyan-500/50"
-                        />
-                        <p className="text-caption text-zinc-500 italic">
-                            Identifiant du rôle Discord à notifier (pings) lors de la publication d'un sondage.
                         </p>
                     </div>
 

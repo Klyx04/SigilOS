@@ -385,13 +385,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl">
+                <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-white/5">
                     {["ACTIVE", "ARCHIVED", "BANNED", "EXCLUDED", "ALL"].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
-                            className={`px-5 py-2.5 rounded-[16px] text-caption font-black uppercase tracking-[0.15em] transition-all ${activeTab === tab
-                                ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20 border-t border-white/20"
+                            className={`px-4 py-2 rounded-lg text-caption font-semibold uppercase tracking-wide transition-colors ${activeTab === tab
+                                ? "bg-zinc-100 text-zinc-900"
                                 : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                 }`}
                         >
@@ -402,13 +402,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Select value={roleFilter} onValueChange={setRoleFilter}>
-                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-2xl text-caption font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8 focus:ring-violet-500/20">
+                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-xl text-caption font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden pr-8 focus:ring-white/10">
                             <SelectValue placeholder="Rôle" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                            <SelectItem value="all" className="text-caption font-black uppercase tracking-widest">Tous les rôles</SelectItem>
+                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                            <SelectItem value="all" className="text-caption font-medium uppercase tracking-wide">Tous les rôles</SelectItem>
                             {uniqueRoles.map(role => (
-                                <SelectItem key={role} value={role!} className="text-caption font-black uppercase tracking-widest">
+                                <SelectItem key={role} value={role!} className="text-caption font-medium uppercase tracking-wide">
                                     {role}
                                 </SelectItem>
                             ))}
@@ -416,14 +416,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </Select>
 
                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-2xl text-caption font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8 focus:ring-violet-500/20">
+                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-xl text-caption font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden pr-8 focus:ring-white/10">
                             <SelectValue placeholder="Arrivée" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                            <SelectItem value="all" className="text-caption font-black uppercase tracking-widest">Toutes époques</SelectItem>
-                            <SelectItem value="week" className="text-caption font-black uppercase tracking-widest">{"< 1 semaine"}</SelectItem>
-                            <SelectItem value="month" className="text-caption font-black uppercase tracking-widest">{"< 1 mois"}</SelectItem>
-                            <SelectItem value="old" className="text-caption font-black uppercase tracking-widest">{"> 6 mois"}</SelectItem>
+                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                            <SelectItem value="all" className="text-caption font-medium uppercase tracking-wide">Toutes époques</SelectItem>
+                            <SelectItem value="week" className="text-caption font-medium uppercase tracking-wide">{"< 1 semaine"}</SelectItem>
+                            <SelectItem value="month" className="text-caption font-medium uppercase tracking-wide">{"< 1 mois"}</SelectItem>
+                            <SelectItem value="old" className="text-caption font-medium uppercase tracking-wide">{"> 6 mois"}</SelectItem>
                         </SelectContent>
                     </Select>
 
@@ -445,7 +445,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         <div className="h-40 flex flex-col items-center justify-center gap-2 text-zinc-500">
                             <ShieldAlert className="w-7 h-7 opacity-40" />
                             <p className="italic text-sm">Aucune exclusion active.</p>
-                            <p className="text-caption font-black uppercase tracking-widest opacity-60">
+                            <p className="text-caption font-semibold uppercase tracking-wide opacity-60">
                                 Les membres bannis ou supprimés du dashboard apparaîtront ici (protection anti-ré-provisionnement).
                             </p>
                         </div>
@@ -458,7 +458,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             <ShieldAlert className="w-5 h-5 text-red-400" />
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="font-black text-sm md:text-base text-zinc-200 flex items-center gap-2 truncate">
+                                            <div className="font-semibold text-sm md:text-base text-zinc-200 flex items-center gap-2 truncate">
                                                 <span className="text-zinc-400 font-mono text-xs md:text-sm">{ban.discordId}</span>
                                             </div>
                                             <div className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
@@ -472,7 +472,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         size="sm"
                                         disabled={isUpdating === ban.discordId}
                                         onClick={() => handleLiftExclusion(ban)}
-                                        className="shrink-0 rounded-xl text-caption font-black uppercase tracking-widest border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                                        className="shrink-0 rounded-xl text-caption font-semibold uppercase tracking-wide border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                                     >
                                         {isUpdating === ban.discordId ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <UserCheck className="w-3.5 h-3.5 mr-2" />}
                                         Réintégrer
@@ -483,26 +483,26 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     )}
                 </div>
             ) : (
-            <div className="rounded-[32px] border border-white/10 bg-zinc-900/40 backdrop-blur-2xl overflow-x-auto no-scrollbar shadow-2xl relative group">
+            <div className="rounded-2xl border border-white/10 bg-zinc-900/40 overflow-x-auto no-scrollbar">
                 <Table className="min-w-[800px] lg:min-w-0">
                     <TableHeader className="bg-white/[0.02] border-b border-white/5">
                         <TableRow className="hover:bg-transparent border-none">
-                            <TableHead className="pl-8 text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Membre</TableHead>
-                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Statut</TableHead>
+                            <TableHead className="pl-8 text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6">Membre</TableHead>
+                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6">Statut</TableHead>
                             <TableHead className="py-6">
                                 <button
                                     onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : "desc")}
-                                    className="flex items-center gap-2 text-caption font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
+                                    className="flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-zinc-500 hover:text-white transition-colors"
                                 >
                                     Arrivée
                                     <ArrowUpDown className="w-3 h-3" />
                                 </button>
                             </TableHead>
-                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Activité</TableHead>
-                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Discord ID</TableHead>
-                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Ankama ID</TableHead>
-                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Suppression</TableHead>
-                            <TableHead className="text-right text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6 pr-8">Actions</TableHead>
+                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6">Activité</TableHead>
+                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6">Discord ID</TableHead>
+                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6">Ankama ID</TableHead>
+                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6">Suppression</TableHead>
+                            <TableHead className="text-right text-caption font-semibold uppercase tracking-wide text-zinc-500 py-6 pr-8">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

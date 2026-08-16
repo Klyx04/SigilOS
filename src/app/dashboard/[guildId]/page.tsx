@@ -8,7 +8,6 @@ import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserProfile } from "@/server/actions/profile-actions";
 import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions";
-import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
@@ -18,7 +17,6 @@ import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
 import { RecentDjPosts } from "./_components/recent-dj-posts";
-import { RecentStuffGallery } from "./_components/recent-stuff-gallery";
 import { AlmanaxWidget } from "./_components/almanax-widget";
 import { GuildActivityFeed } from "./_components/guild-activity-feed";
 import { UpcomingEventsWidget } from "./_components/upcoming-events-widget";
@@ -71,7 +69,6 @@ export default async function DashboardPage({
         guildStatsResult,
         almanaxItems,
         groupsResult,
-        stuffResult,
         guildLogs,
         calendarResult,
         pollsResult,
@@ -84,7 +81,6 @@ export default async function DashboardPage({
         getGuildStats(guildId),
         getUpcomingAlmanax().catch(() => null),
         getUnifiedActiveGroups(guildId),
-        getStuffGalleryPage(guildId, 1, undefined, undefined, undefined, "newest"),
         getUnifiedGuildActivity(guildId, 12).catch(() => []),
         getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
         user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
@@ -96,7 +92,6 @@ export default async function DashboardPage({
     const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
     const activeGroups = groupsResult.success ? groupsResult.groups : [];
-    const latestBuilds = stuffResult.success && stuffResult.data ? stuffResult.data.builds : [];
     const upcomingEvents = calendarResult.success ? calendarResult.events : [];
     const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
     const hasRaidNow = !!activeRaid;
@@ -260,15 +255,10 @@ export default async function DashboardPage({
                 </div>
                 )}
 
-                {/* ── 5. GROUPES ACTIFS + GALERIE ──────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    <section data-tour="dash-groups" className="min-h-[360px]">
-                        <RecentDjPosts guildId={guildId} groups={activeGroups} />
-                    </section>
-                    <section data-tour="dash-gallery" className="min-h-[360px]">
-                        <RecentStuffGallery guildId={guildId} builds={latestBuilds} />
-                    </section>
-                </div>
+                {/* ── 5. GROUPES ACTIFS (pleine largeur) ─────────────────── */}
+                <section data-tour="dash-groups" className="min-h-[360px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <RecentDjPosts guildId={guildId} groups={activeGroups} />
+                </section>
 
                 {/* ── 6. ALMANAX + ACTIVITÉ ────────────────────────────── */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">

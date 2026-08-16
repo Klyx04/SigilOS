@@ -25,7 +25,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
     try {
         const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-        const [config, weeklyActiveUsers, totalMissions] = await Promise.all([
+        const [config, weeklyActiveUsers] = await Promise.all([
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
                 select: {
@@ -39,12 +39,6 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
                     guild: { discordGuildId: guildId },
                     status: "ACTIVE",
                     lastSeen: { gte: lastWeek },
-                }
-            }),
-            db.mission.count({
-                where: {
-                    guild: { discordGuildId: guildId },
-                    status: "ACTIVE",
                 }
             })
         ]);
@@ -75,7 +69,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
                 },
                 {
                     name: "📈 Activité (7 jours)",
-                    value: `Membres actifs: **${weeklyActiveUsers}**\nMissions en cours: **${totalMissions}**`,
+                    value: `Membres actifs: **${weeklyActiveUsers}**`,
                     inline: false
                 }
             ],

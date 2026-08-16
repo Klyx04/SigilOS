@@ -114,6 +114,27 @@ export type GlobalAvailability = {
     [key: string]: any; // Allow legacy properties during migration
 };
 
+/**
+ * Nombre de créneaux de disponibilité remplis (format GlobalAvailability OU legacy
+ * AvailabilityMap direct). Utilisé pour le rappel hebdomadaire « remplis ta semaine ».
+ */
+export function countAvailabilitySlots(availability: GlobalAvailability | AvailabilityMap | null | undefined): number {
+    if (!availability || typeof availability !== "object") return 0;
+    const template = (availability as GlobalAvailability).template ?? (availability as AvailabilityMap);
+    if (!template || typeof template !== "object") return 0;
+    let count = 0;
+    for (const day of DAYS_OF_WEEK) {
+        const slots = (template as AvailabilityMap)[day];
+        if (Array.isArray(slots)) count += slots.length;
+    }
+    return count;
+}
+
+/** La semaine type du joueur est-elle renseignée (au moins un créneau actif) ? */
+export function hasFilledAvailability(availability: GlobalAvailability | AvailabilityMap | null | undefined): boolean {
+    return countAvailabilitySlots(availability) > 0;
+}
+
 // -----------------------------------------------------------------------------
 // FORGEMAGIE STATUS
 // -----------------------------------------------------------------------------

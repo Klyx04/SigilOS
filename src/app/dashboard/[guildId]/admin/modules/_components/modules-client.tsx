@@ -28,6 +28,7 @@ import {
     Gamepad2,
     Camera,
     Gavel,
+    CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -71,6 +72,10 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
     donjons: [{ label: "Donjons & Quêtes", href: "/dashboard/{guildId}/donjons-et-quetes" }],
     docs: [{ label: "Documentation (Wiki)", href: "/docs" }],
     polls: [{ label: "Sondages", href: "/dashboard/{guildId}/sondages" }],
+    availability: [
+        { label: "Annuaire (Disponibilités)", href: "/dashboard/{guildId}/members" },
+        { label: "Profil (Planning)", href: "/dashboard/{guildId}/profile?tab=planning" },
+    ],
     minigames: [{ label: "Mini-Jeux", href: "/dashboard/{guildId}/mini-jeux" }],
     quests: [{ label: "Quêtes Dofus", href: "/dashboard/{guildId}/quetes-dofus" }],
     worldmap: [{ label: "Carte du Monde", href: "/dashboard/{guildId}/worldmap" }],
@@ -126,6 +131,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-green-400",
                 bgColor: "bg-green-500/10",
                 borderColor: "border-green-500/30",
+            },
+            {
+                key: "availability",
+                label: "Disponibilités",
+                description: "Planning hebdomadaire des membres (onglet Disponibilités de l'annuaire + onglet Planning du profil). Rappel doux une fois par semaine si non rempli.",
+                icon: CalendarClock,
+                color: "text-cyan-400",
+                bgColor: "bg-cyan-500/10",
+                borderColor: "border-cyan-500/30",
             },
         ],
     },

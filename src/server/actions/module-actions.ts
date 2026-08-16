@@ -26,6 +26,8 @@ const UpdateModulesSchema = z.object({
     profile: z.boolean(),
     docs: z.boolean(),
     polls: z.boolean(),
+    // Planning
+    availability: z.boolean(),
     // Admin
     logs: z.boolean(),
     admin: z.boolean(),
@@ -97,6 +99,7 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             profile: dbModules.profile ?? DEFAULT_MODULES.profile,
             docs: dbModules.docs ?? DEFAULT_MODULES.docs,
             polls: dbModules.polls ?? DEFAULT_MODULES.polls,
+            availability: dbModules.availability ?? DEFAULT_MODULES.availability,
             logs: dbModules.logs ?? DEFAULT_MODULES.logs,
             admin: dbModules.admin ?? DEFAULT_MODULES.admin,
             quests: dbModules.quests ?? DEFAULT_MODULES.quests,

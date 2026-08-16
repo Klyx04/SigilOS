@@ -148,6 +148,7 @@ export default async function ProfilePage({ params, searchParams }: {
                     readOnly={false}
                     isSuperAdmin={userContext.isSuperAdmin}
                     hasAbsenceChannel={!!guildConfig?.absenceChannelId}
+                    canViewPlanning={!!userContext.canViewAvailability}
                 />
             </div>
         </div>

@@ -3,9 +3,6 @@
 import { useState, useTransition } from "react";
 import { MemberCard } from "./member-card";
 import Image from "next/image";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { motion, AnimatePresence } from "framer-motion";
-import { GuildAbsenceCalendar } from "./guild-absence-calendar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 import { ClassIcon } from "@/components/shared/class-icon";
-import { Search, Filter, X, Briefcase, Swords, Check, Palmtree, Shield, Sparkles } from "lucide-react";
+import { Search, Filter, X, Briefcase, Swords, Check, Shield, Users, Sparkles } from "lucide-react";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -47,9 +44,9 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
     const filteredMembers = members.filter(m => {
         // 1. Search (Deep Alias Search)
         const searchTerm = search.toLowerCase();
-        
+
         // Main Pseudos - Safe check
-        const mainMatch = 
+        const mainMatch =
             (typeof m.pseudoDofus === 'string' ? m.pseudoDofus : "").toLowerCase().includes(searchTerm) ||
             (typeof m.dofusPseudo === 'string' ? m.dofusPseudo : "").toLowerCase().includes(searchTerm) ||
             (typeof m.user?.name === 'string' ? m.user.name : "").toLowerCase().includes(searchTerm) ||
@@ -84,7 +81,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
         // 3. Job Filter
         if (selectedJob) {
             const jobs = Array.isArray(m.metiers) ? m.metiers : [];
-            const hasJob = jobs.some((j: any) => 
+            const hasJob = jobs.some((j: any) =>
                 typeof j === 'string' && j.toLowerCase() === selectedJob.toLowerCase()
             );
             if (!hasJob) return false;
@@ -95,7 +92,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
             const mainAlignMatch = m.alignment === selectedAlignment;
             let muleAlignMatch = false;
             if (m.altPseudos && Array.isArray(m.altPseudos)) {
-                muleAlignMatch = m.altPseudos.some((alt: any) => 
+                muleAlignMatch = m.altPseudos.some((alt: any) =>
                     alt && typeof alt === 'object' && alt.alignment === selectedAlignment
                 );
             }
@@ -107,7 +104,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
             const mainOrderMatch = m.alignmentOrder === selectedOrder;
             let muleOrderMatch = false;
             if (m.altPseudos && Array.isArray(m.altPseudos)) {
-                muleOrderMatch = m.altPseudos.some((alt: any) => 
+                muleOrderMatch = m.altPseudos.some((alt: any) =>
                     alt && typeof alt === 'object' && alt.alignmentOrder === selectedOrder
                 );
             }
@@ -150,152 +147,23 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
     };
     const getSelectedLegendaryName = () => legendaryItems.find(i => i.id === selectedLegendary)?.name;
 
-    const [activeTab, setActiveTab] = useState("roster");
-
     return (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12" data-tour="annuaire-grid">
-                {/* --- Roster Card --- */}
-                <button
-                    onClick={() => setActiveTab("roster")}
-                    className={cn(
-                        "relative group flex items-center gap-6 p-8 rounded-[2.5rem] transition-all duration-300 outline-none select-none text-left overflow-hidden",
-                        activeTab === "roster"
-                            ? "glass-premium bg-white/[0.03] border-white/10 scale-[1.02] shadow-2xl"
-                            : "bg-white/[0.04] border-white/10 hover:bg-white/[0.06] hover:border-white/20 hover:-translate-y-1"
-                    )}
-                >
-                    <AnimatePresence>
-                        {activeTab === "roster" ? (
-                            <motion.div 
-                                layoutId="dir-glow-roster"
-                                className="absolute inset-0 rounded-[inherit] -z-10"
-                                style={{ background: `radial-gradient(circle at center, rgba(79, 70, 229, 0.35), transparent 70%)` }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                            />
-                        ) : (
-                            <div 
-                                className="absolute inset-0 rounded-[inherit] -z-10 opacity-5 group-hover:opacity-15 transition-opacity duration-300 bg-indigo-500"
-                                style={{ background: `radial-gradient(circle at center, rgba(79, 70, 229, 0.4), transparent 80%)` }}
-                            />
-                        )}
-                    </AnimatePresence>
-
-                    <div className={cn(
-                        "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300 relative z-10",
-                        activeTab === "roster"
-                            ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 "
-                            : "bg-zinc-900/50 border-white/5 text-indigo-400 opacity-40 group-hover:opacity-100 group-hover:border-white/10"
-                    )}>
-                        {activeTab === "roster" && (
-                            <div className="absolute inset-0 blur-lg opacity-40 -z-10 bg-indigo-500" />
-                        )}
-                        <Swords className={cn(
-                            "w-7 h-7 transition-transform duration-300",
-                            activeTab === "roster" ? "scale-110 rotate-[5deg]" : "group-"
-                        )} />
-                    </div>
-
-                    <div className="relative z-10">
-                        <p className={cn(
-                            "font-black text-sm uppercase tracking-widest transition-all duration-300",
-                            activeTab === "roster" ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-zinc-300 group-hover:text-white"
-                        )}>
-                            Effectifs de Guilde
-                        </p>
-                        <p className={cn(
-                            "text-caption font-bold mt-1 tracking-wider transition-colors duration-300",
-                            activeTab === "roster" ? "text-zinc-400" : "text-zinc-500 group-hover:text-zinc-400"
-                        )}>
-                            Artisans, combattants et membres
-                        </p>
-                    </div>
-
-                    {activeTab === "roster" && (
-                        <motion.div 
-                            layoutId="dir-active-pill"
-                            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/4 h-1.5 rounded-full blur-sm bg-indigo-500"
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        />
-                    )}
-                </button>
-
-                {/* --- Absences Card --- */}
-                <button
-                    onClick={() => setActiveTab("absences")}
-                    className={cn(
-                        "relative group flex items-center gap-6 p-8 rounded-[2.5rem] transition-all duration-300 outline-none select-none text-left overflow-hidden",
-                        activeTab === "absences"
-                            ? "glass-premium bg-white/[0.03] border-white/10 scale-[1.02] shadow-2xl"
-                            : "bg-white/[0.04] border-white/10 hover:bg-white/[0.06] hover:border-white/20 hover:-translate-y-1"
-                    )}
-                >
-                    <AnimatePresence>
-                        {activeTab === "absences" ? (
-                            <motion.div 
-                                layoutId="dir-glow-absences"
-                                className="absolute inset-0 rounded-[inherit] -z-10"
-                                style={{ background: `radial-gradient(circle at center, rgba(8, 145, 178, 0.35), transparent 70%)` }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                            />
-                        ) : (
-                            <div 
-                                className="absolute inset-0 rounded-[inherit] -z-10 opacity-5 group-hover:opacity-15 transition-opacity duration-300 bg-cyan-500"
-                                style={{ background: `radial-gradient(circle at center, rgba(8, 145, 178, 0.4), transparent 80%)` }}
-                            />
-                        )}
-                    </AnimatePresence>
-
-                    <div className={cn(
-                        "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300 relative z-10",
-                        activeTab === "absences"
-                            ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 "
-                            : "bg-zinc-900/50 border-white/5 text-cyan-400 opacity-40 group-hover:opacity-100 group-hover:border-white/10"
-                    )}>
-                        {activeTab === "absences" && (
-                            <div className="absolute inset-0 blur-lg opacity-40 -z-10 bg-cyan-500" />
-                        )}
-                        <Palmtree className={cn(
-                            "w-7 h-7 transition-transform duration-300",
-                            activeTab === "absences" ? "scale-110 rotate-[5deg]" : "group-"
-                        )} />
-                    </div>
-
-                    <div className="relative z-10">
-                        <p className={cn(
-                            "font-black text-sm uppercase tracking-widest transition-all duration-300",
-                            activeTab === "absences" ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-zinc-300 group-hover:text-white"
-                        )}>
-                            Disponibilités
-                        </p>
-                        <p className={cn(
-                            "text-caption font-bold mt-1 tracking-wider transition-colors duration-300",
-                            activeTab === "absences" ? "text-zinc-400" : "text-zinc-500 group-hover:text-zinc-400"
-                        )}>
-                            Calendrier et absences
-                        </p>
-                    </div>
-
-                    {activeTab === "absences" && (
-                        <motion.div 
-                            layoutId="dir-active-pill"
-                            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/4 h-1.5 rounded-full blur-sm bg-cyan-500"
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        />
-                    )}
-                </button>
+        <div className="w-full">
+            {/* Effectif de guilde — bloc centré (module Disponibilités dédié : onglet retiré de l'annuaire) */}
+            <div className="flex flex-col items-center text-center mb-10" data-tour="annuaire-grid">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-4">
+                    <Users className="w-7 h-7 text-indigo-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">Effectif de guilde</h2>
+                <p className="text-sm text-zinc-500 mt-1.5">
+                    {members.length} membre{members.length > 1 ? "s" : ""} — recherchez par pseudo, classe, métier ou alignement.
+                </p>
             </div>
 
-            <TabsContent value="roster" className="mt-0 border-0 p-0 animate-in fade-in zoom-in-95 duration-300">
 
             {/* FILTER BAR — UI UX 2026 PREMIUM */}
-            <div className="relative overflow-hidden p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 shadow-2xl bg-zinc-950 group/filterbar border border-white/5 mb-6" data-tour="annuaire-filters">
-                <div className="noise-overlay absolute inset-0 opacity-10" />
-                
+            <div className="relative p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 bg-zinc-950 group/filterbar border border-white/5 mb-6" data-tour="annuaire-filters">
+
                 {/* Search Input — High Fidelity */}
                 <div className="relative flex-1 group/search" data-tour="annuaire-search">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within/search:text-indigo-400 transition-colors duration-300" />
@@ -307,7 +175,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                     />
                     {/* Inner Focus Glint */}
                     <div className="absolute inset-px rounded-[inherit] border border-white/5 pointer-events-none group-focus-within/search:border-indigo-500/20 transition-all duration-300" />
-                    
+
                     {search && (
                         <button
                             onClick={() => setSearch("")}
@@ -325,13 +193,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-caption rounded-xl transition-all duration-300 shadow-xl group/btn",
+                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
                                     selectedClass && "border-indigo-500/40 bg-indigo-500/20 text-indigo-400 shadow-indigo-500/10"
                                 )}
                             >
                                 <Swords className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400 group-hover/btn:scale-110", 
-                                    selectedClass && "rotate-12 scale-110 text-indigo-400 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400",
+                                    selectedClass && "text-indigo-400 opacity-100"
                                 )} />
                                 {selectedClass ? getSelectedClassName() : "Classe"}
                                 {selectedClass && (
@@ -352,7 +220,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-2xl" align="end">
+                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher une classe..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -391,13 +259,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-caption rounded-xl transition-all duration-300 shadow-xl group/btn",
+                                    "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
                                     selectedJob && "border-amber-500/40 bg-amber-500/20 text-amber-500 shadow-amber-500/10"
                                 )}
                             >
                                 <Briefcase className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500 group-hover/btn:scale-110", 
-                                    selectedJob && "scale-110 -rotate-6 text-amber-500 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500",
+                                    selectedJob && "text-amber-500 opacity-100"
                                 )} />
                                 {selectedJob ? getSelectedJobName() : "Métier (200)"}
                                 {selectedJob && (
@@ -418,7 +286,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-2xl" align="end">
+                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un métier..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -476,13 +344,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-caption rounded-xl transition-all duration-300 shadow-xl group/btn",
+                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
                                     selectedAlignment && "border-indigo-500/40 bg-indigo-500/20 text-indigo-400 shadow-indigo-500/10"
                                 )}
                             >
                                 <Shield className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400 group-hover/btn:scale-110", 
-                                    selectedAlignment && "rotate-12 scale-110 text-indigo-400 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400",
+                                    selectedAlignment && "text-indigo-400 opacity-100"
                                 )} />
                                 {selectedAlignment ? selectedAlignment : "Alignement"}
                                 {selectedAlignment && (
@@ -504,7 +372,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] p-4 glass-premium border-white/10 shadow-2xl" align="end">
+                        <PopoverContent className="w-[320px] p-4 glass-premium border-white/10 shadow-xl" align="end">
                             <div className="space-y-3">
                                 <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
                                     <Shield className="w-3 h-3" /> Factions
@@ -522,17 +390,17 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                 }}
                                                 className={cn(
                                                     "relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-300",
-                                                    isSelected 
-                                                        ? "border-indigo-500 bg-indigo-500/10 " 
+                                                    isSelected
+                                                        ? "border-indigo-500 bg-indigo-500/10 "
                                                         : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
                                                 )}
                                             >
                                                 <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/10 shadow-inner">
-                                                    <Image 
-                                                        src={a.icon} 
-                                                        alt={a.name} 
-                                                        fill 
-                                                        className="object-cover scale-[1.35]" 
+                                                    <Image
+                                                        src={a.icon}
+                                                        alt={a.name}
+                                                        fill
+                                                        className="object-cover scale-[1.35]"
                                                     />
                                                 </div>
                                                 <span className={cn(
@@ -556,13 +424,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 <Button
                                     variant="outline"
                                     className={cn(
-                                        "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-caption rounded-xl transition-all duration-300 shadow-xl group/btn",
+                                        "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
                                         selectedOrder && "border-amber-500/40 bg-amber-500/20 text-amber-500 shadow-amber-500/10"
                                     )}
                                 >
                                     <Sparkles className={cn(
-                                        "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500 group-hover/btn:scale-110", 
-                                        selectedOrder && "scale-110 -rotate-6 text-amber-500 opacity-100"
+                                        "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500",
+                                        selectedOrder && "text-amber-500 opacity-100"
                                     )} />
                                     {selectedOrder ? (ORDERS as any)[selectedAlignment].find((o: any) => o.id === selectedOrder)?.name || "Ordre" : "Ordre"}
                                     {selectedOrder && (
@@ -583,7 +451,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     )}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[360px] p-4 glass-premium border-white/10 shadow-2xl" align="end">
+                            <PopoverContent className="w-[360px] p-4 glass-premium border-white/10 shadow-xl" align="end">
                                 <div className="space-y-3">
                                     <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
                                         <Sparkles className="w-3 h-3" /> Ordres ({selectedAlignment})
@@ -600,17 +468,17 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     }}
                                                     className={cn(
                                                         "relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-300 text-center h-24",
-                                                        isSelected 
-                                                            ? "border-amber-500 bg-amber-500/10 " 
+                                                        isSelected
+                                                            ? "border-amber-500 bg-amber-500/10 "
                                                             : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
                                                     )}
                                                 >
                                                     <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0">
-                                                        <Image 
-                                                            src={o.icon} 
-                                                            alt={o.name} 
-                                                            fill 
-                                                            className="object-contain" 
+                                                        <Image
+                                                            src={o.icon}
+                                                            alt={o.name}
+                                                            fill
+                                                            className="object-contain"
                                                         />
                                                     </div>
                                                     <span className={cn(
@@ -636,12 +504,12 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-purple-500/10 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-caption rounded-xl transition-all duration-300 shadow-xl group/btn",
+                                    "h-11 border-purple-500/10 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
                                     selectedLegendary && "border-purple-500/40 bg-purple-500/20 text-purple-400 shadow-purple-500/10"
                                 )}
                             >
                                 <Sparkles className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-purple-400/50 group-hover/btn:text-purple-400 group-hover/btn:scale-110", 
+                                    "w-4 h-4 transition-all duration-300 text-purple-400/50 group-hover/btn:text-purple-400",
                                     selectedLegendary && "scale-110 -rotate-6 text-purple-400 opacity-100"
                                 )} />
                                 {selectedLegendary ? getSelectedLegendaryName() : "Légendaire"}
@@ -663,7 +531,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0 glass-premium border-white/10 shadow-2xl" align="end">
+                        <PopoverContent className="w-[300px] p-0 glass-premium border-white/10 shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un objet..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[300px]">
@@ -680,8 +548,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     }}
                                                     className={cn(
                                                         "flex flex-col items-center justify-center gap-2 p-3 rounded-xl cursor-pointer transition-all border border-transparent text-center h-28",
-                                                        selectedLegendary === item.id 
-                                                            ? "bg-purple-500/20 border-purple-500/40  text-white" 
+                                                        selectedLegendary === item.id
+                                                            ? "bg-purple-500/20 border-purple-500/40  text-white"
                                                             : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground"
                                                     )}
                                                 >
@@ -719,7 +587,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                         variant="outline"
                         onClick={() => setFilterLegendaryPet(!filterLegendaryPet)}
                         className={cn(
-                            "h-11 border-amber-400/10 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-caption rounded-xl transition-all duration-300 shadow-xl group/btn shrink-0",
+                            "h-11 border-amber-400/10 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn shrink-0",
                             filterLegendaryPet && "border-amber-400/40 bg-amber-400/20 text-amber-300 shadow-amber-400/10"
                         )}
                     >
@@ -798,11 +666,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                     />
                 </div>
             )}
-            </TabsContent>
+        </div>
 
-            <TabsContent value="absences" className="mt-0 border-0 p-0 animate-in fade-in zoom-in-95 duration-300">
-                <GuildAbsenceCalendar members={members} guildId={guildId} />
-            </TabsContent>
-        </Tabs>
     );
 }

@@ -125,6 +125,8 @@ interface ProfileBentoGridProps {
     isSuperAdmin?: boolean;
     hasAbsenceChannel?: boolean;
     initialTab?: string;
+    /** Module Disponibilités : masque l'onglet Planning (planning perso) quand inactif / sans RBAC. */
+    canViewPlanning?: boolean;
 }
 
 export function ProfileBentoGrid({
@@ -143,6 +145,7 @@ export function ProfileBentoGrid({
     welcomeBadgeName,
     isSuperAdmin = false,
     hasAbsenceChannel = false,
+    canViewPlanning = true,
     initialTab: initialTabProp,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
@@ -192,6 +195,13 @@ export function ProfileBentoGrid({
             setActiveTab(tab);
         }
     }, [searchParams]);
+
+    // Module Disponibilités inactif → l'onglet planning est masqué : repousse vers overview
+    useEffect(() => {
+        if (!canViewPlanning && activeTab === "planning") {
+            setActiveTab("overview");
+        }
+    }, [activeTab, canViewPlanning]);
 
     const displayName = discordNickname || profile.pseudoDofus || "Voyageur";
 
@@ -442,7 +452,7 @@ export function ProfileBentoGrid({
                                 { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " },
                                 { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 " },
                                 { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 " },
-                                { id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 " },
+                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 " }] : []),
                                 ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " }] : []),
                                 ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-zinc-200", bgActive: "bg-white/15 border-white/30 text-white" }] : []),
                             ].filter(t => !isEmpty[t.id]);

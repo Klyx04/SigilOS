@@ -4,8 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Activity, HelpCircle } from "lucide-react";
-import { BugReportButton } from "@/components/layout/bug-report-button";
 
 type SystemStatus = "online" | "degraded" | "offline";
 
@@ -14,8 +12,7 @@ interface GalacticFooterProps {
     isMember?: boolean;
 }
 
-export function GalacticFooter({ variant = "compact", isMember = false }: GalacticFooterProps) {
-    const [latency, setLatency] = useState<number | null>(null);
+export function GalacticFooter({ variant = "compact", isMember: _isMember = false }: GalacticFooterProps) {
     const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
@@ -53,11 +50,8 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
     useEffect(() => {
         setMounted(true);
         const checkHealth = async () => {
-            const start = Date.now();
             try {
                 const res = await fetch('/api/health');
-                const end = Date.now();
-                setLatency(end - start);
                 if (res.ok) {
                     const data = await res.json();
                     setSystemStatus(data.status === "healthy" ? "online" : data.status === "degraded" ? "degraded" : "offline");
@@ -77,12 +71,12 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
 
     const isCompact = variant === "compact";
 
-        return (
+    if (isCompact) return (
             <div className={cn(
                 "fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl px-4 pointer-events-none transition-all duration-300 ease-in-out transform",
                 isVisible ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0 pointer-events-none"
             )}>
-                <footer className="w-full relative rounded-xl border border-white/5 bg-zinc-950/90 backdrop-blur-xl py-2.5 px-4 sm:px-6 pointer-events-auto shadow-2xl transition-all">
+                <footer className="w-full relative rounded-xl border border-white/10 bg-zinc-950/90 backdrop-blur-md py-2.5 px-4 sm:px-6 pointer-events-auto shadow-lg transition-all">
                     <div className="flex items-center justify-between gap-4 relative z-10">
                         
                         {/* 1. BRAND & LEGAL */}
@@ -116,20 +110,17 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
                             </span>
                         </Link>
 
-                        {/* 3. SUPPORT */}
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="https://discord.gg/uX7G6SUDgN"
-                                target="_blank"
-                                className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors shrink-0 text-xs font-medium"
-                            >
-                                <span className="text-[10px] font-medium">Discord</span>
-                            </Link>
-
-                            <div className="scale-90 origin-right shrink-0">
-                                <BugReportButton />
-                            </div>
-                        </div>
+                        {/* 3. DISCORD SIGILOS */}
+                        <Link
+                            href="https://discord.gg/uX7G6SUDgN"
+                            target="_blank"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#5865F2] hover:text-white transition-colors shrink-0 text-xs font-semibold"
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" fill="currentColor">
+                                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                            </svg>
+                            Discord SigilOS
+                        </Link>
                     </div>
                 </footer>
             </div>
@@ -137,29 +128,26 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
 
     // STANDARD FULL FOOTER
     return (
-        <footer className="w-full bg-[#030303] border-t border-white/5 pt-32 pb-12 mt-auto relative overflow-hidden">
-            {/* Background Ambient Glow */}
-            <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
-            
+        <footer className="w-full bg-[#0b0d0d] border-t border-white/5 pt-16 pb-10 mt-auto relative">
             <div className="max-w-7xl mx-auto px-8 relative z-10">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-20">
                     {/* Brand Meta */}
                     <div className="space-y-6 flex flex-col items-start">
                          <Link href="/" className="flex items-center gap-4 group">
-                            <div className="relative w-10 h-10 transition-transform group-hover:scale-110">
+                            <div className="relative w-9 h-9">
                                 <Image
                                     src="/assets/ui/logo-v2.png"
                                     alt="SigilOS"
                                     fill
-                                    className="object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                    className="object-contain"
                                 />
                             </div>
-                            <span className="text-2xl font-black tracking-tighter text-white uppercase italic">
-                                Sigil<span className="text-emerald-500">OS</span>
+                            <span className="text-lg font-bold tracking-tight text-white">
+                                Sigil<span className="text-emerald-400">OS</span>
                             </span>
                         </Link>
                         <p className="text-zinc-500 text-sm font-medium leading-relaxed max-w-[280px]">
-                            L'excellence opérationnelle pour les guildes les plus ambitieuses du Monde des Douze.
+                            Organisez votre guilde Dofus : sorties, membres, guides et progression dans un espace partagé, relié à Discord.
                         </p>
                     </div>
 
@@ -177,10 +165,10 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
                     <div className="space-y-6">
                         <h4 className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Système</h4>
                         <div className="flex flex-col gap-4 items-start">
-                            <Link href="/status" className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-all group overflow-hidden relative">
+                            <Link href="/status" className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-colors">
                                 <div className={cn(
-                                    "w-1.5 h-1.5 rounded-full animate-pulse",
-                                    systemStatus === "online" ? "bg-emerald-500 shadow-[0_0_15px_#10b981]" :
+                                    "w-1.5 h-1.5 rounded-full",
+                                    systemStatus === "online" ? "bg-emerald-500" :
                                         systemStatus === "degraded" ? "bg-amber-500" : "bg-red-500"
                                 )} />
                                 <div className="flex flex-col">
@@ -188,23 +176,21 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
                                         "text-[10px] font-black uppercase tracking-widest",
                                         systemStatus === "online" ? "text-emerald-500" : "text-white"
                                     )}>
-                                        {systemStatus === "online" ? "Systems Online" : "Maintenance"}
+                                        {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
                                     </span>
-                                    {latency && <span className="text-zinc-600 text-[8px] font-mono leading-none mt-0.5">{latency}ms response</span>}
                                 </div>
-                                <div className="absolute -right-4 -bottom-4 w-12 h-12 bg-emerald-500/5 blur-2xl rounded-full" />
                             </Link>
                             <Link
                                 href="https://discord.gg/uX7G6SUDgN"
                                 target="_blank"
-                                className="flex items-center gap-3 text-emerald-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest group"
+                                className="flex items-center gap-3 text-emerald-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest group"
                             >
-                                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-colors">
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 127.14 96.36" fill="currentColor">
                                         <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
                                     </svg>
                                 </div>
-                                Support 24/7
+                                Discord SigilOS
                             </Link>
                         </div>
                     </div>
@@ -223,10 +209,6 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
                             SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.
                             Tous droits réservés. © 2026 Sigil Project.
                         </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 shrink-0">
-                        <BugReportButton />
                     </div>
                 </div>
             </div>

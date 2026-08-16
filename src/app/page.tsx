@@ -2,16 +2,15 @@ import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import Script from "next/script";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { HeroSection } from "@/components/landing/hero-section";
-import { LandingCarousel } from "@/components/landing/landing-carousel";
+import { ProblemSolution } from "@/components/landing/problem-solution";
+import { ProductStory } from "@/components/landing/product-story";
+import { ThreePillars } from "@/components/landing/three-pillars";
 import { auth } from "@/auth";
-import { getPublicGuilds } from "@/server/actions/presentation-actions";
 import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
-import { GuildDirectorySection } from "@/components/landing/guild-directory-section";
 import { GuildShowcaseSection } from "@/components/landing/guild-showcase-section";
 import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { SaasFeatures } from "@/components/landing/saas-features";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 
@@ -24,7 +23,7 @@ const jsonLd = {
   "applicationCategory": "GameApplication",
   "operatingSystem": "Web",
   "url": "https://sigilos.fr",
-  "description": "Le meilleur outil de gestion de guilde Dofus : quêtes, Songes Infinis, Dungeon Finder, Ladder XP et bot Discord.",
+  "description": "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -46,8 +45,7 @@ export default async function Home({
 
   const { getUserContext, getUserGuilds } = await import("@/server/actions/user-actions");
 
-  const [guilds, userContext, userGuilds] = await Promise.all([
-    getPublicGuilds(),
+  const [userContext, userGuilds] = await Promise.all([
     getUserContext(),
     session?.user ? getUserGuilds() : Promise.resolve([]),
   ]);
@@ -90,47 +88,20 @@ export default async function Home({
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
 
-          {/* H1 SSR statique pour le SEO (le H1 client animé est masqué via aria-hidden dans HeroSection) */}
-          <h1 className="sr-only">
-            {session?.user
-              ? "Prenez les commandes de votre empire Dofus"
-              : "L'outil de gestion n°1 pour votre guilde Dofus"}
-          </h1>
-
           {/* Hero */}
           <HeroSection user={session?.user} userGuilds={userGuilds} />
 
-          {/* Screenshots */}
-          <section className="py-16 relative w-full max-w-[1400px] mx-auto px-6">
-            <LandingCarousel />
-          </section>
+          {/* Problème / solution */}
+          <ProblemSolution />
+
+          {/* Démo produit narrative */}
+          <ProductStory />
 
           {/* Showcase mini-dashboards par guilde (landing v3) */}
           {showcaseGuilds.length > 0 && <GuildShowcaseSection guilds={showcaseGuilds} />}
 
-          {/* Guild Directory Teaser */}
-          <section className="py-20 border-t border-white/5 relative overflow-hidden">
-            <div className="container mx-auto px-6 relative z-10">
-              <div className="max-w-4xl mx-auto text-center mb-14">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-5 font-medium text-[11px] text-amber-400 uppercase tracking-wider">
-                  Annuaire SigilOS
-                </div>
-                <h2 className="text-3xl md:text-5xl font-heading text-foreground mb-4">
-                  Les guildes qui font{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200 font-bold">
-                    référence.
-                  </span>
-                </h2>
-                <p className="text-zinc-500 font-medium text-base max-w-lg mx-auto">
-                  Découvrez les organisations qui utilisent SigilOS pour dominer Dofus Unity.
-                </p>
-              </div>
-              <GuildDirectorySection guilds={guilds} />
-            </div>
-          </section>
-
-          {/* Features (direction 2026 : section calme, showcase des fonctionnalités) */}
-          <SaasFeatures />
+          {/* Trois piliers */}
+          <ThreePillars />
 
           {/* Comment ça marche */}
           <HowItWorks />

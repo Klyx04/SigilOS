@@ -418,6 +418,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         ladderSync: true,
                         manualLadderSync: true,
                         minigames: true,
+                        availability: true,
                     }
                 }
             }

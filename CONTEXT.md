@@ -34,7 +34,10 @@
 > `09ea6ae9c` (**🔴 CAUSE RACINE rapport quotidien** : le worker BullMQ échouait sur `getPlatformStats()` qui
 > exige une session God → stats désormais en requêtes directes scopées guilde, le rapport part enfin),
 > `38d2522a5` (**#98 planning virtualisé** : fenêtre de lignes visibles au lieu de la `<table>` complète →
-> scroll fluide à des centaines de membres).
+> scroll fluide à des centaines de membres),
+> `fb715e2b2` (**🔴 #97 cause racine Planning** : champ `availability` manquant dans le `select modules` de
+> `getUserContext` → tout membre non-admin bloqué sur `/planning` + onglet masqué, même module+RBAC OK.
+> Fix 1 ligne + **rapport quotidien** : champ « Missions en cours » retiré, comptait l'historique → faux « 259 »).
 > Vérifs : tsc 0 · lint 0 erreur · **192/192** · build OK. ⚠️ Déploiement beta requis pour : fix rapport quotidien,
 > Planning (module Disponibilités + RBAC `availability:view` ; migration `20260818000000_add_availability_module`
 > déjà appliquée en beta), virtualisation #98.

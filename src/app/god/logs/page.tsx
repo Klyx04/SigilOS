@@ -28,7 +28,7 @@ export default async function GodLogsPage() {
     return (
         <div className="space-y-8 py-8">
             <div className="flex flex-col gap-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-[10px] font-black text-violet-400 uppercase tracking-widest w-fit">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-caption font-black text-violet-400 uppercase tracking-widest w-fit">
                     <Shield className="w-3 h-3" />
                     Archive Système
                 </div>
@@ -52,7 +52,7 @@ export default async function GodLogsPage() {
                             {attemptsRes.data?.total ?? 0} au total
                         </span>
                     </div>
-                    <span className="text-[11px] text-zinc-500">
+                    <span className="text-caption text-zinc-500">
                         Candidats ayant cliqué « Se connecter » sans être dans une guilde gérée. Rétention 90 jours.
                     </span>
                 </div>
@@ -72,7 +72,7 @@ export default async function GodLogsPage() {
                                     <span className="text-xs text-rose-300/90">
                                         {reasonLabels[a.reason] || a.reason}
                                     </span>
-                                    <span className="text-[11px] text-zinc-500 whitespace-nowrap">
+                                    <span className="text-caption text-zinc-500 whitespace-nowrap">
                                         {formatDistanceToNow(new Date(a.createdAt), { addSuffix: true, locale: fr })}
                                     </span>
                                 </div>

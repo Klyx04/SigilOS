@@ -41,8 +41,8 @@ export function OcreSyncButton({ guildId, lastSync }: OcreSyncButtonProps) {
         <div className="flex items-center gap-4">
             {lastSync && (
                 <div className="hidden md:flex flex-col items-end opacity-50 hover:opacity-100 transition-opacity">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mb-1.5">Dernière MAJ</span>
-                    <span className="text-[11px] font-bold text-white tabular-nums leading-none">
+                    <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mb-1.5">Dernière MAJ</span>
+                    <span className="text-caption font-bold text-white tabular-nums leading-none">
                         {new Date(lastSync).toLocaleString("fr-FR", {
                             day: "2-digit",
                             month: "2-digit",

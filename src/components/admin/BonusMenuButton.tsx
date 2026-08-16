@@ -263,13 +263,13 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 disabled={isDisabled}
                                                 className={cn(
                                                     "group relative flex flex-col items-center justify-center p-6 rounded-xl border-2 transition-all duration-300",
-                                                    isActive && "border-green-500 bg-green-500/10 shadow-[0_0_20px_-5px_rgba(34,197,94,0.3)]",
-                                                    isPurchased && "border-orange-500 bg-orange-500/10 shadow-[0_0_20px_-5px_rgba(249,115,22,0.3)]",
+                                                    isActive && "border-green-500 bg-green-500/10 ",
+                                                    isPurchased && "border-orange-500 bg-orange-500/10 ",
                                                     !isActive && !isPurchased && !isDisabled && "border-zinc-800 bg-zinc-900/30 hover:border-purple-700 hover:bg-purple-900/20",
                                                     isDisabled && !isActive && !isPurchased && "opacity-40 cursor-not-allowed border-zinc-900 bg-zinc-950"
                                                 )}
                                             >
-                                                <div className="mb-4 transform transition-transform group-hover:scale-110 duration-300 relative">
+                                                <div className="mb-4 transform transition-transform group- duration-300 relative">
                                                     <Image
                                                         src={bonus.icon}
                                                         alt={bonus.name}
@@ -290,12 +290,12 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                     {bonus.description}
                                                 </p>
                                                 {isActive && (
-                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-green-500 text-white text-[10px] font-bold uppercase">
+                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-green-500 text-white text-caption font-bold uppercase">
                                                         Actif
                                                     </div>
                                                 )}
                                                 {isPurchased && (
-                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-orange-500 text-white text-[10px] font-bold uppercase">
+                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-orange-500 text-white text-caption font-bold uppercase">
                                                         24h
                                                     </div>
                                                 )}
@@ -306,7 +306,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                             </ScrollArea>
                         ) : (
                             /* Purchase Form */
-                            <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-right-4 duration-300">
                                 {/* Header (Sticky) */}
                                 <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4 shrink-0">
                                     <div className="flex items-center gap-4">
@@ -315,7 +315,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 src={ALL_BONUSES.find(b => b.type === selectedBonus)?.icon || ""} 
                                                 alt="Bonus Icon"
                                                 fill
-                                                className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                                className="object-cover transition-transform duration-300 group-"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                                         </div>
@@ -323,7 +323,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                             <h3 className="text-lg font-black text-white uppercase tracking-tight leading-none mb-1">
                                                 {ALL_BONUSES.find(b => b.type === selectedBonus)?.name}
                                             </h3>
-                                            <p className="text-[10px] text-purple-400 font-black uppercase tracking-[0.2em]">
+                                            <p className="text-caption text-purple-400 font-black uppercase tracking-[0.2em]">
                                                 Configuration tactique
                                             </p>
                                         </div>
@@ -332,7 +332,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                         onClick={() => setSelectedBonus(null)}
                                         variant="ghost"
                                         size="sm"
-                                        className="h-9 px-4 text-zinc-500 hover:text-white hover:bg-white/10 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest border border-white/5"
+                                        className="h-9 px-4 text-zinc-500 hover:text-white hover:bg-white/10 rounded-xl transition-all font-black text-caption uppercase tracking-widest border border-white/5"
                                     >
                                         <ChevronLeft className="w-3 h-3 mr-1.5" />
                                         Retour
@@ -350,7 +350,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                         </div>
                                         <div>
                                             <Label className="text-sm font-black text-white uppercase tracking-tight">Publier sur Discord</Label>
-                                            <p className="text-[11px] text-zinc-400 font-medium mt-1 leading-relaxed max-w-[280px]">
+                                            <p className="text-caption text-zinc-400 font-medium mt-1 leading-relaxed max-w-[280px]">
                                                 {configuredChannelName ? (
                                                     <span className="flex items-center gap-1.5">
                                                         Annonce automatique dans 
@@ -380,7 +380,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                                         <div className="flex items-center gap-2 mb-1">
                                             <AtSign className="w-3.5 h-3.5 text-zinc-500" />
-                                            <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Type de Mention</Label>
+                                            <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Type de Mention</Label>
                                         </div>
                                         
                                         <div className="grid grid-cols-3 gap-3">
@@ -394,7 +394,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 )}
                                             >
                                                 <BellOff className={cn("w-5 h-5 transition-colors", mentionType === MentionType.NONE ? "text-zinc-300" : "text-zinc-600 group-hover:text-zinc-400")} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Personne</span>
+                                                <span className="text-caption font-black uppercase tracking-widest">Personne</span>
                                                 {mentionType === MentionType.NONE && <div className="absolute inset-0 bg-white/5 pointer-events-none" />}
                                             </button>
 
@@ -408,7 +408,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 )}
                                             >
                                                 <AtSign className={cn("w-5 h-5 transition-colors", mentionType === MentionType.EVERYONE ? "text-rose-400" : "text-zinc-600 group-hover:text-zinc-400")} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">@everyone</span>
+                                                <span className="text-caption font-black uppercase tracking-widest">@everyone</span>
                                                 {mentionType === MentionType.EVERYONE && <div className="absolute inset-0 bg-rose-500/5 pointer-events-none" />}
                                             </button>
 
@@ -422,7 +422,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 )}
                                             >
                                                 <Share2 className={cn("w-5 h-5 transition-colors", mentionType === MentionType.ROLE ? "text-purple-400" : "text-zinc-600 group-hover:text-zinc-400")} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Rôle</span>
+                                                <span className="text-caption font-black uppercase tracking-widest">Rôle</span>
                                                 {mentionType === MentionType.ROLE && <div className="absolute inset-0 bg-purple-500/5 pointer-events-none" />}
                                             </button>
                                         </div>
@@ -434,10 +434,10 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                     {loadingRoles ? (
                                                         <div className="flex flex-col items-center justify-center py-10 gap-3 text-zinc-600">
                                                             <Loader2 className="w-5 h-5 animate-spin" />
-                                                            <span className="text-[10px] font-black uppercase tracking-widest">Récupération des rôles...</span>
+                                                            <span className="text-caption font-black uppercase tracking-widest">Récupération des rôles...</span>
                                                         </div>
                                                     ) : guildRoles.length === 0 ? (
-                                                        <div className="py-10 text-center text-[11px] text-zinc-600 font-bold italic">Aucun rôle Discord disponible</div>
+                                                        <div className="py-10 text-center text-caption text-zinc-600 font-bold italic">Aucun rôle Discord disponible</div>
                                                     ) : (
                                                         guildRoles.map(role => {
                                                             const isSelected = roleId === role.id;
@@ -453,7 +453,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                                             : "text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
                                                                     )}
                                                                 >
-                                                                    <div className="w-3 h-3 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] border border-white/10" style={{ backgroundColor: hex }} />
+                                                                    <div className="w-3 h-3 rounded-full  border border-white/10" style={{ backgroundColor: hex }} />
                                                                     <span className="text-xs font-black flex-1 truncate uppercase tracking-tight">@{role.name}</span>
                                                                     {isSelected && <Check className="w-4 h-4 animate-in zoom-in-50 duration-300" />}
                                                                 </button>
@@ -466,23 +466,23 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
 
                                         {/* Discord Embed Preview */}
                                         {publishToDiscord && selectedBonus && (
-                                            <div className="space-y-3 pt-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                            <div className="space-y-3 pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
-                                                        <Label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Aperçu Discord</Label>
+                                                        <Label className="text-caption font-black text-indigo-400 uppercase tracking-[0.2em]">Aperçu Discord</Label>
                                                         <div className="h-[1px] w-8 bg-indigo-500/30" />
                                                     </div>
-                                                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest italic">Simulation temps réel</span>
+                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest italic">Simulation temps réel</span>
                                                 </div>
                                                 
                                                 <div className="bg-[#2b2d31] rounded-lg overflow-hidden border-l-[3px] border-purple-600 shadow-2xl transition-all duration-300 hover:translate-y-[-1px]">
                                                     <div className="p-3 space-y-2">
                                                         <div className="flex justify-between gap-3">
                                                             <div className="space-y-1">
-                                                                <h4 className="text-[#00a8fc] hover:underline cursor-pointer font-bold text-[13px] leading-tight">
+                                                                <h4 className="text-[#00a8fc] hover:underline cursor-pointer font-bold text-body-sm leading-tight">
                                                                     💎 Bonus de Guilde disponible : {ALL_BONUSES.find(b => b.type === selectedBonus)?.name}
                                                                 </h4>
-                                                                <div className="text-zinc-300 text-[11px] leading-relaxed whitespace-pre-line font-medium">
+                                                                <div className="text-zinc-300 text-caption leading-relaxed whitespace-pre-line font-medium">
                                                                     Un nouveau bonus a été acheté par **vous**.
                                                                     {"\n"}
                                                                     **Comment l'activer ?**
@@ -503,27 +503,27 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
 
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
-                                                                <div className="text-white text-[10px] font-bold">✨ Effet du bonus</div>
-                                                                <div className="text-zinc-300 text-[10px] truncate">{ALL_BONUSES.find(b => b.type === selectedBonus)?.description}</div>
+                                                                <div className="text-white text-caption font-bold">✨ Effet du bonus</div>
+                                                                <div className="text-zinc-300 text-caption truncate">{ALL_BONUSES.find(b => b.type === selectedBonus)?.description}</div>
                                                             </div>
                                                             <div>
-                                                                <div className="text-white text-[10px] font-bold">⏳ Disponibilité restante</div>
-                                                                <div className="text-zinc-300 text-[10px] px-1 bg-zinc-700/50 rounded inline-block">dans 24 heures</div>
+                                                                <div className="text-white text-caption font-bold">⏳ Disponibilité restante</div>
+                                                                <div className="text-zinc-300 text-caption px-1 bg-zinc-700/50 rounded inline-block">dans 24 heures</div>
                                                             </div>
                                                         </div>
 
                                                         <div className="pt-1.5 border-t border-white/5 flex items-center gap-2">
-                                                            <span className="text-[9px] text-zinc-400">SigilOS · Pas encore sur le Dashboard ? → beta.sigilos.fr</span>
+                                                            <span className="text-caption text-zinc-400">SigilOS · Pas encore sur le Dashboard ? → beta.sigilos.fr</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 
                                                 {mentionType !== MentionType.NONE && (
                                                     <div className="bg-[#2b2d31]/50 px-2 py-1.5 rounded-md border border-white/5 flex items-center gap-2">
-                                                        <span className="text-indigo-400 text-[10px] font-medium">
+                                                        <span className="text-indigo-400 text-caption font-medium">
                                                             {mentionType === MentionType.EVERYONE ? "@everyone" : `@${guildRoles.find(r => r.id === roleId)?.name || "Rôle"}`}
                                                         </span>
-                                                        <span className="text-zinc-500 text-[9px] font-medium">Sera envoyé en texte brut.</span>
+                                                        <span className="text-zinc-500 text-caption font-medium">Sera envoyé en texte brut.</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -555,11 +555,11 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                             </>
                                         ) : (
                                             <>
-                                                <Save className="w-4 h-4 mr-2 transition-transform group-hover:scale-110" />
+                                                <Save className="w-4 h-4 mr-2 transition-transform group-" />
                                                 Confirmer l'achat
                                             </>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-300" />
                                     </Button>
                                     
                                     {/* Ambient background glow for purchase button */}

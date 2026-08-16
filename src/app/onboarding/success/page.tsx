@@ -46,8 +46,8 @@ export default function OnboardingSuccessPage() {
         <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center bg-zinc-950 font-sans selection:bg-accent-teal/30">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
             
-            <div className="relative z-10 max-w-md w-full p-4 animate-in fade-in zoom-in-95 duration-500">
-                <GlassPanel className="p-8 border-emerald-500/20 shadow-[0_0_50px_-12px_rgba(16,185,129,0.3)] text-center space-y-6">
+            <div className="relative z-10 max-w-md w-full p-4 animate-in fade-in zoom-in-95 duration-300">
+                <GlassPanel className="p-8 border-emerald-500/20  text-center space-y-6">
                     <div className="relative w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-emerald-500/20">
                         <CheckCircle2 className="w-10 h-10 text-emerald-400 animate-pulse" />
                         <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl animate-pulse" />
@@ -68,7 +68,7 @@ export default function OnboardingSuccessPage() {
                         </p>
                         <div className="flex items-center justify-center gap-2 py-1 px-3 bg-emerald-500/10 rounded-full w-fit mx-auto border border-emerald-500/10">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                            <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">
                                 Fermeture automatique dans {countdown}s
                             </span>
                         </div>
@@ -85,14 +85,14 @@ export default function OnboardingSuccessPage() {
                         
                         <button 
                             onClick={() => window.close()}
-                            className="text-[10px] font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors py-2"
+                            className="text-caption font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors py-2"
                         >
                             Fermer l'onglet manuellement
                         </button>
                     </div>
                 </GlassPanel>
                 
-                <p className="text-center mt-8 text-[10px] text-zinc-700 font-black uppercase tracking-[0.3em] opacity-50">
+                <p className="text-center mt-8 text-caption text-zinc-700 font-black uppercase tracking-widest opacity-50">
                     SigilOS Security Protocol · Authorization Confirmed
                 </p>
             </div>

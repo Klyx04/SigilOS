@@ -198,7 +198,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                         <span className="text-2xl font-black tabular-nums" style={{ color: SYLVESTRE_COLOR }}>
                             {overallPercent}%
                         </span>
-                        <span className="text-[9px] text-white/30 uppercase tracking-widest font-bold leading-tight mt-0.5">
+                        <span className="text-caption text-white/30 uppercase tracking-widest font-bold leading-tight mt-0.5">
                             Perso
                         </span>
                     </div>
@@ -222,7 +222,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                                 </div>
                                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                                     <div
-                                        className="h-full rounded-full transition-all duration-1000"
+                                        className="h-full rounded-full transition-all duration-300"
                                         style={{
                                             width: `${seg.percent}%`,
                                             background: seg.color,
@@ -230,7 +230,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                                         }}
                                     />
                                 </div>
-                                <p className="text-[10px] text-white/25 mt-0.5 truncate">{seg.description}</p>
+                                <p className="text-caption text-white/25 mt-0.5 truncate">{seg.description}</p>
                             </div>
                         </div>
                     ))}

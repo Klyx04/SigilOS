@@ -190,7 +190,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                             {/* Participants inscrits */}
                             {totalListCount > 0 && (
                                 <div className="space-y-2">
-                                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                                    <p className="text-caption text-slate-500 font-bold uppercase tracking-widest">
                                         Participants ({acceptedParticipants.length} inscrit{acceptedParticipants.length > 1 ? "s" : ""}{extraMembers.length > 0 ? ` + ${extraMembers.length} ajouté${extraMembers.length > 1 ? "s" : ""}` : ""})
                                     </p>
 
@@ -215,10 +215,10 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                     <p className="text-sm font-bold text-white truncate">
                                                         {p.profile.discordNickname || p.profile.pseudoDofus || (p.profile as any).dofusPseudo || "Membre"}
                                                     </p>
-                                                    {p.classe && <p className="text-[10px] text-slate-500">{p.classe}</p>}
+                                                    {p.classe && <p className="text-caption text-slate-500">{p.classe}</p>}
                                                 </div>
                                                 {isVal && (
-                                                    <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                                    <span className="flex items-center gap-1 text-caption font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
                                                         <Star className="w-2.5 h-2.5" /> +{pts} pt{pts > 1 ? "s" : ""}
                                                     </span>
                                                 )}
@@ -243,7 +243,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-bold text-white truncate">{m.name}</p>
-                                                    <p className="text-[10px] text-amber-400/70">Ajouté manuellement</p>
+                                                    <p className="text-caption text-amber-400/70">Ajouté manuellement</p>
                                                 </div>
                                                 <button
                                                     onClick={() => toggle(m.id)}
@@ -277,7 +277,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
 
                             {/* ── Ajouter un membre hors-liste ─────────────────────────────── */}
                             <div className="pt-2 border-t border-white/5" ref={dropdownRef}>
-                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                <p className="text-caption text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                     <UserPlus className="w-3 h-3" />
                                     Ajouter un participant hors-liste
                                 </p>
@@ -348,7 +348,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
 
                             {/* Summary */}
                             {validatedCount > 0 && (
-                                <p className="text-[11px] text-slate-500 text-center">
+                                <p className="text-caption text-slate-500 text-center">
                                     <strong className="text-slate-300">{validatedCount}</strong> membre{validatedCount > 1 ? "s" : ""} recevra{validatedCount > 1 ? "ont" : ""}{" "}
                                     <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>
                                 </p>

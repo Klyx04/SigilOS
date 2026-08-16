@@ -20,11 +20,11 @@ export function PseudoWarningBanner({ guildId, pseudoDofus }: PseudoWarningBanne
             
             <div className={cn(
                 "relative flex flex-col md:flex-row items-center justify-between gap-4 p-4 md:p-5 rounded-2xl border-2 backdrop-blur-md transition-all duration-300",
-                "bg-zinc-950/40 border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+                "bg-zinc-950/40 border-amber-500/30 hover:border-amber-500/50 "
             )}>
                 <div className="flex items-center gap-4 text-center md:text-left">
                     <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">
-                        <AlertTriangle className="h-6 w-6 text-amber-500 animate-bounce duration-[2000ms]" />
+                        <AlertTriangle className="h-6 w-6 text-amber-500 animate-bounce duration-300" />
                     </div>
                     
                     <div className="space-y-1">
@@ -42,7 +42,7 @@ export function PseudoWarningBanner({ guildId, pseudoDofus }: PseudoWarningBanne
 
                 <Link
                     href={`/dashboard/${guildId}/profile`}
-                    className="flex items-center gap-2 group/btn px-6 py-3 rounded-xl bg-amber-500 text-zinc-950 font-black text-sm uppercase tracking-widest hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 group/btn px-6 py-3 rounded-xl bg-amber-500 text-zinc-950 font-black text-sm uppercase tracking-widest hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/20  active:scale-95"
                 >
                     <UserCircle className="h-4 w-4" />
                     Modifier mon profil

@@ -69,11 +69,11 @@ export function DreamRunHistory({ guildId, userId }: { guildId: string, userId?:
                                         <h4 className={cn("font-bold truncate", difficultyColor)}>
                                             {run.difficulty.replace('_', ' ')}
                                         </h4>
-                                        <Badge variant="outline" className="text-[10px] uppercase font-black tracking-tight bg-zinc-900/50">
+                                        <Badge variant="outline" className="text-caption uppercase font-black tracking-tight bg-zinc-900/50">
                                             {run._count.floors} ÉTAGES
                                         </Badge>
                                         <Badge variant="secondary" className={cn(
-                                            "text-[9px] h-4 px-1.5 font-bold",
+                                            "text-caption h-4 px-1.5 font-bold",
                                             run.status === 'COMPLETED' ? "bg-emerald-500/20 text-emerald-300" :
                                                 run.status === 'FAILED' ? "bg-red-500/20 text-red-300" :
                                                     "bg-zinc-800 text-zinc-400"
@@ -81,7 +81,7 @@ export function DreamRunHistory({ guildId, userId }: { guildId: string, userId?:
                                             {run.status === 'COMPLETED' ? 'SUCCÈS' : run.status === 'FAILED' ? 'ÉCHEC' : 'ABANDON'}
                                         </Badge>
                                     </div>
-                                    <div className="text-[11px] font-medium text-zinc-500 mt-0.5">
+                                    <div className="text-caption font-medium text-zinc-500 mt-0.5">
                                         {run.completedAt ? format(new Date(run.completedAt), "d MMM yyyy 'à' HH:mm", { locale: fr }) : 'Date inconnue'}
                                     </div>
                                 </div>
@@ -103,7 +103,7 @@ export function DreamRunHistory({ guildId, userId }: { guildId: string, userId?:
                                                 {member.user?.image ? (
                                                     <Image src={member.user.image} alt={pseudo} fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                                                 ) : (
-                                                    <div className="text-[10px] font-bold text-zinc-600 uppercase">{pseudo.slice(0, 2)}</div>
+                                                    <div className="text-caption font-bold text-zinc-600 uppercase">{pseudo.slice(0, 2)}</div>
                                                 )}
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                                                 <div className="absolute bottom-0 inset-x-0 h-0.5 bg-indigo-500 opacity-0 group-hover:opacity-100" />
@@ -116,7 +116,7 @@ export function DreamRunHistory({ guildId, userId }: { guildId: string, userId?:
                                     <div className="text-sm font-black text-rose-500 leading-none">
                                         {run.pointsReve || 0} PR
                                     </div>
-                                    <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-tighter mt-1">
+                                    <div className="text-caption font-bold text-zinc-600 uppercase tracking-tighter mt-1">
                                         SCORE FINAL
                                     </div>
                                 </div>

@@ -113,18 +113,18 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                         <div className="space-y-0.5">
                                             <h3 className="text-sm font-black text-white uppercase tracking-tight">{getGameDisplayName(req)}</h3>
                                             <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="text-[9px] bg-amber-500/5 text-amber-500 border-amber-500/20 h-4 uppercase">
+                                                <Badge variant="outline" className="text-caption bg-amber-500/5 text-amber-500 border-amber-500/20 h-4 uppercase">
                                                     Archivé
                                                 </Badge>
-                                                <span className="text-[10px] text-zinc-500 font-medium italic">
+                                                <span className="text-caption text-zinc-500 font-medium italic">
                                                     {req.archivedAt ? `depuis ${formatDistanceToNow(new Date(req.archivedAt), { locale: fr })}` : "Archive indéterminée"}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-[10px] text-emerald-400 font-black uppercase tracking-widest block">Demande</span>
-                                        <span className="text-[10px] text-zinc-500 font-medium">
+                                        <span className="text-caption text-emerald-400 font-black uppercase tracking-widest block">Demande</span>
+                                        <span className="text-caption text-zinc-500 font-medium">
                                             {req.reactivationRequestedAt ? formatDistanceToNow(new Date(req.reactivationRequestedAt), { addSuffix: true, locale: fr }) : "?"}
                                         </span>
                                     </div>
@@ -133,7 +133,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
 
                             <CardContent className="px-6 pb-6 space-y-4">
                                 <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-emerald-500">
+                                    <div className="flex items-center gap-2 text-caption font-black uppercase tracking-wider text-emerald-500">
                                         <MessageSquare className="w-3 h-3" />
                                         Motif du retour
                                     </div>
@@ -144,11 +144,11 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
 
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="p-2 rounded-lg bg-black/20 border border-white/5">
-                                        <span className="block text-[9px] text-zinc-500 uppercase font-bold">Raison Archive</span>
-                                        <span className="text-[10px] text-zinc-300 font-medium">{req.archiveReason || "Action Admin"}</span>
+                                        <span className="block text-caption text-zinc-500 uppercase font-bold">Raison Archive</span>
+                                        <span className="text-caption text-zinc-300 font-medium">{req.archiveReason || "Action Admin"}</span>
                                     </div>
                                     <div className="p-2 rounded-lg bg-black/20 border border-white/5">
-                                        <span className="block text-[9px] text-zinc-500 uppercase font-bold">Suppression</span>
+                                        <span className="block text-caption text-zinc-500 uppercase font-bold">Suppression</span>
                                         <span className="text-xs text-red-400 font-black tabular-nums">
                                             {req.scheduledDeletion ? `J-${Math.ceil((new Date(req.scheduledDeletion).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}` : "Jamais"}
                                         </span>
@@ -156,7 +156,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                 </div>
 
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                                    <div className="flex items-center gap-2 text-caption font-black uppercase tracking-wider text-zinc-500">
                                         <MessageSquare className="w-3 h-3" />
                                         Message au membre (optionnel)
                                     </div>
@@ -172,7 +172,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                     <Button 
                                         onClick={() => handleDecision(req.id, "ACTIVE")}
                                         disabled={processingId === req.id}
-                                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-xl"
+                                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-caption h-10 rounded-xl"
                                     >
                                         {processingId === req.id ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : <Check className="w-3.5 h-3.5 mr-2" />}
                                         Accepter
@@ -181,7 +181,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                         variant="outline"
                                         onClick={() => handleDecision(req.id, "ARCHIVED")}
                                         disabled={processingId === req.id}
-                                        className="flex-1 border-white/5 hover:border-red-500/30 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 font-black uppercase tracking-widest text-[10px] h-10 rounded-xl transition-all"
+                                        className="flex-1 border-white/5 hover:border-red-500/30 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 font-black uppercase tracking-widest text-caption h-10 rounded-xl transition-all"
                                     >
                                         <X className="w-3.5 h-3.5 mr-2" />
                                         Refuser

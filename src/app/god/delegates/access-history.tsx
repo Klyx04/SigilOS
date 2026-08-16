@@ -28,11 +28,11 @@ export function AccessHistory({ delegates, grants }: { delegates: DelegateHistor
                 <div className="px-6 pb-6 space-y-6">
                     {delegates.length > 0 && (
                         <div className="space-y-2">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Délégations ({delegates.length})</div>
+                            <div className="text-caption font-black uppercase tracking-widest text-zinc-500">Délégations ({delegates.length})</div>
                             {delegates.map((d) => (
                                 <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-zinc-900/40 px-4 py-2.5">
                                     <span className="text-sm font-bold text-zinc-300">{d.userName || d.id}</span>
-                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                    <span className="text-caption text-zinc-500 font-mono">
                                         {d.status === "REVOKED" ? `Révoqué ${date(d.revokedAt)}` : `Expiré ${date(d.expiresAt)}`}
                                     </span>
                                 </div>
@@ -41,14 +41,14 @@ export function AccessHistory({ delegates, grants }: { delegates: DelegateHistor
                     )}
                     {grants.length > 0 && (
                         <div className="space-y-2">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Accès briques ({grants.length})</div>
+                            <div className="text-caption font-black uppercase tracking-widest text-zinc-500">Accès briques ({grants.length})</div>
                             {grants.map((g) => (
                                 <div key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-zinc-900/40 px-4 py-2.5">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-bold text-zinc-300">{GOD_BRICKS.find(b => b.id === g.brickId)?.label || g.brickId}</span>
-                                        <span className="text-[10px] text-zinc-500 italic">{g.reason || ""}</span>
+                                        <span className="text-caption text-zinc-500 italic">{g.reason || ""}</span>
                                     </div>
-                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                    <span className="text-caption text-zinc-500 font-mono">
                                         {g.status === "REVOKED" ? `Révoqué ${date(g.revokedAt)}` : `Expiré ${date(g.expiresAt)}`}
                                     </span>
                                 </div>

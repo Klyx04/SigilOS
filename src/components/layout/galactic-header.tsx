@@ -115,7 +115,7 @@ export function GalacticHeader({
 
     return (
         <header className={cn(
-            "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+            "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
             "bg-background/80 dark:bg-black/60 backdrop-blur-3xl backdrop-saturate-150 border-b border-border shadow-2xl py-1"
         )}>
             <div className="max-w-[1920px] mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-4">
@@ -152,7 +152,7 @@ export function GalacticHeader({
                                 title="Changer de guilde"
                             >
                                 {/* Glow effect for guild branding */}
-                                <div className="absolute -inset-1 bg-white/5 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                                <div className="absolute -inset-1 bg-white/5 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition duration-300"></div>
 
                                 <div className="relative">
                                     <Avatar className="h-10 w-10 border-2 border-border group-hover:border-primary/50 transition-all shadow-lg rounded-xl">
@@ -162,13 +162,13 @@ export function GalacticHeader({
                                         </AvatarFallback>
                                     </Avatar>
                                     {userGuilds.length > 1 && (
-                                        <div className="absolute -bottom-1 -right-1 bg-primary text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#030304] shadow-lg">
+                                        <div className="absolute -bottom-1 -right-1 bg-primary text-caption font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#030304] shadow-lg">
                                             {userGuilds.length}
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex flex-col relative pr-6">
-                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none mb-1">Guilde Active</span>
+                                    <span className="text-caption font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none mb-1">Guilde Active</span>
                                     <div className="flex items-center gap-2">
                                         <span className="text-base font-black text-foreground tracking-tight group-hover:text-primary transition-colors line-clamp-1 max-w-[150px]">
                                             {guildData.name}
@@ -179,7 +179,7 @@ export function GalacticHeader({
                             </div>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-64 bg-background border border-border text-foreground p-2 shadow-2xl mt-4 rounded-2xl backdrop-blur-2xl">
-                            <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-2">
+                            <DropdownMenuLabel className="text-caption font-black uppercase tracking-widest text-muted-foreground px-2 py-2">
                                 Vos Guildes SigilOS
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator className="bg-white/5 mx-1 mb-2" />
@@ -197,7 +197,7 @@ export function GalacticHeader({
                                         >
                                             <Avatar className="h-9 w-9 border border-white/10 rounded-lg">
                                                 <AvatarImage src={g.iconUrl || undefined} />
-                                                <AvatarFallback className="bg-zinc-900 text-[10px] font-bold">
+                                                <AvatarFallback className="bg-zinc-900 text-caption font-bold">
                                                     {g.name?.substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -209,7 +209,7 @@ export function GalacticHeader({
                                                     {g.name}
                                                 </span>
                                                 {g.id === guildId && (
-                                                    <span className="text-[9px] font-bold text-primary uppercase tracking-widest">Actuel</span>
+                                                    <span className="text-caption font-bold text-primary uppercase tracking-widest">Actuel</span>
                                                 )}
                                             </div>
                                             {g.id === guildId && (
@@ -258,9 +258,9 @@ export function GalacticHeader({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button className={cn(
-                                        "h-10 px-4 flex items-center gap-2.5 rounded-xl transition-all duration-300 outline-none font-black text-[11px] uppercase tracking-[0.15em] border",
+                                        "h-10 px-4 flex items-center gap-2.5 rounded-xl transition-all duration-300 outline-none font-black text-caption uppercase tracking-[0.15em] border",
                                         isActive(`/dashboard/${guildId}/admin`)
-                                            ? "bg-amber-500/10 text-amber-500 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                            ? "bg-amber-500/10 text-amber-500 border-amber-500/30 "
                                             : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                                     )}>
                                         <Shield className={cn("w-4 h-4", isActive(`/dashboard/${guildId}/admin`) ? "text-amber-500" : "text-zinc-500")} />
@@ -268,7 +268,7 @@ export function GalacticHeader({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 bg-background border border-border text-foreground p-1 shadow-2xl backdrop-blur-xl">
-                                    <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                    <div className="px-2 py-1.5 text-caption font-black uppercase tracking-widest text-muted-foreground">
                                         Administration
                                     </div>
                                     <DropdownMenuSeparator className="bg-white/5" />
@@ -309,18 +309,18 @@ export function GalacticHeader({
                                 <div className="relative">
                                     <Avatar className="h-8 w-8 border border-border group-hover:border-primary/50 transition-all shadow-lg">
                                         <AvatarImage src={user.image} />
-                                        <AvatarFallback className="bg-muted text-[10px] font-black text-muted-foreground">{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                        <AvatarFallback className="bg-muted text-caption font-black text-muted-foreground">{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                                     </Avatar>
-                                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-background rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-background rounded-full " />
                                 </div>
                                 <div className="flex flex-col items-start min-w-[70px]">
                                     <span className="text-xs font-black text-foreground leading-none tracking-tight group-hover:text-primary transition-colors">{user.name}</span>
                                     {user.isAdmin ? (
-                                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-purple-600 dark:text-purple-400 mt-1 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                                        <span className="text-caption font-black uppercase tracking-[0.1em] text-purple-600 dark:text-purple-400 mt-1 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
                                             Admin
                                         </span>
                                     ) : (
-                                        <span className="text-[9px] font-bold uppercase tracking-wider opacity-50 leading-none mt-1" style={{ color: roleColorHex }}>
+                                        <span className="text-caption font-bold uppercase tracking-wider opacity-50 leading-none mt-1" style={{ color: roleColorHex }}>
                                             {user.roleName}
                                         </span>
                                     )}
@@ -338,10 +338,10 @@ export function GalacticHeader({
                                     <div className="font-black text-base text-foreground tracking-tight">{user.name}</div>
                                     <div className="flex items-center gap-2 mt-1">
                                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                        <div className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">En ligne</div>
+                                        <div className="text-caption font-black uppercase tracking-[0.1em] text-muted-foreground">En ligne</div>
                                     </div>
                                     {user.isAdmin && (
-                                        <div className="mt-2 text-[9px] font-black uppercase tracking-widest bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded border border-purple-500/30 w-fit">
+                                        <div className="mt-2 text-caption font-black uppercase tracking-widest bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded border border-purple-500/30 w-fit">
                                             Staff {guildData.name}
                                         </div>
                                     )}
@@ -400,7 +400,7 @@ function NavIcon({ item, isActive }: { item: any, isActive: boolean }) {
                             "w-6 h-6 transition-all duration-300 stroke-[2px]", // Bigger, bolder
                             isActive ? item.color || "text-white" : "text-zinc-500 group-hover:text-zinc-300",
                             // Use color hint on hover even if not active?
-                            !isActive && "group-hover:scale-110",
+                            !isActive && "group-",
                             !isActive && item.color ? `group-hover:${item.color.replace('text-', 'text-opacity-80 text-')}` : "" // Trick to apply color on hover
                         )}
                         style={
@@ -415,13 +415,13 @@ function NavIcon({ item, isActive }: { item: any, isActive: boolean }) {
                     {/* Active Indicator Bar (Top or Bottom? Let's do Bottom Glow) */}
                     {isActive && (
                         <span className={cn(
-                            "absolute -bottom-1 w-5 h-0.5 rounded-full shadow-[0_0_10px_currentColor]",
+                            "absolute -bottom-1 w-5 h-0.5 rounded-full ",
                             item.color ? item.color.replace('text-', 'bg-') : "bg-white"
                         )} />
                     )}
                 </Link>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[10px] font-bold uppercase tracking-wider bg-black/90 border-white/10 text-white shadow-xl">
+            <TooltipContent side="bottom" className="text-caption font-bold uppercase tracking-wider bg-black/90 border-white/10 text-white shadow-xl">
                 {item.name}
             </TooltipContent>
         </Tooltip>

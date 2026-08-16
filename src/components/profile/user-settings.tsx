@@ -208,7 +208,7 @@ export function UserSettings({
                                 <Label htmlFor="perf-mode" className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">
                                     Mode Performance
                                 </Label>
-                                <p className="text-[10px] text-zinc-500 leading-tight">
+                                <p className="text-caption text-zinc-500 leading-tight">
                                     Réduit les animations et flous.
                                 </p>
                             </div>
@@ -252,8 +252,8 @@ export function UserSettings({
                                                 <Target className="w-4 h-4 text-blue-400" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Missions</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Nouvelles & validations</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Missions</p>
+                                                <p className="text-caption text-zinc-500 truncate">Nouvelles & validations</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -263,7 +263,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Missions
                                 </TooltipContent>
                             </Tooltip>
@@ -277,8 +277,8 @@ export function UserSettings({
                                                 <Flame className="w-4 h-4 text-emerald-400" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Songes</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Invitations & candidatures</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Songes</p>
+                                                <p className="text-caption text-zinc-500 truncate">Invitations & candidatures</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -288,7 +288,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Songes
                                 </TooltipContent>
                             </Tooltip>
@@ -302,8 +302,8 @@ export function UserSettings({
                                                 <Swords className="w-4 h-4 text-indigo-400" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Donjons & Quêtes</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Entrée en groupe</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Donjons & Quêtes</p>
+                                                <p className="text-caption text-zinc-500 truncate">Entrée en groupe</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -313,7 +313,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Donjons
                                 </TooltipContent>
                             </Tooltip>
@@ -327,8 +327,8 @@ export function UserSettings({
                                                 <Calendar className="w-4 h-4 text-purple-400" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Événements</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Rappels de guilde</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Événements</p>
+                                                <p className="text-caption text-zinc-500 truncate">Rappels de guilde</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -338,7 +338,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Événements
                                 </TooltipContent>
                             </Tooltip>
@@ -352,8 +352,8 @@ export function UserSettings({
                                                 <Trophy className="w-4 h-4 text-red-400" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Succès & Ladder</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Validations & rangs</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Succès & Ladder</p>
+                                                <p className="text-caption text-zinc-500 truncate">Validations & rangs</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -363,7 +363,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Classement
                                 </TooltipContent>
                             </Tooltip>
@@ -377,8 +377,8 @@ export function UserSettings({
                                                 <PieChart className="w-4 h-4 text-orange-400" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Sondages</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Nouveaux votes</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Sondages</p>
+                                                <p className="text-caption text-zinc-500 truncate">Nouveaux votes</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -388,7 +388,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Sondages
                                 </TooltipContent>
                             </Tooltip>
@@ -402,8 +402,8 @@ export function UserSettings({
                                                 <Trophy className="w-4 h-4 text-emerald-500" />
                                             </div>
                                             <div className="min-w-0 pr-2">
-                                                <p className="text-[11px] font-semibold text-zinc-200 truncate">Quête Ocre</p>
-                                                <p className="text-[9px] text-zinc-500 truncate">Échanges</p>
+                                                <p className="text-caption font-semibold text-zinc-200 truncate">Quête Ocre</p>
+                                                <p className="text-caption text-zinc-500 truncate">Échanges</p>
                                             </div>
                                         </div>
                                         <Switch
@@ -413,7 +413,7 @@ export function UserSettings({
                                         />
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Échanges Ocre
                                 </TooltipContent>
                             </Tooltip>
@@ -427,8 +427,8 @@ export function UserSettings({
                                                     <ShieldCheck className="w-4 h-4 text-zinc-400" />
                                                 </div>
                                                 <div className="min-w-0 pr-2">
-                                                    <p className="text-[11px] font-semibold text-zinc-200 truncate">Alertes Admin</p>
-                                                    <p className="text-[9px] text-zinc-500 truncate">Missions en attente</p>
+                                                    <p className="text-caption font-semibold text-zinc-200 truncate">Alertes Admin</p>
+                                                    <p className="text-caption text-zinc-500 truncate">Missions en attente</p>
                                                 </div>
                                             </div>
                                             <Switch
@@ -438,7 +438,7 @@ export function UserSettings({
                                             />
                                         </div>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-[9px] px-3 py-1.5 shadow-xl">
+                                    <TooltipContent side="top" className="bg-zinc-900 border-white/10 text-white font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                         Notifications Administration
                                     </TooltipContent>
                                 </Tooltip>
@@ -471,7 +471,7 @@ export function UserSettings({
                         
                         <div className="flex-1 space-y-4 relative z-10">
                             <div className="flex items-center gap-3">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                                <span className="text-caption font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                                     Action Réversible
                                 </span>
                             </div>
@@ -493,7 +493,7 @@ export function UserSettings({
                         <div className="mt-8 pt-6 border-t border-white/5 relative z-10">
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="sigil-destructive" className="w-full h-auto min-h-[3rem] py-2 whitespace-normal text-[10px] sm:text-xs md:text-sm gap-2 font-bold bg-white/5 hover:bg-emerald-500/20 text-white hover:text-emerald-400 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center justify-center text-center">
+                                    <Button variant="sigil-destructive" className="w-full h-auto min-h-[3rem] py-2 whitespace-normal text-caption sm:text-xs md:text-sm gap-2 font-bold bg-white/5 hover:bg-emerald-500/20 text-white hover:text-emerald-400 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center justify-center text-center">
                                         <UserMinus className="w-4 h-4 shrink-0" />
                                         ARCHIVER MON PROFIL SUR <span className="block sm:inline">{guildName.toUpperCase()}</span>
                                     </Button>
@@ -549,14 +549,14 @@ export function UserSettings({
                     </div>
 
                     {/* DELETE ACCOUNT — Dangerous, Permanent */}
-                    <div className="flex flex-col p-5 sm:p-6 lg:p-8 bg-black/60 rounded-3xl border border-red-500/30 hover:border-red-500/60 transition-all relative overflow-hidden group shadow-[0_0_30px_rgba(239,68,68,0.05)] hover:shadow-[0_0_40px_rgba(239,68,68,0.15)]">
+                    <div className="flex flex-col p-5 sm:p-6 lg:p-8 bg-black/60 rounded-3xl border border-red-500/30 hover:border-red-500/60 transition-all relative overflow-hidden group  ">
                         <div className="absolute -top-10 -right-10 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none rotate-12">
                             <Trash2 className="w-64 h-64 text-red-500" />
                         </div>
                         
                         <div className="flex-1 space-y-4 relative z-10">
                             <div className="flex items-center gap-3">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20 flex items-center gap-1.5">
+                                <span className="text-caption font-black uppercase tracking-widest text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20 flex items-center gap-1.5">
                                     <AlertTriangle className="w-3 h-3" />
                                     Action Irréversible
                                 </span>
@@ -579,7 +579,7 @@ export function UserSettings({
                         <div className="mt-8 pt-6 border-t border-red-500/10 relative z-10">
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="sigil-destructive" className="w-full h-auto min-h-[3rem] py-2 whitespace-normal text-[10px] sm:text-xs md:text-sm gap-2 font-bold bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all flex items-center justify-center text-center">
+                                    <Button variant="sigil-destructive" className="w-full h-auto min-h-[3rem] py-2 whitespace-normal text-caption sm:text-xs md:text-sm gap-2 font-bold bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all flex items-center justify-center text-center">
                                         <Trash2 className="w-4 h-4 shrink-0" />
                                         SUPPRIMER MON COMPTE SIGILOS
                                     </Button>
@@ -600,7 +600,7 @@ export function UserSettings({
                                                     <p className="flex items-center gap-2"><span className="text-red-500 border border-red-500/20 bg-red-500/10 rounded p-0.5">X</span> Destruction des données (XP, Inventaires)</p>
                                                     <p className="flex items-center gap-2"><span className="text-red-500 border border-red-500/20 bg-red-500/10 rounded p-0.5">X</span> Irrécupérable même par notre support</p>
                                                 </div>
-                                                <p className="text-[11px] text-zinc-500 pt-2 italic">
+                                                <p className="text-caption text-zinc-500 pt-2 italic">
                                                     Si vous souhaitez juste faire une pause sur une guilde spécifique, fermez cette fenêtre et utilisez la fonction d'Archivage à la place.
                                                 </p>
                                             </div>
@@ -612,7 +612,7 @@ export function UserSettings({
                                             onClick={handleDeleteAccount}
                                             disabled={isDeleting}
                                             variant="sigil-destructive"
-                                            className="h-10 px-8 bg-red-600 hover:bg-red-700 font-bold shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+                                            className="h-10 px-8 bg-red-600 hover:bg-red-700 font-bold "
                                         >
                                             OUI, TOUT SUPPRIMER
                                         </AlertDialogAction>

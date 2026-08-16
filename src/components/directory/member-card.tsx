@@ -95,7 +95,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}>
             <Card
                 className={cn(
-                    "group relative overflow-hidden cursor-pointer border shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl bg-zinc-950/80 backdrop-blur-md",
+                    "group relative overflow-hidden cursor-pointer border shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl bg-zinc-950/80 backdrop-blur-md",
                     roleColor ? "" : "border-white/5 hover:border-white/10",
                     isOnVacation && "bg-cyan-950/20 border-cyan-500/20 hover:border-cyan-500/40"
                 )}
@@ -103,7 +103,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
             >
                 {/* Dynamic Background Glow & Top Banner */}
                 <div 
-                    className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none"
+                    className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-300 pointer-events-none"
                     style={roleColor ? { background: `radial-gradient(circle at 50% 0%, ${roleColor}, transparent 70%)` } : { background: `radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)` }}
                 />
                 <div 
@@ -120,7 +120,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     <TooltipTrigger asChild>
                                         <Badge variant="outline" className="bg-cyan-500/10 border-cyan-500/30 text-cyan-400 gap-1.5 hover:bg-cyan-500/20 transition-colors cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide hidden sm:inline">En vacances</span>
+                                            <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">En vacances</span>
                                         </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="glass-premium border-cyan-500/30 text-cyan-600 dark:text-cyan-300">
@@ -137,7 +137,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     <TooltipTrigger asChild>
                                         <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 gap-1.5 hover:bg-orange-500/20 transition-colors cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide hidden sm:inline">Bientôt</span>
+                                            <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">Bientôt</span>
                                         </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="glass-premium border-orange-500/30 text-orange-600 dark:text-orange-300">
@@ -150,11 +150,11 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Avatar Container */}
                     <div className="relative group/avatar mt-2">
-                        <div className="absolute inset-0 rounded-full blur-md opacity-0 group-hover/avatar:opacity-50 transition-opacity duration-500"
+                        <div className="absolute inset-0 rounded-full blur-md opacity-0 group-hover/avatar:opacity-50 transition-opacity duration-300"
                              style={roleColor ? { backgroundColor: roleColor } : { backgroundColor: "rgba(255,255,255,0.2)" }} />
                         
                         <Avatar
-                            className="w-24 h-24 transition-all duration-500 ring-2 ring-offset-4 ring-offset-zinc-950 group-hover/avatar:scale-105"
+                            className="w-24 h-24 transition-all duration-300 ring-2 ring-offset-4 ring-offset-zinc-950 group-hover/avatar:scale-105"
                             style={{ "--ringColor": roleColor || "rgba(255,255,255,0.1)" } as React.CSSProperties}
                         >
                             <AvatarImage src={profile.user.image || ""} className="object-cover" />
@@ -169,7 +169,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 <TooltipTrigger asChild>
                                     <div className={cn(
                                         "absolute bottom-1 right-1 w-5 h-5 rounded-full border-[3px] border-zinc-950 transition-all duration-300",
-                                        isOnline ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]" : "bg-zinc-600"
+                                        isOnline ? "bg-emerald-500 " : "bg-zinc-600"
                                     )} />
                                 </TooltipTrigger>
                                 <TooltipContent side="right" className="glass-premium border-white/10 text-xs font-bold uppercase tracking-widest">
@@ -202,7 +202,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                                 )}
                                             </div>
                                         </TooltipTrigger>
-                                        <TooltipContent side="left" className="glass-premium border-white/10 text-[10px] font-black uppercase tracking-widest">
+                                        <TooltipContent side="left" className="glass-premium border-white/10 text-caption font-black uppercase tracking-widest">
                                             <p>{alignmentData?.name}{orderData ? ` - ${orderData.name}` : ""}</p>
                                             {profile.alignmentLevel ? <p className="text-zinc-500">Niveau {profile.alignmentLevel}</p> : null}
                                         </TooltipContent>
@@ -214,49 +214,47 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Name & Role */}
                     <div className="text-center space-y-2 w-full mt-2">
-                        <div className="flex flex-col items-center justify-center gap-1.5">
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-black text-xl truncate text-white italic uppercase tracking-tighter">
-                                    {displayName}
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={handleCopyPseudo}
-                                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors shrink-0"
-                                    title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
-                                    aria-label="Copier le pseudo"
-                                >
-                                    <Copy className="w-3.5 h-3.5" />
-                                    <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Copier</span>
-                                </button>
-                                {profile.isAdmin && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <ShieldCheck className="w-4 h-4 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] shrink-0" />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="glass-premium border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-widest">
-                                                Administration SigilOS
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                                {profile.legendaryCrafts && profile.legendaryCrafts.length > 0 && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Sparkles className="w-4 h-4 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)] shrink-0 animate-pulse" />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-400 text-[10px] font-black uppercase tracking-widest">
-                                                Artisan Légendaire Spécialisé
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                            </div>
+                        <div className="flex items-center justify-center gap-2 w-full min-w-0">
+                            <h3 className="font-bold text-lg text-white truncate min-w-0">
+                                {displayName}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={handleCopyPseudo}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors shrink-0"
+                                title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
+                                aria-label="Copier le pseudo"
+                            >
+                                <Copy className="w-3 h-3" />
+                                <span className="text-caption font-semibold hidden sm:inline">Copier</span>
+                            </button>
+                            {profile.isAdmin && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="glass-premium border-amber-500/30 text-amber-500 text-caption font-semibold">
+                                            Administration SigilOS
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                            {profile.legendaryCrafts && profile.legendaryCrafts.length > 0 && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-400 text-caption font-semibold">
+                                            Artisan Légendaire Spécialisé
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
                             
 
-                        </div>
                         
                         <div className="flex items-center justify-center gap-1.5 pt-1">
                             {classData && <ClassIcon classId={classData.id} size={18} className="opacity-80" />}
@@ -279,12 +277,12 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 {topJobs.map(job => {
                                     const jobData = Object.values(DOFUS_JOBS).flat().find(j => j.id === job);
                                     return (
-                                        <Badge key={job} variant="secondary" className="bg-white/[0.03] hover:bg-white/[0.08] text-[9px] px-2.5 py-1 border-white/5 font-black uppercase tracking-widest text-zinc-300 transition-colors">
+                                        <Badge key={job} variant="secondary" className="bg-white/[0.03] hover:bg-white/[0.08] text-caption px-2.5 py-1 border-white/5 font-black uppercase tracking-widest text-zinc-300 transition-colors">
                                             {jobData?.icon ? (
                                                 jobData.icon.startsWith("/") ? (
                                                     <Image src={jobData.icon} alt={jobData.name} width={14} height={14} className="w-3.5 h-3.5 mr-1.5 object-contain opacity-80" />
                                                 ) : (
-                                                    <span className="mr-1.5 opacity-80 text-[10px]">{jobData.icon}</span>
+                                                    <span className="mr-1.5 opacity-80 text-caption">{jobData.icon}</span>
                                                 )
                                             ) : (
                                                 <Hammer className="w-3 h-3 mr-1.5 opacity-50" />
@@ -294,13 +292,13 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     );
                                 })}
                                 {remaining > 0 && (
-                                    <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-black text-zinc-400">
+                                    <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-caption font-black text-zinc-400">
                                         +{remaining}
                                     </div>
                                 )}
                             </>
                         ) : (
-                            <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">Aucun métier</span>
+                            <span className="text-caption text-zinc-600 uppercase tracking-widest font-bold">Aucun métier</span>
                         )}
                     </div>
 
@@ -309,7 +307,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                         <>
                             <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
                             <div className="flex flex-col items-center gap-1.5 w-full">
-                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Mules alignées</span>
+                                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Mules alignées</span>
                                 <div className="flex flex-wrap justify-center gap-1.5">
                                     {alignedMules.map((mule: any, idx: number) => {
                                         const mCls = getClass(mule.classe || "cra");
@@ -330,7 +328,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                                                     />
                                                                 </div>
                                                             )}
-                                                            <span className="text-[9px] text-zinc-300 font-bold max-w-[70px] truncate">
+                                                            <span className="text-caption text-zinc-300 font-bold max-w-[70px] truncate">
                                                                 {mule.pseudo}
                                                             </span>
                                                             {mOrder && (
@@ -346,7 +344,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                                             )}
                                                         </div>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top" className="glass-premium border-white/10 text-[10px] font-black uppercase tracking-widest">
+                                                    <TooltipContent side="top" className="glass-premium border-white/10 text-caption font-black uppercase tracking-widest">
                                                         <p>{mule.pseudo} (Nv. {mule.level || 200})</p>
                                                         <p className="text-zinc-500">{mCls?.name || "Classe inconnue"} - {mOrder?.name || "Sans ordre"}</p>
                                                     </TooltipContent>
@@ -361,11 +359,11 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Absence details footer */}
                     {isOnVacation && (
-                        <div className="w-full mt-2 pt-3 border-t border-cyan-500/10 flex flex-col items-center gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
-                            <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+                        <div className="w-full mt-2 pt-3 border-t border-cyan-500/10 flex flex-col items-center gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
+                            <span className="text-caption text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
                                 <Palmtree className="w-3 h-3" /> Période d'absence
                             </span>
-                            <span className="text-[11px] text-zinc-300 font-black italic whitespace-nowrap">
+                            <span className="text-caption text-zinc-300 font-black italic whitespace-nowrap">
                                 {format(vacationStart!, "d MMMM", { locale: fr })}
                                 {vacationEnd ? ` au ${format(vacationEnd, "d MMMM", { locale: fr })}` : " (indéfini)"}
                             </span>

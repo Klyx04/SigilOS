@@ -66,14 +66,14 @@ export async function DeletionPendingPanel() {
                                             <Badge
                                                 key={i}
                                                 variant="outline"
-                                                className="text-[9px] shrink-0 border-zinc-700/50 text-zinc-500 bg-zinc-800/50"
+                                                className="text-caption shrink-0 border-zinc-700/50 text-zinc-500 bg-zinc-800/50"
                                             >
                                                 {g.guildName}
                                                 {g.displayName && g.displayName !== user.name ? ` · ${g.displayName}` : ""}
                                             </Badge>
                                         ))}
                                         {user.guilds.length === 0 && (
-                                            <Badge variant="outline" className="text-[9px] border-zinc-700/50 text-zinc-600 bg-zinc-800/50">
+                                            <Badge variant="outline" className="text-caption border-zinc-700/50 text-zinc-600 bg-zinc-800/50">
                                                 Aucun profil guilde
                                             </Badge>
                                         )}
@@ -101,8 +101,8 @@ export async function DeletionPendingPanel() {
 
                                 {/* Status indicator */}
                                 <div className={`shrink-0 mt-2 w-1.5 h-1.5 rounded-full ${isPast
-                                        ? "bg-rose-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.6)]"
-                                        : "bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.4)]"
+                                        ? "bg-rose-500 animate-pulse "
+                                        : "bg-amber-400 "
                                     }`} />
                             </div>
                         );
@@ -110,7 +110,7 @@ export async function DeletionPendingPanel() {
                 </div>
             )}
 
-            <p className="text-[10px] text-zinc-700 font-bold uppercase tracking-widest pt-2 border-t border-white/5">
+            <p className="text-caption text-zinc-700 font-bold uppercase tracking-widest pt-2 border-t border-white/5">
                 Soft-delete — suppression définitive exécutée par le Janitor au-delà du délai de rétention
             </p>
         </div>

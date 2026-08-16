@@ -71,7 +71,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5 overflow-hidden">
@@ -88,7 +88,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                                     Actif
                                 </Badge>
                             ) : (
-                                <Badge variant="outline" className="text-zinc-500 border-white/5 uppercase text-[10px] font-black tracking-widest">
+                                <Badge variant="outline" className="text-zinc-500 border-white/5 uppercase text-caption font-black tracking-widest">
                                     Inactif
                                 </Badge>
                             )}
@@ -111,7 +111,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                         </div>
 
                         <div className="relative pl-6 border-l-2 border-purple-500/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-purple-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-purple-500 border-2 border-zinc-950 " />
                             <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
 
                             <div className="space-y-4">
@@ -130,7 +130,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                                 <ChannelPreview guildId={guildId} channelId={channelId} color="purple" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
-                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-[10px] font-black uppercase tracking-widest">
+                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-caption font-black uppercase tracking-widest">
                                             Désactiver les notifications
                                         </Button>
                                     </div>
@@ -144,7 +144,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                 <div className="space-y-6">
                     <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
                         <CardHeader className="bg-white/5 pb-4 px-6 py-4">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Aperçu : Bonus Activé</CardTitle>
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Bonus Activé</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative text-left px-6">
                             <div className="flex items-start gap-4">
@@ -154,7 +154,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-purple-400">SigilOS</span>
-                                        <span className="bg-purple-500/20 text-purple-300 text-[10px] px-1 rounded">BOT</span>
+                                        <span className="bg-purple-500/20 text-purple-300 text-caption px-1 rounded">BOT</span>
                                         <span className="text-xs text-zinc-500">Maintenant</span>
                                     </div>
 
@@ -162,27 +162,27 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                                     <div className="bg-[#2b2d31] rounded border-l-4 border-purple-500 p-4 max-w-sm shadow-xl">
                                         <div className="flex items-center gap-2 mb-3">
                                             <Sparkles className="w-4 h-4 text-purple-400" />
-                                            <h4 className="font-semibold text-white text-[11px]">Bonus de Guilde Activé !</h4>
+                                            <h4 className="font-semibold text-white text-caption">Bonus de Guilde Activé !</h4>
                                         </div>
 
-                                        <p className="text-zinc-300 text-[10px] mb-3 leading-relaxed">
+                                        <p className="text-zinc-300 text-caption mb-3 leading-relaxed">
                                             <span className="text-purple-400 font-medium italic">Oracle de Fortune</span> a été acheté par <span className="text-indigo-400 font-bold">@Wylan</span>.
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-2 mb-3">
                                             <div className="bg-black/20 p-2 rounded border border-white/5">
-                                                <div className="text-[#b5bac1] text-[8px] font-bold uppercase tracking-wider mb-0.5">Effet</div>
-                                                <div className="text-zinc-200 text-[10px] font-medium">+50% Loot</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Effet</div>
+                                                <div className="text-zinc-200 text-caption font-medium">+50% Loot</div>
                                             </div>
                                             <div className="bg-black/20 p-2 rounded border border-white/5">
-                                                <div className="text-[#b5bac1] text-[8px] font-bold uppercase tracking-wider mb-0.5">Durée</div>
-                                                <div className="text-zinc-200 text-[10px] font-medium">2 heures</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Durée</div>
+                                                <div className="text-zinc-200 text-caption font-medium">2 heures</div>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
                                             <div className="w-4 h-4 rounded-full bg-zinc-700" />
-                                            <span className="text-[#949ba4] text-[10px]">SigilOS • Guild Perks</span>
+                                            <span className="text-[#949ba4] text-caption">SigilOS • Guild Perks</span>
                                         </div>
                                     </div>
                                 </div>

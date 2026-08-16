@@ -113,7 +113,7 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                         <p className="text-xs font-black text-white uppercase tracking-wide">
                                             Points de Succès
                                         </p>
-                                        <p className="text-[10px] text-sky-300 font-bold font-mono uppercase tracking-tighter">
+                                        <p className="text-caption text-sky-300 font-bold font-mono uppercase tracking-tighter">
                                             Vérification Manuelle · {sub.points.toLocaleString()} pts
                                         </p>
                                     </div>
@@ -130,17 +130,17 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold text-white truncate">{name}</p>
-                                        <p className="text-[10px] text-zinc-500">
+                                        <p className="text-caption text-zinc-500">
                                             Le {new Date(sub.createdAt).toLocaleDateString("fr-FR")}
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-sky-500/10 text-sky-400 border-sky-500/20">
+                                        <Badge variant="secondary" className="text-caption h-5 px-1.5 bg-sky-500/10 text-sky-400 border-sky-500/20">
                                             {sub.points} pts
                                         </Badge>
                                         {sub.ocrScore && (
                                             <span className={cn(
-                                                "text-[8px] font-bold uppercase",
+                                                "text-caption font-bold uppercase",
                                                 sub.ocrScore > 0.8 ? "text-emerald-500" : sub.ocrScore > 0.5 ? "text-amber-500" : "text-red-500"
                                             )}>
                                                 OCR: {Math.round(sub.ocrScore * 100)}%
@@ -177,9 +177,9 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                     <div className="px-4 py-2 bg-black/40 border-t border-zinc-800/50 max-h-16 overflow-y-auto no-scrollbar">
                                         <div className="flex items-center gap-1 mb-1">
                                             <Target className="w-3 h-3 text-zinc-600" />
-                                            <span className="text-[8px] font-bold uppercase text-zinc-600 tracking-widest">Texte détecté</span>
+                                            <span className="text-caption font-bold uppercase text-zinc-600 tracking-widest">Texte détecté</span>
                                         </div>
-                                        <p className="text-[9px] text-zinc-500 font-mono leading-tight whitespace-pre-wrap break-all line-clamp-3">
+                                        <p className="text-caption text-zinc-500 font-mono leading-tight whitespace-pre-wrap break-all line-clamp-3">
                                             {sub.ocrRawText}
                                         </p>
                                     </div>
@@ -231,7 +231,7 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className="bg-sky-600 hover:bg-sky-500 text-white text-xs shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                            className="bg-sky-600 hover:bg-sky-500 text-white text-xs "
                                             onClick={() => handleDecision(sub.id, "VALIDATE")}
                                             disabled={isProcessing}
                                         >

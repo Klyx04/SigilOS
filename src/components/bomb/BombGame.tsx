@@ -425,11 +425,11 @@ export default function BombGame({
                                 "flex items-center gap-1 px-3 py-1.5 rounded-2xl border transition-all duration-300",
                                 isStopWord 
                                     ? "bg-white/5 border-dashed border-white/20 opacity-60 scale-90" 
-                                    : "bg-indigo-500/10 border-indigo-500/20 shadow-[0_0_20px_rgba(79,70,229,0.1)]"
+                                    : "bg-indigo-500/10 border-indigo-500/20 "
                             )}
                         >
                             {index === -1 ? (
-                                <span className={cn(isStopWord ? "text-[10px] lowercase font-medium opacity-60" : "text-lg font-black italic uppercase text-white/90")}>
+                                <span className={cn(isStopWord ? "text-caption lowercase font-medium opacity-60" : "text-lg font-black italic uppercase text-white/90")}>
                                     {part}
                                 </span>
                             ) : (
@@ -501,7 +501,7 @@ export default function BombGame({
                 <AtmosphericParticles />
                 <div className="z-10 flex flex-col items-center gap-6">
                     <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-                    <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] italic">Authentification...</p>
+                    <p className="text-zinc-500 font-bold uppercase tracking-widest text-caption italic">Authentification...</p>
                 </div>
             </div>
         );
@@ -517,10 +517,10 @@ export default function BombGame({
                         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
                         <div className="text-center">
                             <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Connexion au salon...</h2>
-                            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] italic mb-6">Syllaburation en cours</p>
+                            <p className="text-zinc-500 font-bold uppercase tracking-widest text-caption italic mb-6">Syllaburation en cours</p>
                             <button 
                                 onClick={(e) => handleLeave(e)}
-                                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 text-white/40 hover:text-red-400 text-[10px] font-black uppercase italic tracking-widest transition-all"
+                                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 text-white/40 hover:text-red-400 text-caption font-black uppercase italic tracking-widest transition-all"
                             >
                                 Quitter (Annuler)
                             </button>
@@ -544,36 +544,36 @@ export default function BombGame({
                         className="absolute top-8 left-8 flex items-center gap-2 text-white/30 hover:text-white/70 transition-colors group"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-[10px] font-black uppercase italic tracking-widest hidden md:inline">Retour aux jeux</span>
+                        <span className="text-caption font-black uppercase italic tracking-widest hidden md:inline">Retour aux jeux</span>
                     </button>
                     <div className="space-y-2">
                         <div className="flex items-center justify-center gap-3 mb-3">
                             <div className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30">
-                                <span className="text-indigo-400 text-[9px] font-black uppercase tracking-widest">Multijoueur</span>
+                                <span className="text-indigo-400 text-caption font-black uppercase tracking-widest">Multijoueur</span>
                             </div>
                         </div>
                         <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter">Sigil-Bomb</h1>
-                        <p className="text-white/30 font-bold uppercase tracking-widest text-[10px] italic">Le défi de la Reine des Voleurs</p>
+                        <p className="text-white/30 font-bold uppercase tracking-widest text-caption italic">Le défi de la Reine des Voleurs</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <button onClick={() => handleCreateRoom(false)} className="p-8 rounded-[2rem] bg-indigo-500 hover:bg-indigo-400 text-white transition-all border-b-[8px] border-black/20 flex flex-col items-center gap-4 group shadow-xl shadow-indigo-500/20">
-                             <Zap className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                             <Zap className="w-10 h-10 group- transition-transform" />
                              <span className="font-black uppercase italic tracking-widest">Créer une salle</span>
                         </button>
                         <button onClick={() => socket?.emit("bomb:room:list")} className="p-8 rounded-[2rem] bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20 flex flex-col items-center gap-4 group">
-                             <Users className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                             <Users className="w-10 h-10 group- transition-transform" />
                              <span className="font-black uppercase italic tracking-widest">Voir les salons</span>
                         </button>
                     </div>
                     {lobbyRooms.length > 0 && (
                         <div className="space-y-4 pt-8 border-t border-white/10">
-                            <h3 className="text-[10px] font-black text-white/20 uppercase tracking-widest italic">Salons disponibles</h3>
+                            <h3 className="text-caption font-black text-white/20 uppercase tracking-widest italic">Salons disponibles</h3>
                             <div className="grid grid-cols-1 gap-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                                 {lobbyRooms.map(room => (
                                     <button key={room.roomId} onClick={() => handleJoinRoom(room.roomId)} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:border-indigo-500/50 hover:bg-white/10 transition-all group">
                                         <div className="flex flex-col items-start leading-none">
                                             <span className="font-black text-white italic">{room.hostName || room.roomId}</span>
-                                            <span className="text-[8px] text-white/20 uppercase font-black tracking-widest mt-1">{room.playerCount} JOUEURS • {room.state}</span>
+                                            <span className="text-caption text-white/20 uppercase font-black tracking-widest mt-1">{room.playerCount} JOUEURS • {room.state}</span>
                                         </div>
                                         <LayoutGrid className="w-5 h-5 text-white/20 group-hover:text-indigo-500 transition-colors" />
                                     </button>
@@ -648,7 +648,7 @@ export default function BombGame({
                     <DialogFooter className="mt-6 flex gap-3">
                         <button
                             onClick={() => setShowQuitConfirm(false)}
-                            className="flex-1 py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 font-bold uppercase text-[10px] italic tracking-wider transition-all"
+                            className="flex-1 py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 font-bold uppercase text-caption italic tracking-wider transition-all"
                         >
                             Annuler
                         </button>
@@ -657,7 +657,7 @@ export default function BombGame({
                                 setShowQuitConfirm(false);
                                 handleLeave(e);
                             }}
-                            className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-500 font-bold uppercase text-[10px] italic tracking-wider transition-all shadow-lg shadow-red-600/20"
+                            className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-500 font-bold uppercase text-caption italic tracking-wider transition-all shadow-lg shadow-red-600/20"
                         >
                             Quitter
                         </button>
@@ -721,7 +721,7 @@ export default function BombGame({
             <div className="absolute top-8 left-8 z-50 flex flex-col gap-4">
                 <ShareRoomButton roomId={gameState.id} />
                 {spectatorsCount > 0 && (
-                    <div className="flex items-center gap-2 text-[10px] font-black text-white/30 uppercase tracking-widest italic">
+                    <div className="flex items-center gap-2 text-caption font-black text-white/30 uppercase tracking-widest italic">
                         <Orbit size={12} className="text-indigo-500/50" />
                         {spectatorsCount} Spectateur{spectatorsCount > 1 ? 's' : ''}
                     </div>
@@ -749,7 +749,7 @@ export default function BombGame({
                                 <h2 className="text-6xl md:text-8xl font-[1000] text-red-600 uppercase italic tracking-[0.2em] drop-shadow-[0_0_30px_rgba(220,38,38,0.8)]">
                                     SUDDEN DEATH
                                 </h2>
-                                <p className="text-red-400 font-black uppercase tracking-[0.5em] mt-4 animate-pulse">
+                                <p className="text-red-400 font-black uppercase tracking-widest mt-4 animate-pulse">
                                     -30% TURN TIME
                                 </p>
                             </motion.div>
@@ -765,7 +765,7 @@ export default function BombGame({
                 <div 
                     key={shakeCount}
                     className={cn(
-                        "relative w-full max-w-[min(85vw,45vh,500px)] aspect-square flex items-center justify-center transition-all duration-500",
+                        "relative w-full max-w-[min(85vw,45vh,500px)] aspect-square flex items-center justify-center transition-all duration-300",
                         shakeCount > 0 && "animate-shake"
                     )}
                 >
@@ -775,14 +775,14 @@ export default function BombGame({
                         <AnimatePresence mode="wait">
                              {gameState.state === 'LOBBY' ? (
                                 <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-2 pointer-events-auto px-4 w-full max-w-xs">
-                                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 italic mb-1">Joueurs dans le salon</p>
+                                    <p className="text-caption font-black uppercase tracking-widest text-white/30 italic mb-1">Joueurs dans le salon</p>
                                     {gameState.players?.filter((p: any) => !p.isSpectator).map((p: any) => (
                                         <div key={p.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl bg-white/5 border border-white/10">
                                             <img src={p.userAvatar || `https://ui-avatars.com/api/?name=${p.userName}`} className="w-8 h-8 rounded-xl object-cover border border-white/10 shrink-0" alt="" />
                                             <span className="text-xs font-black uppercase italic text-white/80 flex-1 truncate">{p.userName}</span>
                                             {p.isReady
-                                                ? <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Pret</span>
-                                                : <span className="text-[9px] font-black uppercase text-white/20 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">...</span>
+                                                ? <span className="text-caption font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Pret</span>
+                                                : <span className="text-caption font-black uppercase text-white/20 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">...</span>
                                             }
                                         </div>
                                     ))}
@@ -800,7 +800,7 @@ export default function BombGame({
                                             {localTimeLeft}
                                         </motion.span>
                                     </div>
-                                    <p className="text-indigo-400 text-xs font-black uppercase tracking-[0.4em] italic animate-pulse">Préparez-vous...</p>
+                                    <p className="text-indigo-400 text-xs font-black uppercase tracking-widest italic animate-pulse">Préparez-vous...</p>
                                 </motion.div>
                             ) : gameState.state === 'PLAYING' ? (
                                 <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
@@ -809,7 +809,7 @@ export default function BombGame({
                                     {/* Trophy + Winner */}
                                     <motion.div className="flex flex-col items-center gap-1" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', bounce: 0.5 }}>
                                         <Trophy size={36} className="text-yellow-500 drop-shadow-[0_0_25px_rgba(250,204,21,0.5)]" />
-                                        <p className="text-[9px] font-black text-foreground/30 uppercase tracking-[0.3em] italic">Gagnant</p>
+                                        <p className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">Gagnant</p>
                                         <h2 className="text-lg font-black text-foreground italic uppercase tracking-tighter">{winnerName || 'Personne'}</h2>
                                     </motion.div>
 
@@ -834,8 +834,8 @@ export default function BombGame({
                                                         {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`}
                                                     </span>
                                                     <img src={entry.avatar || `https://ui-avatars.com/api/?name=${entry.name}`} className="w-6 h-6 rounded-lg object-cover aspect-square shrink-0" alt="" />
-                                                    <span className={cn("font-black italic uppercase flex-1 truncate text-[10px]")}>{entry.name}</span>
-                                                    <span className="font-black text-foreground/40 tabular-nums text-[10px]">{entry.wordsFound} <span className="text-foreground/20 font-medium">mots</span></span>
+                                                    <span className={cn("font-black italic uppercase flex-1 truncate text-caption")}>{entry.name}</span>
+                                                    <span className="font-black text-foreground/40 tabular-nums text-caption">{entry.wordsFound} <span className="text-foreground/20 font-medium">mots</span></span>
                                                     <div className="flex gap-0.5">
                                                         {[...Array(Math.max(0, entry.lives))].map((_, li) => (
                                                             <Heart key={li} size={7} fill="#ef4444" className="text-red-500" />
@@ -849,16 +849,16 @@ export default function BombGame({
                                     {/* Actions */}
                                     <div className="flex gap-2 pt-2">
                                         {isHost ? (
-                                            <button onClick={handleRestart} className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-black italic uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-indigo-500/20">
+                                            <button onClick={handleRestart} className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-black italic uppercase tracking-widest text-caption transition-all shadow-xl shadow-indigo-500/20">
                                                 Rejouer
                                             </button>
                                         ) : (
-                                            <div className="px-4 py-2 rounded-xl bg-indigo-500/20 text-indigo-400 font-black italic uppercase tracking-widest text-[10px] flex items-center gap-2 border border-indigo-500/30">
+                                            <div className="px-4 py-2 rounded-xl bg-indigo-500/20 text-indigo-400 font-black italic uppercase tracking-widest text-caption flex items-center gap-2 border border-indigo-500/30">
                                                 <Loader2 size={10} className="animate-spin" />
                                                 Attente de l'hôte...
                                             </div>
                                         )}
-                                        <button onClick={(e) => handleLeave(e)} className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-white/60 hover:text-red-400 font-black italic uppercase tracking-widest text-[10px] transition-all">
+                                        <button onClick={(e) => handleLeave(e)} className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-white/60 hover:text-red-400 font-black italic uppercase tracking-widest text-caption transition-all">
                                             Quitter
                                         </button>
                                     </div>
@@ -897,7 +897,7 @@ export default function BombGame({
                             >
                                 <div className={cn(
                                     "w-14 h-14 md:w-18 md:h-18 aspect-square shrink-0 rounded-2xl border-2 p-0.5 transition-all duration-300 bg-zinc-950 shadow-xl relative group/avatar",
-                                    isExploding ? "border-red-500 ring-2 ring-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.5)]" :
+                                    isExploding ? "border-red-500 ring-2 ring-red-500/40 " :
                                     isActive ? "border-indigo-500 ring-4 ring-indigo-500/30" : 
                                     (p.isReady ? "border-emerald-500/50" : "border-white/10"),
                                     (p.lives === 0 || p.isSpectator) && "grayscale opacity-30 border-red-500/50",
@@ -927,7 +927,7 @@ export default function BombGame({
                                         isBottom ? "-bottom-12" : "-top-12"
                                     )}>
                                         <span className={cn(
-                                            "text-[10px] font-black italic uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                            "text-caption font-black italic uppercase tracking-widest px-2 py-0.5 rounded-md",
                                             isActive ? "text-indigo-400 bg-indigo-500/10" : "text-white/40"
                                         )}>
                                             {p.userName}
@@ -1010,7 +1010,7 @@ export default function BombGame({
                                             localTimeLeft <= 3 ? "bg-red-500/60" : "bg-indigo-500/30"
                                         )} />
                                         <div className={cn(
-                                            "relative transition-all duration-500 flex items-center justify-center",
+                                            "relative transition-all duration-300 flex items-center justify-center",
                                             gameState.players.filter((p: any) => !p.isSpectator).length > 6 ? "w-20 h-20 md:w-24 md:h-24" : "w-24 h-24 md:w-44 md:h-44"
                                         )}>
                                             <img src="/assets/dofus/classes/13.png" className={cn("w-full h-full object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.5)]", localTimeLeft <= 3 && "brightness-150")} alt="Bomb" />
@@ -1019,7 +1019,7 @@ export default function BombGame({
                                                 <motion.div 
                                                     animate={{ scale: [1, 2, 1], opacity: [0.5, 1, 0.5], x: [0, 2, -2, 0], y: [0, -2, 2, 0] }} 
                                                     transition={{ repeat: Infinity, duration: 0.1 }} 
-                                                    className="w-3 h-3 bg-orange-500 rounded-full blur-[2px] shadow-[0_0_15px_#f97316]" 
+                                                    className="w-3 h-3 bg-orange-500 rounded-full blur-[2px] " 
                                                 />
                                             </div>
                                         </div>
@@ -1061,7 +1061,7 @@ export default function BombGame({
                                                     animate={{ opacity: 1, y: 0 }}
                                                     className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-indigo-500/20 rounded-full border border-indigo-500/30"
                                                 >
-                                                    <span className="text-[10px] font-black uppercase italic text-indigo-400 tracking-wider">
+                                                    <span className="text-caption font-black uppercase italic text-indigo-400 tracking-wider">
                                                         {gameState.currentSyllablePartCount} Mots
                                                     </span>
                                                     <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" />
@@ -1076,9 +1076,9 @@ export default function BombGame({
                                                     <div 
                                                         key={`hint-${idx}`}
                                                         className={cn(
-                                                            "px-3 py-2 rounded-xl border transition-all duration-500",
+                                                            "px-3 py-2 rounded-xl border transition-all duration-300",
                                                             hint 
-                                                                ? "bg-indigo-500/20 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)]" 
+                                                                ? "bg-indigo-500/20 border-indigo-500/40 " 
                                                                 : "bg-white/5 border-white/10 border-dashed opacity-40"
                                                         )}
                                                     >
@@ -1123,7 +1123,7 @@ export default function BombGame({
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-black uppercase italic text-white">{p.userName}</span>
-                                                            <span className="text-[8px] font-bold uppercase text-indigo-400/80 tracking-widest">En train d'écrire...</span>
+                                                            <span className="text-caption font-bold uppercase text-indigo-400/80 tracking-widest">En train d'écrire...</span>
                                                         </div>
                                                     </div>
                                                     <div className="bg-black/40 p-4 rounded-2xl border border-white/5 overflow-hidden">
@@ -1209,7 +1209,7 @@ export default function BombGame({
                                     <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2">Victoire !</h2>
                                     
                                     <div className="relative mt-4">
-                                        <div className="w-24 h-24 rounded-[2rem] border-4 border-yellow-500 overflow-hidden shadow-[0_0_30px_rgba(234,179,8,0.3)]">
+                                        <div className="w-24 h-24 rounded-[2rem] border-4 border-yellow-500 overflow-hidden ">
                                             <img src={winnerData?.winnerAvatar || `https://ui-avatars.com/api/?name=${winnerData?.winnerName}`} className="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div className="absolute -bottom-2 -right-2 bg-yellow-500 text-black p-1.5 rounded-xl shadow-lg">
@@ -1217,12 +1217,12 @@ export default function BombGame({
                                         </div>
                                     </div>
                                     <p className="mt-4 text-xl font-black uppercase italic tracking-widest text-indigo-400">{winnerData?.winnerName || winnerName || "Fin de partie"}</p>
-                                    <p className="text-[10px] uppercase font-bold tracking-[0.3em] opacity-40 mt-1">Épreuve Terminée</p>
+                                    <p className="text-caption uppercase font-bold tracking-widest opacity-40 mt-1">Épreuve Terminée</p>
                                 </div>
 
                                 <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mb-8">
                                     <div className="p-3 border-b border-white/10 bg-white/5">
-                                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">Classement de la session</h3>
+                                        <h3 className="text-caption font-black uppercase tracking-[0.2em] opacity-50">Classement de la session</h3>
                                     </div>
                                     <div className="max-h-48 overflow-y-auto custom-scrollbar">
                                         {leaderboard.map((entry, i) => (
@@ -1236,7 +1236,7 @@ export default function BombGame({
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs font-mono font-bold text-indigo-400">{entry?.wordsFound ?? 0}</span>
-                                                    <span className="text-[8px] uppercase font-black opacity-30 mt-0.5">mots</span>
+                                                    <span className="text-caption uppercase font-black opacity-30 mt-0.5">mots</span>
                                                 </div>
                                             </div>
                                         ))}
@@ -1279,7 +1279,7 @@ export default function BombGame({
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="max-w-sm md:max-w-md w-full max-h-[75vh] overflow-y-auto custom-scrollbar bg-zinc-950 border border-white/15 rounded-[2.5rem] p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative my-auto"
+                            className="max-w-sm md:max-w-md w-full max-h-[75vh] overflow-y-auto custom-scrollbar bg-zinc-950 border border-white/15 rounded-[2.5rem] p-6 md:p-8  relative my-auto"
                             onClick={(e) => {
                                 e.stopPropagation();
                             }}
@@ -1315,7 +1315,7 @@ export default function BombGame({
                                         <div className="text-xs font-black uppercase italic text-white flex items-center gap-2">
                                             🤖 Mode Solo (Robot Crâ-Mée)
                                         </div>
-                                        <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-0.5">
+                                        <div className="text-caption text-white/40 font-bold uppercase tracking-wider mt-0.5">
                                             Permet de jouer seul contre un bot
                                         </div>
                                     </div>
@@ -1341,7 +1341,7 @@ export default function BombGame({
                                 {/* Lives slider */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-end">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Vies de départ</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Vies de départ</label>
                                         <span className="text-base font-black text-indigo-400 italic">{gameState.config.startingLives} ❤</span>
                                     </div>
                                     <input 
@@ -1359,7 +1359,7 @@ export default function BombGame({
                                 {/* Turn time slider */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-end">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Temps par tour</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Temps par tour</label>
                                         <span className="text-base font-black text-indigo-400 italic">{gameState.config.turnTime}s</span>
                                     </div>
                                     <input 
@@ -1376,7 +1376,7 @@ export default function BombGame({
 
                                 {/* Dictionary Mode */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Mode Dictionnaire</label>
+                                    <label className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Mode Dictionnaire</label>
                                     <div className="grid grid-cols-1 gap-2">
                                         {[
                                             { id: 'dofus', label: 'Strict (Dofus Items & Mobs)' },
@@ -1430,7 +1430,7 @@ export default function BombGame({
                                             e.stopPropagation();
                                             setShowOptions(false);
                                         }}
-                                        className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white font-black italic uppercase tracking-widest text-[10px] rounded-xl transition-all"
+                                        className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white font-black italic uppercase tracking-widest text-caption rounded-xl transition-all"
                                     >
                                         Fermer
                                     </button>
@@ -1478,7 +1478,7 @@ export default function BombGame({
                                         {/* Master Volume */}
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-end">
-                                                <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Volume Général</label>
+                                                <label className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Volume Général</label>
                                                 <span className="text-xl font-black text-indigo-400 italic">{Math.round(masterVolume * 100)}%</span>
                                             </div>
                                             <input 
@@ -1493,7 +1493,7 @@ export default function BombGame({
                                         {/* Tick Volume specifically */}
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-end">
-                                                <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Volume du Tic-Tac</label>
+                                                <label className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Volume du Tic-Tac</label>
                                                 <span className="text-xl font-black text-indigo-400 italic">{Math.round(tickVolume * 100)}%</span>
                                             </div>
                                             <input 
@@ -1503,7 +1503,7 @@ export default function BombGame({
                                                 onChange={(e) => setTickVolume(parseFloat(e.target.value))}
                                                 className="w-full accent-indigo-500 h-2 bg-white/10 rounded-full appearance-none cursor-pointer" 
                                             />
-                                            <p className="text-[9px] text-white/20 italic uppercase font-bold tracking-widest">Ajuste spécifiquement le bruit du temps qui s&apos;écoule.</p>
+                                            <p className="text-caption text-white/20 italic uppercase font-bold tracking-widest">Ajuste spécifiquement le bruit du temps qui s&apos;écoule.</p>
                                         </div>
 
                                         <button 
@@ -1602,7 +1602,7 @@ export default function BombGame({
                                 "text-foreground caret-indigo-600 dark:caret-indigo-400 placeholder:text-foreground/20",
                                 // State-specific border & glow
                                 isMyTurn && gameState.state === 'PLAYING'
-                                    ? "border-indigo-500 shadow-[0_0_50px_rgba(79,70,229,0.3)]"
+                                    ? "border-indigo-500 "
                                     : "border-border opacity-40 cursor-not-allowed"
                             )}
                         />
@@ -1625,8 +1625,8 @@ export default function BombGame({
                                     className="bg-card/80 backdrop-blur-md border border-border p-3 rounded-xl shadow-lg flex flex-col gap-1"
                                 >
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] text-muted-foreground font-black truncate max-w-[120px] uppercase italic">{found.playerName}</span>
-                                        <span className="text-[9px] bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded uppercase font-black tracking-tighter">Success</span>
+                                        <span className="text-caption text-muted-foreground font-black truncate max-w-[120px] uppercase italic">{found.playerName}</span>
+                                        <span className="text-caption bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded uppercase font-black tracking-tighter">Success</span>
                                     </div>
                                     <div className="text-sm font-black tracking-tighter text-foreground italic">
                                         {highlightCompoundWord(found.word, gameState.currentSyllable)}
@@ -1635,7 +1635,7 @@ export default function BombGame({
                             ))}
                         </AnimatePresence>
                     </div>
-                    <div className="flex items-center justify-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/60 italic">
+                    <div className="flex items-center justify-center gap-6 text-caption font-black uppercase tracking-[0.2em] text-white/60 italic">
                         {gameState.state === 'PLAYING' ? (
                             <>
                                 <span className={cn("flex items-center gap-2", isMyTurn && "text-indigo-300")}>
@@ -1646,9 +1646,9 @@ export default function BombGame({
                                 {gameState.currentSyllableCategory && gameState.config?.dictionaryMode !== 'dofus' && (
                                     <>
                                         <span className="w-px h-4 bg-white/10" />
-                                        <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 shadow-[0_0_15px_rgba(79,70,229,0.1)] transition-all">
-                                            <span className="text-[9px] font-black uppercase tracking-widest opacity-50">Indice :</span>
-                                            <span className="text-[11px] font-black uppercase italic tracking-wider">{gameState.currentSyllableCategory}</span>
+                                        <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300  transition-all">
+                                            <span className="text-caption font-black uppercase tracking-widest opacity-50">Indice :</span>
+                                            <span className="text-caption font-black uppercase italic tracking-wider">{gameState.currentSyllableCategory}</span>
                                         </span>
                                     </>
                                 )}
@@ -1666,7 +1666,7 @@ export default function BombGame({
                     {/* ALPHABET PROGRESS — visible pendant PLAYING */}
                     {gameState.state === 'PLAYING' && myPlayer && (
                         <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-white/30 italic px-1">
+                            <div className="flex items-center justify-between text-caption font-black uppercase tracking-widest text-white/30 italic px-1">
                                 <span className="flex items-center gap-1.5">
                                     <Sparkles size={10} className="text-yellow-500/60" />
                                     Bonus Vie
@@ -1680,9 +1680,9 @@ export default function BombGame({
                                     <span
                                         key={char}
                                         className={cn(
-                                            "w-5 h-5 flex items-center justify-center rounded-[3px] text-[9px] font-black transition-all duration-200",
+                                            "w-5 h-5 flex items-center justify-center rounded-[3px] text-caption font-black transition-all duration-200",
                                             myPlayer?.alphabet?.includes(char)
-                                                ? "bg-indigo-500 text-white shadow-[0_0_8px_rgba(99,102,241,0.6)]"
+                                                ? "bg-indigo-500 text-white "
                                                 : "bg-white/5 text-white/15"
                                         )}
                                     >
@@ -1711,7 +1711,7 @@ export default function BombGame({
                                 <div className="relative flex flex-col items-start select-none">
                                     <div className="flex items-center gap-3 mb-[-12px]">
                                         <Timer size={24} className={cn(localTimeLeft <= 3 ? "text-red-500 animate-pulse" : "text-indigo-500")} />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20 italic">Temps Restant</span>
+                                        <span className="text-caption font-black uppercase tracking-widest text-white/20 italic">Temps Restant</span>
                                     </div>
                                     <span className={cn(
                                         "text-[120px] font-[1000] italic tabular-nums tracking-[-0.1em] leading-none transition-all duration-300 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]",

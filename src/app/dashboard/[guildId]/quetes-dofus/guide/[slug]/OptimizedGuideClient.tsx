@@ -611,7 +611,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
       {/* Card Header */}
       <button className="sgc-header" onClick={handleExpand} aria-expanded={expanded}>
         <div 
-          className="sgc-badge hover:bg-emerald-500 hover:text-emerald-950 transition-all cursor-pointer transform hover:scale-105"
+          className="sgc-badge hover:bg-emerald-500 hover:text-emerald-950 transition-all cursor-pointer transform "
           title={`Filtrer par le guide secondaire : ${seq.subGuideName}`}
           onClick={(e) => {
             if (onSelectSubGuide) {
@@ -664,7 +664,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
         <div className="sgc-flags">
           {(seq.isResume || (bookmarkStepKey && bookmarkStepKey.startsWith(`${seq.subGuideRef}-`))) && (
             <button 
-              className="sgc-flag resume cursor-pointer hover:bg-blue-500/20 hover:text-white transition-all transform hover:scale-105"
+              className="sgc-flag resume cursor-pointer hover:bg-blue-500/20 hover:text-white transition-all transform "
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -897,7 +897,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                   
                   {here.length > 0 && (
                     <div 
-                      className="ms-member-avatars cursor-pointer hover:scale-105 transition-transform"
+                      className="ms-member-avatars cursor-pointer  transition-transform"
                       onClick={(e) => {
                         e.stopPropagation();
                         onShowPresenceModal(ms.id, ms.title);
@@ -912,7 +912,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                           {m.userAvatar ? (
                             <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
                           ) : (
-                            <span className="text-[10px] font-bold text-zinc-400">
+                            <span className="text-caption font-bold text-zinc-400">
                               {m.userName.slice(0, 1).toUpperCase()}
                             </span>
                           )}
@@ -1022,7 +1022,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
           <div className="gch-opt-icon principal">{mainClass ? (() => { const d = getClass(mainClass); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Crown className="w-3 h-3 text-amber-500"/>}</div>
           <div className="flex flex-col text-left">
             <span className="text-xs font-bold">{mainPseudo}</span>
-            <span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass || "Principal"}</span>
+            <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{mainClass || "Principal"}</span>
           </div>
         </DropdownMenuItem>
         {(mules || []).length > 0 && <div className="h-px bg-white/5 my-1" />}
@@ -1031,7 +1031,7 @@ function GuideCharDropdown({ selectedCharacter, mainPseudo, mainClass, mules }: 
             <div className="gch-opt-icon mule">{mule.classe ? (() => { const d = getClass(mule.classe); return d ? <img src={d.icon} alt="" className="w-4 h-4 object-contain"/> : null; })() : <Users className="w-3 h-3 text-blue-400"/>}</div>
             <div className="flex flex-col text-left">
               <span className="text-xs font-bold">{mule.pseudo}</span>
-              <span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level || 200} {mule.classe ? "• " + mule.classe : ""}</span>
+              <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level || 200} {mule.classe ? "• " + mule.classe : ""}</span>
             </div>
           </DropdownMenuItem>
         ))}
@@ -2275,7 +2275,7 @@ export default function OptimizedGuideClient({
               <Copy className="w-4 h-4 animate-pulse" />
             </div>
             <div className="text-left">
-              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Position copiée</p>
+              <p className="text-caption font-black uppercase tracking-wider text-emerald-400">Position copiée</p>
               <p className="text-xs font-mono text-zinc-300">/travel {xNum} {yNum}</p>
             </div>
           </div>
@@ -2862,7 +2862,7 @@ export default function OptimizedGuideClient({
                             onClick={handleResetMilestone}
                             disabled={validating}
                             title="Réinitialiser ce jalon (étapes cochées et validation)"
-                            className="flex items-center justify-center p-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-colors shrink-0"
+                            className="flex items-center justify-center p-2 rounded-lg text-caption font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-colors shrink-0"
                           >
                             <RotateCcw className="w-3.5 h-3.5"/>
                           </button>
@@ -2948,7 +2948,7 @@ export default function OptimizedGuideClient({
                               <span>Archis <span className="font-mono text-white">{ocreStats.archis?.gathered ?? 0}<span className="text-zinc-500">/{ocreStats.archis?.total ?? 286}</span></span></span>
                             </>
                           ) : (
-                            <span className="text-[10px] font-bold text-amber-400/80">Voir ma progression →</span>
+                            <span className="text-caption font-bold text-amber-400/80">Voir ma progression →</span>
                           )}
                           <ExternalLink size={12} className="text-amber-400/60 shrink-0"/>
                         </button>
@@ -2966,7 +2966,7 @@ export default function OptimizedGuideClient({
                     <div className="guide-hero-card-icon progress"><ProgressRing pct={overallPct} size={30} stroke={3} color="#10b981"/></div>
                     <div className="text-left min-w-0 flex-1">
                       <p className="guide-hero-card-label">Progression</p>
-                      <p className="guide-hero-card-value">{overallPct}% <span className="text-zinc-500 font-mono text-[10px]">({totalDone}/{totalMs})</span></p>
+                      <p className="guide-hero-card-value">{overallPct}% <span className="text-zinc-500 font-mono text-caption">({totalDone}/{totalMs})</span></p>
                       <div className="guide-hero-bar"><div style={{ width: overallPct + "%" }}/></div>
                     </div>
                   </div>
@@ -3060,7 +3060,7 @@ export default function OptimizedGuideClient({
                           </div>
                         ))}
                         {membersHere.length > 5 && (
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full ring-2 ring-zinc-950 bg-zinc-800 text-[10px] font-black text-zinc-300">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full ring-2 ring-zinc-950 bg-zinc-800 text-caption font-black text-zinc-300">
                             +{membersHere.length - 5}
                           </div>
                         )}
@@ -3069,13 +3069,13 @@ export default function OptimizedGuideClient({
                         <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
                           {membersHere.length} {membersHere.length > 1 ? "membres sont" : "membre est"} sur cette étape
                         </span>
-                        <span className="text-[10px] text-zinc-500">
+                        <span className="text-caption text-zinc-500">
                           Cliquer pour voir la liste complète des pseudos cliquables
                         </span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/60 border border-white/5 text-[10px] font-bold text-zinc-400 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/60 border border-white/5 text-caption font-bold text-zinc-400 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all">
                       <Users size={10} className="shrink-0" />
                       <span>Voir la guilde</span>
                     </div>
@@ -3393,7 +3393,7 @@ export default function OptimizedGuideClient({
               className="bg-[#0a0d14] border border-zinc-800 rounded-3xl p-8 max-w-sm w-full flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden"
             >
               {/* Spinning Loader */}
-              <div className="w-16 h-16 rounded-full border-4 border-t-amber-500 border-zinc-800 animate-spin mb-6 shadow-[0_0_20px_rgba(245,158,11,0.2)]" />
+              <div className="w-16 h-16 rounded-full border-4 border-t-amber-500 border-zinc-800 animate-spin mb-6 " />
               
               <h3 className="text-white font-black text-base uppercase tracking-wider mb-2">Vérification en cours</h3>
               <p className="text-zinc-400 text-xs font-medium max-w-[240px]">
@@ -3456,12 +3456,12 @@ export default function OptimizedGuideClient({
                   onClick={() => handleLaunchDungeonSearch(dungeonChoiceModal.name, dungeonChoiceModal.dofusdbId)}
                   className="w-full flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-black text-sm text-left transition-all group"
                 >
-                  <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20 shrink-0 group- transition-transform">
                     <Flag className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Planifier une sortie</p>
-                    <p className="text-emerald-400/70 text-[10px] font-bold mt-0.5">Ouvrir ou rejoindre un groupe d'entraide</p>
+                    <p className="text-emerald-400/70 text-caption font-bold mt-0.5">Ouvrir ou rejoindre un groupe d'entraide</p>
                   </div>
                 </button>
 
@@ -3479,14 +3479,14 @@ export default function OptimizedGuideClient({
                     }}
                     className={`w-full flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 hover:border-amber-500/40 text-amber-400 font-black text-sm text-left transition-all ${dungeonChoiceModal.isLoadingUrl ? 'opacity-50 cursor-wait' : ''}`}
                   >
-                    <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                    <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0 group- transition-transform">
                       <BookOpen className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-xs font-black truncate">
                         {dungeonChoiceModal.isLoadingUrl ? "Chargement..." : "Consulter le tutoriel Noobs"}
                       </p>
-                      <p className="text-amber-400/70 text-[10px] font-bold mt-0.5 truncate pr-2">
+                      <p className="text-amber-400/70 text-caption font-bold mt-0.5 truncate pr-2">
                         {dungeonChoiceModal.customUrl ? dungeonChoiceModal.customUrl.replace("https://www.dofuspourlesnoobs.com/", "") : "Guide complet illustré pas-à-pas du donjon"}
                       </p>
                     </div>
@@ -3509,7 +3509,7 @@ export default function OptimizedGuideClient({
                         className="overflow-hidden mt-2"
                       >
                         <div className="p-3 bg-black/40 border border-amber-500/20 rounded-xl flex flex-col gap-2">
-                          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">URL / Slug Personnalisé</p>
+                          <p className="text-caption text-amber-400 font-bold uppercase tracking-wider">URL / Slug Personnalisé</p>
                           <input 
                             value={noobsUrlInput}
                             onChange={(e) => setNoobsUrlInput(e.target.value)}
@@ -3525,7 +3525,7 @@ export default function OptimizedGuideClient({
                                 }
                                 window.open(url, "_blank");
                               }}
-                              className="px-3 py-1.5 text-[10px] font-bold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+                              className="px-3 py-1.5 text-caption font-bold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
                             >
                               Tester
                             </button>
@@ -3542,7 +3542,7 @@ export default function OptimizedGuideClient({
                                   toast.error(res.error || "Erreur", { id: "save-url" });
                                 }
                               }}
-                              className="px-3 py-1.5 text-[10px] font-bold text-amber-900 bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors"
+                              className="px-3 py-1.5 text-caption font-bold text-amber-900 bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors"
                             >
                               Sauvegarder
                             </button>
@@ -3557,12 +3557,12 @@ export default function OptimizedGuideClient({
                   onClick={() => handleLaunchDofusDB(dungeonChoiceModal.dofusdbId, dungeonChoiceModal.dbtype)}
                   className="w-full flex items-center gap-3 p-4 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 font-black text-sm text-left transition-all group"
                 >
-                  <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/20 shrink-0 group- transition-transform">
                     <ExternalLink className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Consulter sur DofusDB</p>
-                    <p className="text-cyan-400/70 text-[10px] font-bold mt-0.5">Fiche et base de données officielle du boss</p>
+                    <p className="text-cyan-400/70 text-caption font-bold mt-0.5">Fiche et base de données officielle du boss</p>
                   </div>
                 </button>
               </div>
@@ -3636,12 +3636,12 @@ export default function OptimizedGuideClient({
                   }}
                   className="w-full flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-black text-sm text-left transition-all group"
                 >
-                  <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20 shrink-0 group- transition-transform">
                     <Flag className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Planifier une sortie d'entraide / donjon</p>
-                    <p className="text-emerald-400/70 text-[10px] font-bold mt-0.5">Créer un groupe de guilde prérempli pour cette étape</p>
+                    <p className="text-emerald-400/70 text-caption font-bold mt-0.5">Créer un groupe de guilde prérempli pour cette étape</p>
                   </div>
                 </button>
  
@@ -3661,12 +3661,12 @@ export default function OptimizedGuideClient({
                   }}
                   className="w-full flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 hover:border-amber-500/40 text-amber-400 font-black text-sm text-left transition-all group"
                 >
-                  <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0 group- transition-transform">
                     <BookOpen className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-white text-xs font-black">Consulter le tutoriel Noobs</p>
-                    <p className="text-amber-400/70 text-[10px] font-bold mt-0.5">Ouvrir le guide illustré pas-à-pas</p>
+                    <p className="text-amber-400/70 text-caption font-bold mt-0.5">Ouvrir le guide illustré pas-à-pas</p>
                   </div>
                 </button>
  
@@ -3678,12 +3678,12 @@ export default function OptimizedGuideClient({
                     }}
                     className="w-full flex items-center gap-3 p-4 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 font-black text-sm text-left transition-all group"
                   >
-                    <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/20 shrink-0 group-hover:scale-105 transition-transform">
+                    <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/20 shrink-0 group- transition-transform">
                       <ExternalLink className="w-5 h-5" />
                     </div>
                     <div>
                       <p className="text-white text-xs font-black">Consulter sur DofusDB</p>
-                      <p className="text-cyan-400/70 text-[10px] font-bold mt-0.5">Données techniques et structure de la quête</p>
+                      <p className="text-cyan-400/70 text-caption font-bold mt-0.5">Données techniques et structure de la quête</p>
                     </div>
                   </button>
                 )}
@@ -3755,7 +3755,7 @@ export default function OptimizedGuideClient({
                       }
                       setWelcomeModal(null);
                     }}
-                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm transition-all "
                   >
                     Reprendre
                   </button>
@@ -3805,13 +3805,13 @@ export default function OptimizedGuideClient({
       <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
         <DialogContent className="max-w-xl bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500">
               Navigation rapide
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1">
               Aller à une étape
             </div>
-            <div className="text-[11px] text-zinc-500 mt-1 font-medium">
+            <div className="text-caption text-zinc-500 mt-1 font-medium">
               {completedIds.size} / {milestones.length} étapes complétées ({overallPct}%)
             </div>
           </DialogHeader>
@@ -3881,19 +3881,19 @@ export default function OptimizedGuideClient({
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           </div>
                         ) : (
-                          <div className="w-5 h-5 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-600 font-mono text-[9px] font-bold">
+                          <div className="w-5 h-5 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-600 font-mono text-caption font-bold">
                             {globalIndex}
                           </div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className={`text-[13px] font-black italic truncate block transition-colors ${
+                        <span className={`text-body-sm font-black italic truncate block transition-colors ${
                           isSelected ? "text-white" : "text-zinc-300 group-hover:text-white"
                         } ${isDone ? "text-zinc-500 line-through" : ""}`}>
                           {m.title}
                         </span>
                         {m.isOptional && (
-                          <span className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 mt-0.5 inline-block">
+                          <span className="text-caption font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 mt-0.5 inline-block">
                             Bonus
                           </span>
                         )}
@@ -3905,11 +3905,11 @@ export default function OptimizedGuideClient({
                               <div key={member.profileId} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800" title={member.userName}>
                                 {member.userAvatar
                                   ? <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                  : <span className="flex w-full h-full items-center justify-center text-[8px] font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
+                                  : <span className="flex w-full h-full items-center justify-center text-caption font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
                               </div>
                             ))}
                             {here.length > 2 && (
-                              <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600 text-white text-[7px] font-black flex items-center justify-center">
+                              <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600 text-white text-caption font-black flex items-center justify-center">
                                 +{here.length - 2}
                               </div>
                             )}
@@ -3946,10 +3946,10 @@ export default function OptimizedGuideClient({
                               </div>
                           }
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${
+                        <span className={`text-caption font-black uppercase tracking-wider ${
                           chHasSelected ? "text-indigo-300" : chAllDone ? "text-zinc-600" : "text-zinc-400"
                         }`}>{ch.label}</span>
-                        <span className="ml-auto text-[9px] font-bold text-zinc-600">{chDone}/{chMilestones.length}</span>
+                        <span className="ml-auto text-caption font-bold text-zinc-600">{chDone}/{chMilestones.length}</span>
                       </div>
                       {/* Milestones in chapter */}
                       <div className="pl-4 space-y-0.5">
@@ -3983,18 +3983,18 @@ export default function OptimizedGuideClient({
                                 ) : isSelected ? (
                                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                 ) : (
-                                  <span className="text-[9px] font-mono font-bold text-zinc-600 w-5 inline-block text-center">{globalIndex}</span>
+                                  <span className="text-caption font-mono font-bold text-zinc-600 w-5 inline-block text-center">{globalIndex}</span>
                                 )}
                               </div>
                               {/* Title */}
-                              <span className={`flex-1 text-[12px] font-bold truncate transition-colors ${
+                              <span className={`flex-1 text-label font-bold truncate transition-colors ${
                                 isSelected ? "text-white" : "text-zinc-300 group-hover:text-white"
                               } ${isDone ? "text-zinc-600 line-through" : ""}`}>
                                 {m.title}
                               </span>
                               {/* Bonus badge */}
                               {m.isOptional && (
-                                <span className="text-[7px] font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 shrink-0">
+                                <span className="text-caption font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 shrink-0">
                                   Bonus
                                 </span>
                               )}
@@ -4005,11 +4005,11 @@ export default function OptimizedGuideClient({
                                     <div key={member.profileId} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800">
                                       {member.userAvatar
                                         ? <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        : <span className="flex w-full h-full items-center justify-center text-[7px] font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
+                                        : <span className="flex w-full h-full items-center justify-center text-caption font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
                                     </div>
                                   ))}
                                   {here.length > 2 && (
-                                    <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600/70 text-white text-[7px] font-black flex items-center justify-center">+{here.length - 2}</div>
+                                    <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600/70 text-white text-caption font-black flex items-center justify-center">+{here.length - 2}</div>
                                   )}
                                 </div>
                               )}
@@ -4034,7 +4034,7 @@ export default function OptimizedGuideClient({
       >
         <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
               Progression Étape
             </DialogTitle>
@@ -4054,7 +4054,7 @@ export default function OptimizedGuideClient({
               {/* Active / Jalon members */}
               {stepPresenceModal?.activeMembers && stepPresenceModal.activeMembers.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-wider text-amber-500 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
+                  <div className="text-caption font-black uppercase tracking-wider text-amber-500 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
                     <BookmarkCheck size={12} className="fill-amber-500/10" />
                     En cours à cette étape ({stepPresenceModal.activeMembers.length})
                   </div>
@@ -4073,7 +4073,7 @@ export default function OptimizedGuideClient({
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-zinc-800 border border-amber-500/20 overflow-hidden flex items-center justify-center shrink-0">
                               {m.userAvatar ? (
-                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" referrerPolicy="no-referrer" />
+                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-300" referrerPolicy="no-referrer" />
                               ) : (
                                 <span className="text-sm font-bold text-zinc-400">
                                   {m.userName.charAt(0).toUpperCase()}
@@ -4084,7 +4084,7 @@ export default function OptimizedGuideClient({
                               <span className="text-xs font-bold text-zinc-200 group-hover:text-amber-400 transition-colors">
                                 {m.userName}
                               </span>
-                              <span className="text-[9px] text-zinc-500">
+                              <span className="text-caption text-zinc-500">
                                 Voir la fiche de membre
                               </span>
                             </div>
@@ -4100,7 +4100,7 @@ export default function OptimizedGuideClient({
               {/* Validated members */}
               {stepPresenceModal?.validatedMembers && stepPresenceModal.validatedMembers.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
+                  <div className="text-caption font-black uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
                     <CheckCircle2 size={12} />
                     Validé ({stepPresenceModal.validatedMembers.length})
                   </div>
@@ -4119,7 +4119,7 @@ export default function OptimizedGuideClient({
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                               {m.userAvatar ? (
-                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" referrerPolicy="no-referrer" />
+                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-300" referrerPolicy="no-referrer" />
                               ) : (
                                 <span className="text-sm font-bold text-zinc-400">
                                   {m.userName.charAt(0).toUpperCase()}
@@ -4130,7 +4130,7 @@ export default function OptimizedGuideClient({
                               <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
                                 {m.userName}
                               </span>
-                              <span className="text-[9px] text-zinc-500">
+                              <span className="text-caption text-zinc-500">
                                 Voir la fiche de membre
                               </span>
                             </div>
@@ -4184,7 +4184,7 @@ export default function OptimizedGuideClient({
       >
         <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-emerald-400" />
               Membres actifs
             </DialogTitle>
@@ -4230,7 +4230,7 @@ export default function OptimizedGuideClient({
                           <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
                             {m.userName}
                           </span>
-                          <span className="text-[9px] text-zinc-500">
+                          <span className="text-caption text-zinc-500">
                             Voir la fiche de membre
                           </span>
                         </div>
@@ -4248,7 +4248,7 @@ export default function OptimizedGuideClient({
       <Dialog open={isAllMembersModalOpen} onOpenChange={setIsAllMembersModalOpen}>
         <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
               <Users size={14} className="text-blue-400" />
               Membres sur ce guide
             </DialogTitle>
@@ -4291,7 +4291,7 @@ export default function OptimizedGuideClient({
                           <span className="text-xs font-bold text-zinc-200 group-hover:text-blue-400 transition-colors truncate">
                             {m.userName}
                           </span>
-                          <span className="text-[9px] text-zinc-400 truncate mt-0.5">
+                          <span className="text-caption text-zinc-400 truncate mt-0.5">
                             {currentMs 
                               ? `En cours : ${currentMs.title}` 
                               : m.completedMilestoneIds.size === milestones.length 
@@ -4318,7 +4318,7 @@ export default function OptimizedGuideClient({
       >
         <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
               <BookOpen size={14} />
               Comment utiliser les guides ?
             </DialogTitle>
@@ -4327,27 +4327,27 @@ export default function OptimizedGuideClient({
           <ScrollArea className="max-h-[400px] pr-2 no-scrollbar text-zinc-300 text-xs leading-relaxed space-y-4">
             <div className="space-y-4 pb-2 font-medium">
               <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 mb-4">
-                <h4 className="text-indigo-300 font-black uppercase tracking-wider text-[10px] mb-1">📐 Structure & Hiérarchie</h4>
+                <h4 className="text-indigo-300 font-black uppercase tracking-wider text-caption mb-1">📐 Structure & Hiérarchie</h4>
                 <p className="text-zinc-200">Le système de guide est structuré en deux niveaux :</p>
-                <ul className="list-disc pl-4 mt-1.5 space-y-1 text-zinc-300 text-[11px]">
+                <ul className="list-disc pl-4 mt-1.5 space-y-1 text-zinc-300 text-caption">
                   <li><strong>Guide Principal (à gauche) :</strong> Les étapes et quêtes de la trame globale (ex: Quête du Dofus Émeraude).</li>
                   <li><strong>Sous-Guides GP (au centre) :</strong> Les fiches d&apos;instructions ultra-détaillées avec coordonnées et dialogues pour chaque objectif spécifique.</li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">🗺️ Progression pas-à-pas</h4>
+                <h4 className="text-white font-black uppercase tracking-wider text-caption mb-1">🗺️ Progression pas-à-pas</h4>
                 <p>Suivez la feuille de route optimisée. Les étapes s&apos;enchaînent logiquement pour réduire les allers-retours.</p>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">📍 Marque-page (J&apos;en suis là)</h4>
+                <h4 className="text-white font-black uppercase tracking-wider text-caption mb-1">📍 Marque-page (J&apos;en suis là)</h4>
                 <p>Utilisez l&apos;icône de marque-page pour indiquer précisément votre position actuelle à la guilde sans pour autant marquer l&apos;étape comme terminée.</p>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">✅ Validation d&apos;étapes</h4>
+                <h4 className="text-white font-black uppercase tracking-wider text-caption mb-1">✅ Validation d&apos;étapes</h4>
                 <p>Cochez les étapes secondaires ou validez la milestone principale une fois terminée. Votre progression est enregistrée en temps réel.</p>
               </div>
               <div>
-                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">👥 Synchronisation & Entraide</h4>
+                <h4 className="text-white font-black uppercase tracking-wider text-caption mb-1">👥 Synchronisation & Entraide</h4>
                 <p>Les avatars des membres s&apos;affichent sur les étapes où ils sont rendus. Pratique pour s&apos;organiser et faire des donjons à plusieurs !</p>
               </div>
             </div>
@@ -4375,7 +4375,7 @@ export default function OptimizedGuideClient({
       <Dialog open={isResetMilestoneConfirmOpen} onOpenChange={setIsResetMilestoneConfirmOpen}>
         <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/20 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-400 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-red-400 flex items-center gap-2">
               <RotateCcw size={14} className="animate-spin-slow" />
               Réinitialiser le jalon
             </DialogTitle>
@@ -4385,7 +4385,7 @@ export default function OptimizedGuideClient({
           </DialogHeader>
           <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
             <p>Êtes-vous sûr de vouloir réinitialiser la progression de ce jalon ?</p>
-            <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 text-red-200/90 text-[11px] font-medium">
+            <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 text-red-200/90 text-caption font-medium">
               ⚠️ <strong>Cette action va :</strong>
               <ul className="list-disc pl-4 mt-1 space-y-1">
                 <li>Décocher toutes les étapes secondaires de ce jalon</li>
@@ -4403,7 +4403,7 @@ export default function OptimizedGuideClient({
             </button>
             <button
               onClick={confirmResetMilestone}
-              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] cursor-pointer"
+              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all  cursor-pointer"
             >
               Réinitialiser
             </button>
@@ -4415,7 +4415,7 @@ export default function OptimizedGuideClient({
       <Dialog open={isResetGuideConfirmOpen} onOpenChange={setIsResetGuideConfirmOpen}>
         <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-500 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-red-500 flex items-center gap-2">
               <RotateCcw size={14}/>
               Réinitialisation Totale
             </DialogTitle>
@@ -4425,7 +4425,7 @@ export default function OptimizedGuideClient({
           </DialogHeader>
           <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
             <p>Êtes-vous absolument sûr de vouloir réinitialiser la totalité de ce guide ?</p>
-            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[11px] font-bold">
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-caption font-bold">
               🚨 WARNING : TOUTE votre progression sur ce guide (quêtes cochées, jalons validés, marque-pages) sera effacée définitivement pour ce personnage.
             </div>
           </div>
@@ -4450,7 +4450,7 @@ export default function OptimizedGuideClient({
       <Dialog open={isCompleteGuideConfirmOpen} onOpenChange={setIsCompleteGuideConfirmOpen}>
         <DialogContent className="max-w-md bg-zinc-950/95 border border-emerald-500/30 rounded-[2rem] p-6 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
               <CheckCheck size={14}/>
               Validation Totale
             </DialogTitle>
@@ -4460,7 +4460,7 @@ export default function OptimizedGuideClient({
           </DialogHeader>
           <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
             <p>Valider d'un coup tous les jalons de ce guide ?</p>
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-bold">
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-caption font-bold">
               ✅ Tous les jalons seront marqués complétés pour ce personnage. Les étapes individuelles des sous-guides restent cochables manuellement si besoin.
             </div>
           </div>

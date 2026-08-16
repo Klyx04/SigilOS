@@ -32,7 +32,7 @@ export default function MiniGamesStats({ miniGames }: MiniGamesStatsProps) {
                                 <span className={`text-2xl font-black ${r.color} drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]`}>
                                     {r.score.toLocaleString()}
                                 </span>
-                                <p className="text-[10px] uppercase text-zinc-500 tracking-wider font-bold">Points</p>
+                                <p className="text-caption uppercase text-zinc-500 tracking-wider font-bold">Points</p>
                             </div>
                         </div>
                     ))}

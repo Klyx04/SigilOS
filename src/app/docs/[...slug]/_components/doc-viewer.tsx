@@ -85,7 +85,7 @@ export function DocViewer({
 
     return (
         <div className={cn(
-            "flex flex-col xl:flex-row gap-12 relative items-start transition-all duration-500",
+            "flex flex-col xl:flex-row gap-12 relative items-start transition-all duration-300",
             isWide ? "max-w-none px-4 md:px-12" : "max-w-7xl mx-auto"
         )}>
             {/* Scroll Progress Bar */}
@@ -97,7 +97,7 @@ export function DocViewer({
 
             </div>
 
-            <article className="flex-1 min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+            <article className="flex-1 min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-300 w-full">
                 <header className="mb-8 border-b border-white/5 pb-8">
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-4">
@@ -167,10 +167,10 @@ export function DocViewer({
                             </nav>
 
                             <div className="pt-8 mt-8 border-t border-white/5">
-                                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest mb-4 px-2">Besoin d'aide ?</p>
+                                <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest mb-4 px-2">Besoin d'aide ?</p>
                                 <Link href="/discord" className="block p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 hover:bg-teal-500/10 transition-all group">
                                     <p className="text-xs font-bold text-teal-300 mb-1 group-hover:text-white">Rejoindre le Discord</p>
-                                    <p className="text-[10px] text-zinc-500">Posez vos questions à la communauté.</p>
+                                    <p className="text-caption text-zinc-500">Posez vos questions à la communauté.</p>
                                 </Link>
                             </div>
                         </div>

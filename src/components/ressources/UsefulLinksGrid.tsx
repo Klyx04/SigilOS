@@ -86,7 +86,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                     >
                         {/* Ambient glow */}
                         <div
-                            className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-5 group-hover:opacity-10 transition-opacity duration-700 pointer-events-none"
+                            className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-5 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none"
                             style={{ background: cat.color, transform: "translate(30%, -30%)" }}
                         />
 
@@ -100,7 +100,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                     className="w-1.5 h-5 rounded-full flex-shrink-0"
                                     style={{ background: cat.color, boxShadow: `0 0 8px ${cat.color}80` }}
                                 />
-                                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                                <h3 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-400">
                                     {cat.label}
                                 </h3>
                             </div>
@@ -141,7 +141,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                 }
                             `}</style>
                             {cat.links.length === 0 && (
-                                <div className="py-10 text-center text-zinc-600 text-[10px] font-medium tracking-widest uppercase italic">
+                                <div className="py-10 text-center text-zinc-600 text-caption font-medium tracking-widest uppercase italic">
                                     Aucun lien pour le moment
                                 </div>
                             )}
@@ -192,7 +192,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                                 </span>
                                                 {link.isOfficial && (
                                                     <span
-                                                        className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                                        className="text-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full flex-shrink-0"
                                                         style={{
                                                             background: "rgba(239,68,68,0.12)",
                                                             color: "#ef4444",
@@ -216,7 +216,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                         <div className="absolute top-1/2 -translate-y-1/2 right-10 flex gap-1 opacity-0 group-hover/link-container:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => setEditingLinkId(link.id)}
-                                                className="p-1 px-2 bg-black/60 hover:bg-black/80 text-zinc-400 hover:text-white rounded border border-white/5 text-[10px] transition-colors"
+                                                className="p-1 px-2 bg-black/60 hover:bg-black/80 text-zinc-400 hover:text-white rounded border border-white/5 text-caption transition-colors"
                                             >
                                                 Edit
                                             </button>
@@ -287,18 +287,18 @@ function CategoryModal({ guildId, category, onClose, onSuccess }: any) {
 
                 <div className="space-y-4">
                     <div>
-                        <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Nom</label>
+                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Nom</label>
                         <input value={label} onChange={e => setLabel(e.target.value)} type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                     </div>
                     <div>
-                        <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Couleur (Hex)</label>
+                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Couleur (Hex)</label>
                         <div className="flex gap-3">
                             <input value={color} onChange={e => setColor(e.target.value)} type="text" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                             <div className="w-12 h-12 rounded-xl border border-white/10" style={{ background: color }} />
                         </div>
                     </div>
                     <div>
-                        <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Ordre</label>
+                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Ordre</label>
                         <input value={order} onChange={e => setOrder(parseInt(e.target.value))} type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                     </div>
                 </div>
@@ -372,25 +372,25 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div className="grid grid-cols-4 gap-3">
                         <div className="col-span-1">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Emoji (Optionnel)</label>
+                            <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Emoji (Optionnel)</label>
                             <input value={emoji} onChange={e => setEmoji(e.target.value)} type="text" placeholder="🔗" className="text-center w-full bg-white/5 border border-white/10 rounded-xl px-2 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                         </div>
                         <div className="col-span-3">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Titre</label>
+                            <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Titre</label>
                             <input value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                         </div>
                     </div>
                     <div>
-                        <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">URL</label>
+                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">URL</label>
                         <input value={url} onChange={e => setUrl(e.target.value)} type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-colors" />
                     </div>
                     <div>
-                        <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Description</label>
+                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Description</label>
                         <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-colors resize-none" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Ordre</label>
+                            <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Ordre</label>
                             <input value={order} onChange={e => setOrder(parseInt(e.target.value))} type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                         </div>
                         <div className="flex items-center h-full pt-6">
@@ -402,7 +402,7 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
                                     {isOfficial && <Save className="h-3 w-3 text-white" />}
                                 </div>
                                 <input type="checkbox" checked={isOfficial} onChange={e => setIsOfficial(e.target.checked)} className="hidden" />
-                                <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 group-hover/check:text-white transition-colors">Officiel ?</span>
+                                <span className="text-caption uppercase font-black tracking-widest text-zinc-400 group-hover/check:text-white transition-colors">Officiel ?</span>
                             </label>
                         </div>
                     </div>

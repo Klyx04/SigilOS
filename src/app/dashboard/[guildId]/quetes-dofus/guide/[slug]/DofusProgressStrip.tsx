@@ -109,7 +109,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Gem className="w-4 h-4 text-emerald-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
               Progression Globale des Dofus
             </span>
           </div>
@@ -118,7 +118,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
         {/* Grosse barre globale */}
         <div className="h-2 bg-zinc-800/80 rounded-full overflow-hidden mb-3">
           <div
-            className="h-full rounded-full border border-white/5 transition-all duration-700"
+            className="h-full rounded-full border border-white/5 transition-all duration-300"
             style={{
               width: `${allPct}%`,
               background: `linear-gradient(90deg, #f59e0b, #a855f7, #06b6d4, #10b981)`,
@@ -126,7 +126,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
           />
         </div>
         {/* Badge du total */}
-        <p className="text-[9px] text-zinc-600 font-medium">
+        <p className="text-caption text-zinc-600 font-medium">
           {allDone}/{allTotal} blocs complétés
         </p>
       </div>
@@ -170,7 +170,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
               />
 
               {/* Label */}
-              <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${
+              <span className={`text-caption font-black uppercase tracking-wider text-center leading-tight ${
                 isComplete || isActive ? "text-emerald-400" : "text-zinc-400"
               } ${isSylvestre && isActive ? "text-amber-300" : ""}`}>
                 {d.label}
@@ -179,13 +179,13 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
               {/* Mini barre de progression */}
               <div className="w-full h-1 bg-zinc-800/60 rounded-full overflow-hidden mt-0.5">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-all duration-300"
                   style={{ width: `${d.pct}%`, background: d.color }}
                 />
               </div>
 
               {/* Percentage */}
-              <span className="text-[8px] font-mono font-bold text-zinc-500">{d.pct}%</span>
+              <span className="text-caption font-mono font-bold text-zinc-500">{d.pct}%</span>
             </button>
           );
         })}
@@ -194,9 +194,9 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
       {/* Stats par chapitre (pips) */}
       {chapterStats.length > 1 && (
         <details className="group">
-          <summary className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-400 cursor-pointer py-2 transition-colors list-none">
+          <summary className="flex items-center gap-2 text-caption font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-400 cursor-pointer py-2 transition-colors list-none">
             <span className="w-4 h-4 rounded bg-zinc-800 flex items-center justify-center">
-              <span className="text-[8px] font-black text-zinc-500 group-open:rotate-90 transition-transform">▶</span>
+              <span className="text-caption font-black text-zinc-500 group-open:rotate-90 transition-transform">▶</span>
             </span>
             Répartition par chapitre
           </summary>
@@ -207,7 +207,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
                 className="flex items-center gap-2 p-2 rounded-xl bg-zinc-900/40 border border-zinc-800/50"
               >
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black border ${
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-caption font-black border ${
                     ch.pct === 100
                       ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
                       : ch.pct > 0
@@ -218,7 +218,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
                   {ch.chapter}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-bold text-zinc-300 truncate">
+                  <p className="text-caption font-bold text-zinc-300 truncate">
                     {ch.chapterLabel.length > 18 ? ch.chapterLabel.slice(0, 16) + "…" : ch.chapterLabel}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
@@ -231,7 +231,7 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
                         }}
                       />
                     </div>
-                    <span className="text-[8px] font-mono text-zinc-500">{ch.pct}%</span>
+                    <span className="text-caption font-mono text-zinc-500">{ch.pct}%</span>
                   </div>
                 </div>
               </div>

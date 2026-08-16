@@ -128,13 +128,13 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
     return (
         <Card className={cn(
-            "flex flex-col relative overflow-hidden transition-all duration-500 group border-white/5 bg-[#121417] shadow-2xl",
-            "hover:border-white/10 hover:shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+            "flex flex-col relative overflow-hidden transition-all duration-300 group border-white/5 bg-[#121417] shadow-2xl",
+            "hover:border-white/10 "
         )}>
             {/* ----------------- HEADER BAR (Full Width) ----------------- */}
             <div className={cn(
                 "relative z-20 flex flex-wrap items-center gap-3 sm:gap-4 px-4 py-2.5 shadow-inner border-b border-white/5",
-                "overflow-hidden transition-all duration-500"
+                "overflow-hidden transition-all duration-300"
             )}>
                 {/* AI BACKGROUND BANNER */}
                 <div className="absolute inset-0 z-0">
@@ -159,7 +159,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
                 <div className="relative shrink-0 z-10">
                     <div className="absolute inset-0 bg-white/20 blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 shadow-lg relative transition-transform group-hover:scale-105">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 shadow-lg relative transition-transform group-">
                         <Icon className={cn("w-4 h-4 text-white")} />
                     </div>
                 </div>
@@ -174,7 +174,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 <div className="ml-auto flex items-center gap-2 relative z-10 shrink-0">
                     <SubmissionCountdown createdAt={submission.createdAt} />
                     <div className="flex items-center bg-black/60 rounded px-2 h-6 border border-white/10 shrink-0">
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider mr-1.5">RANG</span>
+                        <span className="text-caption font-black text-zinc-400 uppercase tracking-wider mr-1.5">RANG</span>
                         <span className="text-xs font-black text-white">{submission.mission.rank || 1}</span>
                     </div>
                     <div className="h-4 w-[1px] bg-white/10 shrink-0" />
@@ -212,7 +212,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                                     <TooltipTrigger asChild>
                                         <ShieldCheck className="w-3 h-3 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                    <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-caption font-bold uppercase tracking-wider">
                                         Administration
                                     </TooltipContent>
                                 </Tooltip>
@@ -223,12 +223,12 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 
                 <div className="flex flex-wrap items-center gap-2 ml-auto">
                     {submission.profile.pseudoDofus && (
-                        <Badge variant="secondary" className="text-[10px] h-5 px-2 bg-zinc-800 text-zinc-400 font-normal shrink-0">
+                        <Badge variant="secondary" className="text-caption h-5 px-2 bg-zinc-800 text-zinc-400 font-normal shrink-0">
                             {submission.profile.pseudoDofus}
                         </Badge>
                     )}
                     {submission.profile.classe && (
-                        <Badge variant="outline" className="text-[10px] h-5 px-2 border-zinc-700 text-zinc-500 font-normal shrink-0">
+                        <Badge variant="outline" className="text-caption h-5 px-2 border-zinc-700 text-zinc-500 font-normal shrink-0">
                             {submission.profile.classe}
                         </Badge>
                     )}
@@ -239,7 +239,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
             <CardContent className="p-4 space-y-3 flex-1 relative bg-gradient-to-b from-[#1a1c20] to-[#121417]">
                 {/* Sub-Atmosphere Glow */}
                 <div className={cn(
-                    "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-1000 group-hover:scale-150",
+                    "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-300 group-hover:scale-150",
                     config.bgColor
                 )} />
 
@@ -263,7 +263,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 {submission.helpers && submission.helpers.length > 0 && (
                     <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/50">
                         <Users className="w-3.5 h-3.5 text-indigo-400" />
-                        <span className="text-[10px] text-zinc-500 font-medium">Contributeurs:</span>
+                        <span className="text-caption text-zinc-500 font-medium">Contributeurs:</span>
                         <div className="flex items-center -space-x-2">
                             {submission.helpers.slice(0, 5).map((helper) => (
                                 <TooltipProvider key={helper.id}>
@@ -271,7 +271,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                                         <TooltipTrigger asChild>
                                             <Avatar className="w-6 h-6 border-2 border-zinc-900 ring-1 ring-indigo-500/30">
                                                 <AvatarImage src={helper.user.image || undefined} />
-                                                <AvatarFallback className="text-[8px] bg-zinc-800">
+                                                <AvatarFallback className="text-caption bg-zinc-800">
                                                     {(getGameDisplayName(helper) || "?").slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -283,7 +283,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                                 </TooltipProvider>
                             ))}
                             {submission.helpers.length > 5 && (
-                                <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[8px] text-zinc-400 font-bold">
+                                <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-caption text-zinc-400 font-bold">
                                     +{submission.helpers.length - 5}
                                 </div>
                             )}

@@ -69,7 +69,7 @@ export function DungeonMapPicker({
                 <MapPin className="w-4 h-4 text-amber-500" />
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Donjon sur la carte</span>
                 {selectedName && (
-                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] font-black">
+                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-caption font-black">
                         <Check className="inline w-3 h-3 mr-1" />
                         {selectedName} (#{value})
                     </span>
@@ -113,7 +113,7 @@ export function DungeonMapPicker({
                             >
                                 <MapPin className="w-3 h-3 shrink-0 opacity-60" />
                                 <span className="truncate">{name}</span>
-                                <span className="ml-auto text-[9px] font-mono text-slate-600 shrink-0">#{mapId}</span>
+                                <span className="ml-auto text-caption font-mono text-slate-600 shrink-0">#{mapId}</span>
                             </button>
                         );
                     })}

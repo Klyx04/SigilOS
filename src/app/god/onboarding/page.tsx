@@ -59,7 +59,7 @@ export default async function GodOnboardingDocsPage() {
                 <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[50px] -translate-y-1/2 translate-x-1/2" />
 
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-caption font-black text-amber-500 uppercase tracking-widest">
                         <EyeOff className="w-3 h-3" />
                         Scénario A : Sur Mesure
                     </div>
@@ -89,7 +89,7 @@ export default async function GodOnboardingDocsPage() {
                 <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[50px] -translate-y-1/2 translate-x-1/2" />
 
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-black text-emerald-500 uppercase tracking-widest">
                         <Globe className="w-3 h-3" />
                         Scénario B : Industrialisé (SaaS)
                     </div>

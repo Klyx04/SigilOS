@@ -122,7 +122,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                         )}
                                         <div>
                                             <p className="text-xs font-bold text-cyan-300">{listing.dungeonName}</p>
-                                            <p className="text-[10px] text-zinc-500">Donjon sélectionné</p>
+                                            <p className="text-caption text-zinc-500">Donjon sélectionné</p>
                                         </div>
                                     </div>
                                 )}
@@ -134,7 +134,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                                 .replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
                                             const iconUrl = getAchievementIconUrl(slug);
                                             return (
-                                                <span key={name} className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-bold">
+                                                <span key={name} className="flex items-center gap-1.5 text-caption px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-bold">
                                                     {iconUrl && (
                                                         <div className="relative h-4 w-4 shrink-0">
                                                             <Image
@@ -159,7 +159,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                         </div>
                                         <div>
                                             <p className="text-xs font-bold text-violet-300">{listing.questName}</p>
-                                            <p className="text-[10px] text-zinc-500">Quête sélectionnée</p>
+                                            <p className="text-caption text-zinc-500">Quête sélectionnée</p>
                                         </div>
                                     </div>
                                 )}

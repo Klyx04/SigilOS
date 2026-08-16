@@ -64,7 +64,7 @@ export function BonusCard({
             className={`
                 relative overflow-hidden rounded-lg border-2 p-4 transition-all
                 ${getTypeColor(type)}
-                ${!isPurchased && !isActive ? "hover:shadow-lg hover:scale-105 " + getTypeGlow(type) : ""}
+                ${!isPurchased && !isActive ? "hover:shadow-lg  " + getTypeGlow(type) : ""}
                 ${isPurchased || isActive ? "opacity-60" : ""}
             `}
         >

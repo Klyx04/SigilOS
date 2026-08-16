@@ -23,16 +23,17 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 — landing MERGÉE + #5 slice 1
+## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (2e passe) — dashboard plié + CodeQL PR #480 débloqué
 
-> **✅ #80 Refonte TOTALE LANDING MERGÉE dans dev (18/08)** — PR **#478** merged (`a13e89184`,
-> `origin/dev` à jour ; les 12 commits landing + merge dev sont dans dev).
-> **#5 design system — slice 1 FAIT** (branche `feat/design-system-polices`, 3 commits poussés,
-> PR à ouvrir) : fonts consolidées 6→4 (**Space Grotesk** en display, Geist Sans + Rajdhani morts
-> retirés), type scale sémantique `text-display-xl → text-caption` (micro <11px interdit), dé-slop des
-> points d'entrée (welcome-modal, access-denied, no-guild-message, global-error, god quêtes, roadmap).
-> Vérifs : tsc 0 · lint 0 erreur · test:run **187/187** · build OK.
-> Détail : `src/temp/memo-2026-08-13-chantier-global.md` (section 18/08) + `src/temp/chantier.md` (#5).
+> **✅ PR #480 (`feat/design-system-polices` → dev) : 2 commits poussés le 18/08 soir** —
+> `e8aee47cd` (chantier dashboard) + `7776675a6` (fix sécurité CodeQL, 7 alertes levées).
+> **Chantier dashboard plié** : #87/#88 hydration React #418 (HeaderEventChip + calendar-dashboard + widgets),
+> #88 images (DofusIcon normalizeName « Dofus » + fallback local + event.png recréé), #35 4 blocs quetes-dofus
+> refondus, #86 identité grisée, #90 cartes membres, #92 histoire, #77 relance cases à cocher (partiel),
+> #5 ACCENT emerald unique (annuaire-hub/stuff-hub/admin). Vérifs : tsc 0 · lint 0 erreur · **192/192** · build OK.
+> Rappel : **#80 landing MERGÉE dans dev (18/08, PR #478, `a13e89184`)** + **#5 slice 1** (fonts 6→4, Space Grotesk,
+> type scale) déjà dans `dev`/cette branche. Historique des sessions précédentes (16/08 → PR #470-477) ci-dessous.
+> Détail : `src/temp/memo-2026-08-13-chantier-global.md` (section 18/08 2e passe).
 > Historique des sessions précédentes (16/08 → PR #470-477) ci-dessous.
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,

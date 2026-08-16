@@ -477,23 +477,23 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               <Zap className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400/60">ÉDITEUR GOD</p>
+              <p className="text-caption font-black uppercase tracking-widest text-emerald-400/60">ÉDITEUR GOD</p>
               <h1 className="text-lg font-black text-white italic">{initialGuide.name}</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${isActive ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}>
+            <span className={`px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest border ${isActive ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}>
               {isActive ? "Actif" : "Inactif"}
             </span>
             {isUnderConstruction && (
-              <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/20 flex items-center gap-1">
                 <Construction className="w-2.5 h-2.5" /> En construction
               </span>
             )}
             <div className="flex items-center p-1 bg-zinc-900 rounded-xl border border-white/5">
               {(["content", "settings"] as const).map(t => (
                 <button key={t} onClick={() => setActiveTab(t)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === t ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+                  className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all ${activeTab === t ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
                 >
                   {t === "content" ? <><Layers className="w-3 h-3 inline mr-1" />Contenu</> : <><Settings className="w-3 h-3 inline mr-1" />Config</>}
                 </button>
@@ -530,9 +530,9 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                   <div key={d.id} className="p-3 bg-zinc-900/40 border border-white/5 rounded-2xl flex flex-col items-center text-center" style={{ borderColor: `${d.color}20` }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={d.imageUrl} alt={d.label} className="w-10 h-10 object-contain mb-1 drop-shadow-lg" />
-                    <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: d.color }}>{d.label}</p>
+                    <p className="text-caption font-black uppercase tracking-widest" style={{ color: d.color }}>{d.label}</p>
                     <p className="text-xs font-bold text-white mt-1">{questCount} quête{questCount !== 1 ? 's' : ''}</p>
-                    <p className="text-[9px] text-zinc-600">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
+                    <p className="text-caption text-zinc-600">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
                   </div>
                 );
               })}
@@ -547,14 +547,14 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
                     {/* Type selector */}
                     <div>
-                      <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Type de bloc</label>
+                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2 block">Type de bloc</label>
                       <div className="flex flex-wrap gap-2">
                         {MILESTONE_TYPES.map(t => (
                           <button key={t.value} onClick={() => {
                             setNewStepType(t.value);
                             if (t.value === "SEPARATEUR") setNewStepColor("#d4a853");
                           }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border transition-all ${newStepType === t.value ? "border-white/30 text-white bg-white/10" : "border-white/5 text-zinc-500 hover:text-zinc-300"}`}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-black border transition-all ${newStepType === t.value ? "border-white/30 text-white bg-white/10" : "border-white/5 text-zinc-500 hover:text-zinc-300"}`}
                             style={newStepType === t.value ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" } : {}}
                           >
                             {t.icon}{t.label}
@@ -566,14 +566,14 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" && newStepType !== "INFO" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
+                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
                         <input type="number" min={1} value={newChapterNum}
                           onChange={e => setNewChapterNum(Math.max(1, parseInt(e.target.value, 10) || 1))}
                           className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 font-mono"
                         />
                       </div>
                       <div>
-                        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Label chapitre</label>
+                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Label chapitre</label>
                         <input value={newChapterLabel} onChange={e => setNewChapterLabel(e.target.value)}
                           placeholder="ex: Incarnam & Astrub"
                           className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/50"
@@ -581,20 +581,20 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
                     ) : newStepType === "INFO" ? (
-                      <p className="text-[10px] text-purple-400/70 leading-relaxed">
+                      <p className="text-caption text-purple-400/70 leading-relaxed">
                         Le bloc Conseil/Tips est un bandeau informatif autonome — il n'appartient à aucun chapitre et peut être déplacé librement entre les quêtes.
                       </p>
                     ) : newStepType === "SEPARATEUR" ? (
-                      <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                      <p className="text-caption text-amber-400/70 leading-relaxed">
                         Le séparateur est un titre visuel entre les blocs — il n'appartient à aucun chapitre.
                       </p>
                     ) : (
-                      <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                      <p className="text-caption text-amber-400/70 leading-relaxed">
                         La bannière d'obtention est un bloc visuel autonome — il n'appartient à aucun chapitre et n'est pas cochable.
                       </p>
                     )}
                     <div>
-                      <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
                         {newStepType === "SEPARATEUR" ? "Titre de section *" : "Nom du bloc *"}
                       </label>
                       <input value={newStepTitle} onChange={e => setNewStepTitle(e.target.value)}
@@ -608,13 +608,13 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
                     {(newStepType === "DOFUS" || newStepType === "DOFUS_OBTAINED") && (
                       <div>
-                        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Dofus associé <span className="text-zinc-600">(clic pour sélectionner)</span></label>
+                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2 block">Dofus associé <span className="text-zinc-600">(clic pour sélectionner)</span></label>
                         <div className="flex flex-wrap gap-2">
                           {DOFUS_LIST.map(d => (
                             <button key={d.id} type="button"
                               onClick={() => setNewDofusId(prev => prev === d.id ? null : d.id)}
                               title={d.label}
-                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border transition-all ${
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-black border transition-all ${
                                 newDofusId === d.id
                                   ? "border-white/40 scale-105"
                                   : "border-white/10 opacity-40 hover:opacity-80"
@@ -628,13 +628,13 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                           ))}
                         </div>
                         {newDofusId && (
-                          <p className="mt-1.5 text-[9px] text-emerald-400/70">✓ Sélectionné : {DOFUS_LIST.find(d => d.id === newDofusId)?.label}</p>
+                          <p className="mt-1.5 text-caption text-emerald-400/70">✓ Sélectionné : {DOFUS_LIST.find(d => d.id === newDofusId)?.label}</p>
                         )}
                       </div>
                     )}
 
                     <div>
-                      <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Couleur accent</label>
+                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2 block">Couleur accent</label>
                       <div className="flex items-center gap-2 flex-wrap">
                         {COLOR_PALETTE.map(c => (
                           <button key={c.value} onClick={() => setNewStepColor(c.value)} title={c.label}
@@ -680,7 +680,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         <div key={m.id} className="space-y-2">
                           {showChapterLabel && (
                             <div className="flex items-center gap-2 pt-2 pb-1 px-1">
-                              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[9px] font-black font-mono rounded tracking-widest border border-white/5">
+                              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-caption font-black font-mono rounded tracking-widest border border-white/5">
                                 CH.{m.chapter}
                               </span>
                               <span className="text-xs font-black text-zinc-400 uppercase tracking-wide">{m.chapterLabel}</span>
@@ -736,7 +736,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               <div className="h-px bg-white/5" />
               <ToggleRow label="Mode Construction" description='Affiche le badge "En construction"' value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
               <div className="h-px bg-white/5" />
-              <div className="p-3 bg-zinc-800/60 rounded-xl text-[10px] text-zinc-500 space-y-1">
+              <div className="p-3 bg-zinc-800/60 rounded-xl text-caption text-zinc-500 space-y-1">
                 <p><span className="text-zinc-400 font-bold">Slug :</span> rush-sylvestre</p>
                 <p><span className="text-zinc-400 font-bold">Mode :</span> TIMELINE</p>
                 <p><span className="text-zinc-400 font-bold">URL membres :</span> /dashboard/[guildId]/quetes-dofus/guide/rush-sylvestre</p>
@@ -789,7 +789,7 @@ function StatPill({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center">
       <p className="text-xl font-black text-white">{value}</p>
-      <p className="text-[9px] text-zinc-500 uppercase tracking-widest">{label}</p>
+      <p className="text-caption text-zinc-500 uppercase tracking-widest">{label}</p>
     </div>
   );
 }
@@ -801,7 +801,7 @@ function ToggleRow({ label, description, value, onToggle, disabled, color }: { l
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-bold text-white">{label}</p>
-        <p className="text-[10px] text-zinc-500">{description}</p>
+        <p className="text-caption text-zinc-500">{description}</p>
       </div>
       <button onClick={onToggle} disabled={disabled}
         className={`relative w-12 h-6 rounded-full border transition-all disabled:opacity-50 ${value ? on : "bg-zinc-800 border-zinc-700"}`}
@@ -897,7 +897,7 @@ function SeparatorRowAdmin({
         ) : (
           <>
             <div className="flex-1 min-w-0 py-1">
-              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-amber-400/60 mb-1">Séparateur</p>
+              <p className="text-caption font-black uppercase tracking-widest text-amber-400/60 mb-1">Séparateur</p>
               <p
                 className="font-[family-name:var(--font-cinzel)] text-sm sm:text-base font-bold uppercase tracking-[0.14em] truncate"
                 style={{ color, textShadow: `0 0 18px ${color}30` }}
@@ -1000,7 +1000,7 @@ function MilestoneRow({
             <div className="flex flex-wrap gap-1">
               {MILESTONE_TYPES.map(t => (
                 <button key={t.value} onClick={() => onEditChange({ type: t.value })}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black border transition-all"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-caption font-black border transition-all"
                   style={(editingData?.type ?? milestone.type) === t.value
                     ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" }
                     : { color: "#71717a", borderColor: "transparent" }
@@ -1029,7 +1029,7 @@ function MilestoneRow({
               <div className="flex flex-wrap gap-1.5">
                 {DOFUS_LIST.map(d => (
                   <button key={d.id} onClick={() => onEditChange({ dofusId: d.id })}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black border transition-all ${editingData.dofusId === d.id ? "border-white/40" : "border-white/10 opacity-50 hover:opacity-100"}`}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption font-black border transition-all ${editingData.dofusId === d.id ? "border-white/40" : "border-white/10 opacity-50 hover:opacity-100"}`}
                     style={{ color: d.color, borderColor: editingData.dofusId === d.id ? d.color : undefined, background: d.color + "15" }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1070,7 +1070,7 @@ function MilestoneRow({
           <>
             <button onClick={onToggle} className="flex-1 flex items-center gap-2 text-left min-w-0">
               <span className="text-sm font-bold text-white truncate">{milestone.title}</span>
-              {milestone.isOptional && <span className="text-[8px] px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
+              {milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
               {dofusInfo && (
                 <span className="flex items-center flex-shrink-0" title={dofusInfo.label}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1082,7 +1082,7 @@ function MilestoneRow({
                   <Info className="w-3 h-3 text-amber-400/60" />
                 </span>
               )}
-              <span className="text-[9px] text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
+              <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
               {isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />}
             </button>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -1200,11 +1200,11 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
           {displayDungeons.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               {displayDungeons.map((dd: any, di: number) => (
-                <span key={dd.id || di} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 truncate max-w-[140px]">
+                <span key={dd.id || di} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-caption font-bold text-indigo-300 truncate max-w-[140px]">
                   <Sword className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
                   <span className="truncate">{dd.name}</span>
                   {Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dd.id) && (
-                    <span className="flex items-center gap-0.5 px-1 py-0 rounded-full bg-amber-500/20 text-amber-300 text-[6px] font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-0.5 px-1 py-0 rounded-full bg-amber-500/20 text-amber-300 text-caption font-black uppercase tracking-widest">
                       <img src="/assets/icons/ocre.png" alt="" className="w-2 h-2 object-contain" />
                       Ocre
                     </span>
@@ -1214,7 +1214,7 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             </div>
           )}
           {seq.alignReq && (
-            <span className="px-1 py-0.5 rounded text-[8px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="px-1 py-0.5 rounded text-caption font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
               {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
             </span>
           )}
@@ -1234,29 +1234,29 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
               <span
                 key={idx}
                 title={label}
-                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-black bg-zinc-800 text-zinc-300 border border-white/5"
+                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-caption font-black bg-zinc-800 text-zinc-300 border border-white/5"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={iconPath} alt={def.label} className="w-3.5 h-3.5 object-contain" />
-                {tag.count && tag.count > 1 && <span className="text-amber-400 font-mono text-[9px] ml-0.5">x{tag.count}</span>}
+                {tag.count && tag.count > 1 && <span className="text-amber-400 font-mono text-caption ml-0.5">x{tag.count}</span>}
                 {isMetier && tag.name && <span className="max-w-[70px] truncate">{tag.name} {tag.level ? `Niv.${tag.level}` : ""}</span>}
               </span>
             );
           })}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          {hasCustomDb && <span className="text-[8px] text-emerald-400/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />DB✓</span>}
-          {hasCustomNoobs && <span className="text-[8px] text-cyan-400/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />Noobs✓</span>}
-          {seq.note && <span className="text-[8px] text-amber-400/60 italic truncate">{seq.note}</span>}
+          {hasCustomDb && <span className="text-caption text-emerald-400/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />DB✓</span>}
+          {hasCustomNoobs && <span className="text-caption text-cyan-400/60 font-bold flex items-center gap-0.5"><Link2 className="w-2 h-2" />Noobs✓</span>}
+          {seq.note && <span className="text-caption text-amber-400/60 italic truncate">{seq.note}</span>}
         </div>
       </div>
 
       <div className="flex items-center gap-1 opacity-0 group-hover/seq:opacity-100 transition-opacity flex-shrink-0">
         <a href={dofusdbUrl} target="_blank" rel="noreferrer"
-          className={`px-1 py-0.5 text-[8px] font-black uppercase rounded transition-colors ${hasCustomDb ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"}`}
+          className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomDb ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"}`}
         ><BookOpen className="w-2.5 h-2.5 inline" /> DB</a>
         <a href={noobsUrl} target="_blank" rel="noreferrer"
-          className={`px-1 py-0.5 text-[8px] font-black uppercase rounded transition-colors ${hasCustomNoobs ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-300"}`}
+          className={`px-1 py-0.5 text-caption font-black uppercase rounded transition-colors ${hasCustomNoobs ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-300"}`}
         ><ExternalLink className="w-2.5 h-2.5 inline" /> Noobs</a>
         <button onClick={onEdit} className="p-1 text-zinc-600 hover:text-zinc-300 transition-all"><Pencil className="w-3 h-3" /></button>
         <button onClick={onDelete} className="p-1 text-zinc-600 hover:text-red-400 transition-all"><X className="w-3 h-3" /></button>
@@ -1293,7 +1293,7 @@ function ActivityTagsEditor({ tags, onChange }: {
               key={def.type}
               type="button"
               onClick={() => toggleTag(def.type)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
                 active
                   ? "border-white/30 text-white"
                   : "border-white/5 text-zinc-600 hover:text-zinc-400 hover:border-white/10"
@@ -1324,7 +1324,7 @@ function ActivityTagsEditor({ tags, onChange }: {
                 <select
                   value={tag.name || ""}
                   onChange={e => updateTag(tag.type, { name: e.target.value })}
-                  className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none"
+                  className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none"
                 >
                   <option value="">— Métier —</option>
                   {DOFUS_METIERS.map(m => <option key={m} value={m}>{m}</option>)}
@@ -1333,7 +1333,7 @@ function ActivityTagsEditor({ tags, onChange }: {
                   type="number" min={1} max={200}
                   value={tag.level || ""}
                   onChange={e => updateTag(tag.type, { level: parseInt(e.target.value, 10) || undefined })}
-                  className="w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none"
+                  className="w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none"
                   placeholder="Niv. min"
                 />
               </>
@@ -1347,7 +1347,7 @@ function ActivityTagsEditor({ tags, onChange }: {
                     else if (mode === "after") updateTag(tag.type, { name: "> 0" });
                     else updateTag(tag.type, { name: "0-0" });
                   }}
-                  className="bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none"
+                  className="bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none"
                 >
                   <option value="before">Avant</option>
                   <option value="between">Entre</option>
@@ -1365,43 +1365,43 @@ function ActivityTagsEditor({ tags, onChange }: {
                     <div className="flex items-center gap-1">
                       {mode === "before" ? (
                         <div className="flex items-center gap-1">
-                          <span className="text-[9px] text-amber-300 font-bold">avant</span>
+                          <span className="text-caption text-amber-300 font-bold">avant</span>
                           <input
                             type="number" min={0} max={23}
                             value={h1}
                             onChange={e => updateTag(tag.type, { name: `< ${parseInt(e.target.value, 10) || 0}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
                           />
-                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                          <span className="text-caption text-amber-300 font-bold">h</span>
                         </div>
                       ) : mode === "after" ? (
                         <div className="flex items-center gap-1">
-                          <span className="text-[9px] text-amber-300 font-bold">après</span>
+                          <span className="text-caption text-amber-300 font-bold">après</span>
                           <input
                             type="number" min={0} max={23}
                             value={h1}
                             onChange={e => updateTag(tag.type, { name: `> ${parseInt(e.target.value, 10) || 0}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
                           />
-                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                          <span className="text-caption text-amber-300 font-bold">h</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <span className="text-[9px] text-zinc-400">de</span>
+                          <span className="text-caption text-zinc-400">de</span>
                           <input
                             type="number" min={0} max={23}
                             value={h1}
                             onChange={e => updateTag(tag.type, { name: `${parseInt(e.target.value, 10) || 0}-${h2}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
                           />
-                          <span className="text-[9px] text-zinc-400">h à</span>
+                          <span className="text-caption text-zinc-400">h à</span>
                           <input
                             type="number" min={0} max={23}
                             value={h2}
                             onChange={e => updateTag(tag.type, { name: `${h1}-${parseInt(e.target.value, 10) || 0}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
                           />
-                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                          <span className="text-caption text-amber-300 font-bold">h</span>
                         </div>
                       )}
                     </div>
@@ -1410,23 +1410,23 @@ function ActivityTagsEditor({ tags, onChange }: {
               </div>
             ) : tag.type === "solver" ? (
               <div className="flex items-center gap-1.5 flex-1">
-                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Solver URL</span>
+                <span className="text-caption text-emerald-400 font-bold uppercase tracking-wider">Solver URL</span>
                 <input
                   type="text"
                   value={tag.url || ""}
                   onChange={e => updateTag(tag.type, { url: e.target.value })}
-                  className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1 text-[10px] text-emerald-300 focus:outline-none placeholder:text-zinc-700"
+                  className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1 text-caption text-emerald-300 focus:outline-none placeholder:text-zinc-700"
                   placeholder="ex: https://solver.dofus.com/... (optionnel)"
                 />
               </div>
             ) : (
               <div className="flex items-center gap-1.5 flex-1">
-                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{def.label}</span>
+                <span className="text-caption text-zinc-400 font-bold uppercase tracking-wider">{def.label}</span>
                 <input
                   type="number" min={1} max={99}
                   value={tag.count || ""}
                   onChange={e => updateTag(tag.type, { count: parseInt(e.target.value, 10) || undefined })}
-                  className="w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none ml-auto"
+                  className="w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none ml-auto"
                   placeholder="Quantité"
                 />
               </div>
@@ -1684,10 +1684,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
   return (
     <div className="p-3 bg-zinc-900/80 border border-indigo-500/20 rounded-xl space-y-2.5">
-      <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Édition quête</p>
+      <p className="text-caption font-black text-indigo-400 uppercase tracking-widest">Édition quête</p>
 
       <div>
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
+        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
         <input value={name} onChange={e => setName(e.target.value)}
           className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
           placeholder="Nom de la quête" autoFocus
@@ -1696,7 +1696,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       <div className="grid grid-cols-2 gap-2">
         <div className="relative">
-          <label className="text-[9px] font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+          <label className="text-caption font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
             🔒 Prérequis de cette quête ({prereqs.length})
           </label>
 
@@ -1704,7 +1704,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           {prereqs.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-1.5">
               {prereqs.map((pName, pIdx) => (
-                <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[9px] font-bold">
+                <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
                   <Lock className="w-2.5 h-2.5 text-amber-400" />
                   <span className="max-w-[120px] truncate">{pName}</span>
                   <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
@@ -1730,7 +1730,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
               className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
               placeholder="Rechercher une quête prérequis..."
             />
-            {searchingPrereqs && <span className="absolute right-2 top-2 text-[9px] text-zinc-500 animate-pulse">...</span>}
+            {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">...</span>}
           </div>
 
           {/* Dropdown de résultats */}
@@ -1752,7 +1752,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         </div>
 
         <div>
-          <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+          <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
             🥚 Dofus associé
           </label>
           <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
@@ -1782,7 +1782,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         </div>
         {isInfoBlock && (
           <div className="flex items-center gap-2 pl-6">
-            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Couleur du bandeau</span>
+            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Couleur du bandeau</span>
             <div className="flex gap-1">
               {COLOR_PALETTE.map(c => (
                 <button key={c.value} onClick={() => handleInfoBlockColorChange(c.value)} title={c.label}
@@ -1798,7 +1798,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       {/* Positions GPS & Bloc Tougli */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+          <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
             📍 Positions GPS (ex: -2, 0 ; 10, -22)
           </label>
           <div className="flex items-center gap-1.5">
@@ -1826,7 +1826,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           </div>
         </div>
         <div>
-          <label className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+          <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
             💬 Style du bloc Tougli
           </label>
           <select
@@ -1843,13 +1843,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest block">
+          <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
             💬 Mini bloc Conseil Style Tougli
           </label>
           <button
             type="button"
             onClick={handleInsertLink}
-            className="flex items-center gap-1 text-[9px] font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
+            className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
           >
             🔗 Insérer un lien
           </button>
@@ -1865,16 +1865,16 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
+          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
           <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
+            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
             placeholder="https://dofusdb.fr/fr/..."
           />
         </div>
         <div>
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs</label>
+          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs</label>
           <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
+            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
             placeholder="https://dofuspourlesnoobs.com/..."
           />
         </div>
@@ -1882,7 +1882,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Alignement</label>
+          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Alignement</label>
           <select value={alignReq} onChange={e => setAlignReq(e.target.value)}
             className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
           >
@@ -1893,7 +1893,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           </select>
         </div>
         <div>
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau</label>
+          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau</label>
           <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
             className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
             placeholder="0–100"
@@ -1903,7 +1903,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">💡 Tips <span className="text-zinc-600 font-normal normal-case tracking-normal">(/travel X,Y pour position cliquable)</span></label>
+          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips <span className="text-zinc-600 font-normal normal-case tracking-normal">(/travel X,Y pour position cliquable)</span></label>
           <button
             type="button"
             onClick={() => {
@@ -1915,7 +1915,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
               setTips(prev => prev ? `${prev} ${pos}` : pos);
               toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
             }}
-            className="flex items-center gap-1 text-[9px] font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+            className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
           >
             <MapPin className="w-3 h-3" /> Ajouter position
           </button>
@@ -1927,7 +1927,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       </div>
 
       <div>
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
+        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
         <input value={note} onChange={e => setNote(e.target.value)}
           className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
           placeholder="ex: Ne pas cliquer le portail !"
@@ -1936,26 +1936,26 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       {/* Tags d'activité */}
       <div className="space-y-1.5">
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">🏷️ Activités requises</label>
+        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">🏷️ Activités requises</label>
         <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
       </div>
 
       {/* Icône du bloc (optionnel) */}
       <div className="space-y-1.5">
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">🖼️ Icône du bloc <span className="text-zinc-700 font-normal normal-case tracking-normal">(optionnel)</span></label>
+        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">🖼️ Icône du bloc <span className="text-zinc-700 font-normal normal-case tracking-normal">(optionnel)</span></label>
         <div className="grid grid-cols-3 gap-1.5">
           {[["", "Défaut"], ["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
             <button
               key={val || "none"}
               type="button"
               onClick={() => setIcon(val)}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"}`}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"}`}
             >
               {val ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={`/assets/icons/${val}.png`} alt={label} className="w-4 h-4 object-contain" />
               ) : (
-                <span className="w-4 h-4 flex items-center justify-center text-[8px]">✕</span>
+                <span className="w-4 h-4 flex items-center justify-center text-caption">✕</span>
               )}
               <span>{label}</span>
             </button>
@@ -1969,7 +1969,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         <button
           type="button"
           onClick={() => setIsSuccess(v => !v)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
             isSuccess
               ? "bg-orange-500/20 border-orange-500/40 text-orange-400"
               : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
@@ -1984,7 +1984,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         <button
           type="button"
           onClick={() => setMetamobMonsterId(v => v ? "" : "1")}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
             metamobMonsterId
               ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
               : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
@@ -1998,7 +1998,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
       {/* Multi-donjons */}
       <div>
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block flex items-center gap-1">
+        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block flex items-center gap-1">
           <Sword className="w-2.5 h-2.5 text-indigo-400" /> Donjons liés (définir si à capturer par donjon)
         </label>
         {selectedDungeons.length > 0 && (
@@ -2010,15 +2010,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
                     : <Sword className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
-                  <span className="text-[10px] font-bold text-white truncate">{d.name}</span>
+                  <span className="text-caption font-bold text-white truncate">{d.name}</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => toggleOcreForDungeon(d.id)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest transition-all ${
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded border text-caption font-black uppercase tracking-widest transition-all ${
                       isDungeonOcre(d.id)
-                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 "
                         : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-zinc-300"
                     }`}
                     title="Marquer ce donjon comme à capturer pour le Dofus Ocre"
@@ -2039,7 +2039,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40"
           placeholder="Ajouter un donjon…"
         />
-        {searching && <p className="text-[9px] text-zinc-600 italic mt-1">Recherche…</p>}
+        {searching && <p className="text-caption text-zinc-600 italic mt-1">Recherche…</p>}
         {dungeonResults.length > 0 && (
           <div className="mt-1 space-y-0.5 max-h-28 overflow-y-auto">
             {dungeonResults.map(d => (
@@ -2051,7 +2051,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                   ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
                   : <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0"><Sword className="w-2.5 h-2.5 text-zinc-600" /></div>}
                 <p className="text-xs font-bold text-white">{d.name}</p>
-                <p className="text-[9px] text-zinc-500">Niv. {d.level}</p>
+                <p className="text-caption text-zinc-500">Niv. {d.level}</p>
               </button>
             ))}
           </div>
@@ -2062,7 +2062,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       {seq.id && milestones && milestones.length > 1 && (
         <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
           <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
+          <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
           <select
             value=""
             onChange={e => {
@@ -2071,7 +2071,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 onSave({ subGuideRef: name.trim(), activityTags }, targetId);
               }
             }}
-            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-[10px] text-emerald-200 focus:outline-none"
+            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
           >
             <option value="">— Choisir un bloc —</option>
             {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m)).map(m => (
@@ -2113,7 +2113,7 @@ function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: n
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-200 text-[10px] font-medium transition-all whitespace-nowrap"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-200 text-caption font-medium transition-all whitespace-nowrap"
       >
         <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
         <span className="truncate max-w-[100px]">{selected ? `${selected.name}` : `Monde ${value}`}</span>
@@ -2129,7 +2129,7 @@ function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: n
                   : "text-zinc-300 hover:bg-zinc-800 border border-transparent"
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black ${
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-caption font-black ${
                 w.id === value ? "bg-emerald-500 text-white" : "bg-zinc-800 text-zinc-500"
               }`}>{w.id}</span>
               <span className="font-medium">{w.name}</span>
@@ -2287,11 +2287,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
         {expanded && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="p-3 bg-zinc-900/60 border border-indigo-500/10 rounded-xl space-y-2">
-              <p className="text-[9px] font-black text-indigo-400/60 uppercase tracking-widest">Options avancées</p>
+              <p className="text-caption font-black text-indigo-400/60 uppercase tracking-widest">Options avancées</p>
               
               <div className="grid grid-cols-2 gap-2">
                 <div className="relative">
-                  <label className="text-[9px] font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                  <label className="text-caption font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
                     🔒 Prérequis de cette quête ({prereqs.length})
                   </label>
 
@@ -2299,7 +2299,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   {prereqs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {prereqs.map((pName, pIdx) => (
-                        <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[9px] font-bold">
+                        <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
                           <Lock className="w-2.5 h-2.5 text-amber-400" />
                           <span className="max-w-[120px] truncate">{pName}</span>
                           <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
@@ -2325,7 +2325,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                       className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
                       placeholder="Rechercher une quête prérequis..."
                     />
-                    {searchingPrereqs && <span className="absolute right-2 top-2 text-[9px] text-zinc-500 animate-pulse">...</span>}
+                    {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">...</span>}
                   </div>
 
                   {/* Dropdown de résultats */}
@@ -2347,7 +2347,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                  <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
                     🥚 Dofus associé
                   </label>
                   <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
@@ -2362,23 +2362,23 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[9px] text-zinc-600 mb-1 block">URL DofusDB</label>
+                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusDB</label>
                   <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-[10px] text-emerald-300/80 focus:outline-none"
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-emerald-300/80 focus:outline-none"
                     placeholder="https://dofusdb.fr/fr/..."
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] text-zinc-600 mb-1 block">URL DofusNoobs</label>
+                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusNoobs</label>
                   <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-[10px] text-cyan-300/80 focus:outline-none"
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-cyan-300/80 focus:outline-none"
                     placeholder="https://dofuspourlesnoobs.com/..."
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[9px] text-zinc-600 mb-1 block">Alignement</label>
+                  <label className="text-caption text-zinc-600 mb-1 block">Alignement</label>
                   <select value={alignReq} onChange={e => setAlignReq(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                   >
@@ -2389,7 +2389,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] text-zinc-600 mb-1 block">Niveau</label>
+                  <label className="text-caption text-zinc-600 mb-1 block">Niveau</label>
                   <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                     placeholder="0–100"
@@ -2397,11 +2397,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                 </div>
               </div>
               <div>
-                <label className="text-[9px] text-zinc-600 mb-1 block">🏷️ Activités requises</label>
+                <label className="text-caption text-zinc-600 mb-1 block">🏷️ Activités requises</label>
                 <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
               </div>
               <div>
-                <label className="text-[9px] text-zinc-600 mb-1 block">💡 Tips</label>
+                <label className="text-caption text-zinc-600 mb-1 block">💡 Tips</label>
                 <textarea value={tips} onChange={e => setTips(e.target.value)}
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-amber-300/70 focus:outline-none resize-none"
                   placeholder="Conseil pour le membre…" rows={2}
@@ -2425,14 +2425,14 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                     }}
                     className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
                   />
-          <label htmlFor="isInfoBlockNew" className="text-[9px] font-bold text-purple-200 cursor-pointer select-none">
+          <label htmlFor="isInfoBlockNew" className="text-caption font-bold text-purple-200 cursor-pointer select-none">
             📌 Bloc d'info sans check ni bookmark
           </label>
-          <span className="text-[7px] text-zinc-600 ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
+          <span className="text-caption text-zinc-600 ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
                 </div>
                 {isInfoBlockNew && (
                   <div className="flex items-center gap-2 pl-6">
-                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Couleur</span>
+                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Couleur</span>
                     <div className="flex gap-1">
                       {COLOR_PALETTE.map(c => (
                         <button key={c.value} onClick={() => {
@@ -2451,7 +2451,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                 )}
               </div>
               <div>
-                <label className="text-[9px] text-zinc-600 mb-1 block">⚠️ Note courte</label>
+                <label className="text-caption text-zinc-600 mb-1 block">⚠️ Note courte</label>
                 <input value={note} onChange={e => setNote(e.target.value)}
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                   placeholder="Note courte…"
@@ -2459,11 +2459,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               {/* Donjons */}
               <div>
-                <label className="text-[9px] text-zinc-600 mb-1 block">⚔️ Donjons liés</label>
+                <label className="text-caption text-zinc-600 mb-1 block">⚔️ Donjons liés</label>
                 {selectedDungeons.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1">
                     {selectedDungeons.map(d => (
-                      <div key={d.id} className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-[9px] text-white font-bold">
+                      <div key={d.id} className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-caption text-white font-bold">
                         {d.name}
                         <button onClick={() => setSelectedDungeons(p => p.filter(sd => sd.id !== d.id))} className="text-zinc-500 hover:text-red-400"><X className="w-2 h-2" /></button>
                       </div>
@@ -2474,7 +2474,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white placeholder:text-zinc-700 focus:outline-none"
                   placeholder="Ajouter un donjon…"
                 />
-                {searching && <p className="text-[9px] text-zinc-600 italic mt-0.5">Recherche…</p>}
+                {searching && <p className="text-caption text-zinc-600 italic mt-0.5">Recherche…</p>}
                 {dungeonResults.length > 0 && (
                   <div className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
                     {dungeonResults.map(d => (

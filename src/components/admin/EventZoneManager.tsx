@@ -193,15 +193,15 @@ export function EventZoneManager() {
                             <span className="text-3xl">{preset.emoji}</span>
                             <div>
                                 <div className={cn('text-xs font-black', exists ? preset.color : 'text-zinc-400')}>{preset.label}</div>
-                                <div className="text-[9px] text-zinc-500 uppercase tracking-widest">{preset.period}</div>
+                                <div className="text-caption text-zinc-500 uppercase tracking-widest">{preset.period}</div>
                             </div>
                             {exists ? (
-                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400">
+                                <div className="flex items-center gap-1.5 text-caption font-bold text-zinc-400">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                     {zone?.families?.length ?? 0} familles · {zone?.dungeons?.length ?? 0} donjons
                                 </div>
                             ) : (
-                                <div className="text-[10px] text-zinc-600 group-hover:text-zinc-400 transition-colors">
+                                <div className="text-caption text-zinc-600 group-hover:text-zinc-400 transition-colors">
                                     {saving === preset.key ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Cliquer pour créer'}
                                 </div>
                             )}
@@ -266,7 +266,7 @@ export function EventZoneManager() {
                                         <span className="text-2xl">{preset?.emoji ?? '✨'}</span>
                                         <div>
                                             <div className={cn('font-black text-sm', preset?.color ?? 'text-zinc-200')}>{zone.name}</div>
-                                            <div className="text-[10px] text-zinc-500">{zone.families?.length} familles · {zone.dungeons?.length} donjons</div>
+                                            <div className="text-caption text-zinc-500">{zone.families?.length} familles · {zone.dungeons?.length} donjons</div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ export function EventZoneManager() {
                                                 {zone.dungeons?.map((d: any) => (
                                                     <div key={d.id} className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800 rounded-full text-xs text-zinc-300 border border-zinc-700">
                                                         {d.name}
-                                                        <span className="text-zinc-600 text-[9px]">· {d.bossName}</span>
+                                                        <span className="text-zinc-600 text-caption">· {d.bossName}</span>
                                                         <button onClick={() => handleUnlinkDungeon(zone.id, d.id)} className="hover:text-red-400 transition-colors ml-0.5">
                                                             <Unlink className="w-3 h-3" />
                                                         </button>

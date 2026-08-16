@@ -99,11 +99,11 @@ const MemberAvatars = memo(function MemberAvatars({ members, max = 5 }: { member
       <div className="flex -space-x-1">
         {s.map(m => (
           <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-zinc-950 overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0 ring-1 ring-indigo-500/30" title={m.userName}>
-            {m.userAvatar ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover"/> : <span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>}
+            {m.userAvatar ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover"/> : <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>}
           </div>
         ))}
       </div>
-      {e > 0 && <span className="text-[7px] font-black text-indigo-400">+{e}</span>}
+      {e > 0 && <span className="text-caption font-black text-indigo-400">+{e}</span>}
     </div>
   );
 });
@@ -158,14 +158,14 @@ const DungeonGroup = memo(function DungeonGroup({
         ) : (
           <div className="w-5 h-5 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center"><Sword className="w-3 h-3 text-amber-400" /></div>
         )}
-        <span className={`text-[9px] font-black ${captured ? "text-emerald-300" : "text-red-300"} ${compact ? "hidden sm:inline" : ""}`}>{dj.name}</span>
+        <span className={`text-caption font-black ${captured ? "text-emerald-300" : "text-red-300"} ${compact ? "hidden sm:inline" : ""}`}>{dj.name}</span>
         {isOcreDungeon && !captured && (
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[7px] font-black uppercase tracking-widest">
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-caption font-black uppercase tracking-widest">
             <img src="/assets/icons/ocre.png" alt="" className="w-2.5 h-2.5 object-contain" />Ocre
           </span>
         )}
         {captured && (
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[7px] font-black uppercase tracking-widest">
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-caption font-black uppercase tracking-widest">
             {isOcreDungeon && (
               <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
             )}
@@ -185,7 +185,7 @@ const DungeonGroup = memo(function DungeonGroup({
       {extra > 0 && !showAll && (
         <button
           onClick={(e) => { e.stopPropagation(); setShowAll(true); }}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-zinc-700/50 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all text-[8px] font-black uppercase tracking-widest"
+          className="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-zinc-700/50 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all text-caption font-black uppercase tracking-widest"
           title="Voir tous les donjons"
         >
           <ListCollapse className="w-3 h-3" />+{extra}
@@ -194,7 +194,7 @@ const DungeonGroup = memo(function DungeonGroup({
       {showAll && dungeons.length > maxVisible && (
         <button
           onClick={(e) => { e.stopPropagation(); setShowAll(false); }}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-zinc-700/50 bg-zinc-900/80 text-zinc-400 hover:bg-zinc-800 transition-all text-[8px] font-black uppercase tracking-widest"
+          className="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-zinc-700/50 bg-zinc-900/80 text-zinc-400 hover:bg-zinc-800 transition-all text-caption font-black uppercase tracking-widest"
         >
           <ChevronUp className="w-3 h-3" />Réduire
         </button>
@@ -258,7 +258,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     return (
       <div data-seq-id={seq.id} className={`rounded-2xl border transition-all bg-amber-500/[0.06] border-amber-500/25 hover:border-amber-400/50 scroll-mt-24 ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60":""}`}>
         <div className="px-3 pt-2 pb-0">
-          <p className="text-[11px] font-bold text-zinc-300 truncate">{questName}</p>
+          <p className="text-caption font-bold text-zinc-300 truncate">{questName}</p>
         </div>
         {totalPrereqs === 1 && singleName ? (
           <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName);}}
@@ -270,8 +270,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <Lock className="w-3.5 h-3.5 text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0.5">À terminer avant</p>
-              <p className="text-[11px] font-bold text-amber-200 truncate">{singleName}</p>
+              <p className="text-caption font-black uppercase tracking-widest text-amber-400/70 mb-0.5">À terminer avant</p>
+              <p className="text-caption font-bold text-amber-200 truncate">{singleName}</p>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-amber-400/50 group-hover:text-amber-400/80 transition-colors shrink-0" />
           </button>
@@ -281,12 +281,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <div className="flex items-center justify-center w-5 h-5 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
                 <Lock className="w-2.5 h-2.5 text-amber-400" />
               </div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-amber-400/70">{totalPrereqs} prérequis à terminer</p>
+              <p className="text-caption font-black uppercase tracking-widest text-amber-400/70">{totalPrereqs} prérequis à terminer</p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {prereqTags.map((t:any,i:number)=>(
                 <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[9px] font-bold text-amber-300 bg-amber-500/[0.08] border border-amber-500/20 hover:bg-amber-500/[0.15] hover:border-amber-400/40 transition-all group focus-visible:outline-2 focus-visible:outline-amber-400/50"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-caption font-bold text-amber-300 bg-amber-500/[0.08] border border-amber-500/20 hover:bg-amber-500/[0.15] hover:border-amber-400/40 transition-all group focus-visible:outline-2 focus-visible:outline-amber-400/50"
                   aria-label={`Voir la quête requise : ${t.name}`}
                 >
                   <span className="truncate max-w-[140px]">{t.name}</span>
@@ -304,7 +304,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     <>
       <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all scroll-mt-24 ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60"} ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60 bg-emerald-500/[0.04]":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03]" : ""}`}>
         {isThisBookmarked && !isSeqCompleted && (
-          <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[8px] font-black uppercase tracking-widest text-amber-300">
+          <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-black uppercase tracking-widest text-amber-300">
             <MapPin className="w-2.5 h-2.5" />
             Étape actuelle
             {(()=>{
@@ -319,7 +319,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           </span>
         )}
         {isNext && !isSeqCompleted && (
-          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0">
+          <span className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-0">
             À VENIR
           </span>
         )}
@@ -365,12 +365,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   const y = parseInt(coords[2], 10);
                   const chip = (
                     <span 
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
                       onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
                       title="Cliquer pour copier /travel"
                     >
                       <MapPin className="w-3 h-3 text-indigo-400" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
+                      <span className="text-caption font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
                       <span>[<span>{x}, {y}</span>]</span>
                     </span>
                   );
@@ -389,7 +389,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-[9px] font-black uppercase tracking-widest min-w-[90px] ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-caption font-black uppercase tracking-widest min-w-[90px] ${
                   isThisBookmarked
                     ? "bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25"
                     : "bg-zinc-800/60 border-zinc-700/40 text-zinc-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
@@ -417,12 +417,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                         {m.userAvatar ? (
                           <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-[6px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                          <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
                         )}
                       </div>
                     ))}
                   </div>
-                  <span className="text-[9px] font-bold text-amber-400/70">{seqMembers.length}</span>
+                  <span className="text-caption font-bold text-amber-400/70">{seqMembers.length}</span>
                 </button>
               )}
             </div>
@@ -433,13 +433,13 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         {(dbUrl || noobsUrl) && (
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             {noobsUrl && (
-              <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-colors text-[8px] font-black uppercase tracking-wider" title="DofusPourLesNoobs — tutoriel">
+              <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-colors text-caption font-black uppercase tracking-wider" title="DofusPourLesNoobs — tutoriel">
                 <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
                 <span>Noobs</span>
               </a>
             )}
             {dbUrl && (
-              <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-[8px] font-black uppercase tracking-wider" title="DofusDB — base de données">
+              <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-caption font-black uppercase tracking-wider" title="DofusDB — base de données">
                 <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
                 <span>DofusDB</span>
               </a>
@@ -450,8 +450,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         {/* Badges & Tags */}
         <div className="flex flex-wrap items-center gap-1">
           {/* Alignment info now displayed inline before quest name above */}
-          {seq.isOptional && <span className="text-[8px] text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
-          {seq.isSuccess && <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
+          {seq.isOptional && <span className="text-caption text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
+          {seq.isSuccess && <span className="flex items-center gap-1 text-caption font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
 
           {(() => {
             const visibleTags = Array.isArray(seq.activityTags) ? seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)) : [];
@@ -462,11 +462,11 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   if(tag.type==="solver"){
                     const su=tag.url||null;
                     return su ? (
-                      <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
+                      <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
                         <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver<ExternalLink className="w-2.5 h-2.5"/>
                       </a>
                     ) : (
-                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
+                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
                         <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver
                       </span>
                     );
@@ -489,9 +489,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                     }
                   }
                   return (
-                    <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
+                    <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
                       <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md shrink-0"/>
-                      {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
+                      {tag.count&&tag.count>1&&<span className="text-caption text-amber-400 font-bold">x{tag.count}</span>}
                       <span className="truncate max-w-[160px]">{labelDisplay}</span>
                     </span>
                   );
@@ -563,7 +563,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                     {m.userAvatar ? (
                       <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-[9px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                      <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
                     )}
                   </div>
                   <span className="text-xs font-bold text-zinc-200">{m.userName}</span>
@@ -683,7 +683,7 @@ function renderContentWithCoords(text: string, guildId: string = ""): (string | 
       const x = m[4], y = m[5];
       const worldId = m[8] ? parseInt(m[8], 10) : undefined;
       const chip = (
-        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
+        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
           onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
         >
@@ -701,7 +701,7 @@ function renderContentWithCoords(text: string, guildId: string = ""): (string | 
       const x = m[6], y = m[7];
       const worldId = m[8] ? parseInt(m[8], 10) : undefined;
       const chip = (
-        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
+        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
           onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
         >
@@ -816,18 +816,18 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className={`text-sm font-black leading-tight tracking-wide font-[family-name:var(--font-cinzel)] ${all?"text-zinc-500":"text-white"}`} style={!all?{color:c}:undefined}>{ms.title}</span>
-              {ms.isOptional&&<span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">Bonus</span>}
+              {ms.isOptional&&<span className="text-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">Bonus</span>}
               {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain flex-shrink-0"/>;})()}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${totalQuests}`:`${totalQuests} quête${totalQuests>1?"s":""}`}</span>
+              <span className="text-caption font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${totalQuests}`:`${totalQuests} quête${totalQuests>1?"s":""}`}</span>
             </div>
           </div>
           {/* Actions */}
           <div className={`flex items-center gap-1.5 flex-shrink-0 ${isCompleted?"opacity-100":""}`}>
-            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
-            <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
-            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${blockBookmarkSeqId?"bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/25":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-amber-300 hover:border-amber-500/30"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3 h-3"/>:<Flag className="w-3 h-3"/>}{blockBookmarkSeqId?"Repère":"Je suis ici"}</button>}
+            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-caption font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
+            <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-caption font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
+            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-caption font-black uppercase tracking-widest shadow-sm ${blockBookmarkSeqId?"bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/25":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-amber-300 hover:border-amber-500/30"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3 h-3"/>:<Flag className="w-3 h-3"/>}{blockBookmarkSeqId?"Repère":"Je suis ici"}</button>}
             <div className="text-zinc-500 ml-1">{expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
           </div>
         </div>
@@ -844,7 +844,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                 )}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
-                    <div className="py-6 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">Aucune quête</div>
+                    <div className="py-6 text-center text-zinc-600 text-caption font-black uppercase tracking-widest">Aucune quête</div>
                   ) : (
                     ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=>(
                       isInfoSequence(s) ? (
@@ -884,8 +884,8 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
   const vc=hideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
   if(hideDone&&vc===0)return null;
   return <div className="relative">{showHeader&&<button onClick={()=>setOpen((v:boolean)=>!v)} className="w-full flex items-center gap-3 py-3 group transition-all">
-    <div className="relative w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all group-hover:scale-105 shadow-sm" style={{borderColor:all?ac:`${ac}40`,background:all?`${ac}20`:"transparent"}}>{all?<CheckCheck className="w-5 h-5" style={{color:ac}}/>:<span className="text-sm font-black font-[family-name:var(--font-cinzel)]" style={{color:ac}}>{chapterNum}</span>}</div>
-    <div className="flex-1 text-left"><div className="flex items-center gap-2"><span className="font-[family-name:var(--font-cinzel)] font-bold uppercase tracking-wider" style={{color:ac,fontSize:"clamp(0.8rem,2vw,1.1rem)"}}>{label}</span><span className="text-[8px] font-black px-2 py-0.5 rounded-full font-mono" style={{background:`${ac}15`,color:ac}}>{ci}/{ti}</span></div><div className="h-1 bg-white/5 rounded-full overflow-hidden mt-1.5"><div className="h-full rounded-full transition-all duration-500" style={{width:`${ti>0?(ci/ti)*100:0}%`,background:`linear-gradient(90deg, ${ac}, ${ac}99)`}}/></div></div>
+    <div className="relative w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all group- shadow-sm" style={{borderColor:all?ac:`${ac}40`,background:all?`${ac}20`:"transparent"}}>{all?<CheckCheck className="w-5 h-5" style={{color:ac}}/>:<span className="text-sm font-black font-[family-name:var(--font-cinzel)]" style={{color:ac}}>{chapterNum}</span>}</div>
+    <div className="flex-1 text-left"><div className="flex items-center gap-2"><span className="font-[family-name:var(--font-cinzel)] font-bold uppercase tracking-wider" style={{color:ac,fontSize:"clamp(0.8rem,2vw,1.1rem)"}}>{label}</span><span className="text-caption font-black px-2 py-0.5 rounded-full font-mono" style={{background:`${ac}15`,color:ac}}>{ci}/{ti}</span></div><div className="h-1 bg-white/5 rounded-full overflow-hidden mt-1.5"><div className="h-full rounded-full transition-all duration-300" style={{width:`${ti>0?(ci/ti)*100:0}%`,background:`linear-gradient(90deg, ${ac}, ${ac}99)`}}/></div></div>
     <div className="text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0 ml-1">{open?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
   </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-2">{filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
   if(ms.type==="INFO")return <div key={ms.id} className="-ml-2 my-1"><InfoBanner milestone={ms}/></div>;
@@ -901,7 +901,7 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
   const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="w-3.5 h-3.5 text-amber-500"/>:<Users className="w-3.5 h-3.5 text-blue-400"/>;
   const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1366,7 +1366,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         <div className="flex items-center justify-between gap-3 flex-wrap border-b border-white/10 pb-4">
           <Link
             href={`/dashboard/${guildId}/quetes-dofus`}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/90 hover:bg-zinc-800 hover:border-emerald-500/40 text-[11px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-all shadow-sm group"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/90 hover:bg-zinc-800 hover:border-emerald-500/40 text-caption font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-all shadow-sm group"
           >
             <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
             <span>Quêtes Dofus</span>
@@ -1396,7 +1396,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-5 h-5 text-emerald-400"/>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400/60">Guide Rush — Timeline</span>
+              <span className="text-caption font-black uppercase tracking-widest text-emerald-400/60">Guide Rush — Timeline</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>{guide.name}</h2>
             {guide.description&&<p className="text-xs sm:text-sm text-zinc-400 mt-1.5 max-w-xl leading-relaxed">{guide.description}</p>}
@@ -1405,10 +1405,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
-            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-[9px] font-black text-zinc-400">?</span>;})()}</div>
+            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-caption font-black text-zinc-400">?</span>;})()}</div>
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
-                <p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Personnage Actif</p>
+                <p className="text-caption font-black text-zinc-500 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Personnage Actif</p>
                 <ContextualHelp label="Aide Personnage">
                   <p className="font-bold text-white mb-1">🎭 Personnages & Mules</p>
                   <p>Basculez facilement entre votre personnage principal et vos mules. La validation des étapes et la position de reprise sont sauvegardées séparément par personnage.</p>
@@ -1419,7 +1419,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                   {localProfile?.pseudoDofus ? (
                     <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={localProfile.pseudoDofus} mainClass={localProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} />
                   ) : (
-                    <Link href={`/dashboard/${guildId}/profile`} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg border border-amber-500/30">
+                    <Link href={`/dashboard/${guildId}/profile`} className="inline-flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg border border-amber-500/30">
                       <Pencil className="w-3 h-3" />
                       Lier mon pseudo
                       <ExternalLink className="w-3 h-3" />
@@ -1428,7 +1428,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                 </div>
                 <button
                   onClick={() => setResetModalOpen(true)}
-                  className="flex items-center justify-center p-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all shadow-sm shrink-0"
+                  className="flex items-center justify-center p-2 rounded-lg text-caption font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all shadow-sm shrink-0"
                   title={`Réinitialiser ${selectedCharacter}`}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -1436,23 +1436,23 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </div>
             </div>
           </div>
-          <button type="button" onClick={openAlignEdit} title="Modifier l'alignement" className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm text-left cursor-pointer hover:border-emerald-500/30 transition-colors">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 text-[8px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-[8px] font-bold text-zinc-400">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-[9px] font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;})()}</button>
+          <button type="button" onClick={openAlignEdit} title="Modifier l'alignement" className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm text-left cursor-pointer hover:border-emerald-500/30 transition-colors">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-caption font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-caption font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 text-caption font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption font-bold text-zinc-400">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-caption font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;})()}</button>
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
               <img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain" />
             </div>
             <div className="text-left min-w-0 flex-1">
-              <p className="text-[8px] font-black text-amber-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Metamob</p>
+              <p className="text-caption font-black text-amber-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Metamob</p>
               <div className="flex items-center gap-2 mt-0.5">
                 {currentUserProfile?.metamobPseudo ? (
                   <button type="button" onClick={() => setOcreModalOpen(true)} className="flex items-center gap-1.5 text-xs font-black text-amber-300 hover:text-amber-200 transition-colors cursor-pointer" title="Voir ma collection Ocre (Gardiens & Archis)">
                     {ocreStats
                       ? <><span>Gardiens <span className="font-mono text-white">{ocreStats.bosses?.gathered??0}<span className="text-zinc-500">/{ocreStats.bosses?.total??51}</span></span></span><span className="text-zinc-600">·</span><span>Archis <span className="font-mono text-white">{ocreStats.archis?.gathered??0}<span className="text-zinc-500">/{ocreStats.archis?.total??286}</span></span></span><ChevronRight className="w-3 h-3 text-amber-400/60 shrink-0"/></>
-                      : <span className="text-[10px] font-bold text-amber-400/80">Voir ma collection →</span>
+                      : <span className="text-caption font-bold text-amber-400/80">Voir ma collection →</span>
                     }
                   </button>
                 ) : (
-                  <button onClick={()=>setMetamobLinkOpen(true)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                  <button onClick={()=>setMetamobLinkOpen(true)} className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
                     <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain" />
                     Lier Metamob
                   </button>
@@ -1466,9 +1466,9 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             </div>
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
-                <p className="text-[8px] font-black text-emerald-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Rush Live</p>
+                <p className="text-caption font-black text-emerald-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Rush Live</p>
                 {guideLive.connectionStatus === "connected" && (
-                  <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-emerald-400/80">
+                  <span className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-emerald-400/80">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> LIVE
                   </span>
                 )}
@@ -1487,7 +1487,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                         {m.userAvatar ? (
                           <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-[7px] font-black text-emerald-300">{String(m.userName || "?")[0]?.toUpperCase()}</span>
+                          <span className="text-caption font-black text-emerald-300">{String(m.userName || "?")[0]?.toUpperCase()}</span>
                         )}
                       </span>
                     ))}
@@ -1499,11 +1499,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 px-1">
-          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
+          <span className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
           <span className="text-lg font-black text-white">{overallPercent}%</span>
-          <span className="text-[10px] text-zinc-600 font-mono">({completedCount}/{tMs})</span>
+          <span className="text-caption text-zinc-600 font-mono">({completedCount}/{tMs})</span>
           <div className="h-2 bg-zinc-800/60 rounded-full flex-1 max-w-[300px] ml-auto shadow-inner">
-            <div className="h-full rounded-full transition-all duration-700 shadow-sm" style={{width:`${overallPercent}%`,background:"linear-gradient(90deg, #10b981, #34d399)"}}/>
+            <div className="h-full rounded-full transition-all duration-300 shadow-sm" style={{width:`${overallPercent}%`,background:"linear-gradient(90deg, #10b981, #34d399)"}}/>
           </div>
         </div>
     </div></div>
@@ -1528,7 +1528,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                   {m.userAvatar ? (
                     <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[9px] font-black text-emerald-300">{String(m.userName || "?")[0]?.toUpperCase()}</span>
+                    <span className="text-caption font-black text-emerald-300">{String(m.userName || "?")[0]?.toUpperCase()}</span>
                   )}
                 </div>
                 <span className="text-xs font-bold text-zinc-200">{m.userName}</span>
@@ -1567,7 +1567,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-white/10 bg-zinc-900/70 text-zinc-300 hover:bg-zinc-800/80 hover:border-white/15 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shrink-0" aria-label="Options du guide">
+          <button type="button" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-white/10 bg-zinc-900/70 text-zinc-300 hover:bg-zinc-800/80 hover:border-white/15 hover:text-white transition-all text-caption font-black uppercase tracking-widest shrink-0" aria-label="Options du guide">
             <Settings2 className="w-3.5 h-3.5" />
             <span className="hidden md:inline">Options</span>
           </button>
@@ -1599,24 +1599,24 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     {/* ── Résultats de recherche ─────────────────────────────────────────── */}
     {searchResults !== null && (
       <div className="flex items-center justify-between px-1">
-        <p className="text-[10px] text-zinc-500 font-mono">
+        <p className="text-caption text-zinc-500 font-mono">
           {searchResults.size} quête(s) trouvée(s) pour « {searchQuery} »
         </p>
         <button onClick={() => setSearchQuery("")}
-          className="text-[9px] text-zinc-600 hover:text-white transition-colors underline underline-offset-2"
+          className="text-caption text-zinc-600 hover:text-white transition-colors underline underline-offset-2"
         >
           Effacer la recherche
         </button>
       </div>
     )}
     {searchResults !== null && searchResults.size > 0 && (
-      <p className="text-[9px] text-zinc-600 italic px-1">Les résultats incluent les quêtes terminées.</p>
+      <p className="text-caption text-zinc-600 italic px-1">Les résultats incluent les quêtes terminées.</p>
     )}
     {searchResults !== null && searchResults.size === 0 && (
       <div className="py-16 text-center">
         <Search className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
         <p className="text-zinc-600 font-black uppercase text-xs tracking-widest mb-1">Aucune quête trouvée</p>
-        <p className="text-[10px] text-zinc-500 mb-4">Essaie un autre nom de quête, donjon ou zone.</p>
+        <p className="text-caption text-zinc-500 mb-4">Essaie un autre nom de quête, donjon ou zone.</p>
         <button onClick={() => setSearchQuery("")}
           className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs transition-colors"
         >
@@ -1654,7 +1654,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
     {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})}/>}
-    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
+    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-caption font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-caption font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
@@ -1741,8 +1741,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </DialogTitle>
         <div className="flex items-center gap-2 mt-3">
           {(["alignment","order","tranche"] as const).map((s,i)=>(
-            <button key={s} type="button" onClick={()=>{if(s==="order"&&(!alignEditAlignment||alignEditAlignment==="neutre"))return;if(s==="tranche"&&!alignEditOrder)return;setAlignEditStep(s);}} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${alignEditStep===s?"bg-emerald-500/20 border-emerald-500/40 text-emerald-300":"border-zinc-700/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}>
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black ${alignEditStep===s?"bg-emerald-500 text-white":"bg-zinc-800 text-zinc-500"}`}>{i+1}</span>
+            <button key={s} type="button" onClick={()=>{if(s==="order"&&(!alignEditAlignment||alignEditAlignment==="neutre"))return;if(s==="tranche"&&!alignEditOrder)return;setAlignEditStep(s);}} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption font-black uppercase tracking-widest border transition-all ${alignEditStep===s?"bg-emerald-500/20 border-emerald-500/40 text-emerald-300":"border-zinc-700/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}>
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-caption font-black ${alignEditStep===s?"bg-emerald-500 text-white":"bg-zinc-800 text-zinc-500"}`}>{i+1}</span>
               {s==="alignment"?"Alignement":s==="order"?"Ordre":"Tranche"}
             </button>
           ))}
@@ -1756,7 +1756,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center border overflow-hidden ${align.id==="bontarien"?"bg-blue-500/20 border-blue-500/30":align.id==="brakmarien"?"bg-red-500/20 border-red-500/30":"bg-zinc-800 border-zinc-700"}`}>
                   <img src={align.icon} alt={align.name} className="w-8 h-8 object-contain"/>
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${alignEditAlignment===align.id?"text-white":"text-zinc-400"}`}>{align.name}</span>
+                <span className={`text-caption font-black uppercase tracking-widest ${alignEditAlignment===align.id?"text-white":"text-zinc-400"}`}>{align.name}</span>
                 {alignEditAlignment===align.id&&<div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"><Check className="w-3 h-3 text-white"/></div>}
               </button>
             ))}
@@ -1781,7 +1781,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         )}
         {alignEditStep==="tranche"&&(
           <div className="space-y-4">
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Niveau d'alignement (Tranche)</p>
+            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Niveau d'alignement (Tranche)</p>
             <div className="grid grid-cols-1 gap-2">
               {(()=>{const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;return getAlignmentLevelSteps(orderData).map(({level:lvl,title})=>{
                 const isSel=alignEditLevel===lvl;

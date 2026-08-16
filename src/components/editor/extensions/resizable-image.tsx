@@ -114,13 +114,13 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
                         {layout !== 'full' && (
                             <>
                                 <div
-                                    className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl hover:scale-110 transition-transform z-20"
+                                    className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl  transition-transform z-20"
                                     onMouseDown={(e) => handleResize(e, 'right')}
                                 >
                                     <div className="w-1 h-4 bg-white/40 rounded-full" />
                                 </div>
                                 <div
-                                    className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl hover:scale-110 transition-transform z-20"
+                                    className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl  transition-transform z-20"
                                     onMouseDown={(e) => handleResize(e, 'left')}
                                 >
                                     <div className="w-1 h-4 bg-white/40 rounded-full" />
@@ -130,7 +130,7 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
 
                         {/* Size Label */}
                         {isResizing && (
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-900 border border-white/20 rounded-full text-[10px] font-black text-white uppercase tracking-widest">
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-900 border border-white/20 rounded-full text-caption font-black text-white uppercase tracking-widest">
                                 {typeof width === 'number' ? width : parseInt(width.toString()) || 0}px
                             </div>
                         )}

@@ -54,17 +54,17 @@ interface OcreMonsterCardProps {
 const stateConfig: Record<MonsterState, { label: string; color: string; icon: string }> = {
     MANQUANT: {
         label: "Manquant",
-        color: "bg-red-500/10 text-red-400 border border-red-500/20 backdrop-blur-md shadow-[0_0_12px_rgba(239,68,68,0.05)]",
+        color: "bg-red-500/10 text-red-400 border border-red-500/20 backdrop-blur-md ",
         icon: "🔴",
     },
     POSSEDE: {
         label: "Possédé",
-        color: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-md shadow-[0_0_12px_rgba(16,185,129,0.05)]",
+        color: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-md ",
         icon: "🟢",
     },
     DOUBLON: {
         label: "Doublon",
-        color: "bg-amber-500/10 text-amber-400 border border-amber-500/20 backdrop-blur-md shadow-[0_0_12px_rgba(245,158,11,0.05)]",
+        color: "bg-amber-500/10 text-amber-400 border border-amber-500/20 backdrop-blur-md ",
         icon: "🟡",
     },
 };
@@ -166,7 +166,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
         >
             <Card
                 className={cn(
-                    "group relative overflow-hidden transition-all duration-500",
+                    "group relative overflow-hidden transition-all duration-300",
                     "backdrop-blur-xl bg-[#141b1e]/90 hover:bg-[#1a2327]/95",
                     "border border-white/[0.06] hover:border-amber-500/40 shadow-[0_12px_32px_rgba(0,0,0,0.4)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.6)]",
                     "hover:-translate-y-1 hover:scale-[1.03]",
@@ -185,7 +185,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                         <div className={cn(
                             "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
                             isSelected 
-                                ? "bg-amber-500 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
+                                ? "bg-amber-500 border-amber-500 " 
                                 : "bg-black/40 border-white/20"
                         )}>
                             {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
@@ -205,7 +205,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                 {/* Exchange available badge */}
                 {hasExchange && isManquant && (
                     <div className="absolute -top-1 -right-1 z-10">
-                        <Badge className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 animate-pulse">
+                        <Badge className="bg-emerald-500 text-white text-caption font-bold px-1.5 py-0.5 animate-pulse">
                             <Sparkles className="h-2.5 w-2.5 mr-0.5" />
                             {availableExchanges}
                         </Badge>
@@ -221,7 +221,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                     src={monster.image}
                                     alt={monster.name}
                                     fill
-                                    className="object-contain p-1 group-hover:scale-110 transition-transform duration-500"
+                                    className="object-contain p-1 group- transition-transform duration-300"
                                     sizes="56px"
                                 />
                             </div>
@@ -248,25 +248,25 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                         <PopoverContent className="w-48 p-3 rounded-2xl bg-card border-border shadow-2xl" side="left" align="start">
                                             <div className="space-y-3">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Forçage Manuel</span>
-                                                    <span className="text-[9px] text-muted-foreground leading-tight">Remplace les calculs automatiques de Metamob.</span>
+                                                    <span className="text-caption font-black uppercase tracking-widest text-muted-foreground/50">Forçage Manuel</span>
+                                                    <span className="text-caption text-muted-foreground leading-tight">Remplace les calculs automatiques de Metamob.</span>
                                                 </div>
 
                                                 <div className="space-y-2">
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <Label className="text-[10px] font-bold">Offrir</Label>
+                                                        <Label className="text-caption font-bold">Offrir</Label>
                                                         <Input 
                                                             type="number" 
-                                                            className="h-7 w-12 text-[10px] text-center font-bold px-1"
+                                                            className="h-7 w-12 text-caption text-center font-bold px-1"
                                                             value={tradeParams.offer}
                                                             onChange={(e) => setTradeParams(s => ({ ...s, offer: parseInt(e.target.value) || 0 }))}
                                                         />
                                                     </div>
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <Label className="text-[10px] font-bold">Chercher</Label>
+                                                        <Label className="text-caption font-bold">Chercher</Label>
                                                         <Input 
                                                             type="number" 
-                                                            className="h-7 w-12 text-[10px] text-center font-bold px-1"
+                                                            className="h-7 w-12 text-caption text-center font-bold px-1"
                                                             value={tradeParams.want}
                                                             onChange={(e) => setTradeParams(s => ({ ...s, want: parseInt(e.target.value) || 0 }))}
                                                         />
@@ -275,7 +275,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
 
                                                 <Button 
                                                     size="sm" 
-                                                    className="w-full h-7 text-[10px] font-bold gap-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition-all"
+                                                    className="w-full h-7 text-caption font-bold gap-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition-all"
                                                     onClick={handleUpdateTrade}
                                                     disabled={isUpdatingTrade}
                                                 >
@@ -294,7 +294,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                             </div>
 
                             {monster.type && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-zinc-800/80 border border-white/5 text-zinc-300">
+                                <Badge variant="secondary" className="text-caption px-1.5 py-0 h-4 bg-zinc-800/80 border border-white/5 text-zinc-300">
                                     {monster.type === "archimonstre" ? "Archi" : monster.type}
                                 </Badge>
                             )}
@@ -354,7 +354,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                                     <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
                                                         <Avatar className="h-6 w-6 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
                                                             <AvatarImage src={partner.discordAvatar} />
-                                                            <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
+                                                            <AvatarFallback className="text-caption bg-muted text-muted-foreground">
                                                                  {partner.characterName.substring(0, 2).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
@@ -368,7 +368,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                                         >
                                                             {partner.characterName}
                                                         </Link>
-                                                        <span className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                                                        <span className="text-caption text-muted-foreground truncate flex items-center gap-1">
                                                             <span className="opacity-50 shrink-0">Metamob:</span> <span className="truncate">{partner.username}</span>
                                                         </span>
                                                     </div>

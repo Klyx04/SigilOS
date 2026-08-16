@@ -213,7 +213,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Header / Add Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-1 bg-zinc-900/40 backdrop-blur-xl border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl h-fit border-t border-t-white/10">
@@ -228,7 +228,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                     <CardContent className="p-6 space-y-4">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between px-1">
-                                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Détails de l&apos;individu</label>
+                                <label className="text-caption font-black uppercase text-zinc-500 tracking-widest">Détails de l&apos;individu</label>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div className="p-1.5 cursor-help bg-white/5 hover:bg-red-500/20 rounded-lg transition-all group/tooltip border border-white/5 hover:border-red-500/20">
@@ -237,14 +237,14 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                     </TooltipTrigger>
                                     <TooltipContent side="right" sideOffset={15} className="bg-zinc-950 border border-white/10 p-5 max-w-[300px] space-y-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 z-[100]">
                                         <div className="flex items-center gap-3 mb-1">
-                                            <div className="w-1.5 h-4 bg-red-600 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                                            <div className="w-1.5 h-4 bg-red-600 rounded-full " />
                                             <p className="text-xs font-black uppercase text-white tracking-widest">Comment remplir ?</p>
                                         </div>
                                         <div className="space-y-2">
-                                            <p className="text-[11px] text-zinc-300 leading-relaxed italic">
+                                            <p className="text-caption text-zinc-300 leading-relaxed italic">
                                                 Tapez <span className="text-red-400 font-black italic">/whois pseudo</span> en jeu ou cliquez sur un joueur <span className="text-white font-bold">&gt; Informations &gt; Détails</span>.
                                             </p>
-                                            <p className="text-[11px] text-zinc-400 leading-relaxed">
+                                            <p className="text-caption text-zinc-400 leading-relaxed">
                                                 Copiez ensuite <span className="text-white font-medium">toute la ligne</span> de log et collez-la ici. SigilOS s&apos;occupe du reste !
                                             </p>
                                         </div>
@@ -266,7 +266,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                         <Hash className="w-4 h-4 text-red-400" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Destination Discord</span>
+                                        <span className="text-caption font-black uppercase tracking-widest text-zinc-500">Destination Discord</span>
                                         <span className="text-xs font-bold text-white">Log envoyé dans <span className="text-red-400 italic">#{targetChannelName}</span></span>
                                     </div>
                                 </div>
@@ -281,7 +281,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
                             Inscrire à la Blacklist
                         </Button>
-                        <p className="text-[9px] text-zinc-600 italic text-center px-4 leading-relaxed">
+                        <p className="text-caption text-zinc-600 italic text-center px-4 leading-relaxed">
                             Cette liste est purement informative et n&apos;influence pas l&apos;accès automatique au dashboard.
                         </p>
 
@@ -295,12 +295,12 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                     <div className="p-1.5 rounded-lg bg-zinc-800 border border-white/5 group-hover/sync:bg-red-500/20 group-hover/sync:border-red-500/30 transition-colors">
                                         <ShieldAlert className="w-3.5 h-3.5 text-zinc-500 group-hover/sync:text-red-400" />
                                     </div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover/sync:text-white transition-colors">Synchro Discord</p>
+                                    <p className="text-caption font-black uppercase tracking-widest text-zinc-400 group-hover/sync:text-white transition-colors">Synchro Discord</p>
                                 </div>
-                                <p className="text-[10px] text-zinc-500 group-hover/sync:text-zinc-300 leading-loose">
+                                <p className="text-caption text-zinc-500 group-hover/sync:text-zinc-300 leading-loose">
                                     Les administrateurs peuvent <span className="text-zinc-300 font-bold">coupler un salon Discord</span> pour une synchro en temps réel.
                                 </p>
-                                <div className="mt-3 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-red-500/60 group-hover/sync:text-red-400 transition-colors">
+                                <div className="mt-3 flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-red-500/60 group-hover/sync:text-red-400 transition-colors">
                                     Configurer maintenant
                                     <Plus className="w-3 h-3 group-hover/sync:translate-x-0.5 transition-transform" />
                                 </div>
@@ -327,9 +327,9 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                         <Table>
                             <TableHeader className="bg-white/[0.02] border-b border-white/5 relative z-10">
                                 <TableRow className="hover:bg-transparent border-none">
-                                    <TableHead className="pl-8 py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Détails du Signalement</TableHead>
-                                    <TableHead className="py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] w-[200px]">Auteur & Date</TableHead>
-                                    <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6 w-[80px]"></TableHead>
+                                    <TableHead className="pl-8 py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">Détails du Signalement</TableHead>
+                                    <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] w-[200px]">Auteur & Date</TableHead>
+                                    <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6 w-[80px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody className="relative z-10">
@@ -350,7 +350,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                                     <BanIcon className="w-12 h-12 text-zinc-600" />
                                                     <div className="space-y-1">
                                                         <p className="text-sm font-black uppercase tracking-widest text-zinc-300">Blacklist vide</p>
-                                                        <p className="text-[10px] text-zinc-500 italic">Aucun signalement ne correspond à votre recherche.</p>
+                                                        <p className="text-caption text-zinc-500 italic">Aucun signalement ne correspond à votre recherche.</p>
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -376,7 +376,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                                             <div className="flex items-center gap-2">
                                                                 <Button 
                                                                     size="sm" 
-                                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 px-4 font-black uppercase tracking-widest text-[10px] rounded-lg"
+                                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 px-4 font-black uppercase tracking-widest text-caption rounded-lg"
                                                                     onClick={handleSaveEdit}
                                                                     disabled={isPending}
                                                                 >
@@ -386,7 +386,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                                                 <Button 
                                                                     size="sm" 
                                                                     variant="ghost"
-                                                                    className="text-zinc-500 hover:text-white h-8 px-4 font-black uppercase tracking-widest text-[10px] rounded-lg"
+                                                                    className="text-zinc-500 hover:text-white h-8 px-4 font-black uppercase tracking-widest text-caption rounded-lg"
                                                                     onClick={() => setEditingId(null)}
                                                                     disabled={isPending}
                                                                 >
@@ -406,11 +406,11 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                                     <div className="flex flex-col gap-1.5 justify-center h-full">
                                                         <div className="flex items-center gap-2 text-zinc-400 group-hover:text-red-400 transition-colors">
                                                             <User className="w-3 h-3" />
-                                                            <span className="text-[10px] font-black uppercase tracking-wider">{entry.addedByName}</span>
+                                                            <span className="text-caption font-black uppercase tracking-wider">{entry.addedByName}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2 text-zinc-500">
                                                             <Clock className="w-3 h-3" />
-                                                            <span className="text-[9px] font-bold tabular-nums">
+                                                            <span className="text-caption font-bold tabular-nums">
                                                                 {format(new Date(entry.createdAt), "dd MMM yyyy, HH:mm", { locale: fr })}
                                                             </span>
                                                         </div>

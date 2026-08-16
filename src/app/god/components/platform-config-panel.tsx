@@ -166,7 +166,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
     const inputClasses = "w-full h-14 px-6 bg-zinc-900 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono shadow-inner placeholder:text-zinc-700";
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-500 pb-20">
+        <div className="space-y-10 animate-in fade-in duration-300 pb-20">
             
             {/* BARRE D'ACTIONS PRO */}
             <div className="bg-zinc-950/60 border border-white/10 rounded-3xl p-6 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-2xl">
@@ -208,26 +208,26 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         <div className="flex items-center gap-2 text-xs font-black text-indigo-300 uppercase tracking-wider">
                             <ShieldCheck className="w-4 h-4" /> Rapport de Diagnostic Discord
                         </div>
-                        <button onClick={() => setDiagResults(null)} className="text-[10px] text-zinc-500 hover:text-white font-bold uppercase">Fermer</button>
+                        <button onClick={() => setDiagResults(null)} className="text-caption text-zinc-500 hover:text-white font-bold uppercase">Fermer</button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
                         <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-[9px] text-zinc-500 uppercase block">Connexion Bot</span>
+                            <span className="text-caption text-zinc-500 uppercase block">Connexion Bot</span>
                             <span className={cn(diagResults.token.status === "OK" ? "text-emerald-400" : "text-rose-400")}>{diagResults.token.message}</span>
                         </div>
                         <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-[9px] text-zinc-500 uppercase block">Identité Bot</span>
+                            <span className="text-caption text-zinc-500 uppercase block">Identité Bot</span>
                             <span className="text-white font-mono">{diagResults.botIdentity?.username || "N/A"}</span>
                         </div>
                         <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-[9px] text-zinc-500 uppercase block">Serveurs</span>
+                            <span className="text-caption text-zinc-500 uppercase block">Serveurs</span>
                             <span className="text-white">{diagResults.guilds.length} actifs</span>
                         </div>
                         <div className="p-4 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
-                            <span className="text-[9px] text-zinc-500 uppercase block">Salons accessibles</span>
+                            <span className="text-caption text-zinc-500 uppercase block">Salons accessibles</span>
                             <div className="flex flex-wrap gap-1">
                                 {Object.entries(diagResults.channels).map(([k, v]: any) => (
-                                    <span key={k} className={cn("text-[9px] font-mono px-1.5 py-0.5 rounded", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
+                                    <span key={k} className={cn("text-caption font-mono px-1.5 py-0.5 rounded", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
                                 ))}
                             </div>
                         </div>
@@ -250,7 +250,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
                         <div className="space-y-1">
                             <span className="text-xs font-black text-white uppercase block">1. Salon Hub (Changelog)</span>
-                            <p className="text-[10px] text-zinc-500 leading-normal">Diffusion des mises à jour publiques.</p>
+                            <p className="text-caption text-zinc-500 leading-normal">Diffusion des mises à jour publiques.</p>
                         </div>
                         <Input
                             type="text"
@@ -266,9 +266,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-black text-white uppercase block">2. Salon Santé (Ping Status)</span>
-                                <p className="text-[10px] text-zinc-500 leading-normal">Surveillance automatique du bot.</p>
+                                <p className="text-caption text-zinc-500 leading-normal">Surveillance automatique du bot.</p>
                             </div>
-                            <Button size="sm" variant="ghost" onClick={handleTestPing} className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20">
+                            <Button size="sm" variant="ghost" onClick={handleTestPing} className="text-caption font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20">
                                 Test Ping
                             </Button>
                         </div>
@@ -281,11 +281,11 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         />
                         <div className="grid grid-cols-2 gap-2">
                             <Select value={String(formData.statusFrequency)} onValueChange={(val) => setFormData(prev => ({ ...prev, statusFrequency: parseInt(val) }))}>
-                                <SelectTrigger className="bg-zinc-900 border-white/10 text-[10px] font-bold uppercase"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent><SelectItem value="5">Toutes les 5m</SelectItem><SelectItem value="15">Toutes les 15m</SelectItem><SelectItem value="60">Toutes les 1h</SelectItem></SelectContent>
                             </Select>
                             <Select value={formData.statusMention} onValueChange={(val) => setFormData(prev => ({ ...prev, statusMention: val }))}>
-                                <SelectTrigger className="bg-zinc-900 border-white/10 text-[10px] font-bold uppercase"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">Sans mention</SelectItem><SelectItem value="@here">@here</SelectItem></SelectContent>
                             </Select>
                         </div>
@@ -296,9 +296,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-black text-white uppercase block">3. Salon Alertes GOD (Privé)</span>
-                                <p className="text-[10px] text-zinc-500 leading-normal">Rapports d'erreurs critiques & backups.</p>
+                                <p className="text-caption text-zinc-500 leading-normal">Rapports d'erreurs critiques & backups.</p>
                             </div>
-                            <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-[9px] font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
+                            <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
                                 Test Alerte
                             </Button>
                         </div>
@@ -322,7 +322,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
                         <div className="space-y-1">
                             <span className="text-xs font-black text-white uppercase block">4. Salon Feedback Dofus</span>
-                            <p className="text-[10px] text-zinc-500 leading-normal">
+                            <p className="text-caption text-zinc-500 leading-normal">
                                 Cible les retours envoyés depuis les pages « Les Dofus Dofus » (Hub, Détail Dofus, Rush Sylvestre).
                                 <span className="text-zinc-600"> Non configuré : repli sur le salon Alertes GOD.</span>
                             </p>
@@ -370,9 +370,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 >
                                     <div className="space-y-0.5 min-w-0">
                                         <span className="text-xs font-bold block">{opt.label}</span>
-                                        <span className="text-[10px] text-zinc-500 block truncate">{opt.desc}</span>
+                                        <span className="text-caption text-zinc-500 block truncate">{opt.desc}</span>
                                     </div>
-                                    <span className={cn("text-[9px] font-black uppercase px-2.5 py-1 rounded-lg shrink-0", active ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-600")}>
+                                    <span className={cn("text-caption font-black uppercase px-2.5 py-1 rounded-lg shrink-0", active ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-600")}>
                                         {active ? "Actif" : "Inactif"}
                                     </span>
                                 </button>
@@ -384,7 +384,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     <div className="space-y-2.5">
                         <div className="space-y-1">
                             <span className="text-xs font-black text-white uppercase block">Icône du bloc quêtes par Dofus</span>
-                            <p className="text-[10px] text-zinc-500 leading-normal">
+                            <p className="text-caption text-zinc-500 leading-normal">
                                 Icône affichée dans le bloc d'en-tête (à la place de l'image générique) sur chaque page quête par Dofus.
                             </p>
                         </div>

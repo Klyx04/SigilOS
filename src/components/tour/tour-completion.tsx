@@ -70,7 +70,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="relative w-full max-w-md glass-premium rounded-3xl border border-white/10 overflow-hidden shadow-[0_0_60px_rgba(139,92,246,0.3)] bg-zinc-950/90 backdrop-blur-2xl p-6 sm:p-10 flex flex-col items-center text-center space-y-6"
+                    className="relative w-full max-w-md glass-premium rounded-3xl border border-white/10 overflow-hidden  bg-zinc-950/90 backdrop-blur-2xl p-6 sm:p-10 flex flex-col items-center text-center space-y-6"
                 >
                     {/* Glowing effect */}
                     <div className="absolute -top-24 -left-24 w-64 h-64 bg-violet-600/25 rounded-full blur-[80px]" />

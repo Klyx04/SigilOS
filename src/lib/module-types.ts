@@ -18,6 +18,8 @@ export type ModuleKey =
     | "profile"
     | "docs"
     | "polls"
+    // Planning
+    | "availability"
     // Admin
     | "logs"
     | "admin"
@@ -48,6 +50,8 @@ export type GuildModulesState = {
     profile: boolean;
     docs: boolean;
     gallery: boolean;
+    // Planning
+    availability: boolean;
     // Admin
     logs: boolean;
     polls: boolean;
@@ -88,6 +92,7 @@ export const DEFAULT_MODULES: GuildModulesState = {
     profile: false,
     docs: false,
     gallery: false,
+    availability: false,
     logs: false,
     polls: false,
     admin: true, // nécessaire à l'admin pour se configurer à l'arrivée

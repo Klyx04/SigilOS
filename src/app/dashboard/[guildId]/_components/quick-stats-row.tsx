@@ -24,7 +24,7 @@ interface QuickStatsRowProps {
 function DeltaBadge({ delta }: { delta: number | null | undefined }) {
     if (delta === null || delta === undefined || delta === 0) {
         return (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground/70">
+            <span className="inline-flex items-center gap-1 text-caption font-semibold text-muted-foreground/70">
                 <Minus className="w-3 h-3" /> stable
             </span>
         );
@@ -33,7 +33,7 @@ function DeltaBadge({ delta }: { delta: number | null | undefined }) {
     return (
         <span
             className={cn(
-                "inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums",
+                "inline-flex items-center gap-1 text-caption font-semibold tabular-nums",
                 up ? "text-emerald-400" : "text-rose-400"
             )}
         >
@@ -58,7 +58,7 @@ function StatCard({
 }) {
     return (
         <div className="rounded-xl border border-border/60 bg-background/40 p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-[12px] font-medium">
+            <div className="flex items-center gap-2 text-muted-foreground text-label font-medium">
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="truncate">{label}</span>
             </div>
@@ -69,7 +69,7 @@ function StatCard({
                 </p>
             )}
             {sublabel && (
-                <p className="text-[12px] text-muted-foreground font-medium mt-1 truncate">{sublabel}</p>
+                <p className="text-label text-muted-foreground font-medium mt-1 truncate">{sublabel}</p>
             )}
         </div>
     );
@@ -95,13 +95,13 @@ export function QuickStatsRow({
         <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
             {/* Online Members -- with facepile (preuve sociale) */}
             <div className="rounded-xl border border-border/60 bg-background/40 p-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-[12px] font-medium">
+                <div className="flex items-center gap-2 text-muted-foreground text-label font-medium">
                     <Users className="w-4 h-4 shrink-0" />
                     <span className="truncate">Membres actifs</span>
                 </div>
                 <p className="mt-2 text-[22px] font-bold text-foreground tabular-nums leading-none">
                     {onlineCount}
-                    <span className="text-[13px] text-muted-foreground font-medium">/{totalMembers}</span>
+                    <span className="text-body-sm text-muted-foreground font-medium">/{totalMembers}</span>
                 </p>
                 {membersDelta !== undefined && (
                     <p className="mt-1.5 flex items-center">

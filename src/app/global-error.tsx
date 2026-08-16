@@ -53,7 +53,7 @@ export default function GlobalError({
                         {error.digest && (
                             <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/60 border border-white/5 mb-8">
                                 <AlertOctagon className="w-4 h-4 text-rose-500" />
-                                <span className="text-zinc-500 font-mono text-[11px] uppercase tracking-wider">
+                                <span className="text-zinc-500 font-mono text-caption uppercase tracking-wider">
                                     Réf : {error.digest.slice(0, 16)}
                                 </span>
                             </div>
@@ -72,7 +72,7 @@ export default function GlobalError({
                 </div>
 
                 <div className="absolute bottom-8 left-0 right-0 text-center opacity-40 hover:opacity-100 transition-opacity">
-                    <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+                    <span className="text-caption font-medium uppercase tracking-wider text-zinc-600">
                         SigilOS • System Recovery
                     </span>
                 </div>

@@ -68,7 +68,7 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 text-left">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
@@ -85,7 +85,7 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                                 {isConfigured ? (
                                     <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Actif</Badge>
                                 ) : (
-                                    <Badge variant="outline" className="text-zinc-600 border-white/5 uppercase text-[10px] font-black tracking-widest">Inactif</Badge>
+                                    <Badge variant="outline" className="text-zinc-600 border-white/5 uppercase text-caption font-black tracking-widest">Inactif</Badge>
                                 )}
                             </div>
                             <CardDescription className="text-xs font-medium text-zinc-500">
@@ -105,7 +105,7 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                                 </div>
 
                                 <div className="relative pl-6 border-l-2 border-emerald-500/50">
-                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-950 " />
                                     <h3 className="text-sm font-medium text-white mb-4 text-left">2. Coller l'identifiant</h3>
 
                                     <div className="space-y-4">
@@ -128,14 +128,14 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                                         
                                         {isConfigured ? (
                                             <div className="flex justify-end">
-                                                <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-[10px] font-black uppercase tracking-widest">
+                                                <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-caption font-black uppercase tracking-widest">
                                                     Désactiver l'intégration
                                                 </Button>
                                             </div>
                                         ) : (
                                             <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
                                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                                                <p className="text-caption text-zinc-400 leading-relaxed italic">
                                                     Aucun salon configuré. Les demandes d'échange ne seront pas relayées sur Discord.
                                                 </p>
                                             </div>
@@ -165,7 +165,7 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                 <div className="space-y-6">
                     <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
                         <CardHeader className="bg-white/5 pb-3 px-4 py-3">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-left">Aperçu : Demande d'Échange</CardTitle>
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400 text-left">Aperçu : Demande d'Échange</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative px-4 text-left">
                             <div className="flex items-start gap-3">
@@ -175,32 +175,32 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-emerald-400 text-xs">SigilOS</span>
-                                        <span className="bg-emerald-500/20 text-emerald-300 text-[9px] px-1 rounded uppercase font-black">Bot</span>
+                                        <span className="bg-emerald-500/20 text-emerald-300 text-caption px-1 rounded uppercase font-black">Bot</span>
                                     </div>
 
                                     <div className="bg-[#2b2d31] rounded border-l-4 border-emerald-400 p-3 max-w-sm shadow-xl">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">🤝</span>
-                                            <h4 className="font-semibold text-white text-[11px]">Demande d'Échange</h4>
+                                            <h4 className="font-semibold text-white text-caption">Demande d'Échange</h4>
                                         </div>
 
-                                        <p className="text-zinc-300 text-[10px] leading-relaxed mb-3">
+                                        <p className="text-zinc-300 text-caption leading-relaxed mb-3">
                                             <span className="text-emerald-400 font-medium">@Wylan</span> recherche <span className="text-white font-bold">Abrakne le Miséricordieux</span>.
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-3 p-2 bg-black/20 rounded border border-white/5">
                                             <div>
-                                                <div className="text-[#b5bac1] text-[8px] font-bold uppercase tracking-wider mb-0.5">Contacté</div>
-                                                <div className="text-zinc-200 text-[10px] truncate">Tourte</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Contacté</div>
+                                                <div className="text-zinc-200 text-caption truncate">Tourte</div>
                                             </div>
                                             <div>
-                                                <div className="text-[#b5bac1] text-[8px] font-bold uppercase tracking-wider mb-0.5">Dispo</div>
-                                                <div className="text-amber-400 text-[10px] font-bold">En Double</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Dispo</div>
+                                                <div className="text-amber-400 text-caption font-bold">En Double</div>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-2 border-t border-[#3f4147] flex items-center justify-between">
-                                            <span className="text-[#949ba4] text-[9px]">Quête Ocre • SigilOS</span>
+                                            <span className="text-[#949ba4] text-caption">Quête Ocre • SigilOS</span>
                                             <ExternalLink className="w-2.5 h-2.5 text-zinc-600" />
                                         </div>
                                     </div>

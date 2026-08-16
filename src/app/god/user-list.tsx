@@ -53,7 +53,7 @@ export function UserList({ users }: UserListProps) {
                         <div>
                             <div className="font-medium text-white flex items-center gap-2">
                                 {user.name}
-                                <Badge variant="outline" className="text-[10px] py-0 h-5 border-zinc-500/30 text-zinc-400 bg-zinc-500/10">
+                                <Badge variant="outline" className="text-caption py-0 h-5 border-zinc-500/30 text-zinc-400 bg-zinc-500/10">
                                     Sans Profil
                                 </Badge>
                             </div>
@@ -67,7 +67,7 @@ export function UserList({ users }: UserListProps) {
                             <div className="text-xs font-medium text-red-400">
                                 Cible Janitor
                             </div>
-                            <div className="text-[10px] text-zinc-600 font-mono mt-1">
+                            <div className="text-caption text-zinc-600 font-mono mt-1">
                                 {user.id.slice(0, 8)}...
                             </div>
                         </div>

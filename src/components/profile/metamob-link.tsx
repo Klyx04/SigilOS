@@ -181,7 +181,7 @@ export function MetamobLink({
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-white/10">
-                                    <DropdownMenuLabel className="text-zinc-200 font-bold uppercase tracking-widest text-[10px]">Mon compte Metamob</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-zinc-200 font-bold uppercase tracking-widest text-caption">Mon compte Metamob</DropdownMenuLabel>
                                     <DropdownMenuSeparator className="bg-white/5" />
                                     <DropdownMenuItem asChild>
                                         <a href={`https://www.metamob.fr/profile/${encodeURIComponent(currentPseudo)}`} target="_blank" rel="noopener noreferrer" className="cursor-pointer text-zinc-300">
@@ -253,7 +253,7 @@ export function MetamobLink({
                             {isLinked ? (
                                 <span className="text-sm font-black text-white">{metamobLastSync ? `Synchronisé ${formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}` : "En attente"}</span>
                             ) : (
-                                <span className="text-[10px] font-bold text-zinc-500 uppercase italic">Liaison requise</span>
+                                <span className="text-caption font-bold text-zinc-500 uppercase italic">Liaison requise</span>
                             )}
                         </div>
                     </div>
@@ -277,7 +277,7 @@ export function MetamobLink({
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2">
                                             <span className="font-medium text-zinc-200">{quest.server.name}</span>
-                                            <Badge variant="secondary" className="text-[10px] h-5 bg-black/20 border-white/5">{quest.quest_template.id === 1 ? "Unity" : "Rétro"}</Badge>
+                                            <Badge variant="secondary" className="text-caption h-5 bg-black/20 border-white/5">{quest.quest_template.id === 1 ? "Unity" : "Rétro"}</Badge>
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-zinc-500"><UserCircle className="h-3.5 w-3.5" /><span>{quest.character_name}</span></div>
                                     </div>

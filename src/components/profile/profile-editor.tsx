@@ -189,7 +189,7 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                                 {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                             </Button>
                         </div>
-                        <p className="text-[10px] leading-relaxed text-muted-foreground ml-1 mt-1">
+                        <p className="text-caption leading-relaxed text-muted-foreground ml-1 mt-1">
                             {verifyStatus === "success" ? (
                                 <span className="text-emerald-400 font-medium">✅ Pseudo validé sur le ladder officiel.</span>
                             ) : (

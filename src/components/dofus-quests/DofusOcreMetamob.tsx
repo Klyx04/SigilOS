@@ -69,7 +69,7 @@ function MetamobLinkPrompt({ onLink }: { onLink: (username: string) => Promise<v
             </div>
             <div>
                 <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Lier ton Ocre</h3>
-                <p className="text-[12px] text-zinc-500 leading-relaxed mt-1">
+                <p className="text-label text-zinc-500 leading-relaxed mt-1">
                     Connecte ton compte <span className="text-amber-400 font-bold">Metamob</span> pour synchroniser ta progression réelle.
                 </p>
             </div>
@@ -91,7 +91,7 @@ function MetamobLinkPrompt({ onLink }: { onLink: (username: string) => Promise<v
                 <Button disabled={loading || !username} className="w-full h-11 bg-amber-500 text-black font-black uppercase tracking-widest rounded-2xl">
                     {loading ? "Liaison..." : "Lier mon compte"}
                 </Button>
-                {error && <div className="text-rose-400 text-[10px] uppercase font-bold">{error}</div>}
+                {error && <div className="text-rose-400 text-caption uppercase font-bold">{error}</div>}
             </form>
         </div>
     );
@@ -114,7 +114,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
         const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
         return (
             <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                <div className="flex justify-between text-caption font-black uppercase tracking-widest">
                     <span className="text-zinc-500">{label}</span>
                     <span className="text-white">{current} / {total}</span>
                 </div>
@@ -122,7 +122,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
                     <motion.div 
                         initial={{ width: 0 }} 
                         animate={{ width: `${pct}%` }} 
-                        className={`h-full rounded-full transition-all duration-500 ${color}`}
+                        className={`h-full rounded-full transition-all duration-300 ${color}`}
                     />
                 </div>
             </div>
@@ -132,12 +132,12 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
     if (loading && !data) return (
         <div className="py-12 flex flex-col items-center gap-3 opacity-50">
             <RefreshCw className="w-5 h-5 animate-spin text-amber-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Metamob Sync...</span>
+            <span className="text-caption font-black uppercase tracking-widest">Metamob Sync...</span>
         </div>
     );
 
     return (
-        <div className="p-1 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className="p-1 space-y-8 animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex items-center justify-between gap-4 p-4 bg-zinc-950/40 border border-white/5 rounded-3xl backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -145,7 +145,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
                     </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest">Metamob Live</div>
+                    <div className="text-caption font-black text-amber-500/60 uppercase tracking-widest">Metamob Live</div>
                     <div className="flex items-center gap-2">
                         <div className="text-sm font-black text-white italic truncate">{username}</div>
                         <a 
@@ -160,7 +160,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
                     <Button variant="ghost" size="icon" onClick={refresh} disabled={loading} className="w-8 h-8 rounded-xl text-zinc-500 hover:text-white">
                         <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={onUnlink} className="h-8 px-3 text-[9px] font-black uppercase text-zinc-700 hover:text-rose-400 rounded-xl">
+                    <Button variant="ghost" size="sm" onClick={onUnlink} className="h-8 px-3 text-caption font-black uppercase text-zinc-700 hover:text-rose-400 rounded-xl">
                         <Unlink className="w-3 h-3" />
                     </Button>
                 </div>
@@ -176,7 +176,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
 
             {data && data.stats.bosses.gathered < data.stats.bosses.total && (
                 <div className="space-y-4 px-2">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                    <div className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest">
                         <Zap className="w-3 h-3 text-amber-400" /> Prochaines cibles (Boss)
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
@@ -195,7 +195,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
                                             }}
                                         />
                                     </div>
-                                    <div className="text-[8px] font-black text-zinc-600 text-center uppercase truncate w-full">{m.name}</div>
+                                    <div className="text-caption font-black text-zinc-600 text-center uppercase truncate w-full">{m.name}</div>
                                 </div>
                             ))
                         }
@@ -205,7 +205,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
 
             <div className="flex items-start gap-2 p-3 bg-blue-500/5 rounded-2xl border border-blue-500/10">
                 <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-zinc-600 italic leading-relaxed">
+                <p className="text-caption text-zinc-600 italic leading-relaxed">
                     Données synchronisées avec Metamob. Mets à jour tes captures sur le site pour voir ta progression ici.
                 </p>
             </div>

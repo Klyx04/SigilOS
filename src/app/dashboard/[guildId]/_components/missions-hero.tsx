@@ -17,7 +17,7 @@ export function MissionsHero({
 }) {
     return (
         <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-[2.5rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-[2.5rem] blur opacity-20 group-hover:opacity-40 transition duration-300 group-hover:duration-200"></div>
             
             <Card className="relative glass-premium border-white/5 overflow-hidden rounded-[2rem] min-h-[220px] flex flex-col md:flex-row items-center border-t-emerald-500/20">
                 {/* Background Decoration */}
@@ -27,7 +27,7 @@ export function MissionsHero({
                 <CardContent className="flex-1 p-8 md:p-10 flex flex-col md:flex-row items-center gap-8 z-10 w-full">
                     {/* Left: Icon & Title */}
                     <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-4">
-                        <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 relative group-hover:scale-110 transition-transform duration-500">
+                        <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 relative group- transition-transform duration-300">
                             <ScrollText className="w-10 h-10 text-emerald-400" />
                             <Zap className="w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-bounce" />
                         </div>
@@ -44,12 +44,12 @@ export function MissionsHero({
                     {/* Middle: Quick stats or highlight */}
                     <div className="flex flex-1 justify-center gap-10">
                         <div className="space-y-1 text-center">
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">VALIDÉES</p>
+                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">VALIDÉES</p>
                             <p className="text-4xl font-black text-foreground tracking-tighter tabular-nums">{totalMissionsValidated}</p>
                         </div>
                         <div className="w-px h-12 bg-border self-center" />
                         <div className="space-y-1 text-center">
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">GLOIRE</p>
+                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">GLOIRE</p>
                             <p className="text-4xl font-black text-emerald-600 dark:text-emerald-500 tracking-tighter tabular-nums">+{totalXp}</p>
                         </div>
                     </div>
@@ -57,12 +57,12 @@ export function MissionsHero({
                     {/* Right: CTA */}
                     <div className="w-full md:w-auto flex flex-col gap-3">
                         <Link href={`/dashboard/${guildId}/missions`} className="w-full h-full">
-                            <Button className="w-full md:w-56 h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-lg rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:shadow-[0_0_50px_rgba(16,185,129,0.5)] transition-all group/btn border-t border-white/20">
+                            <Button className="w-full md:w-56 h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-lg rounded-2xl   transition-all group/btn border-t border-white/20">
                                 REJOINDRE
                                 <ArrowRight className="ml-2 w-6 h-6 group-hover/btn:translate-x-2 transition-transform" />
                             </Button>
                         </Link>
-                        <Link href="/docs?tab=missions" className="text-center text-[10px] font-black text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                        <Link href="/docs?tab=missions" className="text-center text-caption font-black text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
                             <BookOpen className="w-3 h-3" />
                             Comprendre le système
                         </Link>

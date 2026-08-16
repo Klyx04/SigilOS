@@ -58,7 +58,7 @@ const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
     }
 
     return (
-        <Badge variant="outline" className={cn("whitespace-nowrap transition-all uppercase tracking-tighter text-[9px] font-black", sc)}>
+        <Badge variant="outline" className={cn("whitespace-nowrap transition-all uppercase tracking-tighter text-caption font-black", sc)}>
             {label}
         </Badge>
     );
@@ -109,12 +109,12 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-white/5 hover:bg-transparent bg-white/[0.02]">
-                                    <TableHead className="w-[100px] text-zinc-500 font-black uppercase tracking-widest text-[10px] px-6 py-5">Ticket</TableHead>
-                                    <TableHead className="w-[140px] text-zinc-500 font-black uppercase tracking-widest text-[10px]">Type / Cat</TableHead>
-                                    <TableHead className="w-[130px] text-zinc-500 font-black uppercase tracking-widest text-[10px]">Priorité</TableHead>
-                                    <TableHead className="text-zinc-500 font-black uppercase tracking-widest text-[10px]">Description</TableHead>
-                                    <TableHead className="w-[160px] text-zinc-500 font-black uppercase tracking-widest text-[10px]">État actuel</TableHead>
-                                    <TableHead className="w-[120px] text-right text-zinc-500 font-black uppercase tracking-widest text-[10px] px-6">Détails</TableHead>
+                                    <TableHead className="w-[100px] text-zinc-500 font-black uppercase tracking-widest text-caption px-6 py-5">Ticket</TableHead>
+                                    <TableHead className="w-[140px] text-zinc-500 font-black uppercase tracking-widest text-caption">Type / Cat</TableHead>
+                                    <TableHead className="w-[130px] text-zinc-500 font-black uppercase tracking-widest text-caption">Priorité</TableHead>
+                                    <TableHead className="text-zinc-500 font-black uppercase tracking-widest text-caption">Description</TableHead>
+                                    <TableHead className="w-[160px] text-zinc-500 font-black uppercase tracking-widest text-caption">État actuel</TableHead>
+                                    <TableHead className="w-[120px] text-right text-zinc-500 font-black uppercase tracking-widest text-caption px-6">Détails</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -135,7 +135,7 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                             "border-white/5 hover:bg-white/[0.03] transition-all duration-300 group",
                                             issue.status === "TERMINE" && "opacity-60 grayscale-[0.5]"
                                         )}>
-                                            <TableCell className="px-6 font-mono text-zinc-500 text-[11px] font-black italic">
+                                            <TableCell className="px-6 font-mono text-zinc-500 text-caption font-black italic">
                                                 SIG-{issue.id}
                                             </TableCell>
                                             
@@ -143,18 +143,18 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-2">
                                                         {issue.type === "BUG" ? <BugIcon className="h-3.5 w-3.5 text-red-500" /> : <LightbulbIcon className="h-3.5 w-3.5 text-blue-500" />}
-                                                        <span className={cn("text-[10px] font-black uppercase tracking-widest", issue.type === "BUG" ? "text-red-500/80" : "text-blue-500/80")}>
+                                                        <span className={cn("text-caption font-black uppercase tracking-widest", issue.type === "BUG" ? "text-red-500/80" : "text-blue-500/80")}>
                                                             {issue.type}
                                                         </span>
                                                     </div>
-                                                    <span className="text-[11px] font-bold text-zinc-400 pl-5">
+                                                    <span className="text-caption font-bold text-zinc-400 pl-5">
                                                         {issue.category}
                                                     </span>
                                                 </div>
                                             </TableCell>
 
                                             <TableCell>
-                                                <Badge variant="outline" className={cn("uppercase tracking-[0.1em] text-[9px] font-black border px-2 py-0.5", PRIORITY_COLORS[issue.priority])}>
+                                                <Badge variant="outline" className={cn("uppercase tracking-[0.1em] text-caption font-black border px-2 py-0.5", PRIORITY_COLORS[issue.priority])}>
                                                     {issue.priority}
                                                 </Badge>
                                             </TableCell>
@@ -163,13 +163,13 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex items-start gap-3">
                                                         {issue.status === 'EN_COURS' && (
-                                                            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0 mt-1.5 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                                                            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0 mt-1.5 " />
                                                         )}
-                                                        <p className="text-[13px] text-zinc-200 font-medium leading-relaxed">
+                                                        <p className="text-body-sm text-zinc-200 font-medium leading-relaxed">
                                                             {issue.description}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                                                    <div className="flex items-center gap-4 text-caption text-zinc-600 font-bold uppercase tracking-widest">
                                                         <span className="flex items-center gap-1.5">
                                                             <History className="w-3 h-3" />
                                                             Signalé le {format(new Date(issue.createdAt), "dd MMMM yyyy", { locale: fr })}
@@ -192,7 +192,7 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                                         rel="noreferrer" 
                                                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-blue-500/10 hover:border-blue-500/50 hover:text-blue-400 text-zinc-500 transition-all group/link"
                                                     >
-                                                        <span className="text-[10px] font-black uppercase tracking-widest hidden group-hover/link:inline">Détails</span>
+                                                        <span className="text-caption font-black uppercase tracking-widest hidden group-hover/link:inline">Détails</span>
                                                         <LinkIcon className="h-3.5 w-3.5" />
                                                     </a>
                                                 )}

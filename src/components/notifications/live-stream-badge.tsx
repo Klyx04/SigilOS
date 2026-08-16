@@ -92,7 +92,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
 
                     <Tv className="w-3 h-3 text-red-500" />
 
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground leading-none whitespace-nowrap">
+                    <span className="text-caption font-semibold uppercase tracking-wider text-foreground leading-none whitespace-nowrap">
                         {text}
                     </span>
 
@@ -126,7 +126,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                             </div>
                             <div className="min-w-0 flex-1">
                                 <DialogTitle className="text-sm font-bold text-white uppercase tracking-wider truncate">Créateurs en LIVE</DialogTitle>
-                                <p className="text-[10px] text-zinc-400 font-medium">Choisis un streamer à regarder</p>
+                                <p className="text-caption text-zinc-400 font-medium">Choisis un streamer à regarder</p>
                             </div>
                         </div>
                     </div>
@@ -155,7 +155,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                                     <p className="text-sm font-black text-zinc-100 group-hover:text-white uppercase tracking-tight truncate">
                                         {streamer.creatorId}
                                     </p>
-                                    <p className="text-[10px] text-zinc-500 font-bold truncate mt-0.5">
+                                    <p className="text-caption text-zinc-500 font-bold truncate mt-0.5">
                                         {streamer.title || "En direct"}
                                     </p>
                                 </div>

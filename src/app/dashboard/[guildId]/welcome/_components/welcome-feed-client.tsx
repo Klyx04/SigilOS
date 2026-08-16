@@ -103,18 +103,18 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                         className="group relative"
                     >
                         {/* Timeline dot */}
-                        <div className="absolute left-[19px] top-6 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] border-2 border-zinc-950 z-10 hidden md:block" />
+                        <div className="absolute left-[19px] top-6 w-2 h-2 rounded-full bg-amber-500  border-2 border-zinc-950 z-10 hidden md:block" />
 
                         <div className="md:pl-16">
-                            <div className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#030303]/80 hover:bg-[#050505] hover:border-amber-500/20 transition-all duration-500 p-6 md:p-8 shadow-xl">
+                            <div className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#030303]/80 hover:bg-[#050505] hover:border-amber-500/20 transition-all duration-300 p-6 md:p-8 shadow-xl">
                                 {/* Visual Accent */}
-                                <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full group-hover:bg-amber-500/20 transition-colors duration-1000 pointer-events-none" />
+                                <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full group-hover:bg-amber-500/20 transition-colors duration-300 pointer-events-none" />
 
                                 <div className="flex flex-col md:flex-row gap-6 relative z-10">
                                     <div className="shrink-0">
                                         <Link href={`/dashboard/${guildId}/members/${post.profile.id}`}>
                                             <div className="relative group/avatar">
-                                                <Avatar className="h-16 w-16 rounded-2xl ring-2 ring-white/5 group-hover/avatar:ring-amber-500/40 transition-all duration-700 shadow-2xl">
+                                                <Avatar className="h-16 w-16 rounded-2xl ring-2 ring-white/5 group-hover/avatar:ring-amber-500/40 transition-all duration-300 shadow-2xl">
                                                     <AvatarImage src={post.profile.user.image || ""} className="object-cover" />
                                                     <AvatarFallback className="bg-zinc-800 text-lg font-black text-zinc-500">
                                                         {post.profile.user.name?.slice(0, 2).toUpperCase()}
@@ -137,11 +137,11 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                                     >
                                                         {post.profile.id === currentProfileId ? "Toi 🎉" : (post.profile.pseudoDofus || post.profile.user.name)}
                                                     </Link>
-                                                    <div className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                                                    <div className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-caption font-bold text-zinc-500 uppercase tracking-widest">
                                                         Nouveauté
                                                     </div>
                                                 </div>
-                                                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.2em] bg-white/[0.02] px-3 py-1 rounded-full border border-white/5">
+                                                <span className="text-caption text-zinc-600 font-bold uppercase tracking-[0.2em] bg-white/[0.02] px-3 py-1 rounded-full border border-white/5">
                                                     {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: fr })}
                                                 </span>
                                             </div>
@@ -171,12 +171,12 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                                 <div className="absolute inset-0 bg-white/[0.01] rounded-x3l -m-4 block" />
                                                 <div className="p-5 rounded-[1.5rem] bg-zinc-950/40 border border-white/5 space-y-3 group-hover/intro:border-white/10 transition-all">
                                                     <div className="flex items-center justify-between">
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 flex items-center gap-2">
+                                                        <p className="text-caption font-black uppercase tracking-widest text-zinc-600 flex items-center gap-2">
                                                             <MessageCircle className="w-3 h-3 text-amber-500/50" /> Quelques mots
                                                         </p>
                                                         <Link
                                                             href={`/dashboard/${guildId}/members/${post.profile.id}`}
-                                                            className="text-[9px] font-black text-zinc-600 hover:text-amber-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                                                            className="text-caption font-black text-zinc-600 hover:text-amber-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"
                                                         >
                                                             Profil complet <ArrowRight className="w-3 h-3" />
                                                         </Link>
@@ -217,15 +217,15 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                                         </TooltipTrigger>
                                                         <TooltipContent className="bg-zinc-950 border-white/10 p-4 rounded-2xl shadow-2xl">
                                                             <div className="space-y-2">
-                                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 pb-2 border-b border-white/5">
+                                                                <p className="text-caption font-black uppercase tracking-[0.2em] text-zinc-600 pb-2 border-b border-white/5">
                                                                     Ont réagi {emoji.char}
                                                                 </p>
                                                                 <div className="flex flex-col gap-1">
                                                                     {names.slice(0, 8).map((name, i) => (
-                                                                        <span key={i} className="text-[11px] font-bold text-zinc-300">{name}</span>
+                                                                        <span key={i} className="text-caption font-bold text-zinc-300">{name}</span>
                                                                     ))}
                                                                     {names.length > 8 && (
-                                                                        <span className="text-[10px] text-zinc-600 italic">+{names.length - 8} autres...</span>
+                                                                        <span className="text-caption text-zinc-600 italic">+{names.length - 8} autres...</span>
                                                                     )}
                                                                 </div>
                                                             </div>

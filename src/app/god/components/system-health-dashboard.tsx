@@ -58,7 +58,7 @@ export function SystemHealthDashboard() {
         <div className="flex items-center justify-center p-12 bg-zinc-900/20 border border-white/5 rounded-3xl animate-pulse">
             <div className="flex flex-col items-center gap-4">
                 <Loader2 className="w-6 h-6 text-zinc-600 animate-spin" />
-                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">Analyse des systèmes...</span>
+                <span className="text-caption font-black text-zinc-700 uppercase tracking-widest">Analyse des systèmes...</span>
             </div>
         </div>
     );
@@ -70,7 +70,7 @@ export function SystemHealthDashboard() {
                 <p className="text-sm font-bold text-white uppercase tracking-tight">Erreur de Diagnostic</p>
                 <p className="text-xs text-zinc-500 max-w-sm mx-auto">Le serveur n'a pas pu renvoyer l'état de santé. Vérifiez les logs ou réessayez.</p>
             </div>
-            <button onClick={() => { setLoading(true); fetchStatus(); }} className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">
+            <button onClick={() => { setLoading(true); fetchStatus(); }} className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-caption font-black uppercase tracking-widest rounded-xl transition-all">
                 Réessayer la connexion
             </button>
         </div>
@@ -158,15 +158,15 @@ export function SystemHealthDashboard() {
                             <card.icon className="w-4 h-4" />
                         </div>
                         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full bg-zinc-900/50 border border-white/5`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${card.status === 'ONLINE' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">
+                            <div className={`w-1.5 h-1.5 rounded-full ${card.status === 'ONLINE' ? 'bg-emerald-500 ' : 'bg-rose-500 '}`} />
+                            <span className="text-caption font-black uppercase tracking-widest text-zinc-500">
                                 {card.status === 'ONLINE' ? 'Ok' : 'Err'}
                             </span>
                         </div>
                     </div>
 
                     <div className="space-y-1">
-                        <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest leading-none">
+                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest leading-none">
                             {card.subLabel}
                         </div>
                         <div className="text-sm font-bold text-white group-hover:tracking-wide transition-all truncate">
@@ -180,7 +180,7 @@ export function SystemHealthDashboard() {
                                 {card.value}
                             </div>
                             {card.footer && (
-                                <div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest whitespace-nowrap">
+                                <div className="text-caption font-black text-zinc-600 uppercase tracking-widest whitespace-nowrap">
                                     {card.footer}
                                 </div>
                             )}

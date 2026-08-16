@@ -133,7 +133,7 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                                         <p className="text-xs font-black text-white uppercase tracking-wide">
                                             Don de Kamas
                                         </p>
-                                        <p className="text-[10px] text-amber-300 font-bold font-mono">
+                                        <p className="text-caption text-amber-300 font-bold font-mono">
                                             {don.amount.toLocaleString("fr-FR")} kamas · {tranches} tranche{tranches > 1 ? "s" : ""}
                                         </p>
                                     </div>
@@ -151,11 +151,11 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold text-white truncate">{name}</p>
-                                        <p className="text-[10px] text-zinc-500">
+                                        <p className="text-caption text-zinc-500">
                                             S{don.weekNumber} · {new Date(don.createdAt).toLocaleDateString("fr-FR")}
                                         </p>
                                     </div>
-                                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-amber-500/10 text-amber-400 border-amber-500/20">
+                                    <Badge variant="secondary" className="text-caption h-5 px-1.5 bg-amber-500/10 text-amber-400 border-amber-500/20">
                                         {tranches}T
                                     </Badge>
                                 </div>
@@ -186,7 +186,7 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                                 {/* Note */}
                                 {don.note && (
                                     <div className="px-4 py-2 bg-zinc-900/30 border-t border-zinc-800/50">
-                                        <p className="text-[10px] text-zinc-400 italic">&ldquo;{don.note}&rdquo;</p>
+                                        <p className="text-caption text-zinc-400 italic">&ldquo;{don.note}&rdquo;</p>
                                     </div>
                                 )}
 

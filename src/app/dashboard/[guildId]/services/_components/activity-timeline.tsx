@@ -71,7 +71,7 @@ export function ActivityTimeline({ entityId, guildId, trigger }: ActivityTimelin
                             <ShieldCheck className="h-4 w-4 text-cyan-400" />
                             Journal d&apos;activité
                         </DialogTitle>
-                        <p className="text-[11px] text-zinc-500 mt-1">
+                        <p className="text-caption text-zinc-500 mt-1">
                             Enregistrement immuable — ne peut être ni modifié ni supprimé.
                         </p>
                     </DialogHeader>
@@ -96,7 +96,7 @@ export function ActivityTimeline({ entityId, guildId, trigger }: ActivityTimelin
 
                                         {/* Dot */}
                                         <div className="shrink-0 mt-1.5">
-                                            <div className={`w-[22px] h-[22px] rounded-full border ${style.color.replace("text-", "border-")}/30 bg-zinc-900 flex items-center justify-center text-[10px]`}>
+                                            <div className={`w-[22px] h-[22px] rounded-full border ${style.color.replace("text-", "border-")}/30 bg-zinc-900 flex items-center justify-center text-caption`}>
                                                 {style.icon}
                                             </div>
                                         </div>
@@ -105,7 +105,7 @@ export function ActivityTimeline({ entityId, guildId, trigger }: ActivityTimelin
                                         <div className="flex-1 pb-4">
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-xs font-bold ${style.color}`}>{style.label}</span>
-                                                <span className="text-[10px] text-zinc-600">
+                                                <span className="text-caption text-zinc-600">
                                                     {new Date(log.createdAt).toLocaleDateString("fr-FR", {
                                                         day: "numeric",
                                                         month: "short",
@@ -114,15 +114,15 @@ export function ActivityTimeline({ entityId, guildId, trigger }: ActivityTimelin
                                                     })}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-zinc-300 mt-0.5">{log.summary}</p>
+                                            <p className="text-caption text-zinc-300 mt-0.5">{log.summary}</p>
                                             <div className="flex items-center gap-1.5 mt-1">
                                                 <Avatar className="h-4 w-4 rounded">
                                                     <AvatarImage src={log.actor.user?.image || undefined} />
-                                                    <AvatarFallback className="text-[7px] bg-zinc-800">
+                                                    <AvatarFallback className="text-caption bg-zinc-800">
                                                         {name.slice(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span className="text-[10px] text-zinc-500">{name}</span>
+                                                <span className="text-caption text-zinc-500">{name}</span>
                                             </div>
                                         </div>
                                     </div>

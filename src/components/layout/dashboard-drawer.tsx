@@ -79,7 +79,7 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                         </div>
                         <SheetTitle className="text-xl font-bold text-white italic tracking-tight">Gestion SigilOS</SheetTitle>
                     </div>
-                    <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Gestion Multi-Guilde & Déploiement</p>
+                    <p className="text-caption font-semibold text-zinc-500 uppercase tracking-wider">Gestion Multi-Guilde & Déploiement</p>
                 </SheetHeader>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 relative z-10">
@@ -93,10 +93,10 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                             {/* ACTIVE GUILDS */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between px-2">
-                                    <h3 className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                                    <h3 className="text-caption font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                                         <Shield className="w-3 h-3" /> Vos Accès Actifs
                                     </h3>
-                                    <span className="text-[11px] font-semibold text-zinc-600 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">{guilds.active.length}</span>
+                                    <span className="text-caption font-semibold text-zinc-600 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">{guilds.active.length}</span>
                                 </div>
 
                                 <div className="grid gap-3">
@@ -125,7 +125,7 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <div className={cn("w-1.5 h-1.5 rounded-full", guild.hasAccess ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-                                                            <span className={cn("text-[11px] font-medium truncate", guild.hasAccess ? "text-zinc-500" : "text-amber-500/90")}>
+                                                            <span className={cn("text-caption font-medium truncate", guild.hasAccess ? "text-zinc-500" : "text-amber-500/90")}>
                                                                 {guild.accessLabel}
                                                             </span>
                                                         </div>
@@ -148,7 +148,7 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                             {guilds.pending.length > 0 && (
                                 <div className="space-y-4 pt-4 border-t border-white/5">
                                     <div className="flex items-center justify-between px-2">
-                                        <h3 className="text-[11px] font-semibold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
+                                        <h3 className="text-caption font-semibold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
                                             <PlusCircle className="w-3 h-3" /> Déploiement Disponible
                                         </h3>
                                     </div>
@@ -164,7 +164,7 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                             >
                                                 <Avatar className="h-10 w-10 rounded-xl border border-white/10 opacity-60">
                                                     <AvatarImage src={guild.icon || ""} alt={guild.name} />
-                                                    <AvatarFallback className="bg-zinc-900 text-zinc-600 font-bold rounded-xl text-[10px]">
+                                                    <AvatarFallback className="bg-zinc-900 text-zinc-600 font-bold rounded-xl text-caption">
                                                         {guild.name.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -172,7 +172,7 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                                     <div className="text-xs font-semibold text-zinc-300 truncate">
                                                         {guild.name}
                                                     </div>
-                                                    <p className="text-[11px] font-medium text-muted-foreground/70 mt-0.5">Admin Discord Détecté</p>
+                                                    <p className="text-caption font-medium text-muted-foreground/70 mt-0.5">Admin Discord Détecté</p>
                                                 </div>
                                                 <Link 
                                                     href={`https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(window.location.origin + '/onboarding/success')}&response_type=code`}
@@ -191,9 +191,9 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                             <div className="p-5 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 space-y-2 mt-10">
                                 <div className="flex items-center gap-2 text-emerald-400">
                                     <Settings2 className="w-4 h-4" />
-                                    <span className="text-[11px] font-semibold uppercase tracking-wider">Le saviez-vous ?</span>
+                                    <span className="text-caption font-semibold uppercase tracking-wider">Le saviez-vous ?</span>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed opacity-70">
+                                <p className="text-caption text-muted-foreground leading-relaxed opacity-70">
                                     SigilOS est multi-guilde. Vous pouvez passer d'un empire à l'autre sans jamais vous déconnecter. Toutes vos récompenses sont centralisées sur votre profil global.
                                 </p>
                             </div>
@@ -203,19 +203,19 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
 
                 <div className="p-8 border-t border-white/5 bg-black/40 backdrop-blur-md relative z-10 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                        <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Session Active</div>
+                        <div className="text-caption font-semibold text-zinc-500 uppercase tracking-wider mb-1">Session Active</div>
                         <Link 
                             href="/api/auth/signout"
-                            className="text-[12px] font-semibold text-white hover:text-red-400 transition-colors truncate group/logout flex items-center gap-2"
+                            className="text-label font-semibold text-white hover:text-red-400 transition-colors truncate group/logout flex items-center gap-2"
                         >
                             Explorateur Galactique
-                            <span className="text-[10px] opacity-0 group-hover/logout:opacity-100 transition-opacity text-red-500 lowercase font-mono">(déconnexion)</span>
+                            <span className="text-caption opacity-0 group-hover/logout:opacity-100 transition-opacity text-red-500 lowercase font-mono">(déconnexion)</span>
                         </Link>
                     </div>
                     <Button 
                         onClick={() => setOpen(false)}
                         variant="outline"
-                        className="h-auto px-5 py-2.5 rounded-xl border-white/10 bg-white/5 text-[11px] font-semibold uppercase tracking-wider hover:bg-white/10 hover:text-emerald-400 transition-colors"
+                        className="h-auto px-5 py-2.5 rounded-xl border-white/10 bg-white/5 text-caption font-semibold uppercase tracking-wider hover:bg-white/10 hover:text-emerald-400 transition-colors"
                     >
                         Fermer
                     </Button>

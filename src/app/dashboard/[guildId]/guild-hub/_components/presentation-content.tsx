@@ -28,7 +28,7 @@ export default function PresentationContent({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all",
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-full border text-caption font-black uppercase tracking-widest transition-all",
                                     guild.isRecruiting
                                         ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                                         : "bg-zinc-500/10 border-white/10 text-zinc-500"
@@ -37,7 +37,7 @@ export default function PresentationContent({
                                     {guild.isRecruiting ? "Public" : "Désactivé"}
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent className="bg-zinc-900 border-white/10 text-[10px] font-medium text-zinc-300">
+                            <TooltipContent className="bg-zinc-900 border-white/10 text-caption font-medium text-zinc-300">
                                 {guild.isRecruiting
                                     ? "Visible dans l'annuaire public"
                                     : "Caché. Activez-le dans la configuration."}
@@ -53,7 +53,7 @@ export default function PresentationContent({
                     </Link>
                     {canEdit && (
                         <Link href={`/dashboard/${guildId}/admin/presentation`}>
-                            <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-black h-9">
+                            <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-bold h-9">
                                 <Edit className="w-4 h-4" />
                                 Modifier
                             </Button>
@@ -63,7 +63,7 @@ export default function PresentationContent({
             </div>
 
             {!guild.history && (
-                <Alert className="bg-indigo-500/5 border-indigo-500/20 text-indigo-400">
+                <Alert className="bg-emerald-500/5 border-emerald-500/20 text-emerald-400">
                     <Sparkles className="h-4 w-4" />
                     <AlertTitle className="text-xs font-black uppercase tracking-widest">Page non configurée</AlertTitle>
                     <AlertDescription className="text-sm font-medium opacity-80">
@@ -122,16 +122,16 @@ export default function PresentationContent({
 
                     {/* History */}
                     {guild.history ? (
-                        <Card className="border-zinc-800 bg-zinc-900/50">
+                        <Card className="border-zinc-800 bg-zinc-900/50 overflow-hidden">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Globe className="w-5 h-5 text-indigo-400" />
+                                    <Globe className="w-5 h-5 text-emerald-400" />
                                     Histoire
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="prose prose-invert prose-zinc max-w-none">
-                                    <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+                                    <p className="whitespace-pre-wrap break-words overflow-hidden text-zinc-300 leading-relaxed">
                                         {guild.history}
                                     </p>
                                 </div>
@@ -174,7 +174,7 @@ export default function PresentationContent({
                     <Card className="border-zinc-800 bg-zinc-900/50">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <Users className="w-5 h-5 text-indigo-400" />
+                                <Users className="w-5 h-5 text-emerald-400" />
                                 Organisation
                             </CardTitle>
                         </CardHeader>
@@ -219,7 +219,7 @@ export default function PresentationContent({
                     <Card className="border-zinc-800 bg-zinc-900/50">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <Swords className="w-5 h-5 text-pink-400" />
+                                <Swords className="w-5 h-5 text-emerald-400" />
                                 Recrutement
                             </CardTitle>
                         </CardHeader>

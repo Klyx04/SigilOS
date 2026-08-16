@@ -95,7 +95,7 @@ export function FeaturedEventsCarousel({ events, onEventClick }: FeaturedEventsC
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3 }}
                     className={cn(
-                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-zinc-900/50 backdrop-blur-md transition-all hover:bg-zinc-800/50 hover:scale-105 hover:border-zinc-700 group",
+                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-zinc-900/50 backdrop-blur-md transition-all hover:bg-zinc-800/50  hover:border-zinc-700 group",
                         config.bg.replace("/10", "/20").replace("border-", "border-zinc-800/50 ")
                     )}
                 >

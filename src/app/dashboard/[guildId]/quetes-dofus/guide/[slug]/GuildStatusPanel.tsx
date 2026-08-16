@@ -139,11 +139,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
               Progression Dofus
             </span>
           </div>
-          <span className="text-[9px] font-black text-indigo-400">
+          <span className="text-caption font-black text-indigo-400">
             {totalMembers} membre{totalMembers > 1 ? "s" : ""}
           </span>
         </div>
@@ -169,18 +169,18 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 <img
                   src={d.imageUrl}
                   alt={d.label}
-                  className="w-7 h-7 object-contain drop-shadow-lg group-hover:scale-110 transition-transform"
+                  className="w-7 h-7 object-contain drop-shadow-lg group- transition-transform"
                 />
 
                 {/* Label — truncated */}
-                <span className="text-[7px] font-black uppercase tracking-widest truncate max-w-full leading-tight" style={{ color: d.color }}>
+                <span className="text-caption font-black uppercase tracking-widest truncate max-w-full leading-tight" style={{ color: d.color }}>
                   {d.label}
                 </span>
 
                 {/* Mini progress bar */}
                 <div className="w-full h-1 bg-zinc-800/60 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
+                    className="h-full rounded-full transition-all duration-300"
                     style={{
                       width: `${d.pct}%`,
                       background: `linear-gradient(90deg, ${d.color}, ${d.color}99)`,
@@ -189,7 +189,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 </div>
 
                 {/* Percentage compact */}
-                <span className="text-[7px] font-mono font-bold text-zinc-500">
+                <span className="text-caption font-mono font-bold text-zinc-500">
                   {d.pct}%
                 </span>
               </button>
@@ -227,7 +227,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                   />
                   <div>
                     <h3 className="text-base font-black text-white">{selectedDofus.label}</h3>
-                    <p className="text-[10px] text-zinc-500 font-mono">
+                    <p className="text-caption text-zinc-500 font-mono">
                       {selectedDofus.completedMilestones}/{selectedDofus.totalMilestones} blocs — {selectedDofus.pct}%
                     </p>
                   </div>
@@ -243,7 +243,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
               {/* Progress bar large */}
               <div className="h-2 bg-zinc-800/60 rounded-full overflow-hidden mb-5">
                 <div
-                  className="h-full rounded-full transition-all duration-700"
+                  className="h-full rounded-full transition-all duration-300"
                   style={{
                     width: `${selectedDofus.pct}%`,
                     background: `linear-gradient(90deg, ${selectedDofus.color}, ${selectedDofus.color}99)`,
@@ -259,7 +259,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2">
+                  <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">
                     Membres ({selectedDofus.membersInProgress.length})
                   </p>
                   {selectedDofus.membersInProgress.map((m) => (
@@ -267,7 +267,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                       key={m.profileId}
                       className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800/40 border border-zinc-800/50 hover:border-zinc-700/50 transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-black text-zinc-300 overflow-hidden shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-caption font-black text-zinc-300 overflow-hidden shrink-0">
                         {m.userAvatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
@@ -278,20 +278,20 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-bold text-white truncate">{m.userName}</p>
-                          <span className="text-[10px] font-mono font-black" style={{ color: selectedDofus.color }}>
+                          <span className="text-caption font-mono font-black" style={{ color: selectedDofus.color }}>
                             {m.pct}%
                           </span>
                         </div>
                         <div className="h-1.5 bg-zinc-800/60 rounded-full overflow-hidden mt-1.5">
                           <div
-                            className="h-full rounded-full transition-all duration-500"
+                            className="h-full rounded-full transition-all duration-300"
                             style={{
                               width: `${m.pct}%`,
                               background: selectedDofus.color,
                             }}
                           />
                         </div>
-                        <p className="text-[8px] text-zinc-500 mt-0.5 font-mono">
+                        <p className="text-caption text-zinc-500 mt-0.5 font-mono">
                           {m.completed}/{m.total} blocs
                         </p>
                       </div>
@@ -303,7 +303,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
               {/* Footer close */}
               <button
                 onClick={() => setModalDofus(null)}
-                className="w-full mt-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+                className="w-full mt-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-caption font-black uppercase tracking-widest transition-colors"
               >
                 Fermer
               </button>

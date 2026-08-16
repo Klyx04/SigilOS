@@ -1,0 +1,80 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CalendarClock } from "lucide-react";
+import { getISOWeek, getYear } from "date-fns";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+/**
+ * Rappel hebdomadaire « remplis ta semaine de disponibilités ».
+ * - Ne s'affiche JAMAIS si le module n'est pas activé côté admin (props `enabled` calculée serveur).
+ * - Ne s'affiche JAMAIS pendant l'onboarding de la guilde (server-side).
+ * - Max 1 fois par semaine par navigateur : marquage immédiat en localStorage (clé = semaine ISO).
+ */
+const STORAGE_KEY = "sigil-availability-reminder-week";
+
+function currentWeekKey(): string {
+    const now = new Date();
+    return `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+}
+
+export function AvailabilityReminderPopup({ guildId, enabled }: { guildId: string; enabled: boolean }) {
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        if (!enabled) return;
+        try {
+            const week = currentWeekKey();
+            const seen = localStorage.getItem(STORAGE_KEY);
+            if (seen === week) return;
+            // Marquage immédiat : on ne re-spamme JAMAIS dans la même semaine,
+            // même si l'utilisateur ferme la popup.
+            localStorage.setItem(STORAGE_KEY, week);
+            setOpen(true);
+        } catch {
+            // localStorage indisponible → silencieux
+        }
+    }, [enabled]);
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="max-w-md border-white/10">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-base">
+                        <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                            <CalendarClock className="w-4 h-4 text-emerald-400" />
+                        </span>
+                        Votre semaine de disponibilités
+                    </DialogTitle>
+                    <DialogDescription className="leading-relaxed">
+                        Votre planning hebdomadaire n&apos;est pas encore renseigné. En 30 secondes,
+                        indiquez vos créneaux de jeu — ça aide les officiers à planifier les raids
+                        et événements de la guilde.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                        asChild
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                    >
+                        <Link href={`/dashboard/${guildId}/profile?tab=planning`}>
+                            Remplir ma semaine
+                        </Link>
+                    </Button>
+                    <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+                        Plus tard
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

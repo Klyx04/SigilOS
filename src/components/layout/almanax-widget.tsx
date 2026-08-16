@@ -27,7 +27,7 @@ export async function AlmanaxWidget() {
                                     alt={data.tribute.item.name}
                                     width={36}
                                     height={36}
-                                    className="object-contain w-full h-full drop-shadow-md group-hover:scale-110 transition-transform"
+                                    className="object-contain w-full h-full drop-shadow-md group- transition-transform"
                                 />
                             ) : (
                                 <Package className="h-full w-full p-2 text-zinc-500" />
@@ -36,11 +36,11 @@ export async function AlmanaxWidget() {
 
                         {/* Text Info */}
                         <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5 leading-tight">
+                            <span className="text-caption text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5 leading-tight">
                                 <Calendar className="h-3 w-3 text-amber-500/80" />
                                 Almanax
                             </span>
-                            <span className="text-[12px] font-black text-zinc-200 truncate group-hover:text-amber-400 transition-colors leading-tight">
+                            <span className="text-label font-black text-zinc-200 truncate group-hover:text-amber-400 transition-colors leading-tight">
                                 {data.bonus.type.name}
                             </span>
                         </div>

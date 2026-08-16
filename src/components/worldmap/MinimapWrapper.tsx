@@ -73,7 +73,7 @@ export default function MinimapWrapper({
         return (
             <button
                 onClick={() => setIsHidden(false)}
-                className="fixed bottom-10 right-10 z-[300] p-4 bg-slate-900/90 backdrop-blur-xl border border-emerald-500/50 rounded-full shadow-2xl text-emerald-500 hover:scale-110 transition-all pointer-events-auto shadow-emerald-500/20 animate-in fade-in zoom-in-50"
+                className="fixed bottom-10 right-10 z-[300] p-4 bg-slate-900/90 backdrop-blur-xl border border-emerald-500/50 rounded-full shadow-2xl text-emerald-500  transition-all pointer-events-auto shadow-emerald-500/20 animate-in fade-in zoom-in-50"
             >
                 <Eye size={24} />
             </button>
@@ -107,7 +107,7 @@ export default function MinimapWrapper({
                 <div className="absolute top-4 right-4 z-50 flex flex-col gap-2 map-controls opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden">
                         <button onClick={onZoomIn} className="p-2 hover:bg-white/10 text-white/60 hover:text-white transition-all"><Plus size={16} /></button>
-                        <div className="px-2 py-2 text-[10px] font-black text-emerald-400 border-x border-white/5 flex items-center">{Math.round((zoomLevel + 4) * 20)}%</div>
+                        <div className="px-2 py-2 text-caption font-black text-emerald-400 border-x border-white/5 flex items-center">{Math.round((zoomLevel + 4) * 20)}%</div>
                         <button onClick={onZoomOut} className="p-2 hover:bg-white/10 text-white/60 hover:text-white transition-all"><Minus size={16} /></button>
                     </div>
 

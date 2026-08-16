@@ -189,7 +189,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                             {member.linkedStuffThumbnail && (
                                                 <img src={member.linkedStuffThumbnail} className="w-5 h-5 rounded object-cover border border-white/10" alt="" />
                                             )}
-                                            <span className="text-[10px] font-bold text-indigo-300 group-hover:text-indigo-200 truncate max-w-[120px]">
+                                            <span className="text-caption font-bold text-indigo-300 group-hover:text-indigo-200 truncate max-w-[120px]">
                                                 {member.linkedStuffName || "Voir le stuff"}
                                             </span>
                                         </a>

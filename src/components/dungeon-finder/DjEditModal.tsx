@@ -120,7 +120,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                     )}
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs font-bold text-white truncate">{d.name}</p>
-                                        <p className="text-[10px] text-slate-500">
+                                        <p className="text-caption text-slate-500">
                                             Lvl {d.level}
                                             {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
                                             {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
@@ -137,7 +137,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                             <CalendarClock className="w-3.5 h-3.5 text-indigo-400" />
                             Date prévue <span className="text-rose-500">*</span>
-                            <span className="text-slate-600 font-normal text-[10px] normal-case ml-1">(heure optionnelle)</span>
+                            <span className="text-slate-600 font-normal text-caption normal-case ml-1">(heure optionnelle)</span>
                         </label>
                         <DateTimePicker
                             value={targetDate}
@@ -169,7 +169,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                                     <Link2 className="w-3.5 h-3.5 text-amber-400" />
                                     Tutoriel Noobs
-                                    <span className="text-[10px] text-slate-500 font-normal">(optionnel)</span>
+                                    <span className="text-caption text-slate-500 font-normal">(optionnel)</span>
                                 </label>
                                 <input
                                     type="url"
@@ -218,7 +218,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                         <button
                                             key={a.id}
                                             onClick={() => toggleAchievement(a.id)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold transition-all ${selected
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-caption font-bold transition-all ${selected
                                                 ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
                                                 : "border-white/5 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-slate-300"
                                                 }`}
@@ -239,7 +239,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex justify-between items-center mb-1.5">
                             Classes demandées
-                            <span className="text-[10px] text-slate-500 font-normal normal-case">{requiredClasses.length} sélec.</span>
+                            <span className="text-caption text-slate-500 font-normal normal-case">{requiredClasses.length} sélec.</span>
                         </label>
                         <div className="grid grid-cols-9 sm:grid-cols-10 gap-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
                             {DOFUS_CLASSES.map((c) => {
@@ -280,7 +280,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             placeholder="Ex : Je cherche des gens stuffs pour clean vite…"
                             className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner resize-none transition-all"
                         />
-                        <p className="text-[10px] text-slate-500 text-right font-medium">{message.length}/500</p>
+                        <p className="text-caption text-slate-500 text-right font-medium">{message.length}/500</p>
                     </div>
                 </div>
 

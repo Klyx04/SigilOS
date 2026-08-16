@@ -52,19 +52,19 @@ export function RaidHeroBanner({
     const pad = (n: number) => String(n).padStart(2, "0");
 
     return (
-        <div className="relative group overflow-hidden rounded-3xl border border-red-500/20 bg-zinc-950/80 animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="relative group overflow-hidden rounded-3xl border border-red-500/20 bg-zinc-950/80 animate-in fade-in slide-in-from-top-4 duration-300">
             {/* Ambient glow */}
-            <div className="absolute -inset-4 bg-red-500/10 blur-3xl pointer-events-none opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+            <div className="absolute -inset-4 bg-red-500/10 blur-3xl pointer-events-none opacity-60 group-hover:opacity-90 transition-opacity duration-300" />
             {/* Scanline overlay */}
             <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(239,68,68,0.02)_2px,rgba(239,68,68,0.02)_4px)] pointer-events-none" />
             {/* Animated border glow */}
-            <div className="absolute inset-0 rounded-3xl ring-1 ring-red-500/30 group-hover:ring-red-500/50 transition-all duration-500" />
+            <div className="absolute inset-0 rounded-3xl ring-1 ring-red-500/30 group-hover:ring-red-500/50 transition-all duration-300" />
 
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6 p-6 md:p-8">
                 {/* Icon + Status */}
                 <div className="flex items-center gap-4 shrink-0">
                     <div className="relative">
-                        <div className="h-16 w-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.25)] group-hover:shadow-[0_0_50px_rgba(239,68,68,0.4)] transition-shadow duration-500">
+                        <div className="h-16 w-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center   transition-shadow duration-300">
                             <Swords className="w-8 h-8 text-red-400" />
                         </div>
                         {/* Pulse ring */}
@@ -76,7 +76,7 @@ export function RaidHeroBanner({
                         </span>
                     </div>
                     <div className="md:hidden">
-                        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-red-400 block">Raid Officiel</span>
+                        <span className="text-caption font-black uppercase tracking-widest text-red-400 block">Raid Officiel</span>
                         <span className="text-xs text-zinc-500 font-bold uppercase tracking-widest">En cours maintenant</span>
                     </div>
                 </div>
@@ -84,7 +84,7 @@ export function RaidHeroBanner({
                 {/* Main Content */}
                 <div className="flex-1 min-w-0 space-y-3">
                     <div className="hidden md:block">
-                        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-red-400">Raid Officiel · En cours</span>
+                        <span className="text-caption font-black uppercase tracking-widest text-red-400">Raid Officiel · En cours</span>
                     </div>
                     <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase italic leading-tight">
                         {raid.title}
@@ -108,11 +108,11 @@ export function RaidHeroBanner({
                         <div className="w-full max-w-xs space-y-1">
                             <div className="h-1.5 bg-zinc-900 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-red-600 to-red-400 rounded-full transition-all duration-700"
+                                    className="h-full bg-gradient-to-r from-red-600 to-red-400 rounded-full transition-all duration-300"
                                     style={{ width: `${fillPct}%` }}
                                 />
                             </div>
-                            <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">
+                            <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest">
                                 {fillPct >= 100 ? "Raid complet" : `${Math.round(fillPct)}% de places prises`}
                             </p>
                         </div>
@@ -123,7 +123,7 @@ export function RaidHeroBanner({
                 <div className="flex flex-col items-start md:items-end gap-4 shrink-0">
                     {countdown ? (
                         <div className="flex flex-col items-start md:items-end gap-1">
-                            <span className="text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600 flex items-center gap-1.5">
+                            <span className="text-caption font-black uppercase tracking-widest text-zinc-600 flex items-center gap-1.5">
                                 <Clock className="w-3 h-3" />
                                 Se termine dans
                             </span>
@@ -141,12 +141,12 @@ export function RaidHeroBanner({
                             </div>
                         </div>
                     ) : (
-                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Raid terminé</span>
+                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Raid terminé</span>
                     )}
 
                     <Button
                         asChild
-                        className="h-11 bg-red-500 hover:bg-red-400 text-white font-black px-6 rounded-2xl group/btn transition-all hover:scale-105 active:scale-95 shadow-[0_8px_24px_rgba(239,68,68,0.35)]"
+                        className="h-11 bg-red-500 hover:bg-red-400 text-white font-black px-6 rounded-2xl group/btn transition-all  active:scale-95 shadow-[0_8px_24px_rgba(239,68,68,0.35)]"
                     >
                         <Link href={`/dashboard/${guildId}/calendar?event=${raid.id}`}>
                             <span className="flex items-center gap-2">

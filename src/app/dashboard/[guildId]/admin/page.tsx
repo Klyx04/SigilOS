@@ -158,16 +158,17 @@ function buildSections(guildId: string): AdminSection[] {
 }
 
 // Accent color map → Tailwind classes (static strings for purge safety)
+// #5 — Accent unique emerald (fini l'arc-en-ciel par carte admin)
 const ACCENT: Record<string, { border: string; hover: string; text: string; bg: string }> = {
-    violet: { border: "hover:border-violet-500/50", hover: "hover:bg-violet-500/5", text: "text-violet-400", bg: "bg-violet-500/10" },
-    blue: { border: "hover:border-blue-500/50", hover: "hover:bg-blue-500/5", text: "text-blue-400", bg: "bg-blue-500/10" },
-    slate: { border: "hover:border-slate-500/50", hover: "hover:bg-slate-500/5", text: "text-slate-400", bg: "bg-slate-500/10" },
-    indigo: { border: "hover:border-indigo-500/50", hover: "hover:bg-indigo-500/5", text: "text-indigo-400", bg: "bg-indigo-500/10" },
-    green: { border: "hover:border-green-500/50", hover: "hover:bg-green-500/5", text: "text-green-400", bg: "bg-green-500/10" },
-    emerald: { border: "hover:border-emerald-500/50", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    amber: { border: "hover:border-amber-500/50", hover: "hover:bg-amber-500/5", text: "text-amber-400", bg: "bg-amber-500/10" },
-    rose: { border: "hover:border-rose-500/50", hover: "hover:bg-rose-500/5", text: "text-rose-400", bg: "bg-rose-500/10" },
-    cyan: { border: "hover:border-cyan-500/50", hover: "hover:bg-cyan-500/5", text: "text-cyan-400", bg: "bg-cyan-500/10" },
+    violet: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    blue: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    slate: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    indigo: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    green: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    emerald: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    amber: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    rose: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    cyan: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
 };
 
 // ============================================================================
@@ -260,14 +261,14 @@ export default async function AdminPage({
                             : "admin-overview-supervision";
 
                     return (
-                        <div key={section.label} data-tour={sectionTourId} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <div key={section.label} data-tour={sectionTourId} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-300">
                             {/* Section header: Industrial Tech Style */}
                             <div className="flex items-center gap-6">
-                                <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]">
+                                <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 ">
                                     <SectionIcon className="w-5 h-5 text-rose-500" />
                                 </div>
                                 <div className="space-y-1">
-                                    <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-rose-500/80">
+                                    <h2 className="text-caption font-black uppercase tracking-widest text-rose-500/80">
                                         {section.label}
                                     </h2>
                                     <div className="h-0.5 w-24 bg-gradient-to-r from-rose-500 to-transparent" />
@@ -313,7 +314,7 @@ export default async function AdminPage({
                     <div className="flex flex-col items-center gap-6 text-center relative z-10">
                         <div className="h-1 w-12 bg-rose-500/40 rounded-full" />
                         <div className="space-y-2">
-                             <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">SigilOS Command Center</h4>
+                             <h4 className="text-caption font-black text-zinc-500 uppercase tracking-widest">SigilOS Command Center</h4>
                              <p className="text-xs text-zinc-600 font-bold uppercase tracking-tight italic">Toutes les actions administratives sont tracées dans l'Audit Log.</p>
                         </div>
                     </div>

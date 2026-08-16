@@ -200,11 +200,11 @@ export default function LegendaryManager() {
                                             {item.name}
                                         </h4>
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-slate-700 text-slate-400 bg-slate-800/50">
+                                            <Badge variant="outline" className="text-caption px-1.5 py-0 border-slate-700 text-slate-400 bg-slate-800/50">
                                                 {item.category}
                                             </Badge>
                                         </div>
-                                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                        <div className="flex items-center gap-2 text-caption text-slate-500">
                                             {job && (
                                                 <div className="flex items-center gap-1">
                                                     <div className="relative w-3.5 h-3.5">
@@ -278,7 +278,7 @@ export default function LegendaryManager() {
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, category: cat })}
                                                     className={cn(
-                                                        "px-2 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wide border transition-all",
+                                                        "px-2 py-2 rounded-lg text-caption font-bold uppercase tracking-wide border transition-all",
                                                         formData.category === cat
                                                             ? "bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/30"
                                                             : "bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200"
@@ -311,7 +311,7 @@ export default function LegendaryManager() {
                                                     <div className="relative w-8 h-8">
                                                         <Image src={job.icon} alt={job.name} fill className="object-contain" />
                                                     </div>
-                                                    <span className="text-[9px] font-black uppercase tracking-tight leading-none text-center">
+                                                    <span className="text-caption font-black uppercase tracking-tight leading-none text-center">
                                                         {job.name}
                                                     </span>
                                                 </button>

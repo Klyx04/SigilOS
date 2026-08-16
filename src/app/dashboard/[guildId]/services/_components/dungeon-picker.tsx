@@ -149,7 +149,7 @@ export function DungeonPicker({ guildId, onSelect, value, disabled = false }: Du
                                 <p className="text-xs text-zinc-500 truncate">Boss: {dungeon.bossName} • Niv. {dungeon.level}</p>
                             </div>
                             {dungeon.achievements.length > 0 && (
-                                <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-[10px] flex-shrink-0">
+                                <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-caption flex-shrink-0">
                                     {dungeon.achievements.length} succès
                                 </Badge>
                             )}

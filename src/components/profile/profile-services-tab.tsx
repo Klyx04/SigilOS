@@ -55,7 +55,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                     </div>
                     <div>
                         <h3 className="text-base font-black text-white uppercase tracking-wider">Services Proposés</h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Listings actifs sur la plateforme</p>
+                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Listings actifs sur la plateforme</p>
                     </div>
                 </div>
 
@@ -123,7 +123,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20 mb-1.5">
+                                        <span className="inline-flex items-center gap-1 text-caption font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20 mb-1.5">
                                             <Tag className="w-3 h-3" /> {service.category}
                                         </span>
                                         <h4 className="text-sm font-black text-white group-hover:text-orange-300 transition-colors leading-tight">
@@ -156,7 +156,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                     </p>
                                 )}
 
-                                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-zinc-500 font-medium">
+                                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-caption text-zinc-500 font-medium">
                                     <span className="flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
                                         Publié {formatDistanceToNow(new Date(service.createdAt), { addSuffix: true, locale: fr })}

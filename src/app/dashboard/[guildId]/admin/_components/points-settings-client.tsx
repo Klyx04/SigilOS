@@ -66,7 +66,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 text-[10px] font-black text-white/40 uppercase tracking-widest">
+                <div className="flex items-center gap-2.5 text-caption font-black text-white/40 uppercase tracking-widest">
                     <Shield className="w-4 h-4 text-emerald-400" />
                     Points attribués à la clôture — réservé aux administrateurs
                 </div>
@@ -75,7 +75,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
                         variant="outline"
                         onClick={handleReset}
                         disabled={isPending}
-                        className="h-10 border-white/10 bg-white/5 hover:bg-white/10 text-white/70 text-[10px] font-black uppercase tracking-widest"
+                        className="h-10 border-white/10 bg-white/5 hover:bg-white/10 text-white/70 text-caption font-black uppercase tracking-widest"
                     >
                         <RotateCcw className="w-3.5 h-3.5 mr-2" />
                         Défauts
@@ -83,7 +83,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
                     <Button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest"
+                        className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white text-caption font-black uppercase tracking-widest"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                         Enregistrer
@@ -104,7 +104,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
                         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {FIELDS.filter((f) => f.group === group).map((f) => (
                                 <label key={f.key} className="space-y-1.5 block">
-                                    <span className="flex items-center justify-between text-[10px] font-bold text-white/60 uppercase tracking-wider">
+                                    <span className="flex items-center justify-between text-caption font-bold text-white/60 uppercase tracking-wider">
                                         {f.label}
                                         <span className="text-white/25 normal-case font-medium">{f.hint}</span>
                                     </span>

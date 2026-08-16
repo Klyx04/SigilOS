@@ -70,7 +70,7 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
         <div className="flex items-center gap-2 flex-1 min-w-0 text-left">
           <Users className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span className="text-xs font-black text-emerald-300 uppercase tracking-wider truncate">{title}</span>
-          <span className="text-[9px] font-mono text-zinc-500 flex-shrink-0">
+          <span className="text-caption font-mono text-zinc-500 flex-shrink-0">
             {members.filter((m) => completedIds.has(m.seqId)).length}/{members.length}
           </span>
         </div>
@@ -83,7 +83,7 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
                 e.stopPropagation();
                 onToggleAll(true);
               }}
-              className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm"
+              className="text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm"
               title="Tout marquer fait"
             >
               Tout ✓
@@ -130,13 +130,13 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <span className={`text-[10px] font-bold ${
+                    <span className={`text-caption font-bold ${
                       completedIds.has(m.seqId) ? "text-zinc-400 line-through" : "text-white"
                     }`}>
                       {m.questName}
                     </span>
                     {m.dungeonName && (
-                      <span className="text-[8px] text-zinc-500 ml-1.5 italic">{m.dungeonName}</span>
+                      <span className="text-caption text-zinc-500 ml-1.5 italic">{m.dungeonName}</span>
                     )}
                   </div>
                 </div>

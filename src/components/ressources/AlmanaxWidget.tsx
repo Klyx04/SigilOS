@@ -79,7 +79,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
 
     return (
         <div
-            className="relative overflow-hidden rounded-2xl p-6 transition-all duration-500"
+            className="relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
             style={{
                 background: "linear-gradient(135deg, #13100a 0%, #0d100d 100%)",
                 border: `1px solid ${color}22`,
@@ -96,7 +96,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
 
             <div className="relative flex items-start gap-6">
                 <div className="flex-shrink-0 space-y-1 pt-1">
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color }}>
+                    <div className="text-caption font-black uppercase tracking-widest" style={{ color }}>
                         {dayOffset === 0 ? "✦ Aujourd'hui" : dayOffset === 1 ? "✦ Demain" : `✦ J+${dayOffset}`}
                     </div>
                     <div className="text-6xl font-black text-white leading-none tracking-tight">{d.getUTCDate()}</div>
@@ -107,7 +107,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
 
                 <div className="flex-1 space-y-4 min-w-0">
                     {item.bonus.type?.name && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-caption font-black uppercase tracking-widest"
                             style={{ background: `${color}15`, color, border: `1px solid ${color}30` }}>
                             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: color }} />
                             {emoji} {item.bonus.type.name}
@@ -126,7 +126,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                                     : <span className="text-lg">🎁</span>}
                             </div>
                             <div>
-                                <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">Offrande</div>
+                                <div className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Offrande</div>
                                 <div className="text-white text-sm font-semibold">
                                     <span style={{ color }}>{item.tribute.quantity}×</span> {item.tribute.item.name}
                                 </div>
@@ -134,7 +134,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                         </div>
                         {item.reward_kamas && (
                             <div className="ml-auto text-right">
-                                <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">Récompense</div>
+                                <div className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Récompense</div>
                                 <div className="font-black text-lg" style={{ color }}>{formatKamas(item.reward_kamas)}</div>
                             </div>
                         )}
@@ -147,7 +147,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                         <div className="relative w-24 h-24 rounded-2xl flex items-center justify-center"
                             style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${color}30` }}>
                             <Image src={iconSd} alt={item.tribute.item.name} width={88} height={88}
-                                className="object-contain hover:scale-110 transition-transform duration-500" unoptimized />
+                                className="object-contain  transition-transform duration-300" unoptimized />
                         </div>
                     </div>
                 )}
@@ -188,15 +188,15 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
                             boxShadow: selected ? `0 0 20px -6px ${color}40` : "none",
                         }}>
                         {selected && <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />}
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{DAYS_FR[d.getUTCDay()]}</div>
+                        <div className="text-caption font-black uppercase tracking-widest text-zinc-500">{DAYS_FR[d.getUTCDay()]}</div>
                         <div className="text-xl font-black text-white leading-none">{d.getUTCDate()}</div>
-                        <div className="text-[8px] text-zinc-600">{MONTHS_SHORT[d.getUTCMonth()]}</div>
+                        <div className="text-caption text-zinc-600">{MONTHS_SHORT[d.getUTCMonth()]}</div>
                         <div className="w-9 h-9 flex items-center justify-center">
                             {icon
-                                ? <Image src={icon} alt={item.tribute.item.name} width={32} height={32} className="object-contain group-hover:scale-110 transition-transform" unoptimized />
+                                ? <Image src={icon} alt={item.tribute.item.name} width={32} height={32} className="object-contain group- transition-transform" unoptimized />
                                 : <span className="text-base">🎁</span>}
                         </div>
-                        <div className="text-[8px] text-zinc-400 leading-tight line-clamp-2 w-full h-6">{item.tribute.item.name}</div>
+                        <div className="text-caption text-zinc-400 leading-tight line-clamp-2 w-full h-6">{item.tribute.item.name}</div>
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none"
                             style={{ background: `radial-gradient(circle at center, ${color}10, transparent)` }} />
                     </button>
@@ -265,7 +265,7 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
                 <button
                     onClick={() => handleFilterClick("Tous")}
                     className={cn(
-                        "px-3 py-1 text-[11px] rounded-full transition-all border font-medium whitespace-nowrap",
+                        "px-3 py-1 text-caption rounded-full transition-all border font-medium whitespace-nowrap",
                         activeFilter === "Tous"
                             ? "bg-white/10 text-white border-white/20"
                             : "bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
@@ -281,7 +281,7 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
                         <button key={type}
                             onClick={() => handleFilterClick(type)}
                             className={cn(
-                                "flex items-center gap-1.5 px-3 py-1 text-[11px] rounded-full transition-all border font-medium whitespace-nowrap opacity-90 hover:opacity-100"
+                                "flex items-center gap-1.5 px-3 py-1 text-caption rounded-full transition-all border font-medium whitespace-nowrap opacity-90 hover:opacity-100"
                             )}
                             style={isActive
                                 ? { background: `${color}20`, border: `1px solid ${color}40`, color }

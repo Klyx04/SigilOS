@@ -225,7 +225,7 @@ function EventRow({
                 </div>
                 <div className={cn(
                     "flex items-center gap-2 text-xs text-zinc-500 mt-0.5",
-                    compact && "text-[10px]"
+                    compact && "text-caption"
                 )}>
                     <Clock className="h-3 w-3" />
                     {isTodays ? (
@@ -312,7 +312,7 @@ export function UpcomingEventsBadge({
             <Badge
                 variant="outline"
                 className={cn(
-                    "h-5 text-[10px] font-bold",
+                    "h-5 text-caption font-bold",
                     isUrgent ? "border-orange-500/50 text-orange-300" : "border-zinc-600 text-zinc-400"
                 )}
             >

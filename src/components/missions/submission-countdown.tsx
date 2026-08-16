@@ -57,7 +57,7 @@ export function SubmissionCountdown({ createdAt, className }: Props) {
 
     return (
         <div className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all shadow-lg backdrop-blur-sm",
+            "flex items-center gap-1.5 px-2 py-1 rounded-md text-caption font-bold uppercase tracking-wider transition-all shadow-lg backdrop-blur-sm",
             isUrgent
                 ? "bg-red-500/40 text-red-200 border border-red-500/60 animate-pulse"
                 : percentLeft < 50
@@ -73,7 +73,7 @@ export function SubmissionCountdown({ createdAt, className }: Props) {
             <div className="w-12 h-1 bg-black/60 rounded-full overflow-hidden ml-1">
                 <div
                     className={cn(
-                        "h-full transition-all duration-1000",
+                        "h-full transition-all duration-300",
                         isUrgent
                             ? "bg-red-400"
                             : percentLeft < 50

@@ -42,7 +42,7 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                     <div className="space-y-4">
                         {/* Map Viewer Preview */}
                         <div className="space-y-1.5">
-                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block">Coordonnées de ralliement</span>
+                            <span className="text-caption font-black text-cyan-400 uppercase tracking-wider block">Coordonnées de ralliement</span>
                             <div className="w-full h-40 rounded-2xl overflow-hidden border border-white/10 relative">
                                 <MapViewer 
                                     initialX={posX} 
@@ -51,7 +51,7 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                                     initialWorldId={worldId ?? 1} 
                                     hideUI={true} 
                                 />
-                                <div className="absolute top-2 right-2 bg-black/85 border border-cyan-500/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-[10px] font-mono font-black text-cyan-400">
+                                <div className="absolute top-2 right-2 bg-black/85 border border-cyan-500/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-caption font-mono font-black text-cyan-400">
                                     [{posX}, {posY}]
                                 </div>
                             </div>
@@ -69,7 +69,7 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                             {copied ? (
                                 <><Check className="w-4 h-4" /> Copié !</>
                             ) : (
-                                <><Copy className="w-4 h-4 group-hover:scale-110 transition-transform" /> Copier /travel [{posX}, {posY}]</>
+                                <><Copy className="w-4 h-4 group- transition-transform" /> Copier /travel [{posX}, {posY}]</>
                             )}
                         </button>
                     </div>

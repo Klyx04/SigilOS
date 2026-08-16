@@ -164,7 +164,7 @@ export function MonsterCard({
                         {hasAvailableExchange && !showOwnersSection && (
                             <Badge
                                 variant="outline"
-                                className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                className="text-caption px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
                             >
                                 <Sparkles className="h-2.5 w-2.5 mr-1" />
                                 {availableHelpers} membre{availableHelpers > 1 ? "s" : ""}
@@ -288,7 +288,7 @@ function OwnerBadge({
                         <User className="h-3 w-3" />
                         {owner.characterName}
                     </Link>
-                    <span className="text-[10px] text-primary/70">x{owner.monstersTheyHave[0]?.available || 1}</span>
+                    <span className="text-caption text-primary/70">x{owner.monstersTheyHave[0]?.available || 1}</span>
                     <button
                         onClick={onCopy}
                         className="ml-0.5 p-0.5 rounded hover:bg-primary/30 transition-colors"

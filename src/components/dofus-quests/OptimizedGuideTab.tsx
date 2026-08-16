@@ -77,7 +77,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
         const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
 
         return (
-            <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {/* Header / Back */}
                 <div className="flex items-center justify-between">
                     <button 
@@ -92,14 +92,14 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
 
                     <div className="flex items-center gap-4">
                         <div className="hidden md:flex flex-col items-end">
-                            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-tighter">Votre progression</span>
+                            <span className="text-caption font-black uppercase text-zinc-500 tracking-tighter">Votre progression</span>
                             <span className="text-sm font-bold text-emerald-400">{completedSteps} / {totalSteps} Étapes</span>
                         </div>
                         <div className="w-32 h-2 bg-zinc-800 rounded-full overflow-hidden">
                             <motion.div 
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progressPercent}%` }}
-                                className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                                className="h-full bg-emerald-500 "
                             />
                         </div>
                     </div>
@@ -139,8 +139,8 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                                             className={`relative z-10 flex items-start gap-6 cursor-pointer group transition-all duration-300 ${active ? 'scale-105' : 'opacity-60 hover:opacity-100'}`}
                                         >
                                             {/* Node */}
-                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-500 border-2 
-                                                ${isDone ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-zinc-900 border-zinc-700 group-hover:border-zinc-500'}
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 border-2 
+                                                ${isDone ? 'bg-emerald-500 border-emerald-400 ' : 'bg-zinc-900 border-zinc-700 group-hover:border-zinc-500'}
                                                 ${active && !isDone ? 'ring-4 ring-emerald-500/20 border-emerald-500' : ''}`}>
                                                 {isDone ? <Check className="w-3 h-3 text-emerald-950 font-black" /> : null}
                                             </div>
@@ -157,7 +157,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                                                                 </Avatar>
                                                             ))}
                                                             {membersHere.length > 3 && (
-                                                                <div className="w-5 h-5 rounded-full bg-zinc-800 text-[8px] font-bold flex items-center justify-center border border-zinc-900 text-white">+{membersHere.length - 3}</div>
+                                                                <div className="w-5 h-5 rounded-full bg-zinc-800 text-caption font-bold flex items-center justify-center border border-zinc-900 text-white">+{membersHere.length - 3}</div>
                                                             )}
                                                         </div>
                                                     )}
@@ -188,7 +188,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                                 {guideData.steps[selectedStepIndex] ? (
                                     <div className="relative z-10 space-y-8">
                                         <div>
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">
                                                 Détails de l'objectif
                                             </div>
                                             <h3 className="text-4xl font-black text-white leading-tight mb-4">{guideData.steps[selectedStepIndex].title}</h3>
@@ -245,7 +245,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                                                                     )}
                                                                 </div>
                                                                 <div>
-                                                                    <div className={`text-[10px] uppercase font-black tracking-widest ${isDone ? 'text-emerald-500' : 'text-zinc-500'}`}>{subtitle}</div>
+                                                                    <div className={`text-caption uppercase font-black tracking-widest ${isDone ? 'text-emerald-500' : 'text-zinc-500'}`}>{subtitle}</div>
                                                                     <div className={`font-bold text-lg ${isDone ? 'text-emerald-400' : 'text-zinc-200'}`}>{name}</div>
                                                                 </div>
                                                             </div>
@@ -273,19 +273,19 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
 
     // --- LIST VIEW ---
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {filteredGuides.map((guide) => (
                 <div 
                     key={guide.id} 
                     onClick={() => handleSelectGuide(guide.slug)}
-                    className="group relative bg-zinc-900 border border-white/5 rounded-[2.5rem] p-8 cursor-pointer hover:border-emerald-500/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+                    className="group relative bg-zinc-900 border border-white/5 rounded-[2.5rem] p-8 cursor-pointer hover:border-emerald-500/30 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
                 >
                     {/* Background Glow */}
                     <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 blur-[80px] group-hover:bg-emerald-500/20 transition-all" />
                     
                     <div className="relative z-10 flex flex-col h-full">
-                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                             <Navigation className="w-8 h-8 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group- transition-transform">
+                             <Navigation className="w-8 h-8 text-emerald-400 " />
                         </div>
 
                         <h3 className="text-2xl font-black text-white mb-2 group-hover:text-emerald-400 transition-colors uppercase tracking-tight">
@@ -298,12 +298,12 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                         <div className="mt-auto flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Étapes</span>
+                                    <span className="text-caption font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Étapes</span>
                                     <span className="text-lg font-black text-white">{guide.steps?.length || 0}</span>
                                 </div>
                                 <div className="w-[1px] h-8 bg-white/5" />
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Type</span>
+                                    <span className="text-caption font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Type</span>
                                     <span className="text-lg font-black text-white">Route Opti</span>
                                 </div>
                             </div>

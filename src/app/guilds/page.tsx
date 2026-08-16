@@ -83,7 +83,7 @@ export default async function GuildsDirectoryPage() {
                                                     src={guild.bannerUrl}
                                                     alt={guild.name}
                                                     fill
-                                                    className="object-cover group-hover:scale-105 transition-transform duration-700 opacity-60"
+                                                    className="object-cover group- transition-transform duration-300 opacity-60"
                                                 />
                                             ) : (
                                                 <div className="absolute inset-0 bg-zinc-800" />
@@ -114,11 +114,11 @@ export default async function GuildsDirectoryPage() {
                                                         {guild.name}
                                                     </h3>
                                                     {myGuildIds.has(guild.discordGuildId) ? (
-                                                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold uppercase tracking-wide border border-emerald-500/30">
+                                                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-caption font-bold uppercase tracking-wide border border-emerald-500/30">
                                                             Votre guilde
                                                         </span>
                                                     ) : guild.isRecruiting ? (
-                                                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide border border-emerald-500/20">
+                                                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-caption font-bold uppercase tracking-wide border border-emerald-500/20">
                                                             Recrutement
                                                         </span>
                                                     ) : null}

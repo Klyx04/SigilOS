@@ -171,7 +171,7 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
                     {current && (
                         <>
                             <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
+                                <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">
                                     {isRequest ? "Nouvelle demande" : "Réponse"}
                                 </p>
                                 <h3 className="font-bold text-sm text-white">{current.title.replace(/^💬\s*/, "")}</h3>

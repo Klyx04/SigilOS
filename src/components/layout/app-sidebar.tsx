@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
     LayoutDashboard,
     BookOpen,
@@ -41,7 +41,8 @@ import {
     History,
     Bug,
     Coins,
-    Map
+    Map,
+    CalendarClock
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -88,6 +89,7 @@ export function AppSidebar({
     const [localHiddenHrefs, setLocalHiddenHrefs] = useState<string[]>(user.hiddenNavItems || []);
     const [notifications, setNotifications] = useState<any[]>([]);
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     // #62 — garde anti-race : quand un changement local (pin/hide) est en vol,
     // on N'ÉCRASE PAS l'état optimiste avec des props serveur potentiellement
@@ -144,6 +146,16 @@ export function AppSidebar({
         if (aliases) {
             return aliases.some(alias => pathname.startsWith(alias));
         }
+        // Lien vers un onglet (ex : /profile?tab=planning) : actif si pathname + query correspondent
+        if (href.includes("?")) {
+            const [base, query] = href.split("?");
+            if (pathname !== base) return false;
+            const params = new URLSearchParams(query);
+            for (const [key, value] of params) {
+                if (searchParams.get(key) !== value) return false;
+            }
+            return true;
+        }
         return false;
     };
 
@@ -194,6 +206,7 @@ export function AppSidebar({
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
+        { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 
     // 5. AUTRES
@@ -364,11 +377,11 @@ export function AppSidebar({
                                     <div className="flex items-center gap-2 min-w-0">
                                         <Avatar className="h-6 w-6 rounded-lg border border-border/20 shrink-0">
                                             <AvatarImage src={guildData.iconUrl || undefined} />
-                                            <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
+                                            <AvatarFallback className="text-caption bg-muted text-muted-foreground">
                                                 {guildData.name?.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[13px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors truncate w-[130px]">
+                                        <span className="text-body-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors truncate w-[130px]">
                                             {guildData.name}
                                         </span>
                                     </div>
@@ -380,7 +393,7 @@ export function AppSidebar({
                                 align="start"
                                 sideOffset={8}
                             >
-                                <DropdownMenuLabel className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                <DropdownMenuLabel className="px-3 py-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
                                     Changer de guilde
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-border mx-1 mb-2" />
@@ -398,7 +411,7 @@ export function AppSidebar({
                                             >
                                                 <Avatar className="h-6 w-6 rounded-md border border-border/20">
                                                     <AvatarImage src={g.iconUrl || undefined} />
-                                                    <AvatarFallback className="text-[10px] bg-muted/60 text-muted-foreground/60">
+                                                    <AvatarFallback className="text-caption bg-muted/60 text-muted-foreground/60">
                                                         {g.name?.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -406,7 +419,7 @@ export function AppSidebar({
                                                     <span className={cn("text-sm font-semibold truncate", g.id === guildId ? "text-primary" : "")}>
                                                         {g.name}
                                                     </span>
-                                                    {g.id === guildId && <span className="text-[10px] font-medium text-primary/70">Connecté</span>}
+                                                    {g.id === guildId && <span className="text-caption font-medium text-primary/70">Connecté</span>}
                                                 </div>
                                                 {g.id === guildId && (
                                                     <div className="ml-auto w-1 h-4 bg-primary rounded-full " />
@@ -416,7 +429,7 @@ export function AppSidebar({
                                     ))}
                                 </div>
                                 <DropdownMenuSeparator className="bg-border mx-1" />
-                                <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
+                                <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-caption text-muted-foreground font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
                                     <Plus className="h-3.5 w-3.5" />
                                     Rejoindre une guilde
                                 </DropdownMenuItem>
@@ -432,11 +445,11 @@ export function AppSidebar({
                     >
                         <Avatar className="h-6 w-6 rounded-lg border border-border/20 shrink-0">
                             <AvatarImage src={guildData.iconUrl || undefined} />
-                            <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
+                            <AvatarFallback className="text-caption bg-muted text-muted-foreground">
                                 {guildData.name?.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
-                        <span className="text-[13px] font-semibold text-muted-foreground truncate min-w-0 flex-1">
+                        <span className="text-body-sm font-semibold text-muted-foreground truncate min-w-0 flex-1">
                             {guildData.name}
                         </span>
                         <Shield className="h-3 w-3 text-primary/60 shrink-0" />
@@ -482,7 +495,7 @@ export function AppSidebar({
                                             ))}
                                         </motion.div>
                                     )}
-                                    <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                                    <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                                 </div>
                         )}
 
@@ -627,7 +640,7 @@ export function AppSidebar({
                                         ))}
                                     </motion.div>
                                 )}
-                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                             </div>
                         )}
 
@@ -659,7 +672,7 @@ export function AppSidebar({
                                     ))}
                                 </motion.div>
                             )}
-                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                         </div>
 
                         <div key="section-others" className="relative group/section">
@@ -690,7 +703,7 @@ export function AppSidebar({
                                     ))}
                                 </motion.div>
                             )}
-                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                         </div>
 
                         {/* SECTION: SUPERVISION (ADMIN) */}
@@ -720,7 +733,7 @@ export function AppSidebar({
                                         />
                                     </motion.div>
                                 )}
-                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
+                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                             </div>
                         )}
 
@@ -777,15 +790,15 @@ export function AppSidebar({
                         <div className="flex items-center gap-1">
                             <Link href="/docs" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Documentation">
                                 <BookOpen className="w-4 h-4" />
-                                <span className="text-[11px] font-medium">Docs</span>
+                                <span className="text-caption font-medium">Docs</span>
                             </Link>
                             <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Changelog">
                                 <History className="w-4 h-4" />
-                                <span className="text-[11px] font-medium">Maj</span>
+                                <span className="text-caption font-medium">Maj</span>
                             </Link>
                             <Link href={`/dashboard/${guildId}/tracker`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Tracker de bugs">
                                 <Bug className="w-4 h-4" />
-                                <span className="text-[11px] font-medium">Bugs</span>
+                                <span className="text-caption font-medium">Bugs</span>
                             </Link>
                         </div>
                     </div>
@@ -818,7 +831,7 @@ function SectionTitle({ label, collapsible: _collapsible, isOpen: _isOpen, onTog
                 "bg-emerald-500 "
             )} />
             
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors duration-150 whitespace-nowrap group-hover/title:text-foreground">
+            <h4 className="text-caption font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors duration-150 whitespace-nowrap group-hover/title:text-foreground">
                 {label}
             </h4>
             
@@ -954,7 +967,7 @@ function NavItem({
 
             <div className="flex flex-col min-w-0 z-10 transition-transform duration-150 ">
                 <span className={cn(
-                    "text-[13px] leading-tight font-medium transition-colors duration-150",
+                    "text-body-sm leading-tight font-medium transition-colors duration-150",
                     isActive ? "text-foreground " : "text-muted-foreground/90 group-hover:text-foreground"
                 )}>
                     {item.name}
@@ -964,7 +977,7 @@ function NavItem({
             {/* Notification Badge */}
             {unreadCount !== undefined && unreadCount > 0 && (
                 <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-red-500 rounded-full  z-20 animate-in zoom-in">
-                    <span className="text-[11px] font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                    <span className="text-caption font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
                 </div>
             )}
 
@@ -1022,7 +1035,7 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
                 isActive ? "bg-emerald-500 " : "bg-muted-foreground/30 group-hover:bg-emerald-400 group-hover:border-emerald-500"
             )} />
             <span className={cn(
-                "text-[13px] font-medium z-10",
+                "text-body-sm font-medium z-10",
                 isActive ? "text-emerald-600 dark:text-emerald-200" : "text-muted-foreground/60 group-hover:text-emerald-500"
             )}>
                 {item.name}

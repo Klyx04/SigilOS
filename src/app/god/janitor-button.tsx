@@ -59,7 +59,7 @@ export function JanitorButton() {
                         <Wrench className="w-5 h-5 text-amber-500" />
                         Maintenance Service
                     </h3>
-                    <p className="text-[10px] uppercase font-black text-zinc-500 mt-1 tracking-widest">
+                    <p className="text-caption uppercase font-black text-zinc-500 mt-1 tracking-widest">
                         Protocoles d'hygiène de la base de données.
                     </p>
                 </div>
@@ -73,7 +73,7 @@ export function JanitorButton() {
                         variant="outline"
                         size="sm"
                         onClick={() => setTestMode(!testMode)}
-                        className={`h-7 text-[10px] uppercase font-bold px-2 ${testMode ? "border-amber-500/50 text-amber-500 bg-amber-950/20" : "text-zinc-500 border-zinc-800"}`}
+                        className={`h-7 text-caption uppercase font-bold px-2 ${testMode ? "border-amber-500/50 text-amber-500 bg-amber-950/20" : "text-zinc-500 border-zinc-800"}`}
                     >
                         {testMode ? "Test (2m)" : "Prod (24h)"}
                     </Button>
@@ -113,7 +113,7 @@ export function JanitorButton() {
                         "Supprimer les Profils sans Utilisateur"
                     )}
                 </Button>
-                <p className="text-[10px] text-zinc-500 italic text-center">
+                <p className="text-caption text-zinc-500 italic text-center">
                     Utile si des profils existent sans compte Discord lié (bugs ou suppression manuelle).
                 </p>
             </div>

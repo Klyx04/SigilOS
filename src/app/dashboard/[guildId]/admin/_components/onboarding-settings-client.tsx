@@ -155,7 +155,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
         return (
             <div className={cn(
                 "prose prose-invert max-w-none text-zinc-300",
-                isDiscord ? "font-sans leading-relaxed text-[13px]" : "font-sans leading-relaxed text-sm"
+                isDiscord ? "font-sans leading-relaxed text-body-sm" : "font-sans leading-relaxed text-sm"
             )}>
                 <ReactMarkdown>{processed}</ReactMarkdown>
             </div>
@@ -190,12 +190,12 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                 onClick={() => { navigator.clipboard.writeText("{nickname}"); toast.success("Copié !"); }}
                                 className="group flex items-center gap-4 p-4 rounded-2xl bg-zinc-950/60 border border-white/5 hover:border-indigo-500/50 transition-all text-left"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 group- transition-transform">
                                     <Copy className="w-4 h-4 text-indigo-400" />
                                 </div>
                                 <div>
                                     <code className="text-lg font-bold text-indigo-400 block">{`{nickname}`}</code>
-                                    <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-tight">Nom du membre</p>
+                                    <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Nom du membre</p>
                                 </div>
                             </button>
 
@@ -203,12 +203,12 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                 onClick={() => { navigator.clipboard.writeText("{server}"); toast.success("Copié !"); }}
                                 className="group flex items-center gap-4 p-4 rounded-2xl bg-zinc-950/60 border border-white/5 hover:border-indigo-500/50 transition-all text-left"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 group- transition-transform">
                                     <Copy className="w-4 h-4 text-indigo-400" />
                                 </div>
                                 <div>
                                     <code className="text-lg font-bold text-indigo-400 block">{`{server}`}</code>
-                                    <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-tight">Nom de la guilde</p>
+                                    <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Nom de la guilde</p>
                                 </div>
                             </button>
                         </div>
@@ -224,13 +224,13 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                             </div>
                             <div>
                                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Badge Temporaire Automatique</h4>
-                                <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">Distinction visuelle sur SigilOS</p>
+                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-wider">Distinction visuelle sur SigilOS</p>
                             </div>
                         </div>
 
                         <div className="space-y-6">
                             <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Nom du Badge (ex: Nouveau, Recrue, Test...)</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Nom du Badge (ex: Nouveau, Recrue, Test...)</label>
                                 <div className="flex gap-4">
                                     <Input 
                                         value={welcomeBadgeName}
@@ -246,8 +246,8 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                             <div className="p-5 rounded-3xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-4">
                                 <HelpCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                                 <div className="space-y-1">
-                                    <p className="text-[11px] text-zinc-300 font-bold uppercase tracking-tight">À quoi ça sert ?</p>
-                                    <p className="text-[10px] text-zinc-500 font-medium leading-relaxed uppercase tracking-tight opacity-80">
+                                    <p className="text-caption text-zinc-300 font-bold uppercase tracking-tight">À quoi ça sert ?</p>
+                                    <p className="text-caption text-zinc-500 font-medium leading-relaxed uppercase tracking-tight opacity-80">
                                         Ce badge s&apos;affiche sur le profil SigilOS des membres à qui vous l&apos;attribuez manuellement (via l&apos;onglet Membres). Il disparaît automatiquement après la durée que vous aurez choisie. Très utile pour repérer les nouveaux sans toucher aux vrais rôles Discord.
                                     </p>
                                 </div>
@@ -256,18 +256,18 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                     </Card>
 
                     <Card className="p-6 bg-zinc-950/80 border-white/10 flex flex-col items-center justify-center gap-4 relative overflow-hidden shadow-2xl rounded-3xl">
-                        <div className="absolute top-3 right-4 text-[8px] font-bold text-zinc-800 uppercase tracking-widest">Aperçu Profil</div>
+                        <div className="absolute top-3 right-4 text-caption font-bold text-zinc-800 uppercase tracking-widest">Aperçu Profil</div>
                         <div className="relative">
                             <Avatar className="w-20 h-20 border-2 border-white/10 ring-4 ring-amber-500/10">
                                 <AvatarFallback className="bg-zinc-900 text-sm font-bold text-zinc-600 text-zinc-700">USER</AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-1 -right-1 bg-amber-600 text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider shadow-lg border border-amber-400/20">
+                            <div className="absolute -bottom-1 -right-1 bg-amber-600 text-white px-3 py-1 rounded-full text-caption font-bold uppercase tracking-wider shadow-lg border border-amber-400/20">
                                 <ShieldCheck className="w-3 h-3 inline mr-1" /> {welcomeBadgeName}
                             </div>
                         </div>
                         <div className="text-center">
                              <p className="text-md font-bold text-white italic tracking-tight uppercase">Voyageur X</p>
-                             <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">Membre</p>
+                             <p className="text-caption text-zinc-600 font-bold uppercase tracking-wider">Membre</p>
                         </div>
                     </Card>
                 </div>
@@ -281,18 +281,18 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-white tracking-wide uppercase italic">Notifications d&apos;arrivée</h3>
-                                <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-[0.15em] opacity-80 flex items-center gap-2">
+                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-[0.15em] opacity-80 flex items-center gap-2">
                                     Automatisation Dashboard + Discord
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4 p-2 pl-4 rounded-xl border border-white/5 bg-black/40">
-                             <span className={cn("text-[9px] font-bold uppercase tracking-wider transition-colors", welcomeEnabled ? "text-green-500" : "text-zinc-600")}>{welcomeEnabled ? "Actif" : "Inactif"}</span>
+                             <span className={cn("text-caption font-bold uppercase tracking-wider transition-colors", welcomeEnabled ? "text-green-500" : "text-zinc-600")}>{welcomeEnabled ? "Actif" : "Inactif"}</span>
                             <Switch checked={welcomeEnabled} onCheckedChange={setWelcomeEnabled} className="data-[state=checked]:bg-green-500" />
                         </div>
                     </div>
 
-                    <div className={cn("space-y-10 transition-all duration-500", !welcomeEnabled && "opacity-30 pointer-events-none grayscale blur-sm")}>
+                    <div className={cn("space-y-10 transition-all duration-300", !welcomeEnabled && "opacity-30 pointer-events-none grayscale blur-sm")}>
                         <Tabs defaultValue="dashboard" className="w-full">
                             <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-white/5 p-1 rounded-2xl h-14">
                                 <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
@@ -310,14 +310,14 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                         <Switch checked={welcomeDashboardEnabled} onCheckedChange={setWelcomeDashboardEnabled} className="data-[state=checked]:bg-indigo-500 mr-2" />
                                         <div>
                                             <p className="text-sm font-bold uppercase tracking-wider text-white">Activer sur le Dashboard</p>
-                                            <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-tight">Le message sera visible dans l&apos;onglet &quot;Bienvenue&quot;.</p>
+                                            <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Le message sera visible dans l&apos;onglet &quot;Bienvenue&quot;.</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{nickname}", "dash")} className="h-10 px-4 rounded-xl border-white/10 bg-zinc-900 shadow-xl hover:bg-indigo-500/10 hover:border-indigo-500/40 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{nickname}", "dash")} className="h-10 px-4 rounded-xl border-white/10 bg-zinc-900 shadow-xl hover:bg-indigo-500/10 hover:border-indigo-500/40 text-caption font-bold uppercase tracking-wider text-indigo-400">
                                             + {`nickname`}
                                         </Button>
-                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{server}", "dash")} className="h-10 px-4 rounded-xl border-white/10 bg-zinc-900 shadow-xl hover:bg-indigo-500/10 hover:border-indigo-500/40 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{server}", "dash")} className="h-10 px-4 rounded-xl border-white/10 bg-zinc-900 shadow-xl hover:bg-indigo-500/10 hover:border-indigo-500/40 text-caption font-bold uppercase tracking-wider text-indigo-400">
                                             + {`server`}
                                         </Button>
                                     </div>
@@ -327,7 +327,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                     <div className="lg:col-span-3 space-y-4">
                                         <div className="flex items-center gap-2 ml-2">
                                             <MessageSquareText className="w-4 h-4 text-indigo-400" />
-                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Modèle du message</h4>
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-indigo-400">Modèle du message</h4>
                                         </div>
                                         <Textarea
                                             value={welcomeTemplate}
@@ -339,7 +339,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                     <div className="lg:col-span-2 space-y-4">
                                         <div className="flex items-center gap-2 ml-2">
                                             <Eye className="w-4 h-4 text-zinc-500" />
-                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Aperçu Dashboard</h4>
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-zinc-500">Aperçu Dashboard</h4>
                                         </div>
                                         <div className="bg-zinc-950/90 border border-white/10 rounded-3xl p-8 min-h-[220px] h-full shadow-inner relative flex flex-col justify-center">
                                             <div className="flex gap-4">
@@ -363,12 +363,12 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                         <Switch checked={welcomeDiscordEnabled} onCheckedChange={setWelcomeDiscordEnabled} className="data-[state=checked]:bg-indigo-500" />
                                         <div>
                                             <p className="text-sm font-bold uppercase tracking-wider text-white">Activer l&apos;Alerte Discord</p>
-                                            <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-tight">Utilise le format Embed Premium automatiquement.</p>
+                                            <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Utilise le format Embed Premium automatiquement.</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4 md:justify-end md:border-l border-white/10 md:pl-8">
                                         <div className="flex flex-col items-end">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-2">Pinger un rôle ?</span>
+                                            <span className="text-caption font-bold uppercase tracking-wider text-indigo-400 mb-2">Pinger un rôle ?</span>
                                             <RoleSelector
                                                 value={welcomeMentionRoleId || null}
                                                 onChange={(val) => setWelcomeMentionRoleId(val || "")}
@@ -379,7 +379,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                 </div>
 
                                  <div className="space-y-3 max-w-xl">
-                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2 ml-2">
+                                    <label className="text-caption font-bold uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2 ml-2">
                                          ID SALON DISCORD
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -389,7 +389,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                                 <p className="text-xs font-bold text-white mb-2 flex items-center gap-2">
                                                     <Info className="w-3 h-3 text-indigo-400" /> Tuto Rapide
                                                 </p>
-                                                <ol className="text-[10px] text-zinc-400 space-y-1 list-decimal ml-4">
+                                                <ol className="text-caption text-zinc-400 space-y-1 list-decimal ml-4">
                                                     <li>Active le <strong>Mode Développeur</strong> dans Discord.</li>
                                                     <li>Fais un <strong>clic droit</strong> sur le salon.</li>
                                                     <li>Clique sur <strong>Copier l&apos;identifiant</strong> et colle le ici.</li>
@@ -409,12 +409,12 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 pt-4">
                                     <div className="lg:col-span-3 space-y-4">
                                         <div className="flex justify-between items-center px-2">
-                                             <label className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+                                             <label className="text-caption font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
                                                 <MessageSquareText className="w-4 h-4" /> Message Alerte
                                              </label>
                                              <div className="flex gap-2">
-                                                <button onClick={() => insertVariable("{nickname}", "discord")} className="text-[9px] font-bold bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl border border-white/5 transition-all shadow-lg active:scale-95">+ {`nickname`}</button>
-                                                <button onClick={() => insertVariable("{server}", "discord")} className="text-[9px] font-bold bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl border border-white/5 transition-all shadow-lg active:scale-95">+ {`server`}</button>
+                                                <button onClick={() => insertVariable("{nickname}", "discord")} className="text-caption font-bold bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl border border-white/5 transition-all shadow-lg active:scale-95">+ {`nickname`}</button>
+                                                <button onClick={() => insertVariable("{server}", "discord")} className="text-caption font-bold bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl border border-white/5 transition-all shadow-lg active:scale-95">+ {`server`}</button>
                                              </div>
                                         </div>
                                         <Textarea
@@ -425,7 +425,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                         />
                                         <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-start gap-4">
                                             <Sparkles className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                                            <p className="text-[10px] text-zinc-500 leading-relaxed font-bold uppercase tracking-tight italic">
+                                            <p className="text-caption text-zinc-500 leading-relaxed font-bold uppercase tracking-tight italic">
                                                 Le texte sera intégré dans un **Rich-Embed Premium** automatique (Avatar, Logo, Bannière...).
                                             </p>
                                         </div>
@@ -434,7 +434,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                      <div className="lg:col-span-2 space-y-4">
                                         <div className="flex items-center gap-2 ml-2">
                                             <Eye className="w-4 h-4 text-zinc-500" />
-                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Rendu Discord</h4>
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-zinc-500">Rendu Discord</h4>
                                         </div>
                                         <div className="bg-[#2b2d31] rounded-3xl p-8 border-l-[6px] border-amber-500 shadow-3xl relative min-h-[300px] flex flex-col h-full group/discord">
                                             <div className="flex items-center gap-4 mb-6">
@@ -447,7 +447,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                                 {renderPreview(welcomeDiscordTemplate || welcomeTemplate, true)}
                                             </div>
                                             <div className="mt-auto pt-4 border-t border-white/5 opacity-40 flex justify-between items-center">
-                                                <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-400 italic">Authored by SigilOS Orchestrator</span>
+                                                <span className="text-caption font-bold uppercase tracking-widest text-zinc-400 italic">Authored by SigilOS Orchestrator</span>
                                                 <MessageSquareText className="w-3 h-3 text-white" />
                                             </div>
                                         </div>

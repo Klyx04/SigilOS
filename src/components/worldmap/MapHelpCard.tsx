@@ -77,7 +77,7 @@ export function MapHelpCard({ onClose }: MapHelpCardProps) {
                     {/* Main Container */}
                     <div className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-[#0d111a]/60 backdrop-blur-2xl p-6 md:p-8 shadow-2xl">
                         {/* Background Decorative Elements - Toned down */}
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.02] rounded-full blur-[120px] pointer-events-none group-hover:bg-emerald-500/[0.04] transition-all duration-1000" />
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.02] rounded-full blur-[120px] pointer-events-none group-hover:bg-emerald-500/[0.04] transition-all duration-300" />
                         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
                         
                         {/* Header Area */}
@@ -124,7 +124,7 @@ export function MapHelpCard({ onClose }: MapHelpCardProps) {
                                                 {feature.title}
                                                 <ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover/item:opacity-100 group-hover/item:translate-x-0 transition-all" />
                                             </h3>
-                                            <p className="text-[11px] leading-relaxed text-zinc-400 font-medium">
+                                            <p className="text-caption leading-relaxed text-zinc-400 font-medium">
                                                 {feature.description}
                                             </p>
                                         </div>
@@ -142,9 +142,9 @@ export function MapHelpCard({ onClose }: MapHelpCardProps) {
                                 <div className="space-y-0.5 text-center sm:text-left">
                                     <div className="flex items-center gap-2 justify-center sm:justify-start">
                                         <span className="text-xs font-black text-white uppercase tracking-wider">Données Cartographiques & Jeu</span>
-                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase">DofusDB</span>
+                                        <span className="px-1.5 py-0.5 rounded text-caption font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase">DofusDB</span>
                                     </div>
-                                    <p className="text-[11px] text-zinc-400 font-medium">
+                                    <p className="text-caption text-zinc-400 font-medium">
                                         Données géographiques, monstres et objets issues de DofusDB. Utilisation soumise à la LPNC-IA 1.0.
                                     </p>
                                 </div>

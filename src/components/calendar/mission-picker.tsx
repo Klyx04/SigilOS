@@ -119,7 +119,7 @@ export function MissionPicker({ guildId, selectedIds, onSelect }: MissionPickerP
 
     return (
         <div className="space-y-4">
-            <h4 className="text-[10px] font-black uppercase tracking-[3px] text-zinc-500 flex items-center gap-2 px-1">
+            <h4 className="text-caption font-black uppercase tracking-[3px] text-zinc-500 flex items-center gap-2 px-1">
                 <Check className="h-3 w-3 text-emerald-500" />
                 Sélectionner les objectifs ({selectedIds.length})
             </h4>
@@ -163,8 +163,8 @@ export function MissionPicker({ guildId, selectedIds, onSelect }: MissionPickerP
                                     alt={title} 
                                     fill 
                                     className={cn(
-                                        "object-contain p-2 transition-transform duration-500",
-                                        isSelected ? "scale-110" : "group-hover:scale-105"
+                                        "object-contain p-2 transition-transform duration-300",
+                                        isSelected ? "scale-110" : "group-"
                                     )} 
                                     unoptimized
                                 />
@@ -176,7 +176,7 @@ export function MissionPicker({ guildId, selectedIds, onSelect }: MissionPickerP
 
                             {/* Content overlay */}
                             <div className="absolute inset-x-0 bottom-0 p-2 z-10">
-                                <p className="text-[9px] font-black text-white uppercase tracking-tighter line-clamp-1 text-shadow">
+                                <p className="text-caption font-black text-white uppercase tracking-tighter line-clamp-1 text-shadow">
                                     {title}
                                 </p>
                             </div>

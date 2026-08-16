@@ -174,12 +174,12 @@ export function DocContent({ content, className }: DocContentProps) {
                 "[&_.callout-bug]:border-rose-500 [&_.callout-bug]:text-rose-100/90",
                 "[&_.callout-todo]:border-emerald-500 [&_.callout-todo]:text-emerald-100/90",
 
-                "[&_.callout\ strong]:text-white [&_.callout\ strong]:font-black [&_.callout\ strong]:uppercase [&_.callout\ strong]:tracking-widest [&_.callout\ strong]:text-[10px] [&_.callout\ strong]:mb-2",
+                "[&_.callout\ strong]:text-white [&_.callout\ strong]:font-black [&_.callout\ strong]:uppercase [&_.callout\ strong]:tracking-widest [&_.callout\ strong]:text-caption [&_.callout\ strong]:mb-2",
 
                 // Steps Component (Auto-styling for tutorials)
                 "[&_.steps]:relative [&_.steps]:ml-4 [&_.steps]:pl-8 [&_.steps]:border-l-2 [&_.steps]:border-white/5 [&_.steps]:space-y-12 [&_.steps]:py-4",
                 "[&_.step-item]:relative",
-                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-white [&_.step-number]:shadow-[0_0_15px_rgba(45,212,191,0.4)]",
+                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-white [&_.step-number]:",
 
                 // Accordions / Details
                 "prose-details:bg-white/[0.03] prose-details:border prose-details:border-white/5 prose-details:rounded-2xl prose-details:overflow-hidden prose-details:my-6 prose-details:transition-all",

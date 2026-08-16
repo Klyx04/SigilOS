@@ -48,7 +48,7 @@ export function ChangelogContent({ content, className }: ChangelogContentProps) 
                 "prose-hr:border-white/10 prose-hr:my-4",
                 // Callouts : sobre (sans backdrop-blur ni ombre géante)
                 "[&_.callout]:my-4 [&_.callout]:p-4 [&_.callout]:rounded-xl [&_.callout]:bg-white/[0.03] [&_.callout]:border [&_.callout]:border-white/10",
-                "[&_.callout\\ strong]:text-white [&_.callout\\ strong]:font-bold [&_.callout\\ strong]:uppercase [&_.callout\\ strong]:tracking-wider [&_.callout\\ strong]:text-[10px]",
+                "[&_.callout\\ strong]:text-white [&_.callout\\ strong]:font-bold [&_.callout\\ strong]:uppercase [&_.callout\\ strong]:tracking-wider [&_.callout\\ strong]:text-caption",
                 // Images / figures
                 "[&_img]:max-w-full [&_img]:h-auto [&_img]:max-h-[380px] [&_img]:object-contain [&_img]:rounded-xl [&_img]:border [&_img]:border-white/10 [&_img]:my-3 [&_img]:mx-auto",
                 "[&_figure]:my-4 [&_figure]:flex [&_figure]:flex-col [&_figure]:items-center",

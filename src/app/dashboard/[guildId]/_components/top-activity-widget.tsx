@@ -25,7 +25,7 @@ export function TopActivityWidget({
     return (
         <Card className="glass-premium border-white/5 relative overflow-hidden group">
             <CardHeader className="pb-2 pt-6">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-500 flex items-center gap-2">
+                <CardTitle className="text-caption font-black uppercase tracking-widest text-yellow-500 flex items-center gap-2">
                     <Trophy className="w-3 h-3" />
                     Top Activité Missions
                 </CardTitle>
@@ -50,13 +50,13 @@ export function TopActivityWidget({
                                 <div className="relative group/avatar">
                                     {isFirst && <Crown className="w-6 h-6 text-yellow-400 absolute -top-5 left-1/2 -translate-x-1/2 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)] animate-bounce" />}
                                     
-                                    <Avatar className={cn(avatarSize, "ring-2 ring-white/10 group-hover/avatar:ring-yellow-500/50 transition-all duration-500")}>
+                                    <Avatar className={cn(avatarSize, "ring-2 ring-white/10 group-hover/avatar:ring-yellow-500/50 transition-all duration-300")}>
                                         <AvatarImage src={entry.discordImage ?? undefined} />
                                         <AvatarFallback className="text-sm font-black text-white bg-zinc-800">{name[0]}</AvatarFallback>
                                     </Avatar>
                                     
                                     <div className={cn(
-                                        "absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[8px] font-black border border-white/10 shadow-xl",
+                                        "absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-caption font-black border border-white/10 shadow-xl",
                                         isFirst ? "bg-yellow-500 text-black" : "bg-zinc-800 text-white"
                                     )}>
                                         #{rank}
@@ -64,8 +64,8 @@ export function TopActivityWidget({
                                 </div>
                                 
                                 <div className="text-center w-full max-w-[80px]">
-                                    <p className="text-[10px] font-black text-white truncate uppercase italic">{name}</p>
-                                    <p className="text-[9px] font-bold text-emerald-400">{entry.value} pts</p>
+                                    <p className="text-caption font-black text-white truncate uppercase italic">{name}</p>
+                                    <p className="text-caption font-bold text-emerald-400">{entry.value} pts</p>
                                 </div>
 
                                 {/* Base structure */}

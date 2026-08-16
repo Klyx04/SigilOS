@@ -91,9 +91,9 @@ export function OcreStatCard({
                     >
                         {value.toLocaleString("fr-FR")}
                     </motion.p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-bold truncate">{label}</p>
+                    <p className="text-caption uppercase tracking-wider text-muted-foreground/60 font-bold truncate">{label}</p>
                     {subValue && (
-                        <p className={cn("text-[10px] font-medium mt-0.5", colors.icon)}>
+                        <p className={cn("text-caption font-medium mt-0.5", colors.icon)}>
                             ✨ {subValue}
                         </p>
                     )}

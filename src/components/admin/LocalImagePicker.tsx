@@ -92,7 +92,7 @@ export function LocalImagePicker({ type, selected, onImageSelect, gridSize = "me
                         onClick={() => onImageSelect(img.path)}
                         className={`
                             relative aspect-square rounded-lg overflow-hidden border-2 transition-all
-                            hover:scale-105 hover:shadow-lg group
+                             hover:shadow-lg group
                             ${selected === img.path
                                 ? "border-indigo-500 ring-2 ring-indigo-500/50"
                                 : "border-slate-700/50 hover:border-indigo-400"
@@ -107,7 +107,7 @@ export function LocalImagePicker({ type, selected, onImageSelect, gridSize = "me
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="absolute bottom-0 left-0 right-0 p-1">
-                                <p className="text-[7px] text-white font-medium truncate leading-tight">
+                                <p className="text-caption text-white font-medium truncate leading-tight">
                                     {img.name}
                                 </p>
                             </div>

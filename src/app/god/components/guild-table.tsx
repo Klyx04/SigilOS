@@ -188,7 +188,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                     {/* Unauthorized bot attempts button */}
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20 font-black uppercase tracking-widest text-[10px] px-4 py-5 rounded-xl gap-2 transition-all">
+                            <Button variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20 font-black uppercase tracking-widest text-caption px-4 py-5 rounded-xl gap-2 transition-all">
                                 <ShieldAlert className="w-4 h-4 text-orange-400" />
                                 Connexions non autorisées
                             </Button>
@@ -213,7 +213,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                                         <div key={g.id} className="flex items-center justify-between p-3 bg-zinc-900/60 border border-white/5 rounded-2xl">
                                             <div className="space-y-0.5">
                                                 <div className="font-bold text-xs text-white">{g.name}</div>
-                                                <div className="text-[10px] font-mono text-zinc-500">{g.discordGuildId}</div>
+                                                <div className="text-caption font-mono text-zinc-500">{g.discordGuildId}</div>
                                             </div>
                                             <Button
                                                 size="sm"
@@ -222,7 +222,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                                                     toast.success(`Guilde ${g.name} Whitelistée !`);
                                                     window.location.reload();
                                                 }}
-                                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg"
+                                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-caption font-black uppercase tracking-wider px-3 py-1.5 rounded-lg"
                                             >
                                                 Autoriser
                                             </Button>
@@ -235,7 +235,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
 
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild>
-                            <Button className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[10px] px-6 py-5 rounded-xl shadow-lg shadow-violet-500/10 gap-2 border border-violet-400/20 active:scale-95 transition-all">
+                            <Button className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-caption px-6 py-5 rounded-xl shadow-lg shadow-violet-500/10 gap-2 border border-violet-400/20 active:scale-95 transition-all">
                                 <UserPlus className="w-4 h-4" />
                                 Whitelist New Guild
                             </Button>
@@ -250,7 +250,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
 
                             <div className="space-y-6 mt-8">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                         <Hash className="w-3 h-3" /> Discord Guild ID *
                                     </label>
                                     <Input
@@ -262,7 +262,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                         <Filter className="w-3 h-3" /> Nom de la guilde
                                     </label>
                                     <Input
@@ -274,7 +274,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                         <FileText className="w-3 h-3" /> Notes (Interne)
                                     </label>
                                     <Input
@@ -535,7 +535,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                         <div className="flex items-center gap-2">
                             <div className="font-medium">{guild.name}</div>
                             {guild.tier && (
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${guild.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                <span className={`text-caption px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${guild.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                                     }`}>
                                     {guild.tier}
                                 </span>
@@ -544,7 +544,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                         <div className="text-xs text-zinc-500 font-mono flex items-center gap-2">
                             {guild.discordGuildId}
                             {guild.notes && (
-                                <span className="text-[10px] text-zinc-600 italic truncate max-w-[150px]">
+                                <span className="text-caption text-zinc-600 italic truncate max-w-[150px]">
                                     — {guild.notes}
                                 </span>
                             )}
@@ -555,7 +555,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 
             <td className="p-4 hidden md:table-cell">
                 <div className="space-y-1.5 min-w-[120px]">
-                    <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center justify-between text-caption">
                         <div className="flex items-center gap-1 font-medium">
                             <Users className="w-3 h-3 text-zinc-500" />
                             <span>{guild._count.profiles}</span>
@@ -592,11 +592,11 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 
                     {/* Alert Badges (50% / 80%) */}
                     {guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.8 ? (
-                        <div className="text-[9px] font-black text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider animate-pulse">
+                        <div className="text-caption font-black text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider animate-pulse">
                             ⚠️ Seuil &gt; 80% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
                         </div>
                     ) : guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.5 ? (
-                        <div className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider">
+                        <div className="text-caption font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider">
                             ⚡ Capacité &gt; 50% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
                         </div>
                     ) : null}
@@ -604,7 +604,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                     {/* Capacity Bar */}
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full transition-all duration-1000 ${(guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-red-500 shadow-sm shadow-red-500/50" :
+                            className={`h-full rounded-full transition-all duration-300 ${(guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-red-500 shadow-sm shadow-red-500/50" :
                                 (guild._count.profiles / guild.maxMembers) >= 0.5 ? "bg-amber-500 shadow-sm shadow-amber-500/50" :
                                     "bg-emerald-500"
                                 }`}
@@ -617,13 +617,13 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
             <td className="p-4 hidden sm:table-cell">
                 <span
                     title={statusConfig.tooltip}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border ${statusConfig.color} cursor-help whitespace-nowrap`}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-caption font-medium border ${statusConfig.color} cursor-help whitespace-nowrap`}
                 >
                     {statusConfig.label}
                 </span>
             </td>
 
-            <td className="p-4 text-[10px] text-zinc-400 hidden lg:table-cell">
+            <td className="p-4 text-caption text-zinc-400 hidden lg:table-cell">
                 {formatDistanceToNow(new Date(guild.createdAt), { addSuffix: true, locale: fr })}
             </td>
 

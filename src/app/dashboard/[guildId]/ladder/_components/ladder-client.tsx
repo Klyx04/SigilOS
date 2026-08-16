@@ -144,10 +144,10 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         <div className="flex items-center gap-2 font-black text-cyan-400">
                             <Clock className="w-3.5 h-3.5" />
                             <div className="flex gap-1 items-baseline">
-                                {months > 0 && <span>{months}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">M</span></span>}
-                                {days > 0 && <span>{days}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">J</span></span>}
-                                {hours > 0 && <span>{hours}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">H</span></span>}
-                                <span>{mins}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">m</span></span>
+                                {months > 0 && <span>{months}<span className="text-caption text-zinc-500 font-medium ml-0.5">M</span></span>}
+                                {days > 0 && <span>{days}<span className="text-caption text-zinc-500 font-medium ml-0.5">J</span></span>}
+                                {hours > 0 && <span>{hours}<span className="text-caption text-zinc-500 font-medium ml-0.5">H</span></span>}
+                                <span>{mins}<span className="text-caption text-zinc-500 font-medium ml-0.5">m</span></span>
                             </div>
                         </div>
                     );
@@ -190,18 +190,18 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             <span>{entry.value} {entry.value > 1 ? "raids" : "raid"}</span>
                         </div>
                         {entry.averageScore !== undefined && entry.averageScore > 0 && (
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">
+                            <span className="text-caption text-zinc-500 font-bold uppercase tracking-wider mt-0.5">
                                 Score Moyen: {Math.round(entry.averageScore).toLocaleString()} pts
                             </span>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                             {entry.jardinCount !== undefined && entry.jardinCount > 0 && (
-                                <Badge variant="outline" className="text-[8px] font-black border-emerald-500/20 text-emerald-400 bg-emerald-500/5 px-1.5 py-0 uppercase tracking-tighter">
+                                <Badge variant="outline" className="text-caption font-black border-emerald-500/20 text-emerald-400 bg-emerald-500/5 px-1.5 py-0 uppercase tracking-tighter">
                                     🌿 {entry.jardinCount} Jardin
                                 </Badge>
                             )}
                             {entry.gigalodonCount !== undefined && entry.gigalodonCount > 0 && (
-                                <Badge variant="outline" className="text-[8px] font-black border-cyan-500/20 text-cyan-400 bg-cyan-500/5 px-1.5 py-0 uppercase tracking-tighter">
+                                <Badge variant="outline" className="text-caption font-black border-cyan-500/20 text-cyan-400 bg-cyan-500/5 px-1.5 py-0 uppercase tracking-tighter">
                                     🦈 {entry.gigalodonCount} Gigalodon
                                 </Badge>
                             )}
@@ -228,7 +228,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     return (
         <div className="space-y-12">
             {/* Modern Tab Navigation (Glassmorphism 2026) */}
-            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/40 backdrop-blur-3xl border-b border-white/5 shadow-2xl transition-all duration-500">
+            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/40 backdrop-blur-3xl border-b border-white/5 shadow-2xl transition-all duration-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center justify-between">
                         {/* Tab Container with Scroll Mask */}
@@ -241,7 +241,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             key={cat.id}
                                             onClick={() => setActiveTab(cat.id)}
                                             className={cn(
-                                                "relative z-10 flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 border-b-2 transition-all duration-500 group whitespace-nowrap",
+                                                "relative z-10 flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 border-b-2 transition-all duration-300 group whitespace-nowrap",
                                                 isActive 
                                                   ? "text-white" 
                                                   : "border-transparent text-zinc-500 hover:text-zinc-300"
@@ -251,7 +251,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             {cat.isImage ? (
                                                 <div 
                                                     className={cn(
-                                                        "w-5 h-5 transition-all duration-500 group-hover:scale-110 relative",
+                                                        "w-5 h-5 transition-all duration-300 group- relative",
                                                         isActive ? "scale-110" : "opacity-40 grayscale group-hover:opacity-100 group-hover:grayscale-0"
                                                     )}
                                                     style={isActive ? { 
@@ -263,7 +263,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             ) : (
                                                 <cat.icon 
                                                     className={cn(
-                                                        "w-4 h-4 transition-all duration-500 group-hover:scale-110", 
+                                                        "w-4 h-4 transition-all duration-300 group-", 
                                                         isActive ? "scale-110" : "text-zinc-600 group-hover:text-zinc-400"
                                                     )} 
                                                     style={isActive ? { 
@@ -273,7 +273,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                                 />
                                             )}
                                             <span className={cn(
-                                                "text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500",
+                                                "text-caption sm:text-caption font-black uppercase tracking-[0.2em] transition-all duration-300",
                                                 isActive ? "opacity-100" : "group-hover:text-white"
                                             )}
                                             style={isActive ? { 
@@ -335,39 +335,39 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <h2 className="text-2xl font-black text-white tracking-tighter uppercase flex items-center gap-3">
                                     {categories.find(c => c.id === activeTab)?.label}
-                                    {activeTab === 'activity' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
-                                    {activeTab === 'guildatons' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]" />}
+                                    {activeTab === 'activity' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse " />}
+                                    {activeTab === 'guildatons' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse " />}
                                 </h2>
 
                                 {/* Contextual Period Selector */}
                                 {(activeTab === "activity" || activeTab === "guildatons" || activeTab === "discord") && (
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500 w-full sm:w-auto" data-tour="ladder-period">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-300 w-full sm:w-auto" data-tour="ladder-period">
                                         {activeTab === "discord" && (
                                             <Select value={discordMetric} onValueChange={(v) => setDiscordMetric(v as any)}>
-                                                <SelectTrigger className="w-full sm:w-[220px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20 shrink-0">
+                                                <SelectTrigger className="w-full sm:w-[220px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-caption sm:text-caption font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20 shrink-0">
                                                     <div className="flex items-center gap-2">
                                                         <MessageSquare className="w-3.5 h-3.5 text-zinc-500" />
                                                         <SelectValue placeholder="Métrique" />
                                                     </div>
                                                 </SelectTrigger>
                                                 <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
-                                                    <SelectItem value="voice" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-cyan-400">🎙️ Vocal</SelectItem>
-                                                    <SelectItem value="messages" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-indigo-400">💬 Messages</SelectItem>
-                                                    <SelectItem value="stream" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-pink-400">📺 Streams (Vocal)</SelectItem>
+                                                    <SelectItem value="voice" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-cyan-400">🎙️ Vocal</SelectItem>
+                                                    <SelectItem value="messages" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-indigo-400">💬 Messages</SelectItem>
+                                                    <SelectItem value="stream" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-pink-400">📺 Streams (Vocal)</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         )}
                                         <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                                            <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20">
+                                            <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-caption sm:text-caption font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20">
                                                 <div className="flex items-center gap-2">
                                                     <Clock className="w-3.5 h-3.5 text-zinc-500" />
                                                     <SelectValue placeholder="Période" />
                                                 </div>
                                             </SelectTrigger>
                                             <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
-                                                <SelectItem value="weekly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Cette semaine</SelectItem>
-                                                <SelectItem value="monthly" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Ce mois-ci</SelectItem>
-                                                <SelectItem value="alltime" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-500">🏆 Global (All-Time)</SelectItem>
+                                                <SelectItem value="weekly" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Cette semaine</SelectItem>
+                                                <SelectItem value="monthly" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-white/5">📅 Ce mois-ci</SelectItem>
+                                                <SelectItem value="alltime" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-500">🏆 Global (All-Time)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -426,7 +426,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             asChild
                             variant="outline"
                             size="sm"
-                            className="h-8 border-white/10 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-wider gap-2 px-3"
+                            className="h-8 border-white/10 bg-white/5 hover:bg-white/10 text-caption font-black uppercase tracking-wider gap-2 px-3"
                         >
                             <Link href={`/dashboard/${guildId}/admin/validation?tab=achievements`}>
                                 <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
@@ -442,7 +442,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 {loading ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-zinc-600">
                         <Loader2 className="h-8 w-8 animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Calcul du classement...</span>
+                        <span className="text-caption font-black uppercase tracking-widest">Calcul du classement...</span>
                     </div>
                 ) : ladder.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
@@ -450,7 +450,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500" data-tour="ladder-list">
+                        <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300" data-tour="ladder-list">
                             {ladder.map((entry) => (
                                 <LeaderboardCard
                                     key={entry.profileId}
@@ -470,7 +470,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
                         {/* Pagination UI */}
                         {pagination && pagination.totalPages > 1 && (
-                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-8 border-t border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-700" data-tour="ladder-pagination">
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-8 border-t border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-300" data-tour="ladder-pagination">
                                 <div className="flex items-center gap-2">
                                     <Button
                                         variant="outline"
@@ -483,9 +483,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                     </Button>
 
                                     <div className="flex items-center gap-1.5 px-4 h-10 rounded-xl bg-white/5 border border-white/10">
-                                        <span className="text-[10px] font-black text-white">{currentPage}</span>
-                                        <span className="text-[10px] font-black text-zinc-600">/</span>
-                                        <span className="text-[10px] font-black text-zinc-400">{pagination.totalPages}</span>
+                                        <span className="text-caption font-black text-white">{currentPage}</span>
+                                        <span className="text-caption font-black text-zinc-600">/</span>
+                                        <span className="text-caption font-black text-zinc-400">{pagination.totalPages}</span>
                                     </div>
 
                                     <Button
@@ -498,7 +498,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                         <ChevronRight className="w-5 h-5 text-zinc-400" />
                                     </Button>
                                 </div>
-                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
+                                <div className="text-caption font-black uppercase tracking-[0.2em] text-zinc-600">
                                     Total: {pagination.totalCount.toLocaleString()} membres
                                 </div>
                             </div>

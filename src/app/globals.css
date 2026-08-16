@@ -5,53 +5,60 @@ html {
 }
 
 :root, .dark {
-  --sigil-bg: #0E1110;
-  --sigil-fg: #FAFBFC;
-  --sigil-card: #13171A;
-  --sigil-card-fg: #FAFBFC;
-  --sigil-popover: #13171A;
-  --sigil-popover-fg: #FAFBFC;
-  --sigil-primary: #10b981;
-  --sigil-primary-fg: #0E1110;
-  --sigil-secondary: #1A1E22;
-  --sigil-secondary-fg: #FAFBFC;
-  --sigil-muted: #1A1E22;
-  --sigil-muted-fg: #B4B8BF;
-  --sigil-accent: #FBBF24;
-  --sigil-accent-fg: #FAFBFC;
-  --sigil-dest: #dc2626;
-  --sigil-dest-fg: #FAFBFC;
-  --sigil-border: rgba(255, 255, 255, 0.08);
-  --sigil-input: rgba(255, 255, 255, 0.08);
-  --sigil-ring: #C8922A;
+  /* ── #5 Tokens OKLCH — design system §4.2 (mode sombre) ─────────────
+     Neutres à chroma très faible (0.004–0.012) teintés 260° (bleuté) ;
+     accents chromatiques issus de la palette Tailwind v4 (OKLCH natif). */
+  color-scheme: dark;
+  --sigil-bg: oklch(0.145 0.008 260);
+  --sigil-fg: oklch(0.92 0.005 260);
+  --sigil-card: oklch(0.185 0.010 260);
+  --sigil-card-fg: oklch(0.92 0.005 260);
+  --sigil-popover: oklch(0.225 0.012 260);
+  --sigil-popover-fg: oklch(0.92 0.005 260);
+  --sigil-primary: oklch(0.696 0.17 163);
+  --sigil-primary-fg: oklch(0.145 0.008 260);
+  --sigil-secondary: oklch(0.225 0.012 260);
+  --sigil-secondary-fg: oklch(0.92 0.005 260);
+  --sigil-muted: oklch(0.225 0.012 260);
+  --sigil-muted-fg: oklch(0.68 0.01 260);
+  --sigil-accent: oklch(0.828 0.189 84);
+  --sigil-accent-fg: oklch(0.16 0.02 84);
+  --sigil-dest: oklch(0.577 0.245 27);
+  --sigil-dest-fg: oklch(0.95 0.005 260);
+  --sigil-border: oklch(1 0 0 / 7%);
+  --sigil-border-strong: oklch(1 0 0 / 13%);
+  --sigil-input: oklch(1 0 0 / 7%);
+  --sigil-ring: oklch(0.75 0.15 85);
   
-  --sigil-gold: #FBBF24;
-  --sigil-teal: #10b981;
+  --sigil-gold: oklch(0.828 0.189 84);
+  --sigil-teal: oklch(0.696 0.17 163);
 }
 
 .light {
-  --sigil-bg: #f8f3e6;
-  --sigil-fg: #1a1816;
-  --sigil-card: #f2ead3;
-  --sigil-card-fg: #1a1816;
-  --sigil-popover: #f2ead3;
-  --sigil-popover-fg: #1a1816;
-  --sigil-primary: #0d9488;
-  --sigil-primary-fg: #f8f3e6;
-  --sigil-secondary: #e5dec5;
-  --sigil-secondary-fg: #1a1816;
-  --sigil-muted: #ece3ca;
-  --sigil-muted-fg: #4a443b;
-  --sigil-accent: #8b6b3f;
-  --sigil-accent-fg: #f8f3e6;
-  --sigil-dest: #b91c1c;
-  --sigil-dest-fg: #f8f3e6;
-  --sigil-border: #d4c8a8;
-  --sigil-input: #d4c8a8;
-  --sigil-ring: #8b6b3f;
+  color-scheme: light;
+  --sigil-bg: oklch(0.975 0.004 260);
+  --sigil-fg: oklch(0.21 0.01 260);
+  --sigil-card: oklch(0.995 0.002 260);
+  --sigil-card-fg: oklch(0.21 0.01 260);
+  --sigil-popover: oklch(1 0 0);
+  --sigil-popover-fg: oklch(0.21 0.01 260);
+  --sigil-primary: oklch(0.55 0.17 163);
+  --sigil-primary-fg: oklch(0.98 0.005 260);
+  --sigil-secondary: oklch(0.96 0.006 260);
+  --sigil-secondary-fg: oklch(0.21 0.01 260);
+  --sigil-muted: oklch(0.96 0.006 260);
+  --sigil-muted-fg: oklch(0.45 0.01 260);
+  --sigil-accent: oklch(0.60 0.15 84);
+  --sigil-accent-fg: oklch(0.98 0.005 84);
+  --sigil-dest: oklch(0.505 0.213 27);
+  --sigil-dest-fg: oklch(0.98 0.005 260);
+  --sigil-border: oklch(0 0 0 / 9%);
+  --sigil-border-strong: oklch(0 0 0 / 16%);
+  --sigil-input: oklch(0 0 0 / 9%);
+  --sigil-ring: oklch(0.55 0.13 84);
 
-  --sigil-gold: #9a7837;
-  --sigil-teal: #0d9488;
+  --sigil-gold: oklch(0.60 0.15 84);
+  --sigil-teal: oklch(0.55 0.17 163);
 }
 
 @theme {
@@ -97,6 +104,7 @@ html {
   --destructive: var(--sigil-dest);
   --destructive-foreground: var(--sigil-dest-fg);
   --border: var(--sigil-border);
+  --border-strong: var(--sigil-border-strong);
   --input: var(--sigil-input);
   --ring: var(--sigil-ring);
 
@@ -105,6 +113,9 @@ html {
   --bg-primary: var(--sigil-bg);
   --bg-secondary: var(--sigil-card);
   --bg-tertiary: var(--sigil-muted);
+  /* #5 — alias design system §4.2 (élevation) */
+  --surface: var(--sigil-card);
+  --elevated: var(--sigil-popover);
 }
 
 .landing-theme {

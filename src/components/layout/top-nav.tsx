@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { HeaderEventChip } from "./header-event-chip";
+import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { FeedBell } from "@/components/notifications/feed-bell";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -259,6 +260,9 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-[2px] border-background" />
                     </button>
                 )}
+
+                {/* #16 — Bascule clair / sombre (masquée si kill-switch God actif) */}
+                <ThemeToggle className="h-9 w-9" />
 
                 {/* 4. User Profile (Standalone Dropdown) */}
                 <div className="flex items-center ml-2">

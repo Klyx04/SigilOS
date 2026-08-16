@@ -1836,3 +1836,70 @@ export async function updateBountyRecord(guildId: string, bountyId: string, data
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
+
+// ============================================================================
+// APPAREANCE GUILDE — #5 Couleur de guilde (teinte OKLCH 0-360°, nullable = fallback or)
+// ============================================================================
+
+export async function getGuildAppearance(guildId: string): Promise<{ success: boolean; error?: string; data?: { accentHue: number | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { accentHue: true }
+        });
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        return { success: true, data: { accentHue: config.accentHue } };
+    } catch (error) {
+        logger.error("Get Guild Appearance Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateGuildAccentHue(
+    guildId: string,
+    accentHue: number | null
+): Promise<ActionResponse> {
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateGuildAccentHue");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
+
+    // #5 — validation Zod fail-closed : teinte bornée 0-360 (ou null = fallback or).
+    const hueSchema = z.union([
+        z.null(),
+        z.number().int().min(0).max(360),
+    ]);
+    const parsed = hueSchema.safeParse(accentHue);
+    if (!parsed.success) {
+        return { success: false, error: "Teinte invalide (entier 0-360, ou null pour le défaut)" };
+    }
+
+    try {
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { accentHue: parsed.data }
+        });
+
+        await logAction({
+            guildId,
+            action: "CONFIG_UPDATED",
+            targetType: "CONFIG",
+            targetId: "accentHue",
+            metadata: { accentHue: parsed.data, operation: "UPDATE_ACCENT_HUE" }
+        });
+
+        revalidatePath(`/dashboard/${guildId}`);
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Guild Accent Hue Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+

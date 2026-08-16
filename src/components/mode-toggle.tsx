@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ModeToggle() {
-    const { setTheme } = useTheme();
+    const { setTheme, forcedTheme } = useTheme();
+
+    // #16 — kill-switch God : quand le thème est forcé en sombre, on ne propose
+    // plus aucun choix de thème (le toggle God masque ce menu).
+    if (forcedTheme) return null;
 
     return (
         <DropdownMenu>

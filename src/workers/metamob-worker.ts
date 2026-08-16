@@ -418,8 +418,12 @@ const cronWorker = new Worker(
             
             for (const guild of guilds) {
                 try {
-                    await sendDailySummaryReport(guild.discordGuildId, false);
-                    logger.info(`[Cron] ✅ Rapport envoyé pour ${guild.name}`);
+                    const res = await sendDailySummaryReport(guild.discordGuildId, false);
+                    if (res.success) {
+                        logger.info(`[Cron] ✅ Rapport envoyé pour ${guild.name}`);
+                    } else {
+                        logger.error(`[Cron] ❌ Échec rapport pour ${guild.name}: ${res.error}`);
+                    }
                 } catch (e) {
                     logger.error(`[Cron] ❌ Échec rapport pour ${guild.name}`, { error: String(e) });
                 }

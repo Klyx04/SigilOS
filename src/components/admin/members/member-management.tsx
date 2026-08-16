@@ -502,9 +502,11 @@ export default function MemberManagement({
                                 <CardContent className="p-6 space-y-4 relative z-10">
                                     <MemberSyncButton guildId={guildId} />
                                     <DailyReportButton guildId={guildId} />
-                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                        <span className="text-caption font-black uppercase text-zinc-600 tracking-widest">Planification</span>
-                                        <Badge variant="outline" className="text-caption bg-zinc-800 border-none font-black text-indigo-400">HEBDOMADAIRE LUNDI 04:00 AM</Badge>
+                                    <div className="flex flex-col gap-1 pt-4 border-t border-white/5">
+                                        <span className="text-caption font-semibold text-zinc-400">Rapport automatique hebdomadaire</span>
+                                        <p className="text-caption text-zinc-500 leading-relaxed">
+                                            Un récap des membres et de l'activité de la guilde est envoyé automatiquement chaque lundi à 04h00 dans le canal de notifications système. Le bouton « Envoyer le rapport » le génère immédiatement.
+                                        </p>
                                     </div>
                                 </CardContent>
                             </Card>

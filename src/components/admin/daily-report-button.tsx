@@ -14,7 +14,7 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
         startTransition(async () => {
             const res = await sendDailySummaryReport(guildId, true);
             if (res.success) {
-                toast.success("Rapport hebdomadaire envoyé !");
+                toast.success("Rapport quotidien envoyé !");
                 setIsSuccess(true);
                 setTimeout(() => setIsSuccess(false), 3000);
             } else {
@@ -28,7 +28,7 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
             onClick={handleSendReport}
             disabled={isPending}
             className={`
-                h-12 w-full rounded-2xl font-black uppercase tracking-[0.2em] text-caption transition-all
+                h-12 w-full rounded-xl font-semibold text-caption transition-colors
                 ${isSuccess 
                     ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" 
                     : "bg-zinc-800/50 hover:bg-zinc-700/50 border-white/5 text-zinc-400"}
@@ -42,7 +42,7 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
             ) : (
                 <Send className="w-4 h-4 mr-2" />
             )}
-            {isPending ? "ENVOI..." : isSuccess ? "ENVOYÉ ✅" : "RAPPORT HEBDOMADAIRE"}
+            {isPending ? "ENVOI..." : isSuccess ? "ENVOYÉ ✅" : "RAPPORT QUOTIDIEN"}
         </Button>
     );
 }

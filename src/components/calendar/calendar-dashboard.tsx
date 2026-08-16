@@ -455,20 +455,15 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         <div className="space-y-6">
             {/* ============ STABLE HEADER ============ */}
             <div className="space-y-6 mb-8">
-                <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/50 backdrop-blur-xl p-6 shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-primary/5 pointer-events-none" />
-
+                <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/50 p-6">
                     <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                         <div className="flex items-center gap-5">
-                            <div className="relative group shrink-0">
-                                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
-                                <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20 shrink-0">
-                                    <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-500" />
-                                </div>
+                            <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-zinc-900 flex items-center justify-center border border-zinc-800 shrink-0">
+                                <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-500" />
                             </div>
                             <div className="min-w-0">
-                                <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-zinc-100 truncate">Agenda</h2>
-                                <p className="text-zinc-500 font-bold text-xs md:text-sm mt-1">
+                                <h2 className="text-2xl md:text-3xl font-bold text-zinc-100 truncate">Agenda</h2>
+                                <p className="text-zinc-500 text-xs md:text-sm mt-1">
                                     {filteredEvents.length} événements programmés
                                 </p>
                             </div>
@@ -734,12 +729,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
             {/* ============ DAY EVENTS MODAL (via +N badge) ============ */}
             <Dialog open={!!selectedDayEvents} onOpenChange={(open) => !open && setSelectedDayEvents(null)}>
-                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ">
-                    <DialogTitle className="text-lg font-black uppercase italic tracking-tighter text-foreground flex items-center gap-2">
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-zinc-950/98 border border-white/10">
+                    <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                         <CalendarIcon className="h-5 w-5 text-amber-500" />
                         {selectedDayEvents ? format(selectedDayEvents.date, "EEEE d MMMM", { locale: fr }) : ""}
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground font-bold">
+                    <DialogDescription className="text-muted-foreground">
                         {selectedDayEvents ? `${selectedDayEvents.events.length} événement(s) ce jour-là` : ""}
                     </DialogDescription>
 
@@ -768,11 +763,11 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-orange-500/25 ">
-                    <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10">
+                    <DialogTitle className="text-xl font-bold text-foreground">
                         Modifier l'événement
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground font-bold">
+                    <DialogDescription className="text-muted-foreground">
                         Modifiez les informations de l'événement.
                     </DialogDescription>
                     {editingEvent && (

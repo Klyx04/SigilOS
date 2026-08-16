@@ -38,18 +38,18 @@ export function ActivePollsWidget({
         <Card className="glass-premium border-white/5 flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Gavel className="w-3.5 h-3.5" />
                         Sondages Actifs
                         {activePolls.length > 0 && (
-                            <span className="ml-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-black tabular-nums">
+                            <span className="ml-1 px-1.5 py-0.5 rounded-md bg-guild/10 border border-guild/20 text-guild text-caption font-black tabular-nums">
                                 {activePolls.length}
                             </span>
                         )}
                     </CardTitle>
                     <Link
                         href={`/dashboard/${guildId}/sondages`}
-                        className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all hover:border-emerald-500/20"
+                        className="text-caption font-black text-zinc-600 hover:text-guild uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all hover:border-guild/20"
                     >
                         Voter →
                     </Link>
@@ -81,7 +81,7 @@ export function ActivePollsWidget({
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex flex-wrap items-center gap-1.5">
-                                                <span className="text-caption font-black uppercase px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-500/20 shrink-0">
+                                                <span className="text-caption font-black uppercase px-1.5 py-0.5 rounded bg-guild/10 text-guild border border-guild/20 shrink-0">
                                                     {poll.category}
                                                 </span>
                                                 {isExpiringSoon && (
@@ -91,11 +91,11 @@ export function ActivePollsWidget({
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-caption font-black text-white/90 group-hover:text-emerald-400 transition-colors uppercase italic leading-tight">
+                                            <p className="text-caption font-black text-white/90 group-hover:text-guild transition-colors uppercase italic leading-tight">
                                                 {poll.title}
                                             </p>
                                         </div>
-                                        <ArrowRight className="w-4 h-4 text-zinc-700 group-hover:text-emerald-400 transition-colors shrink-0 mt-1" />
+                                        <ArrowRight className="w-4 h-4 text-zinc-700 group-hover:text-guild transition-colors shrink-0 mt-1" />
                                     </div>
 
                                     {/* Top options preview with vote bars */}
@@ -110,11 +110,11 @@ export function ActivePollsWidget({
                                                                 {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
                                                                 {opt.label}
                                                             </span>
-                                                            <span className="text-emerald-400 tabular-nums ml-2 shrink-0">{pct}%</span>
+                                                            <span className="text-guild tabular-nums ml-2 shrink-0">{pct}%</span>
                                                         </div>
                                                         <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
                                                             <div
-                                                                className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-300"
+                                                                className="h-full bg-guild rounded-full transition-all duration-300"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
@@ -143,7 +143,7 @@ export function ActivePollsWidget({
 
                         <Link
                             href={`/dashboard/${guildId}/sondages`}
-                            className="flex items-center justify-center gap-2 text-caption font-black text-zinc-700 hover:text-emerald-400 uppercase tracking-widest pt-2 transition-colors border-t border-white/5 mt-auto"
+                            className="flex items-center justify-center gap-2 text-caption font-black text-zinc-700 hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-white/5 mt-auto"
                         >
                             Voir tous les sondages
                         </Link>

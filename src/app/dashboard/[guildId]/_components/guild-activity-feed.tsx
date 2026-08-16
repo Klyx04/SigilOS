@@ -40,7 +40,7 @@ export function GuildActivityFeed({
         <Card className="glass-premium border-white/5 h-full overflow-hidden flex flex-col group">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Activity className="w-4 h-4" />
                         Flux de Vie de la Guilde
                     </CardTitle>

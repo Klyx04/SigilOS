@@ -96,6 +96,15 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             href: `/dashboard/${guildId}/admin/modules`,
         },
         {
+            id: "interguilde",
+            title: "Inter-Guilde",
+            description: "Optionnel : ouvrez votre guilde aux autres guildes SigilOS (par défaut : mêmes serveur Dofus).",
+            status: guild.interGuildEnabled ? "COMPLETED" : "TO_DO",
+            mandatory: false,
+            points: 10,
+            href: `/dashboard/${guildId}/admin/settings?tab=inter-guilde`,
+        },
+        {
             id: "presentation",
             title: "Page de Présentation",
             description: "Personnalisez votre page publique pour attirer de nouveaux membres.",

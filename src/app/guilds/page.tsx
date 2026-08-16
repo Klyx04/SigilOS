@@ -2,6 +2,7 @@ import { getPublicGuilds } from "@/server/actions/presentation-actions";
 import Link from "next/link";
 import Image from "next/image";
 import { Gamepad2, Compass, ArrowRight, ShieldCheck } from "lucide-react";
+import { ALL_DOFUS_SERVERS } from "@/lib/presentation-constants";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { auth } from "@/auth";
@@ -21,7 +22,12 @@ export const metadata: Metadata = {
     },
 };
 
-export default async function GuildsDirectoryPage() {
+export default async function GuildsDirectoryPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ server?: string; inter?: string }>;
+}) {
+    const { server, inter } = await searchParams;
     const guilds = await getPublicGuilds();
     const session = await auth();
 
@@ -31,6 +37,14 @@ export default async function GuildsDirectoryPage() {
     // #59 — guildes dont le visiteur est membre (badge « Votre guilde » + CTA Dashboard).
     const myGuilds = await getUserGuilds();
     const myGuildIds = new Set(myGuilds.map(g => g.id));
+
+    // Chantier Inter-Guilde (19/08) — filtres « Serveur Dofus » + « Inter-Guilde ».
+    const serverFilter = server && (ALL_DOFUS_SERVERS as readonly string[]).includes(server) ? server : null;
+    const interOnly = inter === "1";
+    const filteredGuilds = guilds.filter(g =>
+        (serverFilter ? (g.dofusServerName === serverFilter || g.server === serverFilter) : true) &&
+        (!interOnly || g.interGuildEnabled)
+    );
 
     return (
         <div className="relative min-h-screen landing-theme bg-zinc-950 text-white selection:bg-accent-teal/30 font-sans flex flex-col">
@@ -55,8 +69,29 @@ export default async function GuildsDirectoryPage() {
                         </p>
                     </div>
 
+                    {/* Filters — Chantier Inter-Guilde : serveur Dofus + guildes ouvertes */}
+                    <form method="GET" action="/guilds" className="max-w-2xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <select
+                            name="server"
+                            defaultValue={serverFilter || ""}
+                            className="h-11 rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        >
+                            <option value="">Tous les serveurs</option>
+                            {ALL_DOFUS_SERVERS.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                        <label className="flex items-center gap-2 h-11 px-4 rounded-xl border border-white/10 bg-zinc-900/60 text-sm text-zinc-300 cursor-pointer">
+                            <input type="checkbox" name="inter" value="1" defaultChecked={interOnly} className="accent-emerald-500" />
+                            Inter-Guilde
+                        </label>
+                        <button type="submit" className="h-11 px-5 rounded-xl bg-emerald-500 text-emerald-950 text-sm font-bold uppercase tracking-wide hover:bg-emerald-400 transition-colors">
+                            Filtrer
+                        </button>
+                    </form>
+
                     {/* Guild Grid */}
-                    {guilds.length === 0 ? (
+                    {filteredGuilds.length === 0 ? (
                         <div className="rounded-2xl border border-white/5 bg-zinc-900/30 p-12 text-center">
                             <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5">
                                 <Gamepad2 className="w-8 h-8 text-zinc-600" />
@@ -68,7 +103,7 @@ export default async function GuildsDirectoryPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {guilds.map((guild) => (
+                            {filteredGuilds.map((guild) => (
                                 <Link
                                     key={guild.id}
                                     href={myGuildIds.has(guild.discordGuildId) ? `/dashboard/${guild.discordGuildId}` : `/guilds/${guild.discordGuildId}`}
@@ -122,6 +157,11 @@ export default async function GuildsDirectoryPage() {
                                                             Recrutement
                                                         </span>
                                                     ) : null}
+                                                    {guild.interGuildEnabled && (
+                                                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 text-caption font-bold uppercase tracking-wide border border-sky-500/20">
+                                                            Inter-Guilde
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 {guild.server && (

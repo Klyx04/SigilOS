@@ -5,9 +5,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { toggleWelcomeReaction } from "@/server/actions/onboarding-admin-actions";
+import { toggleWelcomeReaction, getWelcomePosts } from "@/server/actions/onboarding-admin-actions";
 import { toast } from "sonner";
-import { Smile, Heart, PartyPopper, Hand, Sparkles, MessageCircle, ArrowRight } from "lucide-react";
+import { Smile, Heart, PartyPopper, Hand, Sparkles, MessageCircle, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,6 +32,12 @@ interface WelcomePost {
     content: string;
     reactions: Record<string, string[]> | null;
     createdAt: Date;
+    // Chantier Inter-Guilde (19/08) : guilde d'origine du post (null/absent = guilde courante).
+    guild?: {
+        id: string;
+        name: string;
+        discordGuildId: string;
+    } | null;
 }
 
 interface WelcomeFeedClientProps {
@@ -39,6 +45,9 @@ interface WelcomeFeedClientProps {
     reactorNames: Record<string, string>;
     currentProfileId: string;
     guildId: string;
+    ownGuildId: string;
+    nextCursor: string | null;
+    hasMore: boolean;
 }
 
 const EMOJIS = [
@@ -48,10 +57,32 @@ const EMOJIS = [
     { char: "👋", label: "Salut" },
 ];
 
-export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId, guildId }: WelcomeFeedClientProps) {
+export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId, guildId, ownGuildId, nextCursor, hasMore }: WelcomeFeedClientProps) {
     const [posts, setPosts] = useState(initialPosts);
     const pendingReactions = useRef<Set<string>>(new Set());
     const [processingKeys, setProcessingKeys] = useState<Record<string, boolean>>({});
+    const [cursor, setCursor] = useState<string | null>(nextCursor);
+    const [hasMoreState, setHasMoreState] = useState(hasMore);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    const loadMore = async () => {
+        if (!cursor || loadingMore) return;
+        setLoadingMore(true);
+        try {
+            const res = await getWelcomePosts(guildId, cursor);
+            const newPosts = (res.posts as WelcomePost[]) || [];
+            setPosts(prev => {
+                const seen = new Set(prev.map(p => p.id));
+                return [...prev, ...newPosts.filter(p => !seen.has(p.id))];
+            });
+            setCursor(res.nextCursor);
+            setHasMoreState(res.hasMore);
+        } catch {
+            toast.error("Erreur lors du chargement");
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     const handleReaction = async (welcomeId: string, emoji: string) => {
         const key = `${welcomeId}:${emoji}`;
@@ -112,7 +143,7 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
 
                                 <div className="flex flex-col md:flex-row gap-6 relative z-10">
                                     <div className="shrink-0">
-                                        <Link href={`/dashboard/${guildId}/members/${post.profile.id}`}>
+                                        <Link href={post.guild && post.guild.discordGuildId !== ownGuildId ? `/guilds/${post.guild.id}` : `/dashboard/${guildId}/members/${post.profile.id}`}>
                                             <div className="relative group/avatar">
                                                 <Avatar className="h-16 w-16 rounded-2xl ring-2 ring-white/5 group-hover/avatar:ring-amber-500/40 transition-all duration-300 shadow-2xl">
                                                     <AvatarImage src={post.profile.user.image || ""} className="object-cover" />
@@ -132,11 +163,16 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                             <div className="flex items-center justify-between flex-wrap gap-2">
                                                 <div className="flex items-center gap-2">
                                                     <Link
-                                                        href={`/dashboard/${guildId}/members/${post.profile.id}`}
+                                                        href={post.guild && post.guild.discordGuildId !== ownGuildId ? `/guilds/${post.guild.id}` : `/dashboard/${guildId}/members/${post.profile.id}`}
                                                         className="text-xl font-black text-white hover:text-amber-400 transition-colors tracking-tight"
                                                     >
                                                         {post.profile.id === currentProfileId ? "Toi 🎉" : (post.profile.pseudoDofus || post.profile.user.name)}
                                                     </Link>
+                                                    {post.guild && post.guild.discordGuildId !== ownGuildId && (
+                                                        <span className="shrink-0 px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/25 text-caption font-bold text-sky-400 uppercase tracking-widest">
+                                                            {post.guild.name}
+                                                        </span>
+                                                    )}
                                                     <div className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-caption font-bold text-zinc-500 uppercase tracking-widest">
                                                         Nouveauté
                                                     </div>
@@ -175,7 +211,7 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                                             <MessageCircle className="w-3 h-3 text-amber-500/50" /> Quelques mots
                                                         </p>
                                                         <Link
-                                                            href={`/dashboard/${guildId}/members/${post.profile.id}`}
+                                                            href={post.guild && post.guild.discordGuildId !== ownGuildId ? `/guilds/${post.guild.id}` : `/dashboard/${guildId}/members/${post.profile.id}`}
                                                             className="text-caption font-black text-zinc-600 hover:text-amber-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"
                                                         >
                                                             Profil complet <ArrowRight className="w-3 h-3" />
@@ -240,6 +276,20 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                         </div>
                     </motion.div>
                 ))}
+
+                {hasMoreState && (
+                    <div className="flex justify-center pt-4">
+                        <Button
+                            onClick={loadMore}
+                            disabled={loadingMore}
+                            variant="outline"
+                            className="gap-2"
+                        >
+                            {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                            Charger plus d'arrivées
+                        </Button>
+                    </div>
+                )}
             </div>
         </TooltipProvider>
     );

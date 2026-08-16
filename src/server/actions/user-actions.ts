@@ -5,6 +5,7 @@ import { fetchGuildRoles, fetchGuild, fetchGuildMember, invalidateDiscordCache }
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { DEFAULT_MODULES } from "@/lib/module-types";
+import type { InterGuildScope } from "@/lib/inter-guild";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -232,6 +233,10 @@ export type UserContext = {
     hasPendingReactivation?: boolean;
     isOnboardingComplete: boolean;
     missionVitrineMode?: boolean;
+    // Chantier Inter-Guilde (19/08) : état effectif (toggle guilde × kill-switch God) + scopes par module.
+    interGuildEnabled: boolean;
+    interGuildScopes: Record<string, InterGuildScope>;
+    interGuildPeerCount: number;
 };
 
 export type ActionResponse<T = any> = {
@@ -339,6 +344,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManagePoints: false,
         canViewSettings: false,
         canViewAuditLogs: false,
+        interGuildEnabled: false,
+        interGuildScopes: {},
+        interGuildPeerCount: 0,
         hasPseudoIssue: false,
         hasPreferredActivities: false,
         roles: [],
@@ -383,6 +391,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 discordGuildId: true,
                 rolesMapping: true,
                 usersMapping: true,
+                interGuildEnabled: true,
+                interGuildModules: true,
                 name: true,
                 dofusServerId: true,
                 welcomeEnabled: true,
@@ -955,6 +965,20 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const applyModule = (moduleEnabled: any, perm: boolean): boolean =>
         !!(bypassModules ? perm : (moduleEnabled !== false) && perm);
 
+    // ── Chantier Inter-Guilde (19/08) : état effectif (toggle guilde × kill-switch God) ──
+    // Fail-closed : si la lecture God échoue → enabled=false. Scopes résolus module par module.
+    let interGuildEnabled = false;
+    let interGuildScopes: Record<string, InterGuildScope> = {};
+    let interGuildPeerCount = 0;
+    if (guildConfig) {
+        const state = await resolveUserContextInterGuild(effectiveGuildId, guildConfig);
+        interGuildEnabled = state.enabled;
+        interGuildScopes = state.scopes;
+        if (state.enabled) {
+            interGuildPeerCount = await getInterGuildPeerCount(effectiveGuildId);
+        }
+    }
+
     const finalContext = {
         isAuthenticated: true,
         id: session.user.id,
@@ -1040,6 +1064,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         hiddenNavItems: profile?.hiddenNavItems || [],
         isOnboardingComplete: !!isOnboardingComplete,
         missionVitrineMode: !!guildConfig?.missionVitrineMode,
+        interGuildEnabled,
+        interGuildScopes,
+        interGuildPeerCount,
     };
 
     if (!isOnboardingComplete && !isGod) {
@@ -2016,3 +2043,42 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
         return { success: false, error: "Erreur lors de la mise à jour des rôles autorisés" };
     }
 }
+
+// ============================================================================
+// Chantier Inter-Guilde (19/08) — helpers UserContext (imports dynamiques pour
+// éviter le cycle user-actions ⇄ inter-guild).
+// ============================================================================
+
+async function resolveUserContextInterGuild(
+    discordGuildId: string,
+    guildConfig: any
+): Promise<{ enabled: boolean; scopes: Record<string, InterGuildScope> }> {
+    try {
+        const [{ getGodInterGuildConfig }, { INTER_GUILD_MODULES, resolveInterGuildScope }] = await Promise.all([
+            import("@/server/actions/inter-guild"),
+            import("@/lib/inter-guild"),
+        ]);
+        const god = await getGodInterGuildConfig();
+        const enabled = !!guildConfig?.interGuildEnabled && god.globalEnabled;
+        const guildOverrides = (guildConfig?.interGuildModules as Record<string, unknown>) ?? {};
+        const scopes: Record<string, InterGuildScope> = {};
+        for (const module of INTER_GUILD_MODULES) {
+            scopes[module] = resolveInterGuildScope(module, guildOverrides, god.modules ?? {});
+        }
+        return { enabled, scopes };
+    } catch (e) {
+        logger.error("[inter-guild] resolveUserContextInterGuild failed:", e);
+        return { enabled: false, scopes: {} };
+    }
+}
+
+async function getInterGuildPeerCount(discordGuildId: string): Promise<number> {
+    try {
+        const { getInterGuildPeerGuildCount } = await import("@/server/actions/inter-guild");
+        return await getInterGuildPeerGuildCount(discordGuildId);
+    } catch (e) {
+        logger.error("[inter-guild] getInterGuildPeerCount failed:", e);
+        return 0;
+    }
+}
+

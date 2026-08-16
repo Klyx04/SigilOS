@@ -8,6 +8,8 @@ import { Users } from "lucide-react";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+import { getInterGuildMembers } from "@/server/actions/inter-guild";
+import { InterGuildMembers } from "./_components/inter-guild-members";
 
 export default async function MembersPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -21,9 +23,10 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
         return <AccessDenied />;
     }
 
-    const [response, legendaryItems] = await Promise.all([
+    const [response, legendaryItems, interGuild] = await Promise.all([
         getGuildMembers(guildId),
-        db.legendaryItem.findMany({ orderBy: { name: "asc" } })
+        db.legendaryItem.findMany({ orderBy: { name: "asc" } }),
+        user.interGuildEnabled ? getInterGuildMembers(guildId) : Promise.resolve({ members: [], peerCount: 0 }),
     ]);
 
     if (!response.success) {
@@ -48,6 +51,11 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
             </div>
 
             <div data-tour="annuaire-board">
+                {user.interGuildEnabled && (
+                    <div className="mb-6">
+                        <InterGuildMembers members={interGuild.members} peerCount={interGuild.peerCount} />
+                    </div>
+                )}
                 <MemberDirectory 
                     initialMembers={JSON.parse(JSON.stringify(response.data || []))} 
                     legendaryItems={JSON.parse(JSON.stringify(legendaryItems))}

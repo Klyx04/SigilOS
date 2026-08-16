@@ -4,13 +4,17 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
 import { isSuperAdmin } from "./super-admin-actions";
-import { getMemberReconciliation } from "./member-actions";
-import { getPlatformStats } from "./super-admin-actions";
 
 /**
  * 📊 Envoie un rapport quotidien détaillé sur Discord.
- * Contrairement au Status Ping qui met à jour un message existant, 
+ * Contrairement au Status Ping qui met à jour un message existant,
  * celui-ci envoie un NOUVEAU message pour générer une notification.
+ *
+ * 🔧 FIX (session 3, chantier #77) : cette action ne dépend plus de la session
+ * (`getPlatformStats`/`getMemberReconciliation` exigeaient un scope God basé sur
+ * `auth()` → le worker BullMQ (aucune session) échouait avec « Unauthorized:
+ * God scope required » → le rapport n'arrivait JAMAIS, sans log d'erreur).
+ * Les statistiques sont désormais calculées en requêtes directes scopées guilde.
  */
 export async function sendDailySummaryReport(guildId: string, isManual = false) {
     if (isManual) {
@@ -19,27 +23,35 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
     }
 
     try {
-        // En 2026, on veut du visuel et de la data utile.
-        const [config, stats, reconciliation] = await Promise.all([
+        const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        const [config, weeklyActiveUsers, totalMissions] = await Promise.all([
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { 
-                    name: true, 
+                select: {
+                    name: true,
                     systemNotifyChannelId: true,
                     _count: { select: { profiles: true } }
                 }
             }),
-            getPlatformStats(),
-            getMemberReconciliation(guildId)
+            db.userProfile.count({
+                where: {
+                    guild: { discordGuildId: guildId },
+                    status: "ACTIVE",
+                    lastSeen: { gte: lastWeek },
+                }
+            }),
+            db.mission.count({
+                where: {
+                    guild: { discordGuildId: guildId },
+                    status: "ACTIVE",
+                }
+            })
         ]);
 
         if (!config?.systemNotifyChannelId) {
             return { success: false, error: "Canal de notification système non configuré pour cette guilde." };
         }
-
-        const unregisteredCount = reconciliation.success 
-            ? reconciliation.data!.members.filter(m => !m.hasDashboardProfile).length 
-            : 0;
 
         const { getAppBaseUrl } = await import("@/lib/utils");
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`;
@@ -53,7 +65,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
             fields: [
                 {
                     name: "👥 Membres",
-                    value: `Inscrits sur SigilOS: **${config._count.profiles}**\nSans profil encore: **${unregisteredCount}**`,
+                    value: `Inscrits sur SigilOS: **${config._count.profiles}**`,
                     inline: true
                 },
                 {
@@ -63,7 +75,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
                 },
                 {
                     name: "📈 Activité (7 jours)",
-                    value: `Membres actifs: **${stats.weeklyActiveUsers}**\nMissions en cours: **${stats.totalMissions}**`,
+                    value: `Membres actifs: **${weeklyActiveUsers}**\nMissions en cours: **${totalMissions}**`,
                     inline: false
                 }
             ],

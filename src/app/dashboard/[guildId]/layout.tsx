@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { ResizableSidebar } from "@/components/layout/resizable-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
@@ -179,24 +179,22 @@ export default async function DashboardLayout({
                 <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
 
 
-                {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
-                    <AppSidebar
-                        guildId={guildId}
-                        user={user}
-                        guildData={guildData}
-                        userGuilds={userGuilds}
-                        modules={modules}
-                        roadmapEnabled={roadmapEnabled}
-                        className="h-full border-r border-border bg-muted/40 backdrop-blur-3xl shadow-[5px_0_30px_rgba(0,0,0,0.02)] dark:shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
-                    />
-                </div>
+                {/* 1. DESKTOP SIDEBAR (flex item redimensionnable + persistée) */}
+                <ResizableSidebar
+                    guildId={guildId}
+                    user={user}
+                    guildData={guildData}
+                    userGuilds={userGuilds}
+                    modules={modules}
+                    roadmapEnabled={roadmapEnabled}
+                    className="border-r border-border bg-muted/40 backdrop-blur-3xl shadow-[5px_0_30px_rgba(0,0,0,0.02)] dark:shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
+                />
 
                 {/* Silent Presence Update Hook */}
                 <PresenceHeartbeat guildId={guildId} />
 
                 {/* 2. MAIN CONTENT AREA */}
-                <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
                     <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
                         <TopNav

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
@@ -63,6 +64,12 @@ export default async function DashboardLayout({
 
     const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
     const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
+
+    // #5 — Couleur de guilde (teinte OKLCH) : le dashboard se teinte via --accent/--ring.
+    const accentHue = await db.guildConfig
+        .findUnique({ where: { discordGuildId: guildId }, select: { accentHue: true } })
+        .then(g => g?.accentHue ?? null)
+        .catch(() => null);
 
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") || "";
@@ -169,6 +176,24 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
+            {/* #5 — Couleur de guilde : teinte OKLCH imposée (le système fixe luminosité
+                et chroma → contraste garanti dans les deux thèmes, design system §5.2). */}
+            {accentHue != null && (
+                <style>{`
+                    :root {
+                        --accent: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
+                        --ring: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
+                        --accent-foreground: oklch(0.16 0.02 ${Math.max(0, Math.min(360, accentHue))});
+                        --color-guild: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
+                    }
+                    .light {
+                        --accent: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
+                        --ring: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
+                        --accent-foreground: oklch(0.98 0.005 ${Math.max(0, Math.min(360, accentHue))});
+                        --color-guild: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
+                    }
+                `}</style>
+            )}
             <GameProvider>
             <TelemetryTracker />
             <TourProvider guildId={guildId} modules={modules} user={user}>

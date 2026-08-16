@@ -43,6 +43,51 @@
 > ⚠️ **PR `feat/chantier-2026-08-19` → dev à créer** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-08-19
 > ⚠️ Workflow local : après toute modif de `prisma/schema.prisma` → `prisma generate` + `migrate dev`/`deploy`
 > local puis **redémarrer `npm run dev`** (détail dans l'amorce 19/08).
+## 🧭 Chantier global (src/temp/chantier) — SESSION 20/08 — Mode sombre/clair V1 + tokens OKLCH + couleur de guilde + F-29
+
+> **Branche `feat/chantier-2026-08-19`** → **PR #484 créée** (https://github.com/Klyx04/SigilOS/pull/484).
+> Commits poussés le 20/08 : `cc16449cf` (F-29) · `3885b5f41` (batch #16/#5) · `c95e13571` (titres de bloc harmonisés) ·
+> `123c46f3f` (couleur de guilde **visible** via `--color-guild` sur les titres) · `b10974a5f` (fix Agenda de Guilde +
+> débordement sondages).
+> 📦 **Export UI/UX pour IA externe** : copie des fichiers clés dark/clair → **`C:\tmp\sigilos-dark-mode\`**
+> (globals.css, theme-provider, layout racine + dashboard, tailwind.config, design-system doc, toggles, top-nav,
+> schema prisma, changelog-actions, platform-config-panel, guild-appearance-settings-client).
+> ⚠️ `prisma migrate dev` reste **BLOQUÉ** sur cette branche (dérive inter-guilde `20260819000000` appliquée en DB
+> locale mais absente des migrations de cette branche) → **toute nouvelle migration = SQL manuel + `prisma migrate
+> deploy`** (jamais de `migrate reset`, perte de données).
+>
+> - **F-29 (CodeQL `js/incomplete-url-substring-sanitization`, 3 alerts High sur PR #484)** — whitelist exacte
+>   `DISCORD_AVATAR_HOSTS` + helpers `isDiscordAvatarUrl()` / `isDiscordAvatarHostname()` (parse `new URL()`,
+>   fail-closed) appliqués à `normalizeDiscordAvatarUrl` / `discordAvatarErrorFallback` / rafraîchissement
+>   `User.image` (getUserContext) + **16 tests unitaires** (`tests/unit/discord-avatars.test.ts`).
+> - **#16 — Mode sombre/clair GLOBAL (V1)** : `theme-provider` réel (**next-themes**, `defaultTheme="dark"`,
+>   `enableSystem`), `className="dark"` retiré du `<html>`, toggle 🌙 dans la navbar dashboard, `color-scheme`
+>   déclaré, Toaster thème-aware. **Kill-switch God `PlatformConfig.forceDarkMode`** : toggle « Forcer le Mode
+>   Sombre » (God → Infrastructure → Modules Plateforme & Sécurité) → `forcedTheme="dark"` (bascule auto même pour
+>   les users restés en clair + boutons clair masqués, fail-closed). ✅ fait mais
+>   🔶 **V2 À FAIRE (reste pas mal de taff)** : audit + remplacement des couleurs en dur (hex, zinc, emerald,
+>   amber…) par les tokens sémantiques sur tous les modules ; contrastes WCAG 2.2 en mode clair ; landings en
+>   clair ; variantes `dark:` manquantes sur composants legacy (modales/toasts).
+> - **#5 — Tokens OKLCH + couleur de guilde (V1)** : `--sigil-*` (dark + clair) en OKLCH (design system §4.2),
+>   alias `--surface` / `--elevated` / `--border-strong`. **Couleur de guilde** : `GuildConfig.accentHue` (0-360°)
+>   → injection `--accent` / `--ring` / `--accent-foreground` + **nouveau token `--color-guild`** (utilities
+>   `text-guild` / `bg-guild`…) sur le layout dashboard ; UI admin `admin/settings?tab=apparence` (presets +
+>   slider + préview, validation Zod bornée). Les **titres de bloc du dashboard home** (Agenda de Guilde,
+>   Sondages Actifs, Groupes & Activités, Almanax, Flux de vie, Intelligence Focus) suivent `text-guild`
+>   (= couleur de guilde, fallback émeraude). 🔶 **V2 à faire** : généraliser `guild`/`accent` sur boutons,
+>   cartes actives, badges et pages de modules (remplacer `text-emerald-400` / `bg-amber-500`… en dur) ;
+>   supprimer les widgets inutilisés `DashboardNews` / `LadderPreview` / `TopActivityWidget` (#51).
+> - Migration **`20260820000000_add_force_dark_mode_and_guild_accent_hue`** (`PlatformConfig.forceDarkMode` +
+>   `GuildConfig.accentHue`), appliquée en local via `migrate deploy` + client régénéré + `npm run dev` redémarré.
+> - **Bugfixes UI (b10974a5f)** : **Agenda de Guilde** → `getUpcomingEvents` retourne la **semaine en cours**
+>   (PUBLISHED + COMPLETED, `take: 20`, du LUN au DIM) au lieu de `startDate >= now` (les raids EN COURS type
+>   Krala/Gigalodon ne remontaient pas) ; widget : bandeau 7 jours avec pastilles, liste = semaine complète avec
+>   badges **« En cours »** (vert) / **« Terminé »** (gris, ligne atténuée) / jour à venir, compteur = en cours+à
+>   venir. **Sondages** : libellés de choix passés en `break-words` (fini `truncate`/nowrap → débordement de boîte)
+>   dans `poll-detail` / `poll-card` / `active-polls-widget`.
+> - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **208/208** · build OK.
+
+
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé
 

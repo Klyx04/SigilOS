@@ -8,7 +8,7 @@ import { db } from "@/lib/prisma";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles, Gem, Layout
+    ShieldAlert, UserCheck, Sparkles, Gem, Layout, Palette
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
@@ -36,6 +36,7 @@ import { ServicesSettingsClient } from "../_components/services-settings-client"
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { GuildStorageCard } from "@/components/admin/guild-storage-card";
+import { GuildAppearanceSettingsClient } from "../_components/guild-appearance-settings-client";
 
 // ============================================================================
 // NAV ITEMS
@@ -71,6 +72,12 @@ function buildNavGroups(): SettingsGroup[] {
                 { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald" },
                 { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald" },
                 { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald" },
+            ]
+        },
+        {
+            title: "Personnalisation",
+            items: [
+                { id: "apparence", label: "Apparence", icon: Palette, description: "Mode sombre & couleur de guilde", accent: "emerald" },
             ]
         },
         {
@@ -126,7 +133,7 @@ export default async function FeatureSettingsPage({
 
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { dofusServerId: true }
+        select: { dofusServerId: true, accentHue: true }
     });
     const isDofusConfigured = !!guild?.dofusServerId;
 
@@ -288,6 +295,7 @@ export default async function FeatureSettingsPage({
                             { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { activeTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
                             { activeTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
+                            { activeTab === "apparence" && <GuildAppearanceSettingsClient guildId={guildId} initialHue={guild?.accentHue ?? null} /> }
                         </>
                     )}
 

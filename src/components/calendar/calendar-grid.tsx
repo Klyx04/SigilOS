@@ -318,10 +318,9 @@ export function CalendarGrid({
                                                                     onEventClick(event.id);
                                                                 }}
                                                                 className={cn(
-                                                                    "w-full group/btn relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left",
-                                                                    "bg-zinc-950/70 backdrop-blur-md border",
-                                                                    "hover:bg-[#1c262a] hover:shadow-xl hover:shadow-black/50 hover:-translate-y-0.5",
-                                                                    "active:scale-[0.98] active:translate-y-0",
+                                                                    "w-full group/btn relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left",
+                                                                    "bg-zinc-950/70 border",
+                                                                    "hover:bg-[#1c262a]",
                                                                     isCompleted
                                                                         ? "border-white/[0.03] opacity-60 grayscale-[0.8] hover:border-white/10"
                                                                         : "border-white/[0.06] hover:border-white/15"
@@ -329,7 +328,7 @@ export function CalendarGrid({
                                                             >
                                                                 {/* Side Accent Line */}
                                                                 <div className={cn(
-                                                                    "absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full transition-all group-hover/btn:top-1 group-hover/btn:bottom-1",
+                                                                    "absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full transition-colors",
                                                                     isCompleted ? "bg-emerald-500/70" : config.dot
                                                                 )} />
 
@@ -365,9 +364,9 @@ export function CalendarGrid({
                                                         </TooltipTrigger>
                                                         <TooltipContent
                                                             side="right"
-                                                            className="bg-[#0e1417] border-white/10 p-3.5 max-w-[240px] shadow-2xl rounded-xl backdrop-blur-xl"
+                                                            className="bg-[#0e1417] border-white/10 p-3.5 max-w-[240px] rounded-xl"
                                                         >
-                                                            <p className="font-extrabold text-zinc-100 text-sm tracking-tight">{event.title}</p>
+                                                            <p className="font-bold text-zinc-100 text-sm">{event.title}</p>
                                                             <p className="text-xs text-zinc-400 mt-1 font-medium">
                                                                 {time} → {format(new Date(event.endDate), "HH:mm")}
                                                             </p>
@@ -397,18 +396,18 @@ export function CalendarGrid({
                 </div>
             </div>
 
-            {/* ============ LEGEND (BIG & FRESH) ============ */}
-            <div className="flex flex-wrap items-center justify-center gap-4 py-4 bg-[#0a0f12]/40 border border-white/[0.03] rounded-2xl backdrop-blur-md px-6 shadow-inner">
+            {/* ============ LÉGENDE ============ */}
+            <div className="flex flex-wrap items-center justify-center gap-2 py-3 bg-zinc-900/40 border border-white/5 rounded-xl px-4">
                 {Object.entries(TYPE_CONFIG).map(([type, config]) => (
-                    <div key={type} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.03] hover:border-white/[0.06] hover:bg-white/[0.03] transition-all">
-                        <div className={cn("h-2.5 w-2.5 rounded-full ", config.dot)} />
-                        <span className="text-xs font-bold text-zinc-400 tracking-wide">{config.label}</span>
+                    <div key={type} className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
+                        <div className={cn("h-2 w-2 rounded-full", config.dot)} />
+                        <span className="text-xs font-medium text-zinc-400">{config.label}</span>
                     </div>
                 ))}
-                {/* Completed events are shown deselected with a watermark stamp in the grid */}
-                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.03] hover:border-white/[0.06] hover:bg-white/[0.03] transition-all">
+                {/* Les événements terminés sont grisés avec un tampon « Terminé » dans la grille */}
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
                     <CheckCircle2 className="h-3 w-3 text-emerald-500/80" />
-                    <span className="text-xs font-bold text-zinc-400 tracking-wide">Terminé ✓</span>
+                    <span className="text-xs font-medium text-zinc-400">Terminé</span>
                 </div>
             </div>
         </div>

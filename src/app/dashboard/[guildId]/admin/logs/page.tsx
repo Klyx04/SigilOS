@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AuditLogsClient } from "./_components/audit-logs-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { logger } from "@/lib/logger";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -30,7 +31,7 @@ export default async function AdminLogsPage({ params }: Props) {
     // Lazy Cleanup: Trigger automatic cleanup of old logs (fire & forget)
     // Retention policy is exactly 30 days (consistent with UI notice)
     cleanupOldAuditLogs(guildId).catch(err =>
-        console.error("[LazyCleanup] Failed to clean old logs:", err)
+        logger.error("[LazyCleanup] Failed to clean old logs:", err)
     );
 
     // Fetch audit logs (initial page)
@@ -46,7 +47,7 @@ export default async function AdminLogsPage({ params }: Props) {
             roleNames[role.id] = role.name;
         });
     } catch (error) {
-        console.error("[AdminLogs] Failed to fetch role names:", error);
+        logger.error("[AdminLogs] Failed to fetch role names:", error);
     }
 
     // Convert dates and BigInts for client component

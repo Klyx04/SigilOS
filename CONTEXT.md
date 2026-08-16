@@ -23,18 +23,24 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (2e passe) — dashboard plié + CodeQL PR #480 débloqué
+## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé
 
-> **✅ PR #480 (`feat/design-system-polices` → dev) : 2 commits poussés le 18/08 soir** —
-> `e8aee47cd` (chantier dashboard) + `7776675a6` (fix sécurité CodeQL, 7 alertes levées).
-> **Chantier dashboard plié** : #87/#88 hydration React #418 (HeaderEventChip + calendar-dashboard + widgets),
-> #88 images (DofusIcon normalizeName « Dofus » + fallback local + event.png recréé), #35 4 blocs quetes-dofus
-> refondus, #86 identité grisée, #90 cartes membres, #92 histoire, #77 relance cases à cocher (partiel),
-> #5 ACCENT emerald unique (annuaire-hub/stuff-hub/admin). Vérifs : tsc 0 · lint 0 erreur · **192/192** · build OK.
+> **✅ PR #480 (`feat/design-system-polices` → dev) : 8 commits poussés le 18/08** —
+> `e8aee47cd` (chantier dashboard) + `7776675a6` (fix sécurité CodeQL, 7 alertes levées) + **session 3** :
+> `d2b48afef` (batch dashboard : **#93** modale donjon non couvert + CTA Discord, **#95/#4/#5** lag + dé-slop
+> calendrier, **#94** filtres annuaire, **#77** rapport vulgarisé, **#89** logs Discord Gateway lisibles,
+> **#22** onglets ladder dé-sloppés, **#55** rate-limits songes complétés),
+> `7becc2cbc` (worker : logs d'erreur réels + bouton « Rapport quotidien » dé-sloppé),
+> `09ea6ae9c` (**🔴 CAUSE RACINE rapport quotidien** : le worker BullMQ échouait sur `getPlatformStats()` qui
+> exige une session God → stats désormais en requêtes directes scopées guilde, le rapport part enfin),
+> `38d2522a5` (**#98 planning virtualisé** : fenêtre de lignes visibles au lieu de la `<table>` complète →
+> scroll fluide à des centaines de membres).
+> Vérifs : tsc 0 · lint 0 erreur · **192/192** · build OK. ⚠️ Déploiement beta requis pour : fix rapport quotidien,
+> Planning (module Disponibilités + RBAC `availability:view` ; migration `20260818000000_add_availability_module`
+> déjà appliquée en beta), virtualisation #98.
 > Rappel : **#80 landing MERGÉE dans dev (18/08, PR #478, `a13e89184`)** + **#5 slice 1** (fonts 6→4, Space Grotesk,
 > type scale) déjà dans `dev`/cette branche. Historique des sessions précédentes (16/08 → PR #470-477) ci-dessous.
-> Détail : `src/temp/memo-2026-08-13-chantier-global.md` (section 18/08 2e passe).
-> Historique des sessions précédentes (16/08 → PR #470-477) ci-dessous.
+> Détail : `src/temp/memo-2026-08-13-chantier-global.md` + `src/temp/chantier.md` (annoté ✅/🔸, session 3).
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
 > migrations 201 à jour, Sondages `polls=t`). **PR #470 (session 14/08) MERGÉE dans dev**

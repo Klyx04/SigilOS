@@ -245,7 +245,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
                 <Toggle
                     pressed={showExchangeableOnly}
                     onPressedChange={setShowExchangeableOnly}
-                    className="gap-2 data-[state=on]:bg-success data-[state=on]:text-foreground"
+                    className="gap-2 data-[state=on]:bg-success data-[state=on]:text-success-foreground"
                     disabled={doublonsLoading || monstersWithExchanges === 0}
                 >
                     <Sparkles className="h-4 w-4" />

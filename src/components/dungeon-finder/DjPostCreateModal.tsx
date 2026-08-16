@@ -1034,7 +1034,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                             <div className="absolute inset-0 bg-background opacity-0 group-hover:opacity-10 transition-opacity" />
                                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
                                                 {isPending ? (
-                                                    <div className="w-4 h-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
+                                                    <div className="w-4 h-4 border-2 border-border/20 border-t-zinc-950 rounded-full animate-spin" />
                                                 ) : (
                                                     <CheckCircle2 className="w-4 h-4" />
                                                 )}

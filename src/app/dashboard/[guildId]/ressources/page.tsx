@@ -57,7 +57,7 @@ function SectionHeader({
 function GenericSkeleton({ height = "200px" }: { height?: string }) {
     return (
         <div
-            className="w-full rounded-2xl border border-border bg-[#13171A] p-6 animate-pulse"
+            className="w-full rounded-2xl border border-border bg-surface p-6 animate-pulse"
             style={{ height }}
         />
     );

@@ -201,7 +201,7 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                                             className={cn(
                                                 "flex items-center gap-3 justify-between rounded-xl border p-3.5 text-left transition-all duration-300",
                                                 isChecked
-                                                    ? "border-info/40 bg-info/5 text-foreground"
+                                                    ? "border-info/40 bg-info/5 text-info-foreground"
                                                     : "border-border bg-surface text-muted-foreground hover:border-border hover:text-foreground"
                                             )}
                                         >
@@ -241,7 +241,7 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Ex: Salut ! Je suis dispo ce soir à 21h, j'ai mes clés. Merci !"
-                            className="bg-black/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-24 text-xs leading-relaxed"
+                            className="bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-24 text-xs leading-relaxed"
                             maxLength={1000}
                         />
                     </div>

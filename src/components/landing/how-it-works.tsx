@@ -27,7 +27,7 @@ export function HowItWorks() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {STEPS.map((step, idx) => (
-                        <div key={step.title} className="rounded-2xl border border-border bg-[#101313] p-6">
+                        <div key={step.title} className="rounded-2xl border border-border bg-surface p-6">
                             <div className="text-body-sm font-bold text-success tabular-nums mb-4">
                                 0{idx + 1}
                             </div>

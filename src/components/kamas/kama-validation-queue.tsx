@@ -122,10 +122,10 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                         return (
                             <div
                                 key={don.id}
-                                className="flex flex-col bg-[#121417] border border-border rounded-2xl overflow-hidden shadow-xl hover:border-warning/20 transition-all duration-300"
+                                className="flex flex-col bg-surface border border-border rounded-2xl overflow-hidden shadow-xl hover:border-warning/20 transition-all duration-300"
                             >
                                 {/* Header amber */}
-                                <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-warning/80 to-zinc-900/80 border-b border-warning/15">
+                                <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-warning/80 to-surface/80 border-b border-warning/15">
                                     <div className="p-1.5 bg-warning/15 rounded-lg border border-warning/20">
                                         <Coins className="w-3.5 h-3.5 text-warning" />
                                     </div>
@@ -163,7 +163,7 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                                 {/* Proof image */}
                                 {don.proofUrl ? (
                                     <div
-                                        className="relative aspect-video bg-black overflow-hidden cursor-zoom-in group"
+                                        className="relative aspect-video bg-background overflow-hidden cursor-zoom-in group"
                                         onClick={() => setSelectedImage(don.proofUrl)}
                                     >
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -172,7 +172,7 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                                             alt="Preuve"
                                             className="w-full h-full object-contain"
                                         />
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-foreground text-xs">
+                                        <div className="absolute inset-0 bg-muted/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-foreground text-xs">
                                             <ZoomIn className="w-4 h-4" />
                                             Agrandir
                                         </div>

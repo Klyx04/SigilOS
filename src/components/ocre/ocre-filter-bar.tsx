@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -182,7 +183,7 @@ export function OcreFilterBar({
                         className={cn(
                             "h-11 px-5 rounded-2xl text-xs font-bold gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] border",
                             selectionMode
-                                ? "bg-amber-500 text-foreground border-amber-500 shadow-lg shadow-amber-500/25"
+                                ? "bg-amber-500 text-warning-foreground border-amber-500 shadow-lg shadow-amber-500/25"
                                 : "bg-[#161e20]/60 text-foreground border-border hover:bg-[#202a2c] hover:border-border"
                         )}
                     >

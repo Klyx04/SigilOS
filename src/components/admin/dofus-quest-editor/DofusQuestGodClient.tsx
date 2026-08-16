@@ -208,7 +208,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                             }}
                             className="w-full flex items-center justify-between gap-8 px-10 py-8 hover:bg-surface transition-all text-left group cursor-pointer relative overflow-hidden"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-zinc-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-surface/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             
                             <div className="relative flex items-center gap-10 flex-1 min-w-0">
                                 {/* Dofus icon with premium glow */}
@@ -352,7 +352,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                             <Button 
                                                 disabled={isPending}
                                                 onClick={(e) => { e.stopPropagation(); handleCompile(dofus.slug); }}
-                                                className="bg-success/10 text-success border border-success/20 hover:bg-success hover:text-foreground h-12 px-8 rounded-2xl text-caption font-black uppercase tracking-widest transition-all  active:scale-95 group/btn"
+                                                className="bg-success/10 text-success border border-success/20 hover:bg-success hover:text-success-foreground h-12 px-8 rounded-2xl text-caption font-black uppercase tracking-widest transition-all  active:scale-95 group/btn"
                                             >
                                                 <Zap className={`w-4 h-4 mr-3 ${isPending ? 'animate-pulse' : 'group-hover/btn:animate-bounce'}`} />
                                                 Compiler & Seed la chaîne

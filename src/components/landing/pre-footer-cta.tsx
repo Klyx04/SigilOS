@@ -10,7 +10,7 @@ export function PreFooterCta() {
     return (
         <section className="w-full border-t border-border py-24">
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
-                <div className="rounded-3xl border border-border bg-[#101313] px-6 py-14 md:p-16 text-center">
+                <div className="rounded-3xl border border-border bg-surface px-6 py-14 md:p-16 text-center">
                     <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
                         Prêt à réunir votre guilde au même endroit ?
                     </h2>
@@ -20,7 +20,7 @@ export function PreFooterCta() {
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                         <button
                             onClick={() => setShowAccessModal(true)}
-                            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
+                            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
                         >
                             Créer l&apos;espace de ma guilde
                         </button>

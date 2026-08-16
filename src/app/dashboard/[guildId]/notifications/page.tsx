@@ -126,10 +126,10 @@ export default function NotificationsPage() {
     const getIcon = (category: NotificationCategory) => {
         switch (category) {
             case "MISSION": return <Target className="w-5 h-5 text-info" />;
-            case "SUCCESS": return <Trophy className="w-5 h-5 text-yellow-400" />;
+            case "SUCCESS": return <Trophy className="w-5 h-5 text-warning" />;
             case "SONGES": return <Flame className="w-5 h-5 text-success" />;
             case "EVENT": return <Calendar className="w-5 h-5 text-info" />;
-            case "POLL": return <PieChart className="w-5 h-5 text-orange-400" />;
+            case "POLL": return <PieChart className="w-5 h-5 text-warning" />;
             case "ADMIN_ALERT": return <ShieldCheck className="w-5 h-5 text-danger" />;
             case "DONJONS": return <Swords className="w-5 h-5 text-info" />;
             case "OCRE": return <Gem className="w-5 h-5 text-success" />;
@@ -255,7 +255,7 @@ export default function NotificationsPage() {
                             {cat.label}
                             <span className={cn(
                                 "min-w-[22px] text-center px-1.5 py-0.5 rounded-md text-caption font-black tabular-nums",
-                                activeTab === cat.id ? "bg-black/30 text-info" : "bg-surface text-muted-foreground"
+                                activeTab === cat.id ? "bg-muted/30 text-info" : "bg-surface text-muted-foreground"
                             )}>
                                 {count}
                             </span>
@@ -303,10 +303,10 @@ export default function NotificationsPage() {
                             <div className={cn(
                                 "absolute left-0 top-4 bottom-4 w-1 rounded-r-full opacity-50",
                                 notif.category === "MISSION" && "bg-info",
-                                notif.category === "SUCCESS" && "bg-yellow-500",
+                                notif.category === "SUCCESS" && "bg-warning",
                                 notif.category === "SONGES" && "bg-success",
                                 notif.category === "EVENT" && "bg-info",
-                                notif.category === "POLL" && "bg-orange-500",
+                                notif.category === "POLL" && "bg-warning",
                                 notif.category === "ADMIN_ALERT" && "bg-danger",
                                 notif.category === "DONJONS" && "bg-info",
                                 notif.category === "OCRE" && "bg-success",
@@ -407,7 +407,7 @@ export default function NotificationsPage() {
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder="Saisissez votre message pour le client..."
-                                className="bg-black/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-28 text-xs leading-relaxed"
+                                className="bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-28 text-xs leading-relaxed"
                                 maxLength={500}
                             />
                         </div>

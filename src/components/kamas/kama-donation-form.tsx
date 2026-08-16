@@ -96,7 +96,7 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
         <div className="rounded-2xl border border-white/8 bg-surface/60 backdrop-blur-sm overflow-hidden space-y-0">
 
             {/* ── Raid access banner ── */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-danger/60 via-zinc-900/80 to-zinc-900/60 border-b border-danger/15 px-5 py-3">
+            <div className="relative overflow-hidden bg-gradient-to-r from-danger/60 via-surface/80 to-surface/60 border-b border-danger/15 px-5 py-3">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_left,rgba(239,68,68,0.07),transparent_60%)] pointer-events-none" />
                 <div className="relative flex items-center gap-2.5">
                     <div className="p-1.5 rounded-lg bg-danger/10 border border-danger/20 shrink-0">
@@ -198,7 +198,7 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
                         >
                             <X className="w-3.5 h-3.5" />
                         </button>
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-zinc-900/80 to-transparent p-2">
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-surface/80 to-transparent p-2">
                             <p className="text-caption text-muted-foreground truncate">{file?.name}</p>
                         </div>
                     </div>
@@ -236,7 +236,7 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
             <Button
                 onClick={handleSubmit}
                 disabled={submitting || done || !file}
-                className="w-full relative overflow-hidden bg-gradient-to-r from-warning to-orange-600 hover:from-warning hover:to-orange-500 text-foreground font-black shadow-xl shadow-amber-600/25 hover:shadow-amber-600/40 gap-2 h-12 transition-all duration-300 hover:scale-[1.01] border-t border-border text-sm uppercase tracking-wide rounded-xl"
+                className="w-full relative overflow-hidden bg-gradient-to-r from-warning to-warning hover:from-warning hover:to-warning text-foreground font-black shadow-xl shadow-amber-600/25 hover:shadow-amber-600/40 gap-2 h-12 transition-all duration-300 hover:scale-[1.01] border-t border-border text-sm uppercase tracking-wide rounded-xl"
             >
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
                 {submitting ? (

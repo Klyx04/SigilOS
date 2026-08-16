@@ -225,7 +225,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                                 placeholder="Ex: Dark-Iop"
                                                 value={pseudo}
                                                 onChange={(e) => setPseudo(e.target.value)}
-                                                className="bg-black/50 border-border h-12 text-sm font-medium rounded-xl focus-visible:ring-violet-500/30 text-foreground"
+                                                className="bg-muted/50 border-border h-12 text-sm font-medium rounded-xl focus-visible:ring-violet-500/30 text-foreground"
                                                 disabled={loading}
                                                 autoFocus
                                             />
@@ -392,7 +392,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                         <Button
                                             type="button"
                                             onClick={handleActivitiesSubmit}
-                                            className="flex-1 h-12 bg-success hover:bg-success font-black uppercase tracking-widest text-xs rounded-xl transition-all active:scale-95 text-foreground gap-2"
+                                            className="flex-1 h-12 bg-success hover:bg-success font-black uppercase tracking-widest text-xs rounded-xl transition-all active:scale-95 text-success-foreground gap-2"
                                             disabled={loading || selectedActivities.length === 0}
                                         >
                                             {loading ? (

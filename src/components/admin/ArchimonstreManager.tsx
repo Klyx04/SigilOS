@@ -128,7 +128,7 @@ export default function ArchimonstreManager() {
                     <button
                         onClick={handleSync}
                         disabled={isPending}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning hover:bg-warning disabled:opacity-50 text-foreground font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning hover:bg-warning disabled:opacity-50 text-warning-foreground font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20"
                     >
                         {isPending ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                         {isPending ? 'Synchronisation…' : 'Sync depuis Metamob'}

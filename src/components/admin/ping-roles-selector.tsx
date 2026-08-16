@@ -51,7 +51,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                         <Button
                             variant="outline"
                             role="combobox"
-                            className="w-full h-12 bg-black/20 border-border justify-between px-4 hover:bg-black/30 text-muted-foreground"
+                            className="w-full h-12 bg-muted/20 border-border justify-between px-4 hover:bg-muted/30 text-muted-foreground"
                         >
                             <div className="flex items-center gap-2 truncate">
                                 <Hash className="w-4 h-4 text-muted-foreground" />

@@ -181,10 +181,10 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
             <div className="relative z-10 w-full max-w-lg bg-background rounded-2xl border border-border overflow-hidden">
 
                 {/* Header coloré selon l'action */}
-                <div className={`px-6 pt-6 pb-4 border-b border-border ${isDeposit ? "bg-success/10" : "bg-orange-500/10"}`}>
+                <div className={`px-6 pt-6 pb-4 border-b border-border ${isDeposit ? "bg-success/10" : "bg-warning/10"}`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className={`p-2.5 rounded-xl border ${isDeposit ? "border-success/40 bg-success/15 text-success" : "border-orange-500/40 bg-orange-500/15 text-orange-400"}`}>
+                            <div className={`p-2.5 rounded-xl border ${isDeposit ? "border-success/40 bg-success/15 text-success" : "border-warning/40 bg-warning/15 text-warning"}`}>
                                 {isDeposit ? <TrendingDown className="h-5 w-5" /> : <TrendingUp className="h-5 w-5" />}
                             </div>
                             <div>
@@ -210,7 +210,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${action === a
                                     ? a === "DEPOSIT"
                                         ? "border-success/60 bg-success/20 text-success"
-                                        : "border-orange-500/60 bg-orange-500/20 text-orange-300"
+                                        : "border-warning/60 bg-warning/20 text-warning"
                                     : "border-border bg-surface text-muted-foreground hover:border-border-strong"
                                     }`}
                             >
@@ -301,7 +301,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                                         <span className="text-caption font-black text-foreground uppercase tracking-widest">Analyse sécurité…</span>
                                     </div>
                                 )}
-                                <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-foreground">
+                                <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-muted/60 hover:bg-muted/80 text-foreground">
                                     <X className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
@@ -365,7 +365,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                     <Button
                         onClick={handleSubmit}
                         disabled={loading || (!selectedItem && !itemName.trim())}
-                        className={`font-black text-foreground px-6 ${isDeposit ? "bg-success hover:bg-success" : "bg-orange-600 hover:bg-orange-500"}`}
+                        className={`font-black text-warning-foreground px-6 ${isDeposit ? "bg-success hover:bg-success" : "bg-warning hover:bg-warning"}`}
                     >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isDeposit ? "📥 Déposer" : "📤 Retirer")}
                     </Button>

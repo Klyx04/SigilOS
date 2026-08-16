@@ -1,4 +1,5 @@
 'use client';
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -135,7 +136,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                             <Tabs defaultValue="archis" className="w-full flex flex-col gap-8">
                                 <div className="flex items-center justify-between border-b border-border pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
                                     <TabsList className="bg-surface p-1.5 rounded-2xl gap-1">
-                                        <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-foreground transition-all">
+                                        <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-warning-foreground transition-all">
                                                 ✦ Archimonstres
                                             </TabsTrigger>
                                         <TabsTrigger value="bounties" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-foreground transition-all">
@@ -211,7 +212,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                     {error === "Compte non lié" && (
                                                         <a 
                                                             href={`/dashboard/${guildId}/profile`}
-                                                            className="mt-4 px-8 py-3 rounded-2xl bg-amber-500 text-foreground text-caption font-black uppercase italic shadow-2xl shadow-amber-500/40  active:scale-95 transition-all flex items-center gap-3"
+                                                            className="mt-4 px-8 py-3 rounded-2xl bg-amber-500 text-warning-foreground text-caption font-black uppercase italic shadow-2xl shadow-amber-500/40  active:scale-95 transition-all flex items-center gap-3"
                                                         >
                                                             <Sparkles size={16} /> Lier mon compte Metamob
                                                         </a>
@@ -307,7 +308,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                             e.stopPropagation();
                                                                             navigator.clipboard.writeText(`/travel ${bounty.position}`);
                                                                         }}
-                                                                        className="px-3 py-1 rounded-xl bg-amber-500 text-foreground text-caption font-black uppercase tracking-widest italic  active:scale-95 transition-all flex items-center gap-1.5"
+                                                                        className="px-3 py-1 rounded-xl bg-amber-500 text-warning-foreground text-caption font-black uppercase tracking-widest italic  active:scale-95 transition-all flex items-center gap-1.5"
                                                                     >
                                                                         <MapPin size={10} /> {bounty.position}
                                                                     </button>

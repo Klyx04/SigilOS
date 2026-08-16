@@ -291,7 +291,7 @@ export function ProofUploadDialog({
                     {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
                     {/* ═══════════════════════════════════════ */}
                     {(state === "idle") && (
-                        <div className="relative rounded-xl border border-warning/40 bg-gradient-to-br from-warning/40 via-warning/20 to-zinc-900/60 p-4 space-y-3 ">
+                        <div className="relative rounded-xl border border-warning/40 bg-gradient-to-br from-warning/40 via-warning/20 to-surface/60 p-4 space-y-3 ">
                             {/* Glow accent */}
                             <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-warning/60 to-transparent" />
 
@@ -364,7 +364,7 @@ export function ProofUploadDialog({
 
                     {/* Preview */}
                     {preview && (
-                        <div className="relative rounded-lg overflow-hidden border border-border bg-black">
+                        <div className="relative rounded-lg overflow-hidden border border-border bg-background">
                             <Image
                                 src={preview}
                                 alt="Preview"

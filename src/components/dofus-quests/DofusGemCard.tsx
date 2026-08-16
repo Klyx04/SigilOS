@@ -129,7 +129,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                     window.dispatchEvent(new Event("dofus-sync-all-mules-changed"));
                 }}
                 className={`absolute top-3 right-12 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200  border ${
-                    syncAllMules ? "bg-info/10 border-info/30 text-info" : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                    syncAllMules ? "bg-info/10 border-info/30 text-info" : "bg-surface border-border text-muted-foreground hover:text-info-foreground"
                 }`}
                 style={{
                     borderColor: syncAllMules ? `${color}66` : undefined,

@@ -29,7 +29,7 @@ export function MissionsHero({
                     <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-4">
                         <div className="p-4 bg-success/10 rounded-2xl border border-success/20 relative group- transition-transform duration-300">
                             <ScrollText className="w-10 h-10 text-success" />
-                            <Zap className="w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-bounce" />
+                            <Zap className="w-5 h-5 text-warning absolute -top-1 -right-1 animate-bounce" />
                         </div>
                         <div>
                             <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-foreground uppercase italic">

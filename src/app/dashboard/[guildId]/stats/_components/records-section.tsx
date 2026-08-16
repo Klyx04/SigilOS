@@ -18,7 +18,7 @@ const ACCENT_MAP: Record<string, string> = {
     crown: "text-warning",
     timer: "text-teal-400",
     mountain: "text-violet-400",
-    flame: "text-orange-400",
+    flame: "text-warning",
 };
 
 export default function RecordsSection({ records, topAchievers }: RecordsSectionProps) {
@@ -57,7 +57,7 @@ export default function RecordsSection({ records, topAchievers }: RecordsSection
                     {topAchievers.map((achiever, i) => (
                         <div key={achiever.name} className="relative group">
                             <div className="p-3 rounded-lg bg-black/20 border border-border flex flex-col items-center text-center transition-all  hover:bg-black/30">
-                                <span className={`text-xl font-bold mb-1 ${i === 0 ? "text-warning" : i === 1 ? "text-foreground" : i === 2 ? "text-orange-400" : "text-muted-foreground"}`}>
+                                <span className={`text-xl font-bold mb-1 ${i === 0 ? "text-warning" : i === 1 ? "text-foreground" : i === 2 ? "text-warning" : "text-muted-foreground"}`}>
                                     #{i + 1}
                                 </span>
                                 <p className="text-sm font-medium text-foreground truncate w-full px-1">{achiever.name}</p>

@@ -220,7 +220,7 @@ export function OnboardingBanner({
 
                                         {step.completed && (
                                             <div className={cn(
-                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-zinc-950 shadow-lg",
+                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-border shadow-lg",
                                                 variant === "user" ? "bg-info" : "bg-success"
                                             )}>
                                                 <Check className="w-2.5 h-2.5 text-foreground" />

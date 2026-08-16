@@ -14,25 +14,25 @@ export default function PrivacyPage() {
     return (
         <div className="space-y-8">
             <div className="text-center space-y-4 mb-12">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                    Politique de <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Confidentialité</span>
+                <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
+                    Politique de <span className="text-transparent bg-clip-text bg-gradient-to-r from-success to-teal-400">Confidentialité</span>
                 </h1>
-                <p className="text-sm text-zinc-500 font-mono uppercase tracking-widest">Conformité RGPD / 2026</p>
+                <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Conformité RGPD / 2026</p>
             </div>
 
-            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-8 backdrop-blur-md flex gap-6 items-start">
-                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 shrink-0">
+            <div className="bg-success/5 border border-success/20 rounded-2xl p-8 backdrop-blur-md flex gap-6 items-start">
+                <div className="p-3 bg-success/10 rounded-xl text-success shrink-0">
                     <ShieldCheck className="w-8 h-8" />
                 </div>
                 <div>
-                    <h3 className="text-emerald-400 font-bold text-lg mb-2">Protection des Données</h3>
-                    <p className="text-emerald-200/80 text-sm leading-relaxed">
+                    <h3 className="text-success font-bold text-lg mb-2">Protection des Données</h3>
+                    <p className="text-success/80 text-sm leading-relaxed">
                         SigilOS est conçu selon le principe de la "minimisation des données". Nous ne collectons que les informations strictement nécessaires à l'authentification et au fonctionnement de vos outils de guilde.
                     </p>
                 </div>
             </div>
 
-            <div className="prose prose-invert prose-emerald max-w-none prose-headings:text-white prose-strong:text-emerald-400">
+            <div className="prose prose-invert prose-emerald max-w-none prose-headings:text-foreground prose-strong:text-success">
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">1. Nature des Données Collectées</h2>
                 <p>Nous traitons les catégories de données suivantes :</p>
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
                 </p>
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">5. Partage avec des Tiers</h2>
-                <p className="font-bold text-emerald-400">
+                <p className="font-bold text-success">
                     Aucune donnée n'est vendue, louée ou partagée avec des régies publicitaires ou des sociétés tierces.
                 </p>
 

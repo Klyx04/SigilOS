@@ -40,7 +40,7 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
         label: "Paradoxe",
         icon: <Sparkles className="w-4 h-4" />,
         color: "text-amber-300 border-amber-500/30 hover:bg-amber-500/20",
-        activeColor: "bg-amber-600 text-foreground border-amber-600"
+        activeColor: "bg-amber-600 text-warning-foreground border-amber-600"
     },
     CAUCHEMAR: {
         label: "Cauchemar",

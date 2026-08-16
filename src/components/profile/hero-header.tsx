@@ -25,19 +25,19 @@ const TIER_CONFIG = {
     CHAMPION: {
         label: "Champion",
         icon: Award,
-        bgColor: "bg-slate-400/15",
+        bgColor: "bg-muted/15",
         textColor: "text-foreground",
-        borderColor: "border-slate-400/30",
-        hoverColor: "hover:bg-slate-400/20",
+        borderColor: "border-border/30",
+        hoverColor: "hover:bg-muted/20",
         iconFill: "fill-slate-400/20",
     },
     PILIER: {
         label: "Pilier",
         icon: Medal,
-        bgColor: "bg-orange-600/15",
-        textColor: "text-orange-400",
-        borderColor: "border-orange-600/30",
-        hoverColor: "hover:bg-orange-600/20",
+        bgColor: "bg-warning/15",
+        textColor: "text-warning",
+        borderColor: "border-warning/30",
+        hoverColor: "hover:bg-warning/20",
         iconFill: "fill-orange-600/20",
     },
 } as const;
@@ -237,7 +237,7 @@ export function HeroHeader({
                                 </Badge>
                             )}
                             {isUpcomingVacation && vacationStart && (
-                                <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20">
+                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 hover:bg-warning/20">
                                     <Palmtree className="w-3 h-3 mr-1" />
                                     Absence : {vacationStart.toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}
                                 </Badge>

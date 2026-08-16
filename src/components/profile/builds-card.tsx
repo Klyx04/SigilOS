@@ -364,7 +364,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                 <div className="flex items-center gap-1.5 bg-background/95 backdrop-blur-xl border border-border p-1.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto shrink-0 w-max">
                                     <button
                                         onClick={() => handleCopyLink(link.url)}
-                                        className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
+                                        className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-success-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                         title="Copier le lien"
                                     >
                                         <Copy className="w-3.5 h-3.5" />
@@ -376,7 +376,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                 if (res.success) toast.success("Partagé sur Discord !");
                                                 else toast.error(res.error || "Erreur lors du partage");
                                             }}
-                                            className="p-2 bg-surface/80 hover:bg-info text-info hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
+                                            className="p-2 bg-surface/80 hover:bg-info text-info hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                             title="Partager sur Discord"
                                         >
                                             <Megaphone className="w-3.5 h-3.5" />
@@ -387,21 +387,21 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             <button
                                                 onClick={() => handleForceBake(link)}
                                                 disabled={isSubmitting}
-                                                className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all disabled:opacity-50"
+                                                className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-success-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all disabled:opacity-50"
                                                 title="Récupérer les données (Baking)"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", isSubmitting && "animate-spin")} />
                                             </button>
                                             <button
                                                 onClick={() => setEditingLink({ ...link })}
-                                                className="p-2 bg-surface/80 hover:bg-info text-info-foreground/50 hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
+                                                className="p-2 bg-surface/80 hover:bg-info text-info-foreground/50 hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                                 title="Modifier ce build"
                                             >
                                                 <Pencil className="w-3.5 h-3.5" strokeWidth={2.5} />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteLink(link.id)}
-                                                className="p-2 bg-danger/10 hover:bg-danger text-danger-foreground0 hover:text-foreground rounded-xl border border-danger/20 shadow-lg transition-all"
+                                                className="p-2 bg-danger/10 hover:bg-danger text-danger hover:text-danger-foreground rounded-xl border border-danger/20 shadow-lg transition-all"
                                                 title="Supprimer ce build"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />

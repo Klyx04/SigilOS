@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState } from "react";
 import Image from "next/image";
@@ -162,7 +163,7 @@ export function RunProgressModal({
                                 className={cn(
                                     "w-full h-16 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50",
                                     currentFloor === 26
-                                        ? "bg-amber-500 text-foreground border-amber-400 "
+                                        ? "bg-amber-500 text-warning-foreground border-amber-400 "
                                         : "bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20"
                                 )}
                             >

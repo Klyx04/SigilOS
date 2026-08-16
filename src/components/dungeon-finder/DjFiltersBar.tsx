@@ -91,9 +91,9 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     {/* Mode Selector */}
                     <div className="flex bg-surface/80 border border-border rounded-xl p-1 h-11 items-center">
                         {[
-                            { value: "", label: "Tous", icon: null, activeColor: "bg-info", activeText: "text-foreground" },
-                            { value: "DONJON", label: "DJ", icon: Swords, activeColor: "bg-danger", activeText: "text-foreground" },
-                            { value: "QUETE", label: "Quête", icon: Map, activeColor: "bg-success", activeText: "text-foreground" },
+                            { value: "", label: "Tous", icon: null, activeColor: "bg-info", activeText: "text-info-foreground" },
+                            { value: "DONJON", label: "DJ", icon: Swords, activeColor: "bg-danger", activeText: "text-danger-foreground" },
+                            { value: "QUETE", label: "Quête", icon: Map, activeColor: "bg-success", activeText: "text-success-foreground" },
                         ].map(({ value, label, icon: Icon, activeColor, activeText }) => {
                             const isActive = filters.mode === value;
                             return (
@@ -186,7 +186,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                 label="Avec succès"
                                 active={filters.onlyWithAchievement}
                                 onToggle={() => onChange({ ...filters, onlyWithAchievement: !filters.onlyWithAchievement })}
-                                colorClass="bg-yellow-500/15 text-yellow-400 border-yellow-500/30"
+                                colorClass="bg-warning/15 text-warning border-warning/30"
                             />
                             <ToggleChip
                                 icon={<X className="w-3 h-3" />}

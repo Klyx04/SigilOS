@@ -32,7 +32,7 @@ const MODE_LABELS: Record<string, string> = {
     FARM: "Farm", SUCCES: "Succès", MIXED: "Mixte", QUETE: "Quête", DONJON: "Donjon",
 };
 const STATUS_COLORS: Record<string, string> = {
-    PENDING: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+    PENDING: "text-warning bg-warning/10 border-warning/20",
     ACCEPTED: "text-success bg-success/10 border-success/20",
     REJECTED: "text-danger bg-danger/10 border-danger/20",
 };
@@ -134,7 +134,7 @@ export function DjPostDetailModal({
                         {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) && (
                             <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
                         <div className="absolute bottom-4 left-4 right-4 flex items-end gap-4">
                             <div className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg ${post.mode === "DONJON" ? "bg-elevated/80 border-border" : "bg-info/80 border-info/30"}`}>

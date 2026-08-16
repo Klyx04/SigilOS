@@ -151,7 +151,7 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                 placeholder="Rechercher un membre..."
                                 value={memberQuery}
                                 onChange={(e) => setMemberQuery(e.target.value)}
-                                className="pl-9 pr-3 py-2 w-full text-caption font-bold bg-black/40 border border-border rounded-xl text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-info/50 transition-all"
+                                className="pl-9 pr-3 py-2 w-full text-caption font-bold bg-muted/40 border border-border rounded-xl text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-info/50 transition-all"
                             />
                         </div>
                         {memberQuery.trim() && (
@@ -200,11 +200,11 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                     title={`${member.pseudo} — ${member.dofusObtained}/${member.dofusTotal} Dofus obtenus`}
                                     className={`group/member flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 cursor-pointer relative border ${
                                         isFirst 
-                                            ? "bg-gradient-to-br from-warning/10 via-zinc-950 to-zinc-950 border-warning/40 shadow-[0_4px_24px_rgba(251,191,36,0.12)] hover:border-warning/60" 
+                                            ? "bg-gradient-to-br from-warning/10 via-background to-background border-warning/40 shadow-[0_4px_24px_rgba(251,191,36,0.12)] hover:border-warning/60" 
                                             : isSecond
-                                            ? "bg-gradient-to-br from-zinc-300/[0.06] via-zinc-950 to-zinc-950 border-zinc-400/25 shadow-[0_4px_20px_rgba(212,212,216,0.05)] hover:border-border/50"
+                                            ? "bg-gradient-to-br from-elevated/[0.06] via-background to-background border-border/25 shadow-[0_4px_20px_rgba(212,212,216,0.05)] hover:border-border/50"
                                             : isThird
-                                            ? "bg-gradient-to-br from-warning/10 via-zinc-950 to-zinc-950 border-warning/35 shadow-[0_4px_20px_rgba(180,83,9,0.08)] hover:border-warning/55"
+                                            ? "bg-gradient-to-br from-warning/10 via-background to-background border-warning/35 shadow-[0_4px_20px_rgba(180,83,9,0.08)] hover:border-warning/55"
                                             : "bg-background/40 border-border hover:bg-surface hover:border-border"
                                     }`}
                                 >
@@ -304,7 +304,7 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                     placeholder="Chercher Dofus..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-8 pr-3 py-1.5 text-caption font-bold uppercase tracking-widest bg-black/40 border border-border rounded-xl text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-border-strong transition-all min-w-[150px]"
+                                    className="pl-8 pr-3 py-1.5 text-caption font-bold uppercase tracking-widest bg-muted/40 border border-border rounded-xl text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-border-strong transition-all min-w-[150px]"
                                 />
                             </div>
  
@@ -527,7 +527,7 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                         placeholder="Filtrer les membres..."
                                         value={modalSearch}
                                         onChange={(e) => setModalSearch(e.target.value)}
-                                        className="bg-black/40 border border-border rounded-2xl pl-10 pr-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 w-full transition-all"
+                                        className="bg-muted/40 border border-border rounded-2xl pl-10 pr-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 w-full transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5">
@@ -631,7 +631,7 @@ function DofusGuildProgressCard({ stat, onClick }: { stat: GuildDofusStats; onCl
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             onClick={onClick}
-            className="group flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden bg-gradient-to-br from-zinc-950 to-zinc-900/50 border-border hover:border-border hover:bg-surface/30  cursor-pointer relative"
+            className="group flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden bg-gradient-to-br from-background to-surface/50 border-border hover:border-border hover:bg-surface/30  cursor-pointer relative"
             style={{
                 borderColor: `rgba(255, 255, 255, 0.03)`,
             }}

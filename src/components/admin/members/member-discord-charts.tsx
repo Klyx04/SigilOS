@@ -263,11 +263,11 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                                 placeholder="Filtrer par membre..." 
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="pl-12 h-12 bg-black/40 border-border rounded-2xl text-foreground placeholder:text-muted-foreground focus:ring-violet-500/20"
+                                                className="pl-12 h-12 bg-muted/40 border-border rounded-2xl text-foreground placeholder:text-muted-foreground focus:ring-violet-500/20"
                                             />
                                         </div>
                                         <Select value={selectedRole} onValueChange={setSelectedRole}>
-                                            <SelectTrigger className="w-full md:w-[200px] h-12 bg-black/40 border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground">
+                                            <SelectTrigger className="w-full md:w-[200px] h-12 bg-muted/40 border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground">
                                                 <SelectValue placeholder="Rôle Discord" />
                                             </SelectTrigger>
                                             <SelectContent className="bg-surface border-border rounded-2xl">

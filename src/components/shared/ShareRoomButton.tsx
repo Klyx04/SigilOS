@@ -62,7 +62,7 @@ export function ShareRoomButton({ roomId, className }: ShareRoomButtonProps) {
                 <span className="text-sm font-black text-foreground italic tracking-tighter uppercase">{roomId}</span>
             </div>
             
-            <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center group-hover:bg-info group-hover:text-foreground transition-all">
+            <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center group-hover:bg-info group-hover:text-info-foreground transition-all">
                 <AnimatePresence mode="wait">
                     {copied ? (
                         <motion.div

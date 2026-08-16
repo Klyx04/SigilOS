@@ -50,8 +50,8 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border pb-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                        <Wrench className="w-5 h-5 text-orange-400" />
+                    <div className="w-10 h-10 rounded-2xl bg-warning/10 border border-warning/20 flex items-center justify-center">
+                        <Wrench className="w-5 h-5 text-warning" />
                     </div>
                     <div>
                         <h3 className="text-base font-black text-foreground uppercase tracking-wider">Services Proposés</h3>
@@ -59,7 +59,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                     </div>
                 </div>
 
-                <Button asChild variant="ghost" size="sm" className="text-xs font-black uppercase tracking-wider text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl">
+                <Button asChild variant="ghost" size="sm" className="text-xs font-black uppercase tracking-wider text-warning hover:text-warning bg-warning/10 hover:bg-warning/20 border border-warning/20 rounded-xl">
                     <Link href={`/dashboard/${guildId}/services`}>
                         Voir le module Services <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                     </Link>
@@ -69,8 +69,8 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
             {/* Empty State */}
             {!hasServices ? (
                 <div className="p-10 rounded-2xl bg-black/40 border border-border flex flex-col items-center justify-center text-center space-y-4">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                        <Wrench className="w-7 h-7 text-orange-400" />
+                    <div className="w-14 h-14 rounded-2xl bg-warning/10 border border-warning/20 flex items-center justify-center">
+                        <Wrench className="w-7 h-7 text-warning" />
                     </div>
                     <div className="space-y-1 max-w-sm">
                         <h4 className="text-sm font-black text-foreground uppercase tracking-wider">Aucun service proposé actuellement</h4>
@@ -96,7 +96,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                         return (
                             <div
                                 key={service.id}
-                                className="p-5 rounded-2xl bg-black/40 border border-border hover:border-orange-500/40 transition-all space-y-3 relative group"
+                                className="p-5 rounded-2xl bg-black/40 border border-border hover:border-warning/40 transition-all space-y-3 relative group"
                             >
                                 <div className="flex items-start gap-3">
                                     {/* Miniature du service (icône item / image donjon / icône métier) */}
@@ -118,15 +118,15 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                         ) : service.category === "PASSAGE_DONJON" ? (
                                             <Swords className="w-5 h-5 text-info" />
                                         ) : (
-                                            <Wrench className="w-5 h-5 text-orange-400" />
+                                            <Wrench className="w-5 h-5 text-warning" />
                                         )}
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                        <span className="inline-flex items-center gap-1 text-caption font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20 mb-1.5">
+                                        <span className="inline-flex items-center gap-1 text-caption font-black uppercase tracking-wider text-warning bg-warning/10 px-2.5 py-1 rounded-full border border-warning/20 mb-1.5">
                                             <Tag className="w-3 h-3" /> {service.category}
                                         </span>
-                                        <h4 className="text-sm font-black text-foreground group-hover:text-orange-300 transition-colors leading-tight">
+                                        <h4 className="text-sm font-black text-foreground group-hover:text-warning transition-colors leading-tight">
                                             {service.title}
                                         </h4>
                                     </div>
@@ -161,7 +161,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                         <Calendar className="w-3 h-3" />
                                         Publié {formatDistanceToNow(new Date(service.createdAt), { addSuffix: true, locale: fr })}
                                     </span>
-                                    <Link href={`/dashboard/${guildId}/services`} className="text-orange-400 font-bold hover:underline">
+                                    <Link href={`/dashboard/${guildId}/services`} className="text-warning font-bold hover:underline">
                                         Consulter →
                                     </Link>
                                 </div>

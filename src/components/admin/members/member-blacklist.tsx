@@ -255,7 +255,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                 placeholder="Pseudo, compte Dofus, raison... (Pas de liens autorisés)"
                                 value={newContent}
                                 onChange={(e) => setNewContent(e.target.value)}
-                                className="min-h-[120px] bg-black/40 border-border text-foreground rounded-3xl focus:ring-danger/20 focus:border-danger/50 transition-all placeholder:text-muted-foreground font-medium resize-none p-4"
+                                className="min-h-[120px] bg-muted/40 border-border text-foreground rounded-3xl focus:ring-danger/20 focus:border-danger/50 transition-all placeholder:text-muted-foreground font-medium resize-none p-4"
                             />
                         </div>
 
@@ -370,7 +370,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                                             <Textarea 
                                                                 value={editContent}
                                                                 onChange={(e) => setEditContent(e.target.value)}
-                                                                className="bg-black/60 border-border text-foreground text-sm font-medium rounded-2xl min-h-[80px]"
+                                                                className="bg-muted/60 border-border text-foreground text-sm font-medium rounded-2xl min-h-[80px]"
                                                             />
                                                             <div className="flex items-center gap-2">
                                                                 <Button 

@@ -115,7 +115,7 @@ export function UpcomingEventsWidget({
     return (
         <div className={cn(
             "rounded-xl border border-border/50 overflow-hidden",
-            compact ? "bg-surface/40" : "bg-gradient-to-br from-zinc-900/80 to-zinc-950/80"
+            compact ? "bg-surface/40" : "bg-gradient-to-br from-surface/80 to-background/80"
         )}>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-surface/60">
@@ -220,7 +220,7 @@ function EventRow({
                         {event.title}
                     </span>
                     {isUrgent && (
-                        <Flame className="h-3.5 w-3.5 text-orange-500 animate-pulse shrink-0" />
+                        <Flame className="h-3.5 w-3.5 text-warning animate-pulse shrink-0" />
                     )}
                 </div>
                 <div className={cn(
@@ -252,7 +252,7 @@ function EventRow({
                 className={cn(
                     "shrink-0 font-bold text-xs",
                     isUrgent
-                        ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                        ? "bg-warning/10 border-warning/30 text-warning"
                         : isTodays
                             ? "bg-warning/10 border-warning/30 text-warning"
                             : "bg-elevated border-border text-muted-foreground"
@@ -301,7 +301,7 @@ export function UpcomingEventsBadge({
             className={cn(
                 "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all",
                 isUrgent
-                    ? "bg-orange-500/10 border-orange-500/30 text-orange-400 animate-pulse"
+                    ? "bg-warning/10 border-warning/30 text-warning animate-pulse"
                     : "bg-surface/60 border-border/50 text-muted-foreground hover:border-border"
             )}
         >
@@ -313,7 +313,7 @@ export function UpcomingEventsBadge({
                 variant="outline"
                 className={cn(
                     "h-5 text-caption font-bold",
-                    isUrgent ? "border-orange-500/50 text-orange-300" : "border-border text-muted-foreground"
+                    isUrgent ? "border-warning/50 text-warning" : "border-border text-muted-foreground"
                 )}
             >
                 {hoursUntil < 1 ? `${Math.max(1, differenceInMinutes(startDate, now))}min` : `${hoursUntil}h`}

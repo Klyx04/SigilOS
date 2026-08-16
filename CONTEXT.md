@@ -133,6 +133,38 @@
 >   Discord/raretés) · 2C décision modales sombres volontaires (Songes/worldmap) · 3 landings en clair ·
 >   4 garde-fou anti-régression (ESLint/grep allowlist).**
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 22/08 — Suite Dual-Theme : Phases 2B (hex) · 2C (dark-locked) · 3 (landings clair) · 4 (garde-fou) + passe 2 contraste
+
+> **Branche `feat/chantier-2026-08-19`** → **PR #484**. Source : `src/temp/prompt-next-chantier-2026-08-22.md`.
+> ⚠️ **223 fichiers modifiés — NON commité / NON pushé** (dernier commit poussé : `b7f5f3961`, session 21/08).
+> Mémo : `src/temp/memo-2026-08-22-chantier-global.md` (créée, 2 passes documentées). Vérifs : tsc 0 · eslint 0 erreur
+> + 0 warning sigil · **208/208** · build OK.
+>
+> - **Phase 2B — purge des hex en dur** : `sweep-hex.ps1` (dry-run + `-Apply`), **66 occurrences → tokens** dans le
+>   périmètre dashboard/composants (`bg-[#09090b]`→`bg-background`, `bg-[#121417]`→`bg-surface`,
+>   `bg-[#0d0f11]`→`bg-popover`, dégradés cartes missions→`from-elevated to-surface`, checklist→`bg-success/10`,
+>   bordures « trou » d'avatars→`border-background`). **Allowlist préservée** : Discord (`#5865F2`…), raretés/stats
+>   Dofus, dégradés de mission par type, scrims d'images.
+> - **Phase 2C — modales sombres volontaires = dark-locked documenté** : Songes (Run*/BonusInventory/BossGuide/
+>   DreamMap2D/JoinRequestsPanel), worldmap (DungeonDetailModal/ZoneDetailModal/leaflet-map-core/MapDetailsPanel/
+>   MapHelpCard/interactive-map-v2/GeoguesserHUD), ocre-filter-bar conservés sombres (auto-suffisants) + commentaire
+>   `// dark-locked` (20 fichiers). `discord-ownership-modal` converti en thème-aware.
+> - **Phase 3 — landings en clair** : `sweep-landing.ps1` (561) + `sweep-landing-etats.ps1` (235) — page d'accueil,
+>   guilds, legal, docs, onboarding, status, roadmap, changelog, login, public/galactic-header/footer, composants
+>   landing. Scrims `bg-black/N` conservés.
+> - **Phase 4 — garde-fou anti-régression** : règle ESLint custom **`sigil/no-hardcoded-colors`** (warn, non bloquant)
+>   dans `eslint.config.mjs` — interdit `text-white`/`bg-black` plein/neutres zinc-slate/he/x couleurs d'état, avec
+>   allowlist fichiers (dark-locked, god, guides, landings legacy, données lib) + allowlist valeurs hex.
+> - **Passe 2 (retour user « blanc sur jaune »)** : contraste fonds d'état vifs + texte clair corrigé partout
+>   (`hover:bg-X … hover:text-X-foreground`, onglets actifs, **familles yellow/orange ajoutées** → warning) ; inputs/
+>   bandeaux `bg-black/N`+texte → `bg-muted/N` (lisibles en mode clair). ⚠️ Incident d'encodage PowerShell (corruption
+>   sporadique `.tsx`) détecté via tsc, fichiers restaurés + corrections réappliquées via l'éditeur, scripts patchés
+>   UTF-8 explicite.
+> - Scripts (HORS GIT) : `sweep-hex.ps1`, `sweep-landing.ps1`, `sweep-landing-etats.ps1`, `sweep-residual.ps1`,
+>   `contrast-fix.ps1`, `black-bg-fix.ps1`.
+> - 🔶 **À trancher** : modules dark-locked (worldmap/songes/ocre) → bandes noires en mode clair. Soit conserver le
+>   dark-lock (recommandé), soit lancer un chantier dédié « thème-aware » (worldmap ≈ 3300 lignes).
+
 
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé

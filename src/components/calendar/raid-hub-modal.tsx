@@ -150,7 +150,7 @@ function LinkPreviewCard({
             {/* Actions */}
             <div className="shrink-0 flex items-center gap-2 pl-2">
                 {!isEditing && (
-                    <div className="p-2 rounded-lg bg-surface border border-border group-hover:bg-warning group-hover:text-foreground text-muted-foreground transition-all shadow-sm">
+                    <div className="p-2 rounded-lg bg-surface border border-border group-hover:bg-warning group-hover:text-warning-foreground text-muted-foreground transition-all shadow-sm">
                         <ExternalLink className="h-3.5 w-3.5" />
                     </div>
                 )}
@@ -308,7 +308,7 @@ function TipSectionEditor({
     };
 
     return (
-        <div className="group/card relative rounded-2xl border border-border/90 bg-gradient-to-b from-zinc-900/60 to-zinc-950/80 backdrop-blur-md shadow-lg overflow-hidden transition-all duration-200 hover:border-border/80">
+        <div className="group/card relative rounded-2xl border border-border/90 bg-gradient-to-b from-surface/60 to-background/80 backdrop-blur-md shadow-lg overflow-hidden transition-all duration-200 hover:border-border/80">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 bg-surface/70 border-b border-border/80">
                 <div className="flex items-center gap-2">
@@ -486,7 +486,7 @@ function RaidTabPanel({
                     className="object-cover opacity-90"
                     priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
                     <div>
                         <h3 className="text-xl font-black uppercase tracking-tighter text-foreground drop-shadow-sm">
@@ -494,14 +494,14 @@ function RaidTabPanel({
                         </h3>
                         <p className="text-xs text-foreground font-bold drop-shadow-sm">{config.subtitle}</p>
                     </div>
-                    <Badge className="bg-black/60 text-foreground border border-border text-caption font-black uppercase px-2 py-0.5 backdrop-blur-sm">
+                    <Badge className="bg-muted/60 text-foreground border border-border text-caption font-black uppercase px-2 py-0.5 backdrop-blur-sm">
                         {config.badge}
                     </Badge>
                 </div>
             </div>
 
             {/* Description */}
-            <div className="bg-surface/10 border border-zinc-900 rounded-xl p-4">
+            <div className="bg-surface/10 border border-border rounded-xl p-4">
                 {editingDesc ? (
                     <div className="space-y-2">
                         <textarea
@@ -782,7 +782,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-warning to-orange-500 hover:from-warning hover:to-orange-400 text-foreground font-bold text-sm transition-all  disabled:opacity-50"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-warning to-warning hover:from-warning hover:to-warning text-foreground font-bold text-sm transition-all  disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 Sauvegarder les modifications

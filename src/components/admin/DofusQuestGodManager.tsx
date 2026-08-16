@@ -90,7 +90,7 @@ export default function DofusQuestGodManager() {
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un Dofus..." className="pl-9 bg-black/40 border-border text-foreground placeholder:text-muted-foreground rounded-xl focus-visible:ring-ring/50" />
+                        <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un Dofus..." className="pl-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground rounded-xl focus-visible:ring-ring/50" />
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[500px] p-3 space-y-1 relative">
@@ -135,7 +135,7 @@ export default function DofusQuestGodManager() {
                                         <p className="text-muted-foreground text-sm max-w-xl leading-relaxed">{selectedDofus.description || "Aucune description renseignée pour ce Dofus."}</p>
                                     </div>
                                 </div>
-                                <Button variant="outline" onClick={() => { setEditingDofus(selectedDofus); setIsDofusDialogOpen(true); }} className="border-border bg-black/40 hover:bg-surface text-muted-foreground hover:text-foreground font-black uppercase text-caption tracking-widest rounded-xl shrink-0"><Edit2 className="w-3 h-3 mr-2" /> Éditer Dofus</Button>
+                                <Button variant="outline" onClick={() => { setEditingDofus(selectedDofus); setIsDofusDialogOpen(true); }} className="border-border bg-muted/40 hover:bg-surface text-muted-foreground hover:text-foreground font-black uppercase text-caption tracking-widest rounded-xl shrink-0"><Edit2 className="w-3 h-3 mr-2" /> Éditer Dofus</Button>
                             </div>
                         </div>
                         <div className="p-8 space-y-12">
@@ -176,7 +176,7 @@ export default function DofusQuestGodManager() {
                                             </div>
                                             <div className="mt-4 md:ml-32 space-y-3">
                                                 {chain.entries.length === 0 ? (
-                                                    <div className="p-6 border border-dashed border-border rounded-2xl bg-black/20 text-center"><p className="text-caption font-black uppercase tracking-widest text-muted-foreground italic">Vierge</p></div>
+                                                    <div className="p-6 border border-dashed border-border rounded-2xl bg-muted/20 text-center"><p className="text-caption font-black uppercase tracking-widest text-muted-foreground italic">Vierge</p></div>
                                                 ) : (
                                                     chain.entries.map((entry: any) => (
                                                         <div key={entry.id} className="group p-4 bg-background/50 backdrop-blur-md border border-border rounded-2xl flex items-center justify-between hover:border-border-strong transition-all shadow-md">
@@ -261,10 +261,10 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
                 <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{dofus ? "Modifier le Dofus" : "Créer un Dofus"}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom</label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl font-mono" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom</label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl font-mono" /></div>
                     </div>
                     <div className="flex justify-between pt-8 border-t border-border mt-8">
                         {dofus ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-danger hover:bg-danger/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div />}
@@ -303,7 +303,7 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                             <option value="OPTIONAL">✨ Optionnel</option>
                         </select>
                     </div>
-                    <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Titre</label><Input value={formData.sectionName} onChange={e => setFormData({...formData, sectionName: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" /></div>
+                    <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Titre</label><Input value={formData.sectionName} onChange={e => setFormData({...formData, sectionName: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
                     <div className="space-y-2">
                         <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Icône du bloc</label>
                         <div className="grid grid-cols-2 gap-2">
@@ -533,7 +533,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             </div>
                             <div className="space-y-1 md:col-span-2">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Info className="w-3 h-3" /> Notes</label>
-                                <textarea value={formData.notes || ""} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full h-20 bg-black/40 border border-border rounded-xl text-xs p-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 resize-none" placeholder="Infos complémentaires..." />
+                                <textarea value={formData.notes || ""} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full h-20 bg-muted/40 border border-border rounded-xl text-xs p-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 resize-none" placeholder="Infos complémentaires..." />
                             </div>
                         </div>
 
@@ -567,7 +567,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 ) : <p className="text-caption text-muted-foreground italic mb-3">Aucun prérequis défini</p>}
                                 {siblingEntries.length > 0 && (
                                     <div className="space-y-2">
-                                        <input value={prereqSearch} onChange={e => setPrereqSearch(e.target.value)} placeholder="Rechercher une quête comme prérequis..." className="w-full h-9 bg-black/40 border border-border rounded-xl text-xs px-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50" />
+                                        <input value={prereqSearch} onChange={e => setPrereqSearch(e.target.value)} placeholder="Rechercher une quête comme prérequis..." className="w-full h-9 bg-muted/40 border border-border rounded-xl text-xs px-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50" />
                                         <div className="max-h-[120px] overflow-y-auto custom-scrollbar space-y-0.5">
                                             {siblingEntries.filter((s: any) => !prerequisites.some((p: any) => p.id === s.id) && s.name.toLowerCase().includes(prereqSearch.toLowerCase())).slice(0, 8).map((s: any) => (
                                                 <button key={s.id} onClick={async () => {

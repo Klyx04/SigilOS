@@ -84,7 +84,7 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
                                     value={channelId}
                                     onChange={(e) => setChannelId(e.target.value)}
                                     placeholder="Ex: 123456789012345678"
-                                    className="font-mono bg-black/40 border-border text-foreground rounded-xl focus:border-info/50"
+                                    className="font-mono bg-muted/40 border-border text-foreground rounded-xl focus:border-info/50"
                                 />
                                 <Button onClick={handleSaveChannel} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info text-info-foreground font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-cyan-900/20">
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}

@@ -181,7 +181,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
 
                         <Card className="bg-surface/60 border-border">
                             <CardHeader className="pb-4">
-                                <CardTitle className="text-sm flex items-center gap-2 text-yellow-400 uppercase tracking-tight">
+                                <CardTitle className="text-sm flex items-center gap-2 text-warning uppercase tracking-tight">
                                     <Coins className="w-4 h-4" /> Contributions Kamas
                                 </CardTitle>
                             </CardHeader>

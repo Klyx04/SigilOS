@@ -13,13 +13,13 @@ export default function MentionsPage() {
     return (
         <div className="space-y-8">
             <div className="text-center space-y-4 mb-12">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-                    Mentions <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Légales</span>
+                <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
+                    Mentions <span className="text-transparent bg-clip-text bg-gradient-to-r from-success to-teal-400">Légales</span>
                 </h1>
-                <p className="text-sm text-zinc-500 font-mono uppercase tracking-widest">Informations Réglementaires</p>
+                <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Informations Réglementaires</p>
             </div>
 
-            <div className="prose prose-invert prose-emerald max-w-none prose-headings:text-white prose-strong:text-emerald-400">
+            <div className="prose prose-invert prose-emerald max-w-none prose-headings:text-foreground prose-strong:text-success">
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">1. Édition du Site</h2>
                 <p>
@@ -34,11 +34,11 @@ export default function MentionsPage() {
                 <p>
                     Le site est hébergé par la société <strong>OVH Cloud</strong> :
                 </p>
-                <p className="pl-6 border-l-2 border-emerald-500/30">
+                <p className="pl-6 border-l-2 border-success/30">
                     OVH SAS<br />
                     2 rue Kellermann<br />
                     59100 Roubaix - France<br />
-                    Site web : <a href="https://www.ovhcloud.com" target="_blank" className="text-emerald-400 hover:underline">www.ovhcloud.com</a>
+                    Site web : <a href="https://www.ovhcloud.com" target="_blank" className="text-success hover:underline">www.ovhcloud.com</a>
                 </p>
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">3. Propriété Intellectuelle</h2>
@@ -56,10 +56,10 @@ export default function MentionsPage() {
                 </p>
                 <ul className="list-disc pl-6 space-y-2">
                     <li>
-                        <strong>DofusDB :</strong> Données cartographiques, monstres, objets et API issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">DofusDB</a>. <em>« Données issues de DofusDB. Utilisation soumise à la licence LPNC-IA 1.0. »</em>
+                        <strong>DofusDB :</strong> Données cartographiques, monstres, objets et API issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-success hover:underline">DofusDB</a>. <em>« Données issues de DofusDB. Utilisation soumise à la licence LPNC-IA 1.0. »</em>
                     </li>
                     <li>
-                        <strong>Ganymède :</strong> Parcours d'optimisation, guides et étapes de quêtes issus du site <a href="https://ganymede-app.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">Ganymède</a>.
+                        <strong>Ganymède :</strong> Parcours d'optimisation, guides et étapes de quêtes issus du site <a href="https://ganymede-app.com/" target="_blank" rel="noopener noreferrer" className="text-success hover:underline">Ganymède</a>.
                     </li>
                 </ul>
 

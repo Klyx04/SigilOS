@@ -473,7 +473,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
             </div>
 
             {/* --- DOWNLOAD SOFTWARE SECTION --- */}
-            <Card className="bg-gradient-to-br from-violet-600/10 via-zinc-900/40 to-success/5 border-border backdrop-blur-xl overflow-hidden group">
+            <Card className="bg-gradient-to-br from-violet-600/10 via-surface/40 to-success/5 border-border backdrop-blur-xl overflow-hidden group">
                 <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-background flex items-center justify-center border border-border shadow-2xl group- transition-transform duration-300">
@@ -492,7 +492,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                     <div className="flex items-center gap-3">
                         <Button 
                             variant="outline"
-                            className="h-10 bg-black/40 border-border hover:border-violet-500/30 hover:bg-violet-600/10 text-caption font-black uppercase tracking-widest rounded-xl px-4 text-muted-foreground hover:text-foreground transition-all"
+                            className="h-10 bg-muted/40 border-border hover:border-violet-500/30 hover:bg-violet-600/10 text-caption font-black uppercase tracking-widest rounded-xl px-4 text-muted-foreground hover:text-foreground transition-all"
                             onClick={() => window.open('https://github.com/Klyx04/SigilOCR/releases/latest', '_blank')}
                         >
                             <FileJson className="w-4 h-4 mr-2" /> Release Notes
@@ -520,13 +520,13 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                 placeholder="Rechercher par pseudo, Discord ID..." 
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="pl-12 h-12 bg-black/40 border-border text-foreground rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all"
+                                className="pl-12 h-12 bg-muted/40 border-border text-foreground rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all"
                             />
                         </div>
                         <select 
                             value={roleFilter}
                             onChange={(e) => setRoleFilter(e.target.value)}
-                            className="h-12 px-4 rounded-2xl bg-black/40 border border-border text-foreground text-xs font-bold focus:outline-none"
+                            className="h-12 px-4 rounded-2xl bg-muted/40 border border-border text-foreground text-xs font-bold focus:outline-none"
                         >
                             <option value="ALL">Tous les r├┤les</option>
                             {Array.from(new Set(data.members.map(m => m.discordRoleName))).filter(Boolean).map(rn => (
@@ -775,7 +775,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                                         }));
                                                     }}
                                                     onBlur={() => handleUpdateValue(m, m.currentValue)}
-                                                    className="pl-10 h-10 bg-black/40 border-border focus:border-violet-500/50 rounded-xl font-black text-foreground w-full tabular-nums"
+                                                    className="pl-10 h-10 bg-muted/40 border-border focus:border-violet-500/50 rounded-xl font-black text-foreground w-full tabular-nums"
                                                 />
                                             </div>
                                         </TableCell>

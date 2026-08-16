@@ -532,7 +532,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     isActive
                                         ? pool === 'CLASSIQUES'
                                             ? "bg-info text-info-foreground "
-                                            : "bg-yellow-500 text-foreground "
+                                            : "bg-warning text-warning-foreground "
                                         : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                 )}
                             >
@@ -541,7 +541,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 <span className={cn(
                                     "text-caption font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
                                     isActive
-                                        ? pool === 'CLASSIQUES' ? "bg-elevated text-foreground" : "bg-black/20 text-foreground"
+                                        ? pool === 'CLASSIQUES' ? "bg-elevated text-foreground" : "bg-muted/20 text-foreground"
                                         : "bg-muted text-foreground"
                                 )}>
                                     {count}/{total}
@@ -551,7 +551,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     })}
                 </div>
                 {missionPool === 'SPECIALES' && (
-                    <span className="text-caption text-yellow-400/70 font-medium hidden sm:flex items-center gap-1">
+                    <span className="text-caption text-warning/70 font-medium hidden sm:flex items-center gap-1">
                         <Sparkles className="w-3 h-3" /> Missions spéciales — jusqu'à 8 missions (Dofus 3.5)
                     </span>
                 )}
@@ -706,7 +706,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     <DialogHeader className="shrink-0">
                         <DialogTitle className="text-xl font-black flex items-center gap-2">
                             {editingSlot !== null && editingSlot >= 12
-                                ? <><Sparkles className="w-4 h-4 text-yellow-400" /> Éditer Slot Spécial #{editingSlot - 11}</>
+                                ? <><Sparkles className="w-4 h-4 text-warning" /> Éditer Slot Spécial #{editingSlot - 11}</>
                                 : <>Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</>}
                         </DialogTitle>
                     </DialogHeader>
@@ -718,7 +718,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Catégorie</label>
                                     {missionPool === 'SPECIALES' ? (
                                         // Special pool: locked to EVENT
-                                        <div className="h-9 w-full rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 flex items-center gap-2 text-sm text-yellow-300 font-bold">
+                                        <div className="h-9 w-full rounded-md border border-warning/30 bg-warning/10 px-3 flex items-center gap-2 text-sm text-warning font-bold">
                                             <Sparkles className="w-3.5 h-3.5" /> Événement
                                         </div>
                                     ) : (

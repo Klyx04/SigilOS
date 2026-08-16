@@ -235,13 +235,13 @@ export function MetamobLink({
                 )}
             </div>
 
-            <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-zinc-900 to-black p-4">
+            <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-surface to-black p-4">
                 <div className="relative flex items-center gap-4">
                     <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-background border border-border shadow-lg shrink-0">
                         <div className={cn("relative h-8 w-8 transition-all", !isLinked && "opacity-40 grayscale")}>
                             <Image src="/assets/icons/ocre.png" alt="Dofus Ocre" fill sizes="32px" className="object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                         </div>
-                        {isLinked && <div className="absolute -bottom-1 -right-1 bg-background rounded-full border border-zinc-900 p-0.5"><CheckCircle2 className="w-3.5 h-3.5 text-success" /></div>}
+                        {isLinked && <div className="absolute -bottom-1 -right-1 bg-background rounded-full border border-border p-0.5"><CheckCircle2 className="w-3.5 h-3.5 text-success" /></div>}
                     </div>
                     <div className="flex-1 space-y-1.5">
                         <div className="flex items-baseline gap-2">

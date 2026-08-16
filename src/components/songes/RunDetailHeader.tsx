@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
@@ -362,7 +363,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
                                         <DialogTrigger asChild>
                                             <Button
-                                                className="w-full bg-amber-500 hover:bg-amber-400 text-foreground font-black uppercase tracking-widest h-14 shadow-lg shadow-amber-900/20 active:scale-95"
+                                                className="w-full bg-amber-500 hover:bg-amber-400 text-warning-foreground font-black uppercase tracking-widest h-14 shadow-lg shadow-amber-900/20 active:scale-95"
                                             >
                                                 <CheckCircle2 className="w-5 h-5 mr-3" />
                                                 Clôturer la Run
@@ -383,7 +384,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                             </div>
                                             <div className="flex justify-end gap-3 mt-4">
                                                 <Button variant="ghost" onClick={() => setCloseDialogOpen(false)}>Annuler</Button>
-                                                <Button onClick={handleCloseRun} disabled={loading} className="bg-amber-600 hover:bg-amber-500 text-foreground">
+                                                <Button onClick={handleCloseRun} disabled={loading} className="bg-amber-600 hover:bg-amber-500 text-warning-foreground">
                                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Terminer la Run"}
                                                 </Button>
                                             </div>

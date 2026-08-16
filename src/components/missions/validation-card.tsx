@@ -69,9 +69,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     EVENT: {
         icon: Sparkles,
-        color: "text-yellow-300",
-        bgColor: "bg-yellow-950/40",
-        borderColor: "border-yellow-500/40",
+        color: "text-warning",
+        bgColor: "bg-warning/40",
+        borderColor: "border-warning/40",
         headerGradient: "from-[#7d6b1a]/90 via-[#fbc02d]/80 to-[#4d4010]/90",
         bannerImage: "/banners/event.png",
     },
@@ -128,7 +128,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
     return (
         <Card className={cn(
-            "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-[#121417] shadow-2xl",
+            "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface shadow-2xl",
             "hover:border-border "
         )}>
             {/* ----------------- HEADER BAR (Full Width) ----------------- */}
@@ -236,7 +236,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
             </div>
 
             {/* ----------------- CONTENT BODY ----------------- */}
-            <CardContent className="p-4 space-y-3 flex-1 relative bg-gradient-to-b from-[#1a1c20] to-[#121417]">
+            <CardContent className="p-4 space-y-3 flex-1 relative bg-gradient-to-b from-elevated to-surface">
                 {/* Sub-Atmosphere Glow */}
                 <div className={cn(
                     "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-300 group-hover:scale-150",
@@ -252,7 +252,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                         </div>
                     )}
                     {submission.mission.payload?.kamas && (
-                        <div className="flex items-center gap-1 text-yellow-400">
+                        <div className="flex items-center gap-1 text-warning">
                             <Target className="w-3 h-3" />
                             <span className="font-mono">{submission.mission.payload.kamas}k</span>
                         </div>
@@ -269,7 +269,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                                 <TooltipProvider key={helper.id}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Avatar className="w-6 h-6 border-2 border-zinc-900 ring-1 ring-ring/30">
+                                            <Avatar className="w-6 h-6 border-2 border-border ring-1 ring-ring/30">
                                                 <AvatarImage src={helper.user.image || undefined} />
                                                 <AvatarFallback className="text-caption bg-elevated">
                                                     {(getGameDisplayName(helper) || "?").slice(0, 2).toUpperCase()}
@@ -283,7 +283,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                                 </TooltipProvider>
                             ))}
                             {submission.helpers.length > 5 && (
-                                <div className="w-6 h-6 rounded-full bg-elevated border-2 border-zinc-900 flex items-center justify-center text-caption text-muted-foreground font-bold">
+                                <div className="w-6 h-6 rounded-full bg-elevated border-2 border-border flex items-center justify-center text-caption text-muted-foreground font-bold">
                                     +{submission.helpers.length - 5}
                                 </div>
                             )}
@@ -293,7 +293,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
                 {/* Proof Image Preview */}
                 <div
-                    className="relative aspect-video rounded-lg bg-black overflow-hidden border border-border group mt-2 cursor-zoom-in"
+                    className="relative aspect-video rounded-lg bg-background overflow-hidden border border-border group mt-2 cursor-zoom-in"
                     onClick={onZoom}
                 >
                     <Image
@@ -304,7 +304,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                         unoptimized={true}
                     />
 
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-foreground text-xs font-medium gap-2">
+                    <div className="absolute inset-0 bg-muted/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-foreground text-xs font-medium gap-2">
                         <ExternalLink className="w-4 h-4" />
                         Agrandir
                     </div>

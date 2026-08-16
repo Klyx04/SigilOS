@@ -127,7 +127,7 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsEditingMode(!isEditingMode)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all text-caption font-black uppercase tracking-widest ${isEditingMode ? 'bg-danger/20 border-danger/40 text-danger' : 'bg-surface border-border text-muted-foreground hover:text-foreground hover:border-border-strong'}`}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all text-caption font-black uppercase tracking-widest ${isEditingMode ? 'bg-danger/20 border-danger/40 text-danger' : 'bg-surface border-border text-muted-foreground hover:text-danger-foreground hover:border-border-strong'}`}
                         >
                             <Settings2 className="h-4 w-4" /> {isEditingMode ? "Quitter l'édition" : "Gérer les slots"}
                         </button>
@@ -220,7 +220,7 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                                         <span>{c.name.substring(0, 2).toUpperCase()}</span>
                                     )}
                                     {status === "live" && (
-                                        <div className="absolute top-1 right-1 h-3.5 w-3.5 rounded-full bg-danger border-2 border-[#0a0a0c] animate-pulse  z-20" />
+                                        <div className="absolute top-1 right-1 h-3.5 w-3.5 rounded-full bg-danger border-2 border-background animate-pulse  z-20" />
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 pt-1">
@@ -267,7 +267,7 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
             {/* Modal Admin */}
             {isModalOpen && editingCreator && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-                    <div className="w-full max-w-xl bg-[#0a0a0c] rounded-[3rem] border border-border p-10 shadow-3xl relative animate-in zoom-in-95 duration-200">
+                    <div className="w-full max-w-xl bg-background rounded-[3rem] border border-border p-10 shadow-3xl relative animate-in zoom-in-95 duration-200">
                         <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 p-3 bg-surface hover:bg-surface rounded-2xl text-muted-foreground hover:text-foreground transition-all">
                             <X className="h-6 w-6" />
                         </button>

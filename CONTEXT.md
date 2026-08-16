@@ -88,6 +88,52 @@
 > - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **208/208** · build OK.
 
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 21/08 — V2 Mode sombre/clair : Phase 0 tokens GROK + Phase 1 sweep blancs + Phase 2A sweep états + #51
+
+> **Branche `feat/chantier-2026-08-19`** → **PR #484**. Commit poussé le 21/08 : **`9951b48cf`**
+> (Phase 0 + Phase 1 + Phase 2A + #51, 417 fichiers — 3 phases du plan GROK en one shot, validées tsc 0 ·
+> lint 0 erreur · **208/208** · build OK).
+> Source : `src/temp/prompt-v2-darkmode.md` (Phase 0) + retour utilisateur « blanc sur blanc » (Phases 1-2A).
+> Mémo : `src/temp/memo-2026-08-21-chantier-global.md` (créée).
+>
+> - **Phase 0 — « tokens d'abord » (guidelines GROK)** :
+>   - Tokens sémantiques OKLCH (`--background/--surface/--elevated/--foreground/--muted/--muted-foreground/
+>     --subtle-foreground/--border/--border-strong/--input` + `--success/--warning/--danger/--info` + leurs
+>     `-foreground` + dérivés `--accent-soft-*` via `color-mix`). Contrastes WCAG 2.2 mesurés : dark `--foreground`
+>     L=0.83 (~11.7:1, sous le plafond anti-halation 12:1) ; light `--accent` L=0.48 (5.32:1) ; `--subtle-foreground` ≥3:1.
+>   - **Teinte de guilde seule** : `src/lib/guild-accent.ts` (moteur : `sanitizeGuildHue`, chroma auto — jaunes
+>     90-110° → 0.13 —, `successHueForGuild` — vert 140-170° → teal 195) + `GuildAccentStyle` qui pose
+>     `--guild-hue/--guild-chroma-dark/--guild-chroma-light/--success-hue` sur le **root `.dashboard-layout`**
+>     (remplace le `<div>` existant, pas de div empilé). **Retrait du `<style>` V1 `--color-guild`** (un seul
+>     mécanisme d'injection). `accentHue` toujours lu depuis le select Prisma (isolation guilde inchangée).
+>   - **Tailwind v4 propre** : `@theme inline --color-*` (génère `bg-surface`/`text-accent`/`ring-ring`/
+>     `bg-accent-soft` — le mapping v3 de `tailwind.config.ts` était inerte, blocs `colors`/`borderRadius`/
+>     `darkMode` neutralisés). **`@custom-variant dark`** ajouté → les variantes `dark:` suivent la classe `.dark`
+>     (fini le `@media (prefers-color-scheme)`). Compat préservée : `--accent-gold`/`--accent-teal` (gold-glow/
+>     teal-glow), `--sigil-*`, alias `--primary/--card/--popover/--secondary/--destructive` (références directes
+>     legacy), `.focus-premium` → `ring-ring`.
+>   - **Toggles** : `ThemeToggle` compact top-nav + `ModeToggle` segmenté 3 états (skeleton avant mount, `disabled`
+>     si kill-switch God). Provider : `enableColorScheme` + `storageKey="sigilos-theme"` + `themes` incluant
+>     « system » + compat `useTheme` ré-exportée.
+> - **Phase 1 — sweep « blancs » (360 fichiers)** : couleurs en dur → tokens sémantiques (fin du blanc sur blanc
+>   en mode clair). `text-white`/`text-zinc-*`/`text-slate-*` → `text-foreground`/`text-muted-foreground` ;
+>   `border-white/*` → `border-border`/`border-border-strong` ; `bg-white/*`/`bg-zinc-*`/`bg-slate-*` →
+>   `bg-surface`/`bg-elevated`/`bg-background` ; paire `bg-black text-white` → theme-aware ; nettoyage des
+>   `dark:token` redondants. Exclusions conservées : landings, god, guides/Rush/Ganymède, modales sombres
+>   volontaires (Songes/worldmap/Ocre), médias `bg-black`, scrims `bg-black/X`.
+> - **Phase 2A — sweep « états » (353 fichiers, 8309 occurrences)** : `emerald→success`, `amber→warning`,
+>   `red/rose→danger`, `blue/cyan/purple/indigo→info`, `ring-indigo→ring-ring` (focus), paires badge
+>   `bg-X text-X-950` → `token + token-foreground`, boutons pleins `bg-X-500 text-foreground` →
+>   `token + token-foreground`. **0 couleur d'état en dur restante** dans le périmètre. ⚠️ Bug PowerShell des
+>   tableaux imbriqués rencontré et corrigé (revert ciblé + réapplication).
+> - **#51** — suppression des widgets inutilisés `DashboardNews` / `LadderPreview` / `TopActivityWidget`
+>   (vérifiés non importés). `getLadderPreview` (action serveur) conservé.
+> - Scripts (HORS GIT) : `src/temp/sweep-blancs.ps1` + `src/temp/sweep-etats.ps1`.
+> - 🔶 **Prochaines passes (plan) : 2B purge des hex en dur (`bg-[#…]` 213 + `text-[#…]` 60, préserver accents
+>   Discord/raretés) · 2C décision modales sombres volontaires (Songes/worldmap) · 3 landings en clair ·
+>   4 garde-fou anti-régression (ESLint/grep allowlist).**
+
+
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé
 

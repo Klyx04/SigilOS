@@ -44,10 +44,10 @@ function SectionHeader({
             >
                 <Icon className="h-4 w-4" style={{ color }} />
             </div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                 {label}
             </h2>
-            <div className="flex-1 h-px bg-white/5" />
+            <div className="flex-1 h-px bg-surface" />
         </div>
     );
 }
@@ -57,7 +57,7 @@ function SectionHeader({
 function GenericSkeleton({ height = "200px" }: { height?: string }) {
     return (
         <div
-            className="w-full rounded-2xl border border-white/5 bg-[#13171A] p-6 animate-pulse"
+            className="w-full rounded-2xl border border-border bg-[#13171A] p-6 animate-pulse"
             style={{ height }}
         />
     );
@@ -123,7 +123,7 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                         </div>
 
                         {/* Bottom: Patch Notes Full Width */}
-                        <div className="mt-12 pt-12 border-t border-white/10">
+                        <div className="mt-12 pt-12 border-t border-border">
                             <NewsGrid defaultFeed="changelog" title="Dofus Patch Notes & Correctifs" maxItems={5} layout="list" />
                         </div>
                     </section>

@@ -101,27 +101,27 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Présentation",
                 description: "Page de présentation publique de la guilde. Recrutement, histoire et valeurs.",
                 icon: LayoutDashboard,
-                color: "text-blue-400",
-                bgColor: "bg-blue-500/10",
-                borderColor: "border-blue-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "roster",
                 label: "Annuaire",
                 description: "Répertoire des membres avec leurs personnages, rôles et statistiques Dofus.",
                 icon: Users,
-                color: "text-blue-400",
-                bgColor: "bg-blue-500/10",
-                borderColor: "border-blue-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "stats",
                 label: "Stats Guilde",
                 description: "Tableau de bord des statistiques globales de la guilde (activité, missions, songes).",
                 icon: BarChart3,
-                color: "text-blue-400",
-                bgColor: "bg-blue-500/10",
-                borderColor: "border-blue-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "calendar",
@@ -137,9 +137,9 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Disponibilités",
                 description: "Planning hebdomadaire des membres (onglet Disponibilités de l'annuaire + onglet Planning du profil). Rappel doux une fois par semaine si non rempli.",
                 icon: CalendarClock,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
         ],
     },
@@ -151,18 +151,18 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Missions",
                 description: "Missions hebdomadaires, soumissions de preuves et validation admin. Le cœur de l'activité guilde.",
                 icon: Swords,
-                color: "text-emerald-400",
-                bgColor: "bg-emerald-500/10",
-                borderColor: "border-emerald-500/30",
+                color: "text-success",
+                bgColor: "bg-success/10",
+                borderColor: "border-success/30",
             },
             {
                 key: "songes",
                 label: "Songes",
                 description: "Organisation de runs Songes avec gestion des équipes, candidatures et embeds Discord.",
                 icon: Star,
-                color: "text-purple-400",
-                bgColor: "bg-purple-500/10",
-                borderColor: "border-purple-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "ocre",
@@ -196,18 +196,18 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Succès 2.0",
                 description: "Synchronisation automatique des points de succès via le ladder officiel (Cloudflare Worker).",
                 icon: Trophy,
-                color: "text-amber-400",
-                bgColor: "bg-amber-500/10",
-                borderColor: "border-amber-500/30",
+                color: "text-warning",
+                bgColor: "bg-warning/10",
+                borderColor: "border-warning/30",
             },
             {
                 key: "manualLadderSync",
                 label: "Sync Manuelle",
                 description: "Permet aux membres de synchroniser leurs points via capture d'écran (Backup OCR).",
                 icon: Camera,
-                color: "text-zinc-400",
-                bgColor: "bg-white/5",
-                borderColor: "border-white/10",
+                color: "text-muted-foreground",
+                bgColor: "bg-surface",
+                borderColor: "border-border",
             },
         ],
     },
@@ -219,18 +219,18 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Services Guilde",
                 description: "Passages de donjon et services entre membres. Coordination et suivi des échanges.",
                 icon: Key,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "donjons",
                 label: "Donjons & Quêtes",
                 description: "Recherche de partenaires pour donjons et quêtes. Outil de matching communautaire.",
                 icon: Swords,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
 
             {
@@ -238,63 +238,63 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Documentation",
                 description: "Wiki interne de la guilde. Éditeur TipTap avec images, accès contrôlé par rôle Discord.",
                 icon: BookOpen,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "polls",
                 label: "Sondages",
                 description: "Sondages de guilde (suggestions, améliorations, événements) avec votes et archives.",
                 icon: Gavel,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "minigames",
                 label: "Mini-Jeux",
                 description: "Jeux arcade en ligne (Invader, etc). Gagnez des points pour le ladder et défiez les membres.",
                 icon: Gamepad2,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "quests",
                 label: "Quêtes Dofus",
                 description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
                 icon: BookMarked,
-                color: "text-amber-400",
-                bgColor: "bg-amber-500/10",
-                borderColor: "border-amber-500/30",
+                color: "text-warning",
+                bgColor: "bg-warning/10",
+                borderColor: "border-warning/30",
             },
             {
                 key: "worldmap",
                 label: "Carte du Monde",
                 description: "Carte interactive de Dofus avec zones, ressources et points d'intérêt. Navigation géographique avancée.",
                 icon: Map,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "resources",
                 label: "Ressources",
                 description: "Hub d'informations Dofus: Almanax, actualités Ankama, encyclopédie et outils communautaires.",
                 icon: Library,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
             {
                 key: "profile",
                 label: "Profil Membre",
                 description: "Page de profil personnalisée par membre avec statistiques et historique d'activité.",
                 icon: UserCircle,
-                color: "text-cyan-400",
-                bgColor: "bg-cyan-500/10",
-                borderColor: "border-cyan-500/30",
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
             },
         ],
     },
@@ -306,9 +306,9 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Logs d'Audit",
                 description: "Journal des actions administratives. Traçabilité complète des modifications de configuration.",
                 icon: FileText,
-                color: "text-rose-400",
-                bgColor: "bg-rose-500/10",
-                borderColor: "border-rose-500/30",
+                color: "text-danger",
+                bgColor: "bg-danger/10",
+                borderColor: "border-danger/30",
             },
         ],
     },
@@ -354,37 +354,37 @@ export function ModulesClient({ guildId, initialModules }: Props) {
     return (
         <div className="space-y-12 max-w-[1600px] mx-auto">
             {/* Summary bar - Technical Stats Style */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-2 py-4 border-b border-white/5 bg-white/[0.01] rounded-2xl">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-2 py-4 border-b border-border bg-surface rounded-2xl">
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Système de Capacités</span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Système de Capacités</span>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-white">{enabledCount}</span>
-                            <span className="text-zinc-500 font-medium text-xs">/ {totalCount} modules</span>
+                            <span className="text-3xl font-black text-foreground">{enabledCount}</span>
+                            <span className="text-muted-foreground font-medium text-xs">/ {totalCount} modules</span>
                         </div>
                     </div>
-                    <div className="h-10 w-px bg-white/10 mx-2 hidden md:block" />
-                    <div className="flex h-2 w-32 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-10 w-px bg-surface mx-2 hidden md:block" />
+                    <div className="flex h-2 w-32 bg-surface rounded-full overflow-hidden">
                         <div 
-                            className="h-full bg-emerald-500 transition-all duration-200 ease-out"
+                            className="h-full bg-success transition-all duration-200 ease-out"
                             style={{ width: `${(enabledCount / totalCount) * 100}%` }} 
                         />
                     </div>
                 </div>
-                <Badge variant="outline" className="bg-white/5 border-white/10 text-zinc-400 font-medium text-xs py-1 px-3 rounded-lg">
+                <Badge variant="outline" className="bg-surface border-border text-muted-foreground font-medium text-xs py-1 px-3 rounded-lg">
                     Modifications appliquées instantanément
                 </Badge>
             </div>
 
             {/* Search Bar */}
             <div className="relative px-2 mt-4 max-w-md">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                     type="text"
                     placeholder="Rechercher un module (ex: chat, missions...)"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 hover:border-white/20 transition-all font-medium"
+                    className="w-full bg-surface border border-border rounded-xl pl-11 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-success/50 hover:border-border-strong transition-all font-medium"
                 />
             </div>
 
@@ -402,8 +402,8 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                     return (
                         <div key={group.label} className="space-y-8">
                         <div className="flex items-center gap-4 px-2">
-                             <div className="h-0.5 w-8 bg-white/15" />
-                            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                             <div className="h-0.5 w-8 bg-elevated" />
+                            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                                 {group.label}
                             </h3>
                         </div>
@@ -421,8 +421,8 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                         className={cn(
                                             "group relative rounded-2xl border transition-all duration-200 overflow-hidden",
                                             isEnabled
-                                                ? "bg-zinc-900/60 border-white/10 shadow-sm"
-                                                : "bg-black/40 border-white/5 opacity-50 grayscale-[0.5] hover:grayscale-0 hover:opacity-100 hover:border-white/10"
+                                                ? "bg-surface/60 border-border shadow-sm"
+                                                : "bg-black/40 border-border opacity-50 grayscale-[0.5] hover:grayscale-0 hover:opacity-100 hover:border-border"
                                         )}
                                     >
                                         <div className="relative z-10 p-6 flex flex-col h-full">
@@ -432,12 +432,12 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                     <div className={cn(
                                                         "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-colors duration-200",
                                                         isEnabled 
-                                                            ? "bg-emerald-500/[0.06] border-emerald-500/30"
-                                                            : "bg-white/[0.01] border-white/5"
+                                                            ? "bg-success/[0.06] border-success/30"
+                                                            : "bg-surface border-border"
                                                     )}>
                                                         <Icon className={cn(
                                                             "w-7 h-7 transition-colors duration-200",
-                                                            isEnabled ? "text-emerald-400" : "text-zinc-600"
+                                                            isEnabled ? "text-success" : "text-muted-foreground"
                                                         )} strokeWidth={1.5} />
                                                     </div>
 
@@ -445,24 +445,24 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                          <div className="flex items-center gap-2">
                                                             <h3 className={cn(
                                                                 "font-semibold text-base tracking-tight",
-                                                                isEnabled ? "text-white" : "text-zinc-500"
+                                                                isEnabled ? "text-foreground" : "text-muted-foreground"
                                                             )}>
                                                                 {mod.label}
                                                             </h3>
                                                             {mod.comingSoon && (
-                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-amber-500/10 border-amber-500/20 text-amber-400 font-medium">
+                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-warning/10 border-warning/20 text-warning font-medium">
                                                                     WIP
                                                                 </Badge>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             {isEnabled ? (
-                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-                                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-success">
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-success" />
                                                                     Actif
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-xs font-medium text-zinc-500">Désactivé</span>
+                                                                <span className="text-xs font-medium text-muted-foreground">Désactivé</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -470,13 +470,13 @@ export function ModulesClient({ guildId, initialModules }: Props) {
 
                                                 <div className="flex items-center shrink-0">
                                                     {isLoading ? (
-                                                        <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                                                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                                                     ) : (
                                                         <Switch
                                                             checked={isEnabled}
                                                             onCheckedChange={(val) => handleToggle(mod.key, val)}
                                                             disabled={isPending}
-                                                            className="data-[state=checked]:bg-emerald-500 scale-125"
+                                                            className="data-[state=checked]:bg-success scale-125"
                                                             aria-label={`Toggle module ${mod.label}`}
                                                         />
                                                     )}
@@ -487,29 +487,29 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                             <div className="flex-1 space-y-4">
                                                 <p className={cn(
                                                     "text-sm leading-relaxed transition-colors duration-200",
-                                                    isEnabled ? "text-zinc-400" : "text-zinc-600"
+                                                    isEnabled ? "text-muted-foreground" : "text-muted-foreground"
                                                 )}>
                                                     {mod.description}
                                                 </p>
                                             </div>
 
                                             {/* Pages concernées (#66) */}
-                                            <div className="mt-6 pt-5 border-t border-white/[0.05]">
+                                            <div className="mt-6 pt-5 border-t border-border">
                                                 {routes && routes.length > 0 ? (
                                                     <div className="flex flex-wrap items-center gap-1.5">
-                                                        <span className="text-xs font-medium text-zinc-500">Pages :</span>
+                                                        <span className="text-xs font-medium text-muted-foreground">Pages :</span>
                                                         {routes.map((r) => (
                                                             <Link
                                                                 key={r.href}
                                                                 href={r.href.replace("{guildId}", guildId)}
-                                                                className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-colors"
+                                                                className="px-2.5 py-1 rounded-lg bg-surface border border-border text-xs font-medium text-foreground hover:text-foreground hover:bg-surface hover:border-border-strong transition-colors"
                                                             >
                                                                 {r.label}
                                                             </Link>
                                                         ))}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs text-zinc-500">Page dédiée à venir</span>
+                                                    <span className="text-xs text-muted-foreground">Page dédiée à venir</span>
                                                 )}
                                             </div>
                                         </div>
@@ -523,8 +523,8 @@ export function ModulesClient({ guildId, initialModules }: Props) {
 
             {/* Support Note */}
             <div className="pt-16 pb-10 text-center space-y-4">
-                <div className="h-px w-32 bg-white/5 mx-auto" />
-                <p className="text-xs font-medium text-zinc-600 uppercase tracking-widest">
+                <div className="h-px w-32 bg-surface mx-auto" />
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
                     Modules de la guilde
                 </p>
             </div>

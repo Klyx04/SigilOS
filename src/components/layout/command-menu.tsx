@@ -113,28 +113,28 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
     const actionResults = results.filter(r => r.type === "ACTION");
 
     const searchItems = React.useMemo(() => [
-        { title: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, category: "Général", color: "text-zinc-400", bg: "bg-white/5", border: "border-white/5" },
-        { title: "Documentation", href: `/docs`, icon: BookOpen, category: "Général", color: "text-zinc-400", bg: "bg-white/5", border: "border-white/5" },
+        { title: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, category: "Général", color: "text-muted-foreground", bg: "bg-surface", border: "border-border" },
+        { title: "Documentation", href: `/docs`, icon: BookOpen, category: "Général", color: "text-muted-foreground", bg: "bg-surface", border: "border-border" },
         
-        { title: "Annuaire des membres", href: `/dashboard/${guildId}/members`, icon: Users, category: "Informations", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-        { title: "La Guilde (Hub)", href: `/dashboard/${guildId}/guild-hub`, icon: Sparkles, category: "Informations", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-        { title: "Ressources communautaires", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, category: "Informations", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+        { title: "Annuaire des membres", href: `/dashboard/${guildId}/members`, icon: Users, category: "Informations", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+        { title: "La Guilde (Hub)", href: `/dashboard/${guildId}/guild-hub`, icon: Sparkles, category: "Informations", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+        { title: "Ressources communautaires", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, category: "Informations", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
         
-        { title: "Missions hebdomadaires", href: `/dashboard/${guildId}/missions`, icon: ScrollText, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-        { title: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: Sparkles, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-        { title: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Trophy, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-        { title: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Trophy, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { title: "Missions hebdomadaires", href: `/dashboard/${guildId}/missions`, icon: ScrollText, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: Sparkles, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Trophy, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Trophy, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
         
-        { title: "Galerie de Stuff", href: `/dashboard/${guildId}/stuff-hub`, icon: Sparkles, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-        { title: "Services & Artisans", href: `/dashboard/${guildId}/services`, icon: Sparkles, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-        { title: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-        { title: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Sparkles, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+        { title: "Galerie de Stuff", href: `/dashboard/${guildId}/stuff-hub`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Services & Artisans", href: `/dashboard/${guildId}/services`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
         
-        { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", visible: user?.canValidateMissions },
-        { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, category: "Supervision", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", visible: user?.canViewSettings },
+        { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canValidateMissions },
+        { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canViewSettings },
         
-        { title: "Roadmap Plateforme", href: `/roadmap`, icon: Rocket, category: "Plateforme", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-        { title: "Mises à jour / Changelog", href: `/changelog`, icon: History, category: "Plateforme", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
+        { title: "Roadmap Plateforme", href: `/roadmap`, icon: Rocket, category: "Plateforme", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Mises à jour / Changelog", href: `/changelog`, icon: History, category: "Plateforme", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
     ], [guildId, user]);
 
     const filteredSearchItems = React.useMemo(() => 
@@ -146,24 +146,24 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
             open={open}
             onOpenChange={setOpen}
             shouldFilter={false}
-            className="bg-zinc-950 border border-white/10  sm:max-w-[550px] rounded-2xl overflow-hidden p-0 gap-0"
+            className="bg-background border border-border  sm:max-w-[550px] rounded-2xl overflow-hidden p-0 gap-0"
         >
             <div className="relative">
-                <div className="flex items-center border-b border-white/5 px-4 bg-white/[0.02]">
-                    <Search className="mr-3 h-4 w-4 shrink-0 text-zinc-500" />
+                <div className="flex items-center border-b border-border px-4 bg-surface">
+                    <Search className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
                     <CommandInput 
                         placeholder="Recherche globale..." 
-                        className="h-14 font-medium flex-1 bg-transparent focus:ring-0 border-none outline-none text-sm text-zinc-200 placeholder:text-zinc-600" 
+                        className="h-14 font-medium flex-1 bg-transparent focus:ring-0 border-none outline-none text-sm text-foreground placeholder:text-muted-foreground" 
                         value={query}
                         onValueChange={setQuery}
                     />
                     {isLoading && (
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin text-zinc-500" />
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                 </div>
 
                 <CommandList className="max-h-[380px] premium-scrollbar p-2">
-                    <CommandEmpty className="py-12 text-center text-xs text-zinc-600">
+                    <CommandEmpty className="py-12 text-center text-xs text-muted-foreground">
                         Aucun résultat pour "{query}"
                     </CommandEmpty>
 
@@ -171,19 +171,19 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                     {results.length > 0 && (
                         <>
                             {memberResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Membres</span>}>
+                                <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Membres</span>}>
                                     {memberResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-white/5 bg-white/5 flex items-center justify-center mr-3 shrink-0">
-                                                <Users className="h-4 w-4 text-zinc-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center mr-3 shrink-0">
+                                                <Users className="h-4 w-4 text-muted-foreground" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-600 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -191,19 +191,19 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {missionResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Missions</span>}>
+                                <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Missions</span>}>
                                     {missionResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-white/5 bg-white/5 flex items-center justify-center mr-3 shrink-0">
-                                                <ScrollText className="h-4 w-4 text-zinc-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center mr-3 shrink-0">
+                                                <ScrollText className="h-4 w-4 text-muted-foreground" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-600 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -211,18 +211,18 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {pageResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Pages</span>}>
+                                <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Pages</span>}>
                                     {pageResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-white/5 bg-white/5 flex items-center justify-center mr-3 shrink-0">
-                                                <Sparkles className="h-4 w-4 text-zinc-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-muted-foreground" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
+                                                <span className="font-bold text-foreground truncate text-sm">{r.title}</span>
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -230,19 +230,19 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {gameDataResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-emerald-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Monde des Douze</span>}>
+                                <CommandGroup heading={<span className="text-success font-black tracking-widest uppercase text-caption px-2 mb-2 block">Monde des Douze</span>}>
                                     {gameDataResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center mr-3 shrink-0">
-                                                <Database className="h-4 w-4 text-emerald-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-success/20 bg-success/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Database className="h-4 w-4 text-success" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-emerald-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-success transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -250,19 +250,19 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {serviceResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-amber-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Services & Artisans</span>}>
+                                <CommandGroup heading={<span className="text-warning font-black tracking-widest uppercase text-caption px-2 mb-2 block">Services & Artisans</span>}>
                                     {serviceResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-amber-500/20 bg-amber-500/10 flex items-center justify-center mr-3 shrink-0">
-                                                <Sparkles className="h-4 w-4 text-amber-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-warning/20 bg-warning/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-warning" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-amber-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-warning transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -270,19 +270,19 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {(vaultResults.length > 0 || loanResults.length > 0) && (
-                                <CommandGroup heading={<span className="text-indigo-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Coffre & Prêts</span>}>
+                                <CommandGroup heading={<span className="text-info font-black tracking-widest uppercase text-caption px-2 mb-2 block">Coffre & Prêts</span>}>
                                     {vaultResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-indigo-500/20 bg-indigo-500/10 flex items-center justify-center mr-3 shrink-0">
-                                                <Package className="h-4 w-4 text-indigo-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Package className="h-4 w-4 text-info" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-indigo-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -290,14 +290,14 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-indigo-500/20 bg-indigo-500/10 flex items-center justify-center mr-3 shrink-0">
-                                                <Handshake className="h-4 w-4 text-indigo-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Handshake className="h-4 w-4 text-info" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-indigo-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -310,14 +310,14 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
                                             <div className="w-8 h-8 rounded-lg border border-pink-500/20 bg-pink-500/10 flex items-center justify-center mr-3 shrink-0">
                                                 <Sparkles className="h-4 w-4 text-pink-400" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-pink-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-pink-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -325,19 +325,19 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {eventResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-purple-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Événements</span>}>
+                                <CommandGroup heading={<span className="text-info font-black tracking-widest uppercase text-caption px-2 mb-2 block">Événements</span>}>
                                     {eventResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-purple-500/20 bg-purple-500/10 flex items-center justify-center mr-3 shrink-0">
-                                                <Calendar className="h-4 w-4 text-purple-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Calendar className="h-4 w-4 text-info" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-purple-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -345,43 +345,43 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {actionResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-cyan-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Actions Rapides</span>}>
+                                <CommandGroup heading={<span className="text-info font-black tracking-widest uppercase text-caption px-2 mb-2 block">Actions Rapides</span>}>
                                     {actionResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
                                             onSelect={() => runCommand(() => router.push(r.href))}
-                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
                                         >
-                                            <div className="w-8 h-8 rounded-lg border border-cyan-500/20 bg-cyan-500/10 flex items-center justify-center mr-3 shrink-0">
-                                                <Zap className="h-4 w-4 text-cyan-400" />
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Zap className="h-4 w-4 text-info" />
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-cyan-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
                             )}
-                            <CommandSeparator className="bg-white/5 my-2" />
+                            <CommandSeparator className="bg-surface my-2" />
                         </>
                     )}
 
                     {/* --- DEFAULT SUGGESTIONS --- */}
                     {debouncedQuery.length < 2 && (
-                        <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Suggestions</span>}>
+                        <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Suggestions</span>}>
                             {filteredSearchItems.map((item) => (
                                 <CommandItem
                                     key={item.href + item.title}
                                     value={item.title}
                                     onSelect={() => runCommand(() => router.push(item.href))}
-                                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-xl data-[selected=true]:bg-white/5 transition-all mb-1 group"
+                                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-xl data-[selected=true]:bg-surface transition-all mb-1 group"
                                 >
                                     <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${item.bg} ${item.border}`}>
                                         <item.icon className={`h-4 w-4 ${item.color}`} />
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{item.title}</span>
+                                        <span className="text-sm font-bold text-foreground group-hover:text-foreground transition-colors">{item.title}</span>
                                         <span className={`text-caption font-black uppercase tracking-widest ${item.color} opacity-70`}>{item.category}</span>
                                     </div>
                                 </CommandItem>
@@ -391,36 +391,36 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
 
                     {debouncedQuery.length < 2 && (
                         <>
-                            <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Navigation</span>}>
+                            <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Navigation</span>}>
                                 <CommandItem 
                                     onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}
-                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-surface transition-all p-2.5"
                                 >
-                                    <Home className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                                    <Home className="mr-3 h-3.5 w-3.5 text-muted-foreground" />
                                     <span className="font-semibold text-sm">Tableau de bord</span>
                                 </CommandItem>
                                 <CommandItem 
                                     onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}
-                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-surface transition-all p-2.5"
                                 >
-                                    <ScrollText className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                                    <ScrollText className="mr-3 h-3.5 w-3.5 text-muted-foreground" />
                                     <span className="font-semibold text-sm">Missions</span>
                                 </CommandItem>
                                 <CommandItem 
                                     onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/ladder`))}
-                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-surface transition-all p-2.5"
                                 >
-                                    <Trophy className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                                    <Trophy className="mr-3 h-3.5 w-3.5 text-muted-foreground" />
                                     <span className="font-semibold text-sm">Ladder</span>
                                 </CommandItem>
                             </CommandGroup>
 
-                            <CommandSeparator className="bg-white/5 my-2" />
+                            <CommandSeparator className="bg-surface my-2" />
 
                             <CommandGroup>
                                 <CommandItem 
                                     onSelect={() => runCommand(() => router.push("/api/auth/signout"))}
-                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-red-500/10 text-red-500/80 transition-all p-2.5"
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-danger/10 text-danger/80 transition-all p-2.5"
                                 >
                                     <LogOut className="mr-3 h-3.5 w-3.5" />
                                     <span className="font-bold text-sm">Déconnexion</span>
@@ -430,9 +430,9 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                     )}
                 </CommandList>
 
-                <div className="p-3 bg-zinc-950 border-t border-white/5 flex items-center justify-between text-caption font-medium text-zinc-500 px-5">
+                <div className="p-3 bg-background border-t border-border flex items-center justify-between text-caption font-medium text-muted-foreground px-5">
                     <span>Recherche globale</span>
-                    <span>Taper <kbd className="font-mono bg-white/5 px-1 py-0.5 rounded text-caption text-zinc-400">Esc</kbd> pour fermer</span>
+                    <span>Taper <kbd className="font-mono bg-surface px-1 py-0.5 rounded text-caption text-muted-foreground">Esc</kbd> pour fermer</span>
                 </div>
             </div>
         </CommandDialog>

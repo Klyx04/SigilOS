@@ -31,15 +31,15 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
 
     return (
         <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
+            <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Liste Blanche</span>
+                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Liste Blanche</span>
                     {value.length > 0 && (
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={() => onChange([])}
-                            className="h-6 text-caption font-black uppercase text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 px-2"
+                            className="h-6 text-caption font-black uppercase text-danger hover:text-danger hover:bg-danger/10 px-2"
                         >
                             Tout effacer
                         </Button>
@@ -51,10 +51,10 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                         <Button
                             variant="outline"
                             role="combobox"
-                            className="w-full h-12 bg-black/20 border-white/10 justify-between px-4 hover:bg-black/30 text-zinc-400"
+                            className="w-full h-12 bg-black/20 border-border justify-between px-4 hover:bg-black/30 text-muted-foreground"
                         >
                             <div className="flex items-center gap-2 truncate">
-                                <Hash className="w-4 h-4 text-zinc-600" />
+                                <Hash className="w-4 h-4 text-muted-foreground" />
                                 {value.length > 0 
                                     ? `${value.length} rôle(s) sélectionné(s)` 
                                     : "Sélectionner les rôles autorisés..."
@@ -63,8 +63,8 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                             <ChevronsUpDown className="w-4 h-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border-white/10" align="start">
-                        <Command className="bg-transparent text-white">
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border-border" align="start">
+                        <Command className="bg-transparent text-foreground">
                             <CommandInput placeholder="Filtrer les rôles..." className="h-11 border-none focus:ring-0" />
                             <CommandList className="max-h-[300px] premium-scrollbar">
                                 <CommandEmpty>Aucun rôle trouvé.</CommandEmpty>
@@ -79,7 +79,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                                                         : [...value, role.id]
                                                 );
                                             }}
-                                            className="text-white focus:bg-white/5 cursor-pointer text-xs py-2 px-3 rounded-lg flex items-center justify-between group"
+                                            className="text-foreground focus:bg-surface cursor-pointer text-xs py-2 px-3 rounded-lg flex items-center justify-between group"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div 
@@ -91,7 +91,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                                                 />
                                                 <span className="font-bold">{role.name}</span>
                                             </div>
-                                            {value.includes(role.id) && <Check className="h-4 w-4 text-indigo-400" />}
+                                            {value.includes(role.id) && <Check className="h-4 w-4 text-info" />}
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
@@ -119,7 +119,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                                     {role.name}
                                     <button 
                                         onClick={() => onChange(value.filter(rid => rid !== id))}
-                                        className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                        className="hover:bg-elevated rounded-full p-0.5 transition-colors"
                                     >
                                         <X className="w-2.5 h-2.5" />
                                     </button>
@@ -128,11 +128,11 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                         })}
                     </div>
                 ) : (
-                    <div className="mt-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
-                        <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="mt-4 p-4 rounded-xl bg-warning/5 border border-warning/10 flex items-start gap-3">
+                        <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                         <div>
-                            <p className="text-caption text-amber-400 font-black uppercase tracking-widest mb-1">Aucun rôle autorisé</p>
-                            <p className="text-caption text-zinc-500 leading-relaxed italic">
+                            <p className="text-caption text-warning font-black uppercase tracking-widest mb-1">Aucun rôle autorisé</p>
+                            <p className="text-caption text-muted-foreground leading-relaxed italic">
                                 {description}
                             </p>
                         </div>

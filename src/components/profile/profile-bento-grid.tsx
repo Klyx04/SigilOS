@@ -410,7 +410,7 @@ export function ProfileBentoGrid({
             )}
 
             {/* Hero Header (Glass) */}
-            <div data-tour="profile-header" className="rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black/40 backdrop-blur-md">
+            <div data-tour="profile-header" className="rounded-3xl overflow-hidden border border-border shadow-2xl bg-black/40 backdrop-blur-md">
                 <HeroHeader
                     avatarUrl={user.image}
                     displayName={displayName}
@@ -437,24 +437,24 @@ export function ProfileBentoGrid({
 
             {/* Sigma 2026 Sleek Glass Navigation Bar (Horizontal Figma 2026 UX) */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-                <div className="sticky top-20 z-30 w-full bg-zinc-950/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl overflow-x-auto scrollbar-width-none [&::-webkit-scrollbar]:hidden">
+                <div className="sticky top-20 z-30 w-full bg-background/90 backdrop-blur-xl border border-border p-2 rounded-2xl shadow-2xl overflow-x-auto scrollbar-width-none [&::-webkit-scrollbar]:hidden">
                     <TabsList className="bg-transparent flex flex-row items-center gap-1.5 h-auto justify-start border-none w-max">
                         {(() => {
                             const hasServices = !readOnly || ((localProfile as any).activeServices && (localProfile as any).activeServices.length > 0);
                             const ALL_TABS = [
-                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-emerald-400", bgActive: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300 " },
+                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-success", bgActive: "bg-success/15 border-success/30 text-success " },
                                 { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/15 border-sky-500/30 text-sky-300 " },
-                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 " },
-                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-rose-400", bgActive: "bg-rose-500/15 border-rose-500/30 text-rose-300 " },
+                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
+                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-danger", bgActive: "bg-danger/15 border-danger/30 text-danger " },
                                 { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 " },
-                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 " },
-                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 " },
+                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
+                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
                                 { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " },
                                 { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 " },
-                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 " },
-                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 " }] : []),
+                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
+                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " }] : []),
                                 ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " }] : []),
-                                ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-zinc-200", bgActive: "bg-white/15 border-white/30 text-white" }] : []),
+                                ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground" }] : []),
                             ].filter(t => !isEmpty[t.id]);
 
                             return ALL_TABS.map((tab) => {
@@ -468,10 +468,10 @@ export function ProfileBentoGrid({
                                             "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer shrink-0",
                                             isActive
                                                 ? cn("scale-[1.02]", tab.bgActive)
-                                                : "bg-black/40 border-white/5 text-zinc-400 hover:text-white hover:bg-white/5 hover:border-white/10"
+                                                : "bg-black/40 border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
                                         )}
                                     >
-                                        <tab.icon className={cn("w-3.5 h-3.5", isActive ? tab.activeColor : "text-zinc-500")} />
+                                        <tab.icon className={cn("w-3.5 h-3.5", isActive ? tab.activeColor : "text-muted-foreground")} />
                                         <span>{tab.label}</span>
                                     </TabsTrigger>
                                 );
@@ -634,12 +634,12 @@ export function ProfileBentoGrid({
                             {/* #4 — Lien vers l'agenda de guilde depuis le planning perso */}
                             <div className="flex items-center justify-between gap-4 flex-wrap">
                                 <div className="space-y-0.5">
-                                    <h3 className="text-title font-bold text-white">Mon planning perso</h3>
-                                    <p className="text-caption text-zinc-500">Vos créneaux de jeu et vos absences, pour la planification des événements.</p>
+                                    <h3 className="text-title font-bold text-foreground">Mon planning perso</h3>
+                                    <p className="text-caption text-muted-foreground">Vos créneaux de jeu et vos absences, pour la planification des événements.</p>
                                 </div>
                                 <Link
                                     href={`/dashboard/${guildId}/planning`}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-sm font-semibold hover:bg-emerald-500/20 transition-colors duration-200"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-success/30 bg-success/10 text-success text-sm font-semibold hover:bg-success/20 transition-colors duration-200"
                                 >
                                     <Calendar className="w-4 h-4" />
                                     Planning de Guilde
@@ -729,7 +729,7 @@ export function ProfileBentoGrid({
                                  le joueur l'a activée dans son profil (pas de bloc mort « Service non
                                  disponible » pour les autres). Côté éditable (profil perso), toujours visible. */}
                              {(canEdit || localProfile.hasLegendaryPet) && (
-                                 <div className="border-t border-white/5 pt-8">
+                                 <div className="border-t border-border pt-8">
                                      <LegendaryPetToggle
                                          guildId={guildId}
                                          initialValue={localProfile.hasLegendaryPet ?? false}

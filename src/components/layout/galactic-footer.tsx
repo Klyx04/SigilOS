@@ -76,28 +76,28 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                 "fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl px-4 pointer-events-none transition-all duration-300 ease-in-out transform",
                 isVisible ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0 pointer-events-none"
             )}>
-                <footer className="w-full relative rounded-xl border border-white/10 bg-zinc-950/90 backdrop-blur-md py-2.5 px-4 sm:px-6 pointer-events-auto shadow-lg transition-all">
+                <footer className="w-full relative rounded-xl border border-border bg-background/90 backdrop-blur-md py-2.5 px-4 sm:px-6 pointer-events-auto shadow-lg transition-all">
                     <div className="flex items-center justify-between gap-4 relative z-10">
                         
                         {/* 1. BRAND & LEGAL */}
                         <div className="flex items-center gap-4">
                             <Link href="/" className="flex items-center gap-2 group/brand shrink-0">
-                                <span className="font-bold tracking-tight text-white uppercase text-xs">Sigil<span className="text-emerald-400">OS</span></span>
+                                <span className="font-bold tracking-tight text-foreground uppercase text-xs">Sigil<span className="text-emerald-400">OS</span></span>
                             </Link>
 
-                            <div className="h-3 w-px bg-white/10 hidden sm:block" />
+                            <div className="h-3 w-px bg-surface hidden sm:block" />
 
-                            <nav className="hidden sm:flex items-center gap-4 text-caption font-medium text-zinc-400">
-                                <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
-                                <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
-                                <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions</Link>
+                            <nav className="hidden sm:flex items-center gap-4 text-caption font-medium text-muted-foreground">
+                                <Link href="/legal/cgu" className="hover:text-foreground transition-colors">CGU</Link>
+                                <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
+                                <Link href="/legal/mentions" className="hover:text-foreground transition-colors">Mentions</Link>
                             </nav>
                         </div>
 
                         {/* 2. SYSTEM STATUS (Simple Dot) */}
                         <Link
                             href="/status"
-                            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors shrink-0"
+                            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-surface hover:bg-surface transition-colors shrink-0"
                         >
                             <div className={cn(
                                 "w-1.5 h-1.5 rounded-full",
@@ -105,7 +105,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                                 systemStatus === "degraded" ? "bg-amber-400" : 
                                 "bg-red-400"
                             )}></div>
-                            <span className="text-caption font-semibold text-zinc-300">
+                            <span className="text-caption font-semibold text-foreground">
                                 {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
                             </span>
                         </Link>
@@ -114,7 +114,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                         <Link
                             href="https://discord.gg/uX7G6SUDgN"
                             target="_blank"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#5865F2] hover:text-white transition-colors shrink-0 text-xs font-semibold"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface hover:bg-[#5865F2] hover:text-foreground transition-colors shrink-0 text-xs font-semibold"
                         >
                             <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" fill="currentColor">
                                 <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
@@ -128,7 +128,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
 
     // STANDARD FULL FOOTER
     return (
-        <footer className="w-full bg-[#0b0d0d] border-t border-white/5 pt-16 pb-10 mt-auto relative">
+        <footer className="w-full bg-[#0b0d0d] border-t border-border pt-16 pb-10 mt-auto relative">
             <div className="max-w-7xl mx-auto px-8 relative z-10">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-20">
                     {/* Brand Meta */}
@@ -142,30 +142,30 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                                     className="object-contain"
                                 />
                             </div>
-                            <span className="text-lg font-bold tracking-tight text-white">
+                            <span className="text-lg font-bold tracking-tight text-foreground">
                                 Sigil<span className="text-emerald-400">OS</span>
                             </span>
                         </Link>
-                        <p className="text-zinc-500 text-sm font-medium leading-relaxed max-w-[280px]">
+                        <p className="text-muted-foreground text-sm font-medium leading-relaxed max-w-[280px]">
                             Organisez votre guilde Dofus : sorties, membres, guides et progression dans un espace partagé, relié à Discord.
                         </p>
                     </div>
 
                     {/* Resources */}
                     <div className="space-y-6">
-                        <h4 className="text-white text-caption font-black uppercase tracking-widest">Plateforme</h4>
+                        <h4 className="text-foreground text-caption font-black uppercase tracking-widest">Plateforme</h4>
                         <nav className="flex flex-col gap-4">
-                            <Link href="/guilds" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Annuaire de Guildes</Link>
-                            <Link href="/changelog" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Mises à jour</Link>
-                            <Link href="/docs" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Guides & Wikis</Link>
+                            <Link href="/guilds" className="text-muted-foreground hover:text-foreground transition-colors text-xs font-bold uppercase tracking-widest">Annuaire de Guildes</Link>
+                            <Link href="/changelog" className="text-muted-foreground hover:text-foreground transition-colors text-xs font-bold uppercase tracking-widest">Mises à jour</Link>
+                            <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors text-xs font-bold uppercase tracking-widest">Guides & Wikis</Link>
                         </nav>
                     </div>
 
                     {/* Status Badge & Discord */}
                     <div className="space-y-6">
-                        <h4 className="text-white text-caption font-black uppercase tracking-widest">Système</h4>
+                        <h4 className="text-foreground text-caption font-black uppercase tracking-widest">Système</h4>
                         <div className="flex flex-col gap-4 items-start">
-                            <Link href="/status" className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-colors">
+                            <Link href="/status" className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-surface/40 border border-border hover:border-emerald-500/20 transition-colors">
                                 <div className={cn(
                                     "w-1.5 h-1.5 rounded-full",
                                     systemStatus === "online" ? "bg-emerald-500" :
@@ -174,7 +174,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                                 <div className="flex flex-col">
                                     <span className={cn(
                                         "text-caption font-black uppercase tracking-widest",
-                                        systemStatus === "online" ? "text-emerald-500" : "text-white"
+                                        systemStatus === "online" ? "text-emerald-500" : "text-foreground"
                                     )}>
                                         {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
                                     </span>
@@ -183,9 +183,9 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                             <Link
                                 href="https://discord.gg/uX7G6SUDgN"
                                 target="_blank"
-                                className="flex items-center gap-3 text-emerald-500 hover:text-white transition-colors text-caption font-black uppercase tracking-widest group"
+                                className="flex items-center gap-3 text-emerald-500 hover:text-foreground transition-colors text-caption font-black uppercase tracking-widest group"
                             >
-                                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-colors">
+                                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-foreground transition-colors">
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 127.14 96.36" fill="currentColor">
                                         <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
                                     </svg>
@@ -197,15 +197,15 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                 </div>
 
                 {/* Bottom Bar: Legal & Credits */}
-                <div className="pt-8 border-t border-white/5 flex flex-col lg:flex-row justify-between items-center gap-8">
+                <div className="pt-8 border-t border-border flex flex-col lg:flex-row justify-between items-center gap-8">
                     <div className="flex flex-col gap-4 text-center lg:text-left w-full lg:w-auto">
-                        <div className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">
-                            <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
-                            <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
-                            <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions</Link>
-                            <Link href="/legal/faq" className="hover:text-white transition-colors">Aide</Link>
+                        <div className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-caption font-black text-muted-foreground uppercase tracking-[0.2em]">
+                            <Link href="/legal/cgu" className="hover:text-foreground transition-colors">CGU</Link>
+                            <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
+                            <Link href="/legal/mentions" className="hover:text-foreground transition-colors">Mentions</Link>
+                            <Link href="/legal/faq" className="hover:text-foreground transition-colors">Aide</Link>
                         </div>
-                        <p className="text-zinc-600 text-caption font-medium leading-relaxed max-w-xl opacity-60">
+                        <p className="text-muted-foreground text-caption font-medium leading-relaxed max-w-xl opacity-60">
                             SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.
                             Tous droits réservés. © 2026 Sigil Project.
                         </p>

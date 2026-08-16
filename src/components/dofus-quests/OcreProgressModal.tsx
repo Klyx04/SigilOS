@@ -68,35 +68,35 @@ export default function OcreProgressModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-zinc-950/95 border border-white/5 rounded-[2rem] p-0 text-white outline-none overflow-hidden">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b border-white/5">
+      <DialogContent className="max-w-lg bg-background/95 border border-border rounded-[2rem] p-0 text-foreground outline-none overflow-hidden">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               <img src="/assets/icons/ocre.png" alt="Ocre" className="w-4 h-4 object-contain"/>
               Mon Ocre
             </DialogTitle>
-            <span className="text-caption font-bold text-zinc-500">Metamob · {metamobPseudo}</span>
+            <span className="text-caption font-bold text-muted-foreground">Metamob · {metamobPseudo}</span>
           </div>
           <div className="flex items-center gap-3 mt-3">
-            <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/5">
-              <Search size={12} className="text-zinc-500 shrink-0"/>
+            <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface/60 border border-border">
+              <Search size={12} className="text-muted-foreground shrink-0"/>
               <input
                 type="text"
-                className="flex-1 min-w-0 bg-transparent border-none outline-none text-xs font-semibold text-zinc-200"
+                className="flex-1 min-w-0 bg-transparent border-none outline-none text-xs font-semibold text-foreground"
                 placeholder="Rechercher un Gardien ou un Archimonstre…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Rechercher dans ma collection Ocre"
               />
               {query && (
-                <button type="button" onClick={() => setQuery("")} aria-label="Effacer la recherche" className="text-zinc-500 hover:text-white">
+                <button type="button" onClick={() => setQuery("")} aria-label="Effacer la recherche" className="text-muted-foreground hover:text-foreground">
                   <X size={12}/>
                 </button>
               )}
             </div>
             <a
               href={`/dashboard/${guildId}/quete-ocre`}
-              className="inline-flex items-center gap-1 text-caption font-bold text-amber-400/80 hover:text-amber-300 whitespace-nowrap"
+              className="inline-flex items-center gap-1 text-caption font-bold text-warning/80 hover:text-warning whitespace-nowrap"
             >
               Quête complète <ExternalLink size={11}/>
             </a>
@@ -119,7 +119,7 @@ export default function OcreProgressModal({
 
         <ScrollArea className="max-h-[440px] px-2 py-2 no-scrollbar">
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-zinc-500 italic text-sm">
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground italic text-sm">
               {query ? "Aucun monstre ne correspond à la recherche" : "Aucun monstre dans cette catégorie"}
             </div>
           ) : (

@@ -48,7 +48,7 @@ export default async function KamaWeeklySummaryPage({
                     iconColor="#f59e0b"
                     backHref={`/dashboard/${guildId}/kamas`}
                 />
-                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center text-sm text-red-400">
+                <div className="rounded-xl border border-danger/20 bg-danger/5 p-6 text-center text-sm text-danger">
                     {summaryRes.error || "Une erreur est survenue."}
                 </div>
             </div>

@@ -71,10 +71,10 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
     }, []);
 
     return (
-        <Card className="bg-black/20 border-white/5 border-dashed hover:border-white/20 transition-all cursor-default">
+        <Card className="bg-black/20 border-border border-dashed hover:border-border-strong transition-all cursor-default">
             <CardContent className="p-6 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 overflow-hidden">
-                    <Avatar className="h-12 w-12 border-2 border-white/5 grayscale opacity-70">
+                    <Avatar className="h-12 w-12 border-2 border-border grayscale opacity-70">
                         <AvatarImage src={guild.icon || ""} alt={guild.name} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
                             {guild.name.substring(0, 2).toUpperCase()}
@@ -94,7 +94,7 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
                     size="sm"
                     variant={needsInvite ? "secondary" : "outline"}
                     className={needsInvite
-                        ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/40"
+                        ? "bg-info/20 text-info hover:bg-info/40"
                         : "border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors"
                     }
                     onClick={handleSetup}

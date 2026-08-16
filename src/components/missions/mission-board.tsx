@@ -94,11 +94,11 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
 
     // Category Styling Map
     const CATEGORY_STYLES: Record<MissionCategory, { bg: string; border: string; text: string; icon: string; shadow: string }> = {
-        DONJON: { bg: "bg-indigo-500/10", border: "border-indigo-500/20", text: "text-indigo-400", icon: "text-indigo-400", shadow: "shadow-indigo-500/10" },
-        REGULATION: { bg: "bg-rose-500/10", border: "border-rose-500/20", text: "text-rose-400", icon: "text-rose-400", shadow: "shadow-rose-500/10" },
+        DONJON: { bg: "bg-info/10", border: "border-info/20", text: "text-info", icon: "text-info", shadow: "shadow-indigo-500/10" },
+        REGULATION: { bg: "bg-danger/10", border: "border-danger/20", text: "text-danger", icon: "text-danger", shadow: "shadow-rose-500/10" },
         ANOMALIE: { bg: "bg-fuchsia-500/10", border: "border-fuchsia-500/20", text: "text-fuchsia-400", icon: "text-fuchsia-400", shadow: "shadow-fuchsia-500/10" },
-        SONGES: { bg: "bg-cyan-500/10", border: "border-cyan-500/20", text: "text-cyan-400", icon: "text-cyan-400", shadow: "shadow-cyan-500/10" },
-        EXPEDITION: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-400", icon: "text-amber-400", shadow: "shadow-amber-500/10" },
+        SONGES: { bg: "bg-info/10", border: "border-info/20", text: "text-info", icon: "text-info", shadow: "shadow-cyan-500/10" },
+        EXPEDITION: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: "text-warning", shadow: "shadow-amber-500/10" },
         EVENT: { bg: "bg-yellow-500/10", border: "border-yellow-500/20", text: "text-yellow-400", icon: "text-yellow-400", shadow: "shadow-yellow-500/10" },
     };
 
@@ -108,7 +108,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                 <ResidencyCountdown availableAt={availableAt} className="mb-6" />
             )}
             {/* 🛠️ Simplified Toolbar */}
-            <div className="flex flex-col gap-4 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-sm" data-tour="missions-toolbar">
+            <div className="flex flex-col gap-4 bg-surface/40 p-3 rounded-2xl border border-border backdrop-blur-sm" data-tour="missions-toolbar">
 
                 {/* PRIMARY ACTIONS ROW */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,7 +116,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                     {/* Left: Pool & Status Logic Combined */}
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
                         {/* Pool Toggle */}
-                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0" data-tour="missions-pool">
+                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-border rounded-full shrink-0" data-tour="missions-pool">
                             {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                                 const isActive = missionPool === pool;
                                 return (
@@ -127,9 +127,9 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                             "flex items-center gap-2 px-4 py-1.5 text-caption font-black rounded-full transition-all uppercase tracking-widest",
                                             isActive
                                                 ? pool === 'CLASSIQUES'
-                                                    ? "bg-indigo-500 text-white shadow-lg"
-                                                    : "bg-yellow-500 text-black shadow-lg"
-                                                : "text-zinc-500 hover:text-white"
+                                                    ? "bg-info text-info-foreground shadow-lg"
+                                                    : "bg-yellow-500 text-foreground shadow-lg"
+                                                : "text-muted-foreground hover:text-foreground"
                                         )}
                                     >
                                         {pool === 'CLASSIQUES' ? '⚔️' : '✨'} {pool}
@@ -140,10 +140,10 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
 
                         {!vitrineMode && (
                             <>
-                                <div className="h-4 w-px bg-white/10 mx-1" />
+                                <div className="h-4 w-px bg-surface mx-1" />
 
                                 {/* Status Toggle */}
-                                <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0">
+                                <div className="flex items-center gap-1 p-1 bg-black/40 border border-border rounded-full shrink-0">
                                     {STATUS_FILTERS.map(f => {
                                         const isActive = selectedCategory === f.value;
                                         return (
@@ -152,7 +152,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                                 onClick={() => setSelectedCategory(f.value)}
                                                 className={cn(
                                                     "px-3 py-1.5 text-caption font-bold rounded-full transition-all uppercase tracking-wider",
-                                                    isActive ? "bg-zinc-100 text-zinc-950 shadow-md" : "text-zinc-500 hover:text-white"
+                                                    isActive ? "bg-surface text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
                                                 )}
                                             >
                                                 {f.label}
@@ -173,14 +173,14 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             className={cn(
                                 "h-9 rounded-full px-4 text-caption font-black uppercase tracking-widest transition-all",
                                 (showFilters || activeCategoryCount > 0)
-                                    ? "bg-white/10 text-white border-white/20"
-                                    : "bg-transparent text-zinc-400 border-white/5"
+                                    ? "bg-surface text-foreground border-border-strong"
+                                    : "bg-transparent text-muted-foreground border-border"
                             )}
                         >
-                            <Filter className={cn("w-3.5 h-3.5 mr-2", activeCategoryCount > 0 && "text-emerald-400 animate-pulse")} />
+                            <Filter className={cn("w-3.5 h-3.5 mr-2", activeCategoryCount > 0 && "text-success animate-pulse")} />
                             Catégories
                             {activeCategoryCount > 0 && (
-                                <span className="ml-2 w-4 h-4 rounded-full bg-emerald-500 text-black text-caption flex items-center justify-center">
+                                <span className="ml-2 w-4 h-4 rounded-full bg-success text-success-foreground text-caption flex items-center justify-center">
                                     {activeCategoryCount}
                                 </span>
                             )}
@@ -189,7 +189,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 text-zinc-500 hover:text-white hover:bg-white/5 rounded-full"
+                            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-surface rounded-full"
                             onClick={() => startTransition(() => router.refresh())}
                             disabled={isPending}
                         >
@@ -200,7 +200,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
 
                 {/* SECONDARY: Category Filters (Collapsible) */}
                 {showFilters && missionPool === 'CLASSIQUES' && (
-                    <div className="pt-2 border-t border-white/5 animate-in slide-in-from-top-2 duration-300">
+                    <div className="pt-2 border-t border-border animate-in slide-in-from-top-2 duration-300">
                         <div className="flex flex-wrap gap-2">
                             {CATEGORY_FILTERS.map(f => {
                                 const IconComponent = f.icon;
@@ -215,7 +215,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                             "group flex items-center gap-2 px-3 py-1.5 text-caption font-bold rounded-lg border transition-all",
                                             isActive
                                                 ? cn(style.bg, style.border, style.text, "ring-1 ring-white/10")
-                                                : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white"
+                                                : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-border-strong hover:text-foreground"
                                         )}
                                     >
                                         {IconComponent && <IconComponent className="w-3 h-3" />}

@@ -126,7 +126,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
-                <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -145,7 +145,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
     const renderPreview = (content: string, isDiscord: boolean) => {
         if (!content || !content.trim()) {
-            return <p className="text-zinc-600 italic text-sm">Le message apparaîtra ici...</p>;
+            return <p className="text-muted-foreground italic text-sm">Le message apparaîtra ici...</p>;
         }
 
         const processed = content
@@ -154,7 +154,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
         return (
             <div className={cn(
-                "prose prose-invert max-w-none text-zinc-300",
+                "prose prose-invert max-w-none text-foreground",
                 isDiscord ? "font-sans leading-relaxed text-body-sm" : "font-sans leading-relaxed text-sm"
             )}>
                 <ReactMarkdown>{processed}</ReactMarkdown>
@@ -167,48 +167,48 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
             <div className="space-y-10 max-w-6xl pb-20">
                 {/* --- HEADER --- */}
                 <div className="flex flex-col gap-1">
-                    <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-                        <UserPlus className="w-8 h-8 text-indigo-400" /> Centre d&apos;Accueil
+                    <h2 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
+                        <UserPlus className="w-8 h-8 text-info" /> Centre d&apos;Accueil
                     </h2>
-                    <p className="text-zinc-500 text-sm">Configurez l&apos;arrivée de vos nouveaux membres et l&apos;automatisation des messages.</p>
+                    <p className="text-muted-foreground text-sm">Configurez l&apos;arrivée de vos nouveaux membres et l&apos;automatisation des messages.</p>
                 </div>
 
                 {/* --- AIDE AUX VARIABLES --- */}
-                <Card className="p-6 bg-indigo-500/5 border-indigo-500/20 relative overflow-hidden ring-1 ring-indigo-500/10">
+                <Card className="p-6 bg-info/5 border-info/20 relative overflow-hidden ring-1 ring-ring/10">
                     <div className="space-y-4 relative z-10">
                         <div className="flex items-center gap-2">
-                            <Info className="w-5 h-5 text-indigo-400" />
-                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Variables de personnalisation</h3>
+                            <Info className="w-5 h-5 text-info" />
+                            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Variables de personnalisation</h3>
                         </div>
                         
-                        <p className="text-xs text-zinc-400 leading-relaxed max-w-2xl">
+                        <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
                             Utilisez ces balises dans vos messages. Elles seront remplacées par les informations réelles du membre.
                         </p>
 
                         <div className="flex flex-wrap gap-4">
                             <button 
                                 onClick={() => { navigator.clipboard.writeText("{nickname}"); toast.success("Copié !"); }}
-                                className="group flex items-center gap-4 p-4 rounded-2xl bg-zinc-950/60 border border-white/5 hover:border-indigo-500/50 transition-all text-left"
+                                className="group flex items-center gap-4 p-4 rounded-2xl bg-background/60 border border-border hover:border-info/50 transition-all text-left"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 group- transition-transform">
-                                    <Copy className="w-4 h-4 text-indigo-400" />
+                                <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0 group- transition-transform">
+                                    <Copy className="w-4 h-4 text-info" />
                                 </div>
                                 <div>
-                                    <code className="text-lg font-bold text-indigo-400 block">{`{nickname}`}</code>
-                                    <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Nom du membre</p>
+                                    <code className="text-lg font-bold text-info block">{`{nickname}`}</code>
+                                    <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Nom du membre</p>
                                 </div>
                             </button>
 
                             <button 
                                 onClick={() => { navigator.clipboard.writeText("{server}"); toast.success("Copié !"); }}
-                                className="group flex items-center gap-4 p-4 rounded-2xl bg-zinc-950/60 border border-white/5 hover:border-indigo-500/50 transition-all text-left"
+                                className="group flex items-center gap-4 p-4 rounded-2xl bg-background/60 border border-border hover:border-info/50 transition-all text-left"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 group- transition-transform">
-                                    <Copy className="w-4 h-4 text-indigo-400" />
+                                <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0 group- transition-transform">
+                                    <Copy className="w-4 h-4 text-info" />
                                 </div>
                                 <div>
-                                    <code className="text-lg font-bold text-indigo-400 block">{`{server}`}</code>
-                                    <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Nom de la guilde</p>
+                                    <code className="text-lg font-bold text-info block">{`{server}`}</code>
+                                    <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Nom de la guilde</p>
                                 </div>
                             </button>
                         </div>
@@ -217,37 +217,37 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
                 {/* --- BADGE SECTION --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-                    <Card className="lg:col-span-2 p-6 bg-zinc-900/40 border-white/5 flex flex-col justify-between gap-6 relative overflow-hidden group">
+                    <Card className="lg:col-span-2 p-6 bg-surface/40 border-border flex flex-col justify-between gap-6 relative overflow-hidden group">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                                <Trophy className="w-5 h-5 text-amber-500" />
+                            <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                                <Trophy className="w-5 h-5 text-warning" />
                             </div>
                             <div>
-                                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Badge Temporaire Automatique</h4>
-                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-wider">Distinction visuelle sur SigilOS</p>
+                                <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">Badge Temporaire Automatique</h4>
+                                <p className="text-caption text-muted-foreground font-medium uppercase tracking-wider">Distinction visuelle sur SigilOS</p>
                             </div>
                         </div>
 
                         <div className="space-y-6">
                             <div className="space-y-3">
-                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Nom du Badge (ex: Nouveau, Recrue, Test...)</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom du Badge (ex: Nouveau, Recrue, Test...)</label>
                                 <div className="flex gap-4">
                                     <Input 
                                         value={welcomeBadgeName}
                                         onChange={(e) => setWelcomeBadgeName(e.target.value)}
-                                        className="bg-black/40 border-white/10 h-12 text-white font-bold uppercase tracking-wider text-center rounded-xl focus:ring-amber-500/20 text-md"
+                                        className="bg-black/40 border-border h-12 text-foreground font-bold uppercase tracking-wider text-center rounded-xl focus:ring-warning/20 text-md"
                                     />
-                                    <Button onClick={handleSaveBadge} disabled={saving} className="bg-amber-600 hover:bg-amber-500 text-white font-bold h-12 px-6 rounded-xl uppercase tracking-wider text-xs transition-all active:scale-95">
+                                    <Button onClick={handleSaveBadge} disabled={saving} className="bg-warning hover:bg-warning text-warning-foreground font-bold h-12 px-6 rounded-xl uppercase tracking-wider text-xs transition-all active:scale-95">
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Appliquer"}
                                     </Button>
                                 </div>
                             </div>
 
-                            <div className="p-5 rounded-3xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-4">
-                                <HelpCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="p-5 rounded-3xl bg-warning/5 border border-warning/10 flex items-start gap-4">
+                                <HelpCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                                 <div className="space-y-1">
-                                    <p className="text-caption text-zinc-300 font-bold uppercase tracking-tight">À quoi ça sert ?</p>
-                                    <p className="text-caption text-zinc-500 font-medium leading-relaxed uppercase tracking-tight opacity-80">
+                                    <p className="text-caption text-foreground font-bold uppercase tracking-tight">À quoi ça sert ?</p>
+                                    <p className="text-caption text-muted-foreground font-medium leading-relaxed uppercase tracking-tight opacity-80">
                                         Ce badge s&apos;affiche sur le profil SigilOS des membres à qui vous l&apos;attribuez manuellement (via l&apos;onglet Membres). Il disparaît automatiquement après la durée que vous aurez choisie. Très utile pour repérer les nouveaux sans toucher aux vrais rôles Discord.
                                     </p>
                                 </div>
@@ -255,69 +255,69 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                         </div>
                     </Card>
 
-                    <Card className="p-6 bg-zinc-950/80 border-white/10 flex flex-col items-center justify-center gap-4 relative overflow-hidden shadow-2xl rounded-3xl">
-                        <div className="absolute top-3 right-4 text-caption font-bold text-zinc-800 uppercase tracking-widest">Aperçu Profil</div>
+                    <Card className="p-6 bg-background/80 border-border flex flex-col items-center justify-center gap-4 relative overflow-hidden shadow-2xl rounded-3xl">
+                        <div className="absolute top-3 right-4 text-caption font-bold text-foreground uppercase tracking-widest">Aperçu Profil</div>
                         <div className="relative">
-                            <Avatar className="w-20 h-20 border-2 border-white/10 ring-4 ring-amber-500/10">
-                                <AvatarFallback className="bg-zinc-900 text-sm font-bold text-zinc-600 text-zinc-700">USER</AvatarFallback>
+                            <Avatar className="w-20 h-20 border-2 border-border ring-4 ring-warning/10">
+                                <AvatarFallback className="bg-surface text-sm font-bold text-muted-foreground text-muted-foreground">USER</AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-1 -right-1 bg-amber-600 text-white px-3 py-1 rounded-full text-caption font-bold uppercase tracking-wider shadow-lg border border-amber-400/20">
+                            <div className="absolute -bottom-1 -right-1 bg-warning text-warning-foreground px-3 py-1 rounded-full text-caption font-bold uppercase tracking-wider shadow-lg border border-warning/20">
                                 <ShieldCheck className="w-3 h-3 inline mr-1" /> {welcomeBadgeName}
                             </div>
                         </div>
                         <div className="text-center">
-                             <p className="text-md font-bold text-white italic tracking-tight uppercase">Voyageur X</p>
-                             <p className="text-caption text-zinc-600 font-bold uppercase tracking-wider">Membre</p>
+                             <p className="text-md font-bold text-foreground italic tracking-tight uppercase">Voyageur X</p>
+                             <p className="text-caption text-muted-foreground font-bold uppercase tracking-wider">Membre</p>
                         </div>
                     </Card>
                 </div>
 
                 {/* --- MAIN MODULE BLOCK --- */}
-                <Card className="p-6 bg-zinc-900/40 border-white/5 space-y-8 relative overflow-hidden">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/5">
+                <Card className="p-6 bg-surface/40 border-border space-y-8 relative overflow-hidden">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                                <Bell className="w-6 h-6 text-indigo-400" />
+                            <div className="w-12 h-12 rounded-xl bg-info/10 border border-info/20 flex items-center justify-center">
+                                <Bell className="w-6 h-6 text-info" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-white tracking-wide uppercase italic">Notifications d&apos;arrivée</h3>
-                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-[0.15em] opacity-80 flex items-center gap-2">
+                                <h3 className="text-xl font-bold text-foreground tracking-wide uppercase italic">Notifications d&apos;arrivée</h3>
+                                <p className="text-caption text-muted-foreground font-medium uppercase tracking-[0.15em] opacity-80 flex items-center gap-2">
                                     Automatisation Dashboard + Discord
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4 p-2 pl-4 rounded-xl border border-white/5 bg-black/40">
-                             <span className={cn("text-caption font-bold uppercase tracking-wider transition-colors", welcomeEnabled ? "text-green-500" : "text-zinc-600")}>{welcomeEnabled ? "Actif" : "Inactif"}</span>
+                        <div className="flex items-center gap-4 p-2 pl-4 rounded-xl border border-border bg-black/40">
+                             <span className={cn("text-caption font-bold uppercase tracking-wider transition-colors", welcomeEnabled ? "text-green-500" : "text-muted-foreground")}>{welcomeEnabled ? "Actif" : "Inactif"}</span>
                             <Switch checked={welcomeEnabled} onCheckedChange={setWelcomeEnabled} className="data-[state=checked]:bg-green-500" />
                         </div>
                     </div>
 
                     <div className={cn("space-y-10 transition-all duration-300", !welcomeEnabled && "opacity-30 pointer-events-none grayscale blur-sm")}>
                         <Tabs defaultValue="dashboard" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-white/5 p-1 rounded-2xl h-14">
-                                <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
+                            <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-border p-1 rounded-2xl h-14">
+                                <TabsTrigger value="dashboard" className="data-[state=active]:bg-info data-[state=active]:text-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
                                     <LayoutDashboard className="w-4 h-4" /> Mur Social SigilOS
                                 </TabsTrigger>
-                                <TabsTrigger value="discord" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
+                                <TabsTrigger value="discord" className="data-[state=active]:bg-info data-[state=active]:text-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
                                     <Bell className="w-4 h-4" /> Alerte Discord
                                 </TabsTrigger>
                             </TabsList>
 
                              {/* --- TAB DASHBOARD --- */}
                              <TabsContent value="dashboard" className="mt-8 space-y-8 animate-in fade-in zoom-in-95 duration-300">
-                                <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5 gap-6">
+                                <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-surface rounded-3xl border border-border gap-6">
                                     <div className="flex items-center gap-4 text-left mr-auto">
-                                        <Switch checked={welcomeDashboardEnabled} onCheckedChange={setWelcomeDashboardEnabled} className="data-[state=checked]:bg-indigo-500 mr-2" />
+                                        <Switch checked={welcomeDashboardEnabled} onCheckedChange={setWelcomeDashboardEnabled} className="data-[state=checked]:bg-info mr-2" />
                                         <div>
-                                            <p className="text-sm font-bold uppercase tracking-wider text-white">Activer sur le Dashboard</p>
-                                            <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Le message sera visible dans l&apos;onglet &quot;Bienvenue&quot;.</p>
+                                            <p className="text-sm font-bold uppercase tracking-wider text-foreground">Activer sur le Dashboard</p>
+                                            <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Le message sera visible dans l&apos;onglet &quot;Bienvenue&quot;.</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{nickname}", "dash")} className="h-10 px-4 rounded-xl border-white/10 bg-zinc-900 shadow-xl hover:bg-indigo-500/10 hover:border-indigo-500/40 text-caption font-bold uppercase tracking-wider text-indigo-400">
+                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{nickname}", "dash")} className="h-10 px-4 rounded-xl border-border bg-surface shadow-xl hover:bg-info/10 hover:border-info/40 text-caption font-bold uppercase tracking-wider text-info">
                                             + {`nickname`}
                                         </Button>
-                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{server}", "dash")} className="h-10 px-4 rounded-xl border-white/10 bg-zinc-900 shadow-xl hover:bg-indigo-500/10 hover:border-indigo-500/40 text-caption font-bold uppercase tracking-wider text-indigo-400">
+                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{server}", "dash")} className="h-10 px-4 rounded-xl border-border bg-surface shadow-xl hover:bg-info/10 hover:border-info/40 text-caption font-bold uppercase tracking-wider text-info">
                                             + {`server`}
                                         </Button>
                                     </div>
@@ -326,27 +326,27 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                                     <div className="lg:col-span-3 space-y-4">
                                         <div className="flex items-center gap-2 ml-2">
-                                            <MessageSquareText className="w-4 h-4 text-indigo-400" />
-                                            <h4 className="text-caption font-bold uppercase tracking-widest text-indigo-400">Modèle du message</h4>
+                                            <MessageSquareText className="w-4 h-4 text-info" />
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-info">Modèle du message</h4>
                                         </div>
                                         <Textarea
                                             value={welcomeTemplate}
                                             onChange={(e) => setWelcomeTemplate(e.target.value)}
                                             placeholder="Tapez le message ici..."
-                                            className="min-h-[220px] bg-black/40 border-white/10 font-sans text-md rounded-2xl p-6 resize-none focus:ring-indigo-500/10"
+                                            className="min-h-[220px] bg-black/40 border-border font-sans text-md rounded-2xl p-6 resize-none focus:ring-ring/10"
                                         />
                                     </div>
                                     <div className="lg:col-span-2 space-y-4">
                                         <div className="flex items-center gap-2 ml-2">
-                                            <Eye className="w-4 h-4 text-zinc-500" />
-                                            <h4 className="text-caption font-bold uppercase tracking-widest text-zinc-500">Aperçu Dashboard</h4>
+                                            <Eye className="w-4 h-4 text-muted-foreground" />
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-muted-foreground">Aperçu Dashboard</h4>
                                         </div>
-                                        <div className="bg-zinc-950/90 border border-white/10 rounded-3xl p-8 min-h-[220px] h-full shadow-inner relative flex flex-col justify-center">
+                                        <div className="bg-background/90 border border-border rounded-3xl p-8 min-h-[220px] h-full shadow-inner relative flex flex-col justify-center">
                                             <div className="flex gap-4">
-                                                <div className="w-12 h-12 rounded-full bg-indigo-500/10 shrink-0 border border-indigo-500/20" />
+                                                <div className="w-12 h-12 rounded-full bg-info/10 shrink-0 border border-info/20" />
                                                 <div className="flex-1 space-y-3">
-                                                    <div className="h-3 w-1/2 bg-zinc-900 rounded-full" />
-                                                    <div className="p-5 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-xl">
+                                                    <div className="h-3 w-1/2 bg-surface rounded-full" />
+                                                    <div className="p-5 rounded-2xl bg-surface border border-border backdrop-blur-xl">
                                                         {renderPreview(welcomeTemplate, false)}
                                                     </div>
                                                 </div>
@@ -358,17 +358,17 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
                              {/* --- TAB DISCORD --- */}
                              <TabsContent value="discord" className="mt-8 space-y-8 animate-in fade-in zoom-in-95 duration-300 text-left">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-indigo-600/5 rounded-3xl border border-indigo-600/20">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-info/5 rounded-3xl border border-info/20">
                                     <div className="flex items-center gap-4">
-                                        <Switch checked={welcomeDiscordEnabled} onCheckedChange={setWelcomeDiscordEnabled} className="data-[state=checked]:bg-indigo-500" />
+                                        <Switch checked={welcomeDiscordEnabled} onCheckedChange={setWelcomeDiscordEnabled} className="data-[state=checked]:bg-info" />
                                         <div>
-                                            <p className="text-sm font-bold uppercase tracking-wider text-white">Activer l&apos;Alerte Discord</p>
-                                            <p className="text-caption text-zinc-500 font-medium uppercase tracking-tight">Utilise le format Embed Premium automatiquement.</p>
+                                            <p className="text-sm font-bold uppercase tracking-wider text-foreground">Activer l&apos;Alerte Discord</p>
+                                            <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Utilise le format Embed Premium automatiquement.</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4 md:justify-end md:border-l border-white/10 md:pl-8">
+                                    <div className="flex items-center gap-4 md:justify-end md:border-l border-border md:pl-8">
                                         <div className="flex flex-col items-end">
-                                            <span className="text-caption font-bold uppercase tracking-wider text-indigo-400 mb-2">Pinger un rôle ?</span>
+                                            <span className="text-caption font-bold uppercase tracking-wider text-info mb-2">Pinger un rôle ?</span>
                                             <RoleSelector
                                                 value={welcomeMentionRoleId || null}
                                                 onChange={(val) => setWelcomeMentionRoleId(val || "")}
@@ -379,17 +379,17 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                 </div>
 
                                  <div className="space-y-3 max-w-xl">
-                                    <label className="text-caption font-bold uppercase tracking-[0.2em] text-indigo-400 flex items-center gap-2 ml-2">
+                                    <label className="text-caption font-bold uppercase tracking-[0.2em] text-info flex items-center gap-2 ml-2">
                                          ID SALON DISCORD
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <HelpCircle className="w-3 h-3 text-zinc-600 hover:text-white cursor-help" />
+                                                <HelpCircle className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
                                             </TooltipTrigger>
-                                            <TooltipContent className="bg-zinc-900 border-white/20 p-4 max-w-sm rounded-xl">
-                                                <p className="text-xs font-bold text-white mb-2 flex items-center gap-2">
-                                                    <Info className="w-3 h-3 text-indigo-400" /> Tuto Rapide
+                                            <TooltipContent className="bg-surface border-border-strong p-4 max-w-sm rounded-xl">
+                                                <p className="text-xs font-bold text-foreground mb-2 flex items-center gap-2">
+                                                    <Info className="w-3 h-3 text-info" /> Tuto Rapide
                                                 </p>
-                                                <ol className="text-caption text-zinc-400 space-y-1 list-decimal ml-4">
+                                                <ol className="text-caption text-muted-foreground space-y-1 list-decimal ml-4">
                                                     <li>Active le <strong>Mode Développeur</strong> dans Discord.</li>
                                                     <li>Fais un <strong>clic droit</strong> sur le salon.</li>
                                                     <li>Clique sur <strong>Copier l&apos;identifiant</strong> et colle le ici.</li>
@@ -401,7 +401,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                         value={welcomeChannelId}
                                         onChange={(e) => setWelcomeChannelId(e.target.value)}
                                         placeholder="Ex: 1234..."
-                                        className="bg-black/40 border-white/10 h-12 font-mono text-md rounded-xl focus:ring-indigo-500/20 px-6"
+                                        className="bg-black/40 border-border h-12 font-mono text-md rounded-xl focus:ring-ring/20 px-6"
                                     />
                                     <ChannelPreview guildId={guildId} channelId={welcomeChannelId} color="indigo" />
                                 </div>
@@ -409,23 +409,23 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 pt-4">
                                     <div className="lg:col-span-3 space-y-4">
                                         <div className="flex justify-between items-center px-2">
-                                             <label className="text-caption font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+                                             <label className="text-caption font-bold uppercase tracking-widest text-info flex items-center gap-2">
                                                 <MessageSquareText className="w-4 h-4" /> Message Alerte
                                              </label>
                                              <div className="flex gap-2">
-                                                <button onClick={() => insertVariable("{nickname}", "discord")} className="text-caption font-bold bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl border border-white/5 transition-all shadow-lg active:scale-95">+ {`nickname`}</button>
-                                                <button onClick={() => insertVariable("{server}", "discord")} className="text-caption font-bold bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl border border-white/5 transition-all shadow-lg active:scale-95">+ {`server`}</button>
+                                                <button onClick={() => insertVariable("{nickname}", "discord")} className="text-caption font-bold bg-elevated hover:bg-muted px-3 py-1.5 rounded-xl border border-border transition-all shadow-lg active:scale-95">+ {`nickname`}</button>
+                                                <button onClick={() => insertVariable("{server}", "discord")} className="text-caption font-bold bg-elevated hover:bg-muted px-3 py-1.5 rounded-xl border border-border transition-all shadow-lg active:scale-95">+ {`server`}</button>
                                              </div>
                                         </div>
                                         <Textarea
                                             value={welcomeDiscordTemplate}
                                             onChange={(e) => setWelcomeDiscordTemplate(e.target.value)}
                                             placeholder="Tapez le message ici..."
-                                            className="min-h-[200px] bg-black/40 border-white/10 font-sans text-md rounded-2xl p-6 resize-none focus:ring-indigo-500/10"
+                                            className="min-h-[200px] bg-black/40 border-border font-sans text-md rounded-2xl p-6 resize-none focus:ring-ring/10"
                                         />
-                                        <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-start gap-4">
-                                            <Sparkles className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                                            <p className="text-caption text-zinc-500 leading-relaxed font-bold uppercase tracking-tight italic">
+                                        <div className="p-4 rounded-xl bg-info/5 border border-info/10 flex items-start gap-4">
+                                            <Sparkles className="w-5 h-5 text-info shrink-0 mt-0.5" />
+                                            <p className="text-caption text-muted-foreground leading-relaxed font-bold uppercase tracking-tight italic">
                                                 Le texte sera intégré dans un **Rich-Embed Premium** automatique (Avatar, Logo, Bannière...).
                                             </p>
                                         </div>
@@ -433,22 +433,22 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                     
                                      <div className="lg:col-span-2 space-y-4">
                                         <div className="flex items-center gap-2 ml-2">
-                                            <Eye className="w-4 h-4 text-zinc-500" />
-                                            <h4 className="text-caption font-bold uppercase tracking-widest text-zinc-500">Rendu Discord</h4>
+                                            <Eye className="w-4 h-4 text-muted-foreground" />
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-muted-foreground">Rendu Discord</h4>
                                         </div>
-                                        <div className="bg-[#2b2d31] rounded-3xl p-8 border-l-[6px] border-amber-500 shadow-3xl relative min-h-[300px] flex flex-col h-full group/discord">
+                                        <div className="bg-[#2b2d31] rounded-3xl p-8 border-l-[6px] border-warning shadow-3xl relative min-h-[300px] flex flex-col h-full group/discord">
                                             <div className="flex items-center gap-4 mb-6">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center border border-white/10">
-                                                    <Sparkles className="w-5 h-5 text-white" />
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-info to-info flex items-center justify-center border border-border">
+                                                    <Sparkles className="w-5 h-5 text-foreground" />
                                                 </div>
-                                                <span className="font-bold text-white text-sm tracking-tight uppercase italic group-hover/discord:text-amber-400 transition-colors">NOUVELLE ARRIVÉE !</span>
+                                                <span className="font-bold text-foreground text-sm tracking-tight uppercase italic group-hover/discord:text-warning transition-colors">NOUVELLE ARRIVÉE !</span>
                                             </div>
-                                            <div className="text-zinc-200 text-sm leading-relaxed flex-1 px-1 mb-8">
+                                            <div className="text-foreground text-sm leading-relaxed flex-1 px-1 mb-8">
                                                 {renderPreview(welcomeDiscordTemplate || welcomeTemplate, true)}
                                             </div>
-                                            <div className="mt-auto pt-4 border-t border-white/5 opacity-40 flex justify-between items-center">
-                                                <span className="text-caption font-bold uppercase tracking-widest text-zinc-400 italic">Authored by SigilOS Orchestrator</span>
-                                                <MessageSquareText className="w-3 h-3 text-white" />
+                                            <div className="mt-auto pt-4 border-t border-border opacity-40 flex justify-between items-center">
+                                                <span className="text-caption font-bold uppercase tracking-widest text-muted-foreground italic">Authored by SigilOS Orchestrator</span>
+                                                <MessageSquareText className="w-3 h-3 text-foreground" />
                                             </div>
                                         </div>
                                     </div>
@@ -457,11 +457,11 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                         </Tabs>
                     </div>
 
-                     <div className="flex justify-end pt-8 border-t border-white/5">
+                     <div className="flex justify-end pt-8 border-t border-border">
                         <Button
                             onClick={handleSaveWelcome}
                             disabled={saving}
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-14 px-10 rounded-xl gap-3 shadow-lg transition-all active:scale-95 flex items-center group/save"
+                            className="bg-info hover:bg-info text-info-foreground font-bold h-14 px-10 rounded-xl gap-3 shadow-lg transition-all active:scale-95 flex items-center group/save"
                         >
                             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 group-hover/save:rotate-12 transition-transform" />}
                              <span className="text-md uppercase tracking-tight">Enregistrer la configuration</span>

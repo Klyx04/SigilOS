@@ -71,7 +71,7 @@ export function ProgressRing({
             <div className="absolute flex flex-col items-center justify-center text-center">
                 {showPercentage && (
                     <motion.span
-                        className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent"
+                        className="text-2xl font-bold bg-gradient-to-r from-warning to-warning bg-clip-text text-transparent"
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.5, duration: 0.5 }}

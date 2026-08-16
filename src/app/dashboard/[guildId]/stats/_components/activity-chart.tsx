@@ -14,7 +14,7 @@ export default function ActivityChart({ data }: ActivityChartProps) {
 
     if (!mounted || data.length === 0 || data.every(d => d.submissions === 0)) {
         return (
-            <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
+            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
                 {!mounted ? "Chargement..." : "Pas encore de données d'activité"}
             </div>
         );

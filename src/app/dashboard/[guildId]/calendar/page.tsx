@@ -70,7 +70,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
                     {/* Main Dashboard */}
                     <div data-tour="calendar-board">
-                        <Suspense fallback={<div className="p-12 text-center text-zinc-500 font-medium">Chargement du calendrier...</div>}>
+                        <Suspense fallback={<div className="p-12 text-center text-muted-foreground font-medium">Chargement du calendrier...</div>}>
                             <CalendarDashboard
                                 guildId={guildId}
                                 currentUserId={session.user.id}

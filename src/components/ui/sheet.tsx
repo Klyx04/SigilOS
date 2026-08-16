@@ -72,8 +72,8 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close aria-label="Fermer" className="ring-offset-background absolute top-6 right-6 z-50 rounded-lg border border-white/10 bg-white/10 p-2 opacity-90 transition-colors hover:bg-white/20 hover:opacity-100 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:pointer-events-none">
-          <XIcon className="size-5 text-white" />
+        <SheetPrimitive.Close aria-label="Fermer" className="ring-offset-background absolute top-6 right-6 z-50 rounded-lg border border-border bg-surface p-2 opacity-90 transition-colors hover:bg-elevated hover:opacity-100 focus:ring-2 focus:ring-success focus:outline-none disabled:pointer-events-none">
+          <XIcon className="size-5 text-foreground" />
           <span className="sr-only">Fermer</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>

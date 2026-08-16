@@ -70,7 +70,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
             {/* ── Solde du coffre ─────────────────────────────── */}
             {summary.length > 0 && (
                 <div className="space-y-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                         Solde du coffre
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -80,8 +80,8 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                 <div
                                     key={item.itemName}
                                     className={`rounded-2xl border p-5 flex items-start gap-4 transition-colors ${isPositive
-                                        ? "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15"
-                                        : "border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15"
+                                        ? "border-success/30 bg-success/10 hover:bg-success/15"
+                                        : "border-danger/30 bg-danger/10 hover:bg-danger/15"
                                         }`}
                                 >
                                     {item.iconUrl ? (
@@ -95,19 +95,19 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             />
                                         </div>
                                     ) : (
-                                        <div className={`h-12 w-12 shrink-0 rounded-xl flex items-center justify-center border ${isPositive ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400" : "border-rose-500/30 bg-rose-500/20 text-rose-400"
+                                        <div className={`h-12 w-12 shrink-0 rounded-xl flex items-center justify-center border ${isPositive ? "border-success/30 bg-success/20 text-success" : "border-danger/30 bg-danger/20 text-danger"
                                             }`}>
                                             <Package className="h-6 w-6" />
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-base font-black text-white truncate capitalize">{item.itemName}</p>
-                                        <p className={`text-3xl font-black mt-1 tracking-tight ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
+                                        <p className="text-base font-black text-foreground truncate capitalize">{item.itemName}</p>
+                                        <p className={`text-3xl font-black mt-1 tracking-tight ${isPositive ? "text-success" : "text-danger"}`}>
                                             {isPositive ? "+" : ""}{formatQty(item.balance)}
                                         </p>
-                                        <div className="flex items-center gap-3 mt-2 text-caption text-zinc-500">
+                                        <div className="flex items-center gap-3 mt-2 text-caption text-muted-foreground">
                                             <span className="flex items-center gap-1">
-                                                <TrendingDown className="h-3 w-3 text-emerald-500" />
+                                                <TrendingDown className="h-3 w-3 text-success" />
                                                 {formatQty(item.totalDeposited)} déposés
                                             </span>
                                             <span className="flex items-center gap-1">
@@ -127,7 +127,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
             <div className="space-y-3">
                 {/* Barre de contrôles tri + filtre */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Historique</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Historique</h3>
                     <div className="flex items-center gap-1.5">
                         {/* Filtre action */}
                         {(["ALL", "DEPOSIT", "WITHDRAW"] as const).map((f) => (
@@ -136,11 +136,11 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                 onClick={() => setActionFilter(f)}
                                 className={`flex items-center gap-1.5 text-caption font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-colors ${actionFilter === f
                                     ? f === "ALL"
-                                        ? "border-zinc-500/60 bg-zinc-500/20 text-zinc-300"
+                                        ? "border-border/60 bg-muted/20 text-foreground"
                                         : f === "DEPOSIT"
-                                            ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+                                            ? "border-success/50 bg-success/20 text-success"
                                             : "border-orange-500/50 bg-orange-500/20 text-orange-400"
-                                    : "border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                                    : "border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-surface"
                                     }`}
                             >
                                 {f === "ALL" ? <><Package className="h-3.5 w-3.5" /> Tout</> : f === "DEPOSIT" ? <><ArrowDownCircle className="h-3.5 w-3.5" /> Dépôts</> : <><ArrowUpCircle className="h-3.5 w-3.5" /> Retraits</>}
@@ -148,23 +148,23 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                         ))}
 
                         {/* Séparateur */}
-                        <span className="w-px h-4 bg-white/10 mx-1" />
+                        <span className="w-px h-4 bg-surface mx-1" />
 
                         {/* Tri date */}
                         <button
                             onClick={() => setSortOrder(o => o === "desc" ? "asc" : "desc")}
-                            className="flex items-center gap-2 text-caption font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-300"
+                            className="flex items-center gap-2 text-caption font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-surface transition-all duration-300"
                         >
-                            {sortOrder === "desc" ? <ArrowDown className="h-3.5 w-3.5 text-cyan-400" /> : <ArrowUp className="h-3.5 w-3.5 text-cyan-400" />}
+                            {sortOrder === "desc" ? <ArrowDown className="h-3.5 w-3.5 text-info" /> : <ArrowUp className="h-3.5 w-3.5 text-info" />}
                             {sortOrder === "desc" ? "Plus récent" : "Plus ancien"}
                         </button>
                     </div>
                 </div>
 
                 {displayedEntries.length === 0 ? (
-                    <div className="rounded-xl border border-white/5 bg-white/[0.02] py-16 text-center">
-                        <Package className="h-8 w-8 text-zinc-700 mx-auto mb-3" />
-                        <p className="text-sm text-zinc-500">Aucune entrée dans le coffre.</p>
+                    <div className="rounded-xl border border-border bg-surface py-16 text-center">
+                        <Package className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground">Aucune entrée dans le coffre.</p>
                     </div>
                 ) : (
                     <div className="space-y-1.5">
@@ -177,11 +177,11 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             return (
                                 <div
                                     key={entry.id}
-                                    className="group flex items-start gap-5 rounded-2xl border border-white/10 bg-zinc-900/40 px-5 py-4 hover:bg-zinc-900/60 hover:border-white/20 transition-all duration-300 shadow-sm hover:shadow-lg"
+                                    className="group flex items-start gap-5 rounded-2xl border border-border bg-surface/40 px-5 py-4 hover:bg-surface/60 hover:border-border-strong transition-all duration-300 shadow-sm hover:shadow-lg"
                                 >
                                     {/* Indicateur action */}
                                     <div className={`shrink-0 p-2.5 rounded-xl border shadow-inner ${isDeposit
-                                        ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
+                                        ? "border-success/30 bg-success/20 text-success"
                                         : "border-orange-500/30 bg-orange-500/20 text-orange-400"
                                         }`}>
                                         {isDeposit
@@ -192,7 +192,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
 
                                     {/* Icône item si dispo */}
                                     {entry.linkedItemIconUrl && (
-                                        <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-white/[0.03]">
+                                        <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden border border-border bg-surface">
                                             <Image
                                                 src={entry.linkedItemIconUrl}
                                                 alt={entry.itemName}
@@ -206,9 +206,9 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                     {/* Contenu principal */}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-sm font-black text-white">
+                                            <span className="text-sm font-black text-foreground">
                                                 {entry.quantity && entry.quantity > 1
-                                                    ? <span className="text-zinc-400 font-bold">{formatQty(entry.quantity)}× </span>
+                                                    ? <span className="text-muted-foreground font-bold">{formatQty(entry.quantity)}× </span>
                                                     : null
                                                 }
                                                 {entry.itemName}
@@ -216,7 +216,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             <Badge
                                                 variant="outline"
                                                 className={`text-caption px-1.5 py-0 border font-black ${isDeposit
-                                                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5"
+                                                    ? "border-success/30 text-success bg-success/5"
                                                     : "border-orange-500/30 text-orange-400 bg-orange-500/5"
                                                     }`}
                                             >
@@ -226,13 +226,13 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                         <div className="flex items-center gap-2 mt-1">
                                             <Avatar className="h-4 w-4 rounded">
                                                 <AvatarImage src={entry.profile.user?.image || undefined} />
-                                                <AvatarFallback className="text-caption bg-zinc-800">
+                                                <AvatarFallback className="text-caption bg-elevated">
                                                     {name.slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <span className="text-xs text-zinc-400 font-medium">{name}</span>
-                                            <span className="text-caption text-zinc-600">·</span>
-                                            <span className="text-caption text-zinc-600">
+                                            <span className="text-xs text-muted-foreground font-medium">{name}</span>
+                                            <span className="text-caption text-muted-foreground">·</span>
+                                            <span className="text-caption text-muted-foreground">
                                                 {new Date(entry.createdAt).toLocaleDateString("fr-FR", {
                                                     day: "numeric",
                                                     month: "short",
@@ -242,7 +242,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             </span>
                                         </div>
                                         {entry.description && (
-                                            <p className="text-caption text-zinc-500 mt-0.5 truncate">{entry.description}</p>
+                                            <p className="text-caption text-muted-foreground mt-0.5 truncate">{entry.description}</p>
                                         )}
                                     </div>
 
@@ -253,11 +253,11 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             title="Voir la preuve"
-                                            className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-white/15 hover:border-white/40  transition-all shadow-lg opacity-90 hover:opacity-100"
+                                            className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-border-strong hover:border-border-strong  transition-all shadow-lg opacity-90 hover:opacity-100"
                                         >
                                             <img src={entry.proofUrl} alt="Preuve" className="absolute inset-0 w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-end justify-center pb-1">
-                                                <span className="text-caption text-white/0 hover:text-white/80 font-bold bg-black/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-caption text-foreground/0 hover:text-foreground/80 font-bold bg-black/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                                                     ↗ Ouvrir
                                                 </span>
                                             </div>
@@ -271,7 +271,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             variant="ghost"
                                             onClick={() => handleDelete(entry.id)}
                                             disabled={loadingId === entry.id}
-                                            className="h-8 w-8 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                                            className="h-8 w-8 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all shrink-0"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </Button>

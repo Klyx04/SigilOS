@@ -24,13 +24,13 @@ type HubCard = {
 
 // #5 — Accent unique emerald (fini l'arc-en-ciel par carte)
 const ACCENT = {
-    emerald: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    amber: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    indigo: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    violet: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    rose: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    cyan: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    slate: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    emerald: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    amber: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    indigo: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    violet: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    rose: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    cyan: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    slate: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
 };
 
 export default async function StuffHubPage({
@@ -89,9 +89,9 @@ export default async function StuffHubPage({
                     if (!card.visible) return null;
 
                     return (
-                        <Link key={card.href} href={card.href} className="group outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 rounded-2xl">
+                        <Link key={card.href} href={card.href} className="group outline-none focus-visible:ring-2 focus-visible:ring-success/50 rounded-2xl">
                             <div className={cn(
-                                "relative flex flex-col h-full rounded-2xl border border-white/10 bg-white/[0.03] p-8 transition-colors duration-200 hover:border-emerald-500/40 hover:bg-white/[0.06] overflow-hidden"
+                                "relative flex flex-col h-full rounded-2xl border border-border bg-surface p-8 transition-colors duration-200 hover:border-success/40 hover:bg-surface overflow-hidden"
                             )}>
                                 <div className="relative z-10 flex flex-col h-full">
                                     <div className="flex items-center justify-between mb-8">
@@ -105,15 +105,15 @@ export default async function StuffHubPage({
                                     </div>
 
                                     <div className="space-y-4 flex-1">
-                                        <h3 className="text-title font-bold text-white leading-tight">
+                                        <h3 className="text-title font-bold text-foreground leading-tight">
                                             {card.title}
                                         </h3>
-                                        <p className="text-body-sm text-zinc-500 leading-relaxed group-hover:text-zinc-400 transition-colors">
+                                        <p className="text-body-sm text-muted-foreground leading-relaxed group-hover:text-muted-foreground transition-colors">
                                             {card.description}
                                         </p>
                                     </div>
 
-                                    <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between">
+                                    <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                                         <div className={cn(
                                             "flex items-center gap-2 text-caption font-semibold",
                                             a.text,

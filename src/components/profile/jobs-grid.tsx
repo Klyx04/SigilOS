@@ -84,17 +84,17 @@ export function JobsGrid({
     const activeJobsData = allJobs.filter(j => jobs.includes(j.id));
 
     return (
-        <div className="p-6 bg-zinc-950/80 backdrop-blur-md rounded-3xl border border-white/10 transition-all hover:border-amber-500/30 shadow-2xl group h-full flex flex-col">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+        <div className="p-6 bg-background/80 backdrop-blur-md rounded-3xl border border-border transition-all hover:border-warning/30 shadow-2xl group h-full flex flex-col">
+            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-                        <Hammer className="w-5 h-5 text-amber-400" />
+                    <div className="w-10 h-10 rounded-2xl bg-warning/15 border border-warning/30 flex items-center justify-center">
+                        <Hammer className="w-5 h-5 text-warning" />
                     </div>
                     <div>
-                        <h3 className="text-base font-black text-white uppercase tracking-wider">
+                        <h3 className="text-base font-black text-foreground uppercase tracking-wider">
                             Maîtrise Artisanale
                         </h3>
-                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Métiers & Tarifs Forgemagie</p>
+                        <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Métiers & Tarifs Forgemagie</p>
                     </div>
                 </div>
                 {!readOnly && (
@@ -103,42 +103,42 @@ export function JobsGrid({
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-9 px-3 text-xs font-black uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20 rounded-xl transition-all cursor-pointer" 
+                                className="h-9 px-3 text-xs font-black uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10 border border-warning/20 rounded-xl transition-all cursor-pointer" 
                                 onClick={handleOpen}
                             >
                                 <Pencil className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />
                                 Gérer
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
-                            <DialogHeader className="p-6 pb-2 border-b border-white/5">
+                        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-background border-border">
+                            <DialogHeader className="p-6 pb-2 border-b border-border">
                                 <DialogTitle className="text-xl">Gérer vos métiers (Niveau 200)</DialogTitle>
                                 <DialogDescription>Sélectionnez les métiers que vous maîtrisez au niveau maximum.</DialogDescription>
                             </DialogHeader>
                             <div className="flex-1 overflow-hidden p-6">
                                 <Tabs defaultValue="Récolte" className="h-full flex flex-col">
-                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900 border border-zinc-800 p-1 h-12 rounded-xl">
+                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-surface border border-border p-1 h-12 rounded-xl">
                                         <TabsTrigger 
                                             value="Récolte"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Récolte
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Artisanat"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Artisanat
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Forgemagie"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Forgemagie
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Élevage"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Élevage
                                         </TabsTrigger>
@@ -156,8 +156,8 @@ export function JobsGrid({
                                                                 className={cn(
                                                                     "group relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 aspect-square",
                                                                     isSelected
-                                                                        ? "border-amber-500/50 bg-amber-500/10 "
-                                                                        : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
+                                                                        ? "border-warning/50 bg-warning/10 "
+                                                                        : "border-border bg-surface/30 hover:border-border hover:bg-surface/60"
                                                                 )}
                                                             >
                                                                 <div className="mb-3 transform transition-transform group- duration-300">
@@ -173,11 +173,11 @@ export function JobsGrid({
                                                                         <span className="text-3xl">{job.icon}</span>
                                                                     )}
                                                                 </div>
-                                                                <span className={cn("text-xs font-semibold uppercase tracking-wider text-center", isSelected ? "text-amber-200" : "text-zinc-500")}>
+                                                                <span className={cn("text-xs font-semibold uppercase tracking-wider text-center", isSelected ? "text-warning" : "text-muted-foreground")}>
                                                                     {job.name}
                                                                 </span>
                                                                 {isSelected && (
-                                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 " />
+                                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-warning " />
                                                                 )}
                                                             </button>
                                                         );
@@ -188,9 +188,9 @@ export function JobsGrid({
                                     ))}
                                 </Tabs>
                             </div>
-                            <div className="p-6 border-t border-white/5 bg-zinc-900/30 flex justify-end gap-3">
+                            <div className="p-6 border-t border-border bg-surface/30 flex justify-end gap-3">
                                 <DialogClose asChild>
-                                    <Button variant="ghost" className="text-zinc-400 hover:text-white">Annuler</Button>
+                                    <Button variant="ghost" className="text-muted-foreground hover:text-foreground">Annuler</Button>
                                 </DialogClose>
                                 <Button onClick={handleSave} variant="sigil" className="px-8">
                                     Enregistrer
@@ -202,52 +202,52 @@ export function JobsGrid({
             </div>
 
             {jobs.length > 0 ? (
-                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-gradient-to-br from-zinc-900 to-black p-6 mb-6 group-hover:border-white/10 transition-colors">
-                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] bg-amber-500/10 pointer-events-none" />
+                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-zinc-900 to-black p-6 mb-6 group-hover:border-border transition-colors">
+                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] bg-warning/10 pointer-events-none" />
                     <div className="relative flex items-center gap-5">
-                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-zinc-950 border border-white/10 shadow-xl shrink-0">
-                            <Hammer className="w-10 h-10 text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-background border border-border shadow-xl shrink-0">
+                            <Hammer className="w-10 h-10 text-warning drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
                             <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5" />
                         </div>
                         <div>
-                            <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-1">Niveau 200</p>
-                            <h2 className="text-3xl font-bold text-white tracking-tight">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">Niveau 200</p>
+                            <h2 className="text-3xl font-bold text-foreground tracking-tight">
                                 {jobs.length} Métier{jobs.length > 1 ? 's' : ''}
                             </h2>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="p-8 text-center border-2 border-dashed border-zinc-800 rounded-xl mb-6 flex-1 flex items-center justify-center">
-                    <p className="text-zinc-500">Aucun métier renseigné</p>
+                <div className="p-8 text-center border-2 border-dashed border-border rounded-xl mb-6 flex-1 flex items-center justify-center">
+                    <p className="text-muted-foreground">Aucun métier renseigné</p>
                 </div>
             )}
 
             {jobs.length > 0 && (
                 <div className="flex-1 mt-2 mb-6">
                     <Tabs defaultValue="Récolte" className="w-full flex flex-col">
-                        <TabsList className="grid w-full grid-cols-4 bg-zinc-950/40 border border-white/10 p-1 h-11 rounded-xl mb-6">
+                        <TabsList className="grid w-full grid-cols-4 bg-background/40 border border-border p-1 h-11 rounded-xl mb-6">
                             <TabsTrigger 
                                 value="Récolte"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Récolte
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Artisanat"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Artisanat
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Forgemagie"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Forgemagie
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Élevage"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Élevage
                             </TabsTrigger>
@@ -265,7 +265,7 @@ export function JobsGrid({
                                             {activeCategoryJobs.map(job => (
                                                 <div
                                                     key={job.id}
-                                                    className="group relative flex flex-col items-center justify-center p-5 rounded-2xl border border-white/5 bg-zinc-950/30 hover:border-white/10 hover:bg-zinc-900/10 shadow-lg aspect-square overflow-hidden transition-all duration-300"
+                                                    className="group relative flex flex-col items-center justify-center p-5 rounded-2xl border border-border bg-background/30 hover:border-border hover:bg-surface/10 shadow-lg aspect-square overflow-hidden transition-all duration-300"
                                                 >
                                                     <div className="mb-3 transform transition-transform duration-300 group-">
                                                         {job.icon.startsWith("/") ? (
@@ -280,16 +280,16 @@ export function JobsGrid({
                                                             <span className="text-4xl">{job.icon}</span>
                                                         )}
                                                     </div>
-                                                    <span className="text-caption font-bold uppercase tracking-widest text-center text-zinc-300 leading-tight group-hover:text-white transition-colors duration-300">
+                                                    <span className="text-caption font-bold uppercase tracking-widest text-center text-foreground leading-tight group-hover:text-foreground transition-colors duration-300">
                                                         {job.name}
                                                     </span>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center p-12 rounded-2xl border border-dashed border-zinc-800/60 bg-zinc-950/20 text-zinc-500 text-center">
-                                            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Aucun métier</p>
-                                            <p className="text-caption text-zinc-600 mt-1">Vous n'avez renseigné aucun métier de type {category.toLowerCase()}.</p>
+                                        <div className="flex flex-col items-center justify-center p-12 rounded-2xl border border-dashed border-border/60 bg-background/20 text-muted-foreground text-center">
+                                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Aucun métier</p>
+                                            <p className="text-caption text-muted-foreground mt-1">Vous n'avez renseigné aucun métier de type {category.toLowerCase()}.</p>
                                         </div>
                                     )}
                                 </TabsContent>
@@ -301,55 +301,55 @@ export function JobsGrid({
 
 
             {userHasFMJobs && (
-                <div className="border-t border-white/5 pt-4 mt-auto">
+                <div className="border-t border-border pt-4 mt-auto">
                     <div className="flex items-center gap-2 mb-3">
-                        <Hammer className="w-3 h-3 text-amber-500" />
-                        <p className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Tarifs Forgemagie</p>
+                        <Hammer className="w-3 h-3 text-warning" />
+                        <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Tarifs Forgemagie</p>
                     </div>
 
                     {!readOnly ? (
                         <div className="flex flex-col gap-4">
                             <div className="grid grid-cols-1 gap-3">
                                 <div className="flex items-center gap-3">
-                                    <Label className="text-xs text-zinc-500 w-24 shrink-0">FM Classique</Label>
+                                    <Label className="text-xs text-muted-foreground w-24 shrink-0">FM Classique</Label>
                                     <div className="relative flex-1">
                                         <Input
                                             type="number"
                                             placeholder="Gratuit"
-                                            className="h-7 text-xs bg-zinc-900/50 border-zinc-800 text-right pr-6"
+                                            className="h-7 text-xs bg-surface/50 border-border text-right pr-6"
                                             min={0}
                                             value={prices.classic === null ? "" : prices.classic}
                                             onChange={(e) => handlePriceChange("classic", e.target.value)}
                                         />
-                                        <span className="absolute right-2 top-1.5 text-caption text-zinc-500 font-bold">K</span>
+                                        <span className="absolute right-2 top-1.5 text-caption text-muted-foreground font-bold">K</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Label className="text-xs text-zinc-500 w-24 shrink-0">Passage Trans</Label>
+                                    <Label className="text-xs text-muted-foreground w-24 shrink-0">Passage Trans</Label>
                                     <div className="relative flex-1">
                                         <Input
                                             type="number"
                                             placeholder="Gratuit"
-                                            className="h-7 text-xs bg-zinc-900/50 border-zinc-800 text-right pr-6"
+                                            className="h-7 text-xs bg-surface/50 border-border text-right pr-6"
                                             min={0}
                                             value={prices.trans === null ? "" : prices.trans}
                                             onChange={(e) => handlePriceChange("trans", e.target.value)}
                                         />
-                                        <span className="absolute right-2 top-1.5 text-caption text-zinc-500 font-bold">K</span>
+                                        <span className="absolute right-2 top-1.5 text-caption text-muted-foreground font-bold">K</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Label className="text-xs text-zinc-500 w-24 shrink-0">Tenta Exo</Label>
+                                    <Label className="text-xs text-muted-foreground w-24 shrink-0">Tenta Exo</Label>
                                     <div className="relative flex-1">
                                         <Input
                                             type="number"
                                             placeholder="Gratuit"
-                                            className="h-7 text-xs bg-zinc-900/50 border-zinc-800 text-right pr-6"
+                                            className="h-7 text-xs bg-surface/50 border-border text-right pr-6"
                                             min={0}
                                             value={prices.exo === null ? "" : prices.exo}
                                             onChange={(e) => handlePriceChange("exo", e.target.value)}
                                         />
-                                        <span className="absolute right-2 top-1.5 text-caption text-zinc-500 font-bold">K</span>
+                                        <span className="absolute right-2 top-1.5 text-caption text-muted-foreground font-bold">K</span>
                                     </div>
                                 </div>
                             </div>
@@ -363,17 +363,17 @@ export function JobsGrid({
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3 pt-2">
-                            <div className="flex justify-between items-center p-2 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="text-zinc-400 text-sm font-medium">Classique</span>
-                                <span className="font-mono text-amber-400 font-semibold text-sm">{formatKamas(fmPriceClassic)}</span>
+                            <div className="flex justify-between items-center p-2 rounded-lg bg-surface border border-border hover:border-border transition-colors">
+                                <span className="text-muted-foreground text-sm font-medium">Classique</span>
+                                <span className="font-mono text-warning font-semibold text-sm">{formatKamas(fmPriceClassic)}</span>
                             </div>
-                            <div className="flex justify-between items-center p-2 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="text-zinc-400 text-sm font-medium">Passage Trans</span>
-                                <span className="font-mono text-cyan-400 font-semibold text-sm">{formatKamas(fmPriceTrans)}</span>
+                            <div className="flex justify-between items-center p-2 rounded-lg bg-surface border border-border hover:border-border transition-colors">
+                                <span className="text-muted-foreground text-sm font-medium">Passage Trans</span>
+                                <span className="font-mono text-info font-semibold text-sm">{formatKamas(fmPriceTrans)}</span>
                             </div>
-                            <div className="flex justify-between items-center p-2 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="text-zinc-400 text-sm font-medium">Tenta Exo</span>
-                                <span className="font-mono text-purple-400 font-semibold text-sm">{formatKamas(fmPriceExo)}</span>
+                            <div className="flex justify-between items-center p-2 rounded-lg bg-surface border border-border hover:border-border transition-colors">
+                                <span className="text-muted-foreground text-sm font-medium">Tenta Exo</span>
+                                <span className="font-mono text-info font-semibold text-sm">{formatKamas(fmPriceExo)}</span>
                             </div>
                         </div>
                     )}

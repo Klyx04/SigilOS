@@ -1,52 +1,48 @@
 "use client";
 
-import { useTheme } from "@/components/theme-provider";
-import { Sun, Moon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
+/**
+ * ThemeToggle — bouton compact pour la top-nav (Phase 0 GROK).
+ * Désactivé si God force le sombre (kill-switch, disabled). Skeleton avant mount.
+ */
 
-export function ThemeToggle({ className }: { className?: string }) {
-    const { theme, setTheme, forcedTheme } = useTheme();
+import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+
+export function ThemeToggle() {
     const [mounted, setMounted] = useState(false);
+    const { resolvedTheme, setTheme, forcedTheme } = useTheme();
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    // #16 — kill-switch God « Forcer le mode sombre » : boutons masqués quand le
-    // thème est verrouillé (aucun moyen de repasser en clair, fail-closed).
-    if (!mounted || forcedTheme) return null;
+    if (!mounted) {
+        return (
+            <span
+                className="inline-flex size-8 items-center justify-center rounded-[6px]"
+                aria-hidden
+            />
+        );
+    }
 
-    const toggleTheme = () => {
-        setTheme(theme === "dark" || theme === "system" ? "light" : "dark");
-    };
+    const locked = Boolean(forcedTheme);
+    const isDark = resolvedTheme === "dark";
 
     return (
         <button
-            onClick={toggleTheme}
-            className={cn(
-                "group relative flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-300",
-                "bg-foreground/[0.03] border border-border/50 hover:bg-foreground/[0.06] hover:border-border",
-                className
-            )}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            type="button"
+            disabled={locked}
+            aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+            title={locked ? "Thème verrouillé par GOD" : isDark ? "Mode clair" : "Mode sombre"}
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className="inline-flex size-8 items-center justify-center rounded-[6px] text-muted-foreground transition-[background-color,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-surface hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
-            <div className="relative h-5 w-5 transition-all duration-300 group-">
-                <Sun className={cn(
-                    "absolute inset-0 h-5 w-5 transition-all duration-300",
-                    theme === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100 text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]"
-                )} />
-                <Moon className={cn(
-                    "absolute inset-0 h-5 w-5 transition-all duration-300",
-                    theme === "dark" ? "rotate-0 scale-100 opacity-100 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.4)]" : "-rotate-90 scale-0 opacity-0"
-                )} />
-            </div>
-            
-            {/* Visual highlight on hover */}
-            <div className={cn(
-                "absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br",
-                theme === "dark" ? "from-primary/10 to-transparent" : "from-amber-600/10 to-transparent"
-            )} />
+            {isDark ? (
+                <Moon className="size-4" aria-hidden />
+            ) : (
+                <Sun className="size-4" aria-hidden />
+            )}
         </button>
     );
 }

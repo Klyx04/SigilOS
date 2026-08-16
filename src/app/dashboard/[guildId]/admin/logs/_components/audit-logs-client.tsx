@@ -11,40 +11,40 @@ import { cn } from "@/lib/utils";
 
 // Action type to color mapping
 const ACTION_COLORS: Record<string, string> = {
-    RBAC_UPDATE: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    RBAC_ROLE_ADD: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    RBAC_ROLE_REMOVE: "bg-red-500/20 text-red-400 border-red-500/30",
-    CONFIG_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    SETTINGS_UPDATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    SECURITY_ALERT: "bg-red-600/20 text-red-300 border-red-600/30 animate-pulse",
+    RBAC_UPDATE: "bg-warning/20 text-warning border-warning/30",
+    RBAC_ROLE_ADD: "bg-success/20 text-success border-success/30",
+    RBAC_ROLE_REMOVE: "bg-danger/20 text-danger border-danger/30",
+    CONFIG_UPDATED: "bg-info/20 text-info border-info/30",
+    SETTINGS_UPDATED: "bg-info/20 text-info border-info/30",
+    SECURITY_ALERT: "bg-danger/20 text-danger border-danger/30 animate-pulse",
     ADMIN_FULL_DENIED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-    MEMBER_LEFT: "bg-zinc-500/20 text-zinc-400 border-white/5",
-    MEMBER_ARCHIVED: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    MEMBER_BANNED: "bg-red-500/20 text-red-400 border-red-500/30",
-    MEMBER_PURGED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    WEBHOOK_MEMBER_ADD: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    WEBHOOK_MEMBER_REMOVE: "bg-zinc-500/20 text-zinc-400 border-white/5",
-    PLATFORM_ARRIVAL: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    PLATFORM_DEPARTURE: "bg-zinc-500/20 text-zinc-400 border-white/5",
-    PROFILE_ARCHIVED: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    PROFILE_REACTIVATED: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    MEMBER_PSEUDO_UPDATE: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
-    MEMBER_ANKAMA_ID_UPDATE: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    MEMBER_LEFT: "bg-muted/20 text-muted-foreground border-border",
+    MEMBER_ARCHIVED: "bg-warning/20 text-warning border-warning/30",
+    MEMBER_BANNED: "bg-danger/20 text-danger border-danger/30",
+    MEMBER_PURGED: "bg-danger/20 text-danger border-danger/30",
+    WEBHOOK_MEMBER_ADD: "bg-success/20 text-success border-success/30",
+    WEBHOOK_MEMBER_REMOVE: "bg-muted/20 text-muted-foreground border-border",
+    PLATFORM_ARRIVAL: "bg-success/20 text-success border-success/30",
+    PLATFORM_DEPARTURE: "bg-muted/20 text-muted-foreground border-border",
+    PROFILE_ARCHIVED: "bg-warning/20 text-warning border-warning/30",
+    PROFILE_REACTIVATED: "bg-success/20 text-success border-success/30",
+    MEMBER_PSEUDO_UPDATE: "bg-info/20 text-info border-info/30",
+    MEMBER_ANKAMA_ID_UPDATE: "bg-info/20 text-info border-info/30",
     // Missions
     MISSION_CREATED: "bg-violet-500/20 text-violet-400 border-violet-500/30",
-    MISSION_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    MISSION_VALIDATED: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    MISSION_REJECTED: "bg-red-500/20 text-red-400 border-red-500/30",
+    MISSION_DELETED: "bg-danger/20 text-danger border-danger/30",
+    MISSION_VALIDATED: "bg-success/20 text-success border-success/30",
+    MISSION_REJECTED: "bg-danger/20 text-danger border-danger/30",
     // Bonus
-    BONUS_PURCHASED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-    BONUS_CANCELLED: "bg-zinc-500/20 text-zinc-400 border-white/5",
+    BONUS_PURCHASED: "bg-info/20 text-info border-info/30",
+    BONUS_CANCELLED: "bg-muted/20 text-muted-foreground border-border",
     // Polls
-    POLL_CREATED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    POLL_CREATED: "bg-info/20 text-info border-info/30",
     POLL_CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-    POLL_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20 ",
+    POLL_DELETED: "bg-danger/20 text-danger border-danger/30",
+    POLL_CREATOR_ROLE_ACQUIRED: "bg-info/10 text-info border-info/20 ",
     // GDPR
-    USER_GDPR_DELETE: "bg-red-600/20 text-red-300 border-red-600/30",
+    USER_GDPR_DELETE: "bg-danger/20 text-danger border-danger/30",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -183,23 +183,23 @@ function PermissionChangesDisplay({
             {metadata.changes.map((change, idx) => {
                 const roleName = change.roleName || roleNames[change.roleId] || `Rôle inconnu`;
                 return (
-                    <div key={idx} className="bg-zinc-800/50 rounded-lg p-3 border border-white/5">
+                    <div key={idx} className="bg-elevated/50 rounded-lg p-3 border border-border">
                         <div className="text-xs text-muted-foreground mb-2">
                             Rôle: <span className="font-semibold text-foreground">{roleName}</span>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                             {change.added.map((perm, i) => (
-                                <Badge key={`add-${i}`} variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
+                                <Badge key={`add-${i}`} variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
                                     <Plus className="w-3 h-3 mr-1" />
                                     {perm.label}
-                                    <span className="ml-1 text-emerald-400/60 text-caption">({perm.module})</span>
+                                    <span className="ml-1 text-success/60 text-caption">({perm.module})</span>
                                 </Badge>
                             ))}
                             {change.removed.map((perm, i) => (
-                                <Badge key={`rem-${i}`} variant="outline" className="bg-red-500/10 text-red-400 border-red-500/30 text-xs">
+                                <Badge key={`rem-${i}`} variant="outline" className="bg-danger/10 text-danger border-danger/30 text-xs">
                                     <Minus className="w-3 h-3 mr-1" />
                                     {perm.label}
-                                    <span className="ml-1 text-red-400/60 text-caption">({perm.module})</span>
+                                    <span className="ml-1 text-danger/60 text-caption">({perm.module})</span>
                                 </Badge>
                             ))}
                         </div>
@@ -308,7 +308,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
     const hasActiveFilters = actionFilter !== "all" || debouncedSearch || debouncedActor || dateFrom || dateTo;
 
     return (
-        <Card className="bg-zinc-900/60 border-white/5">
+        <Card className="bg-surface/60 border-border">
             <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                     <Clock className="h-4 w-4 text-muted-foreground" />
@@ -320,7 +320,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
             </CardHeader>
 
             {/* Filters Toolbar */}
-            <div className="overflow-x-auto no-scrollbar border-b border-white/5">
+            <div className="overflow-x-auto no-scrollbar border-b border-border">
                 <div className="px-6 py-3 flex items-center gap-3 min-w-max">
                     <div className="flex items-center gap-2">
                         <Filter className="h-4 w-4 text-muted-foreground" />
@@ -328,7 +328,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                     </div>
 
                     <Select value={actionFilter} onValueChange={setActionFilter}>
-                        <SelectTrigger className="w-[180px] h-8 text-xs bg-zinc-800 border-white/10">
+                        <SelectTrigger className="w-[180px] h-8 text-xs bg-elevated border-border">
                             <SelectValue placeholder="Type d'action" />
                         </SelectTrigger>
                         <SelectContent>
@@ -347,7 +347,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                             placeholder="Mot-clé..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            className="h-8 w-[140px] pl-7 pr-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                            className="h-8 w-[140px] pl-7 pr-2 rounded-md border border-border bg-elevated text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
                         />
                     </div>
 
@@ -358,7 +358,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                             placeholder="Acteur..."
                             value={actorFilter}
                             onChange={e => setActorFilter(e.target.value)}
-                            className="h-8 w-[140px] pl-7 pr-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                            className="h-8 w-[140px] pl-7 pr-2 rounded-md border border-border bg-elevated text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
                         />
                     </div>
 
@@ -368,14 +368,14 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                             type="date"
                             value={dateFrom}
                             onChange={e => setDateFrom(e.target.value)}
-                            className="h-8 w-[140px] px-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all [color-scheme:dark]"
+                            className="h-8 w-[140px] px-2 rounded-md border border-border bg-elevated text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-white/20 transition-all [color-scheme:dark]"
                         />
                         <span className="text-xs text-muted-foreground">→</span>
                         <input
                             type="date"
                             value={dateTo}
                             onChange={e => setDateTo(e.target.value)}
-                            className="h-8 w-[140px] px-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all [color-scheme:dark]"
+                            className="h-8 w-[140px] px-2 rounded-md border border-border bg-elevated text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-white/20 transition-all [color-scheme:dark]"
                         />
                     </div>
 
@@ -421,7 +421,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                 {loading ? (
                     <div className="space-y-4">
                         {[...Array(5)].map((_, i) => (
-                            <div key={i} className="h-16 bg-zinc-800/30 rounded-lg animate-pulse" />
+                            <div key={i} className="h-16 bg-elevated/30 rounded-lg animate-pulse" />
                         ))}
                     </div>
                 ) : logs.length === 0 ? (
@@ -435,7 +435,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
 
 
                             return (
-                                <div key={log.id} className="relative pl-6 border-l-2 border-white/10 pb-4 last:pb-0">
+                                <div key={log.id} className="relative pl-6 border-l-2 border-border pb-4 last:pb-0">
                                     <div className="absolute left-[-5px] top-1 w-2 h-2 rounded-full bg-primary" />
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
@@ -446,7 +446,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 </span>
                                                 <Badge
                                                     variant="outline"
-                                                    className={ACTION_COLORS[log.action] || "bg-zinc-500/20 text-zinc-400"}
+                                                    className={ACTION_COLORS[log.action] || "bg-muted/20 text-muted-foreground"}
                                                 >
                                                     {ACTION_LABELS[log.action] || log.action}
                                                 </Badge>
@@ -457,8 +457,8 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 {log.targetType === "CONFIG" && "Modification de la configuration"}
                                                 {log.targetType === "CHANNEL" && "Modification d'un canal"}
                                                 {log.targetType === "ACCESS_ATTEMPT" && (
-                                                    <span className="text-red-400">
-                                                        Tentative d'accès non autorisé à <code className="bg-red-900/30 px-1 rounded">{log.targetId}</code>
+                                                    <span className="text-danger">
+                                                        Tentative d'accès non autorisé à <code className="bg-danger/30 px-1 rounded">{log.targetId}</code>
                                                     </span>
                                                 )}
                                                 {log.targetType === "PROFILE" && (
@@ -468,17 +468,17 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     </span>
                                                 )}
                                                 {log.targetType === "USER" && log.action === "USER_GDPR_DELETE" && (
-                                                    <span className="text-red-300">
+                                                    <span className="text-danger">
                                                         Compte supprimé (RGPD)
                                                         {metadata.discordId && (
-                                                            <code className="ml-1.5 bg-red-900/30 px-1.5 py-0.5 rounded text-caption font-mono">
+                                                            <code className="ml-1.5 bg-danger/30 px-1.5 py-0.5 rounded text-caption font-mono">
                                                                 Discord #{metadata.discordId}
                                                             </code>
                                                         )}
                                                     </span>
                                                 )}
                                                 {log.targetType === "CONTENT_SAFETY" && (
-                                                    <div className="text-red-300 font-medium space-y-1">
+                                                    <div className="text-danger font-medium space-y-1">
                                                         <div>{metadata.description || "Alerte de sécurité"}</div>
                                                         {metadata.missionTitle && (
                                                             <div className="text-xs opacity-80">Mission : {metadata.missionTitle}</div>
@@ -487,7 +487,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                             <div className="text-xs opacity-80">Fichier : {metadata.fileName}</div>
                                                         )}
                                                         {metadata.reason && (
-                                                            <div className="text-xs mt-1 bg-red-950/30 p-1.5 rounded border border-red-500/20">
+                                                            <div className="text-xs mt-1 bg-danger/30 p-1.5 rounded border border-danger/20">
                                                                 Raison : {metadata.reason}
                                                             </div>
                                                         )}
@@ -496,11 +496,11 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 {log.targetType === "MISSION" && (
                                                     <div className="space-y-1.5 mt-1">
                                                         <div className="flex items-center gap-2 flex-wrap text-sm">
-                                                            <span className="font-bold text-zinc-100 italic">
+                                                            <span className="font-bold text-foreground italic">
                                                                 {(metadata as any).missionTitle || "Mission"}
                                                             </span>
-                                                            <span className="text-zinc-500">pour</span>
-                                                            <span className="font-bold text-zinc-300">
+                                                            <span className="text-muted-foreground">pour</span>
+                                                            <span className="font-bold text-foreground">
                                                                 {(metadata as any).submitterName || "un membre"}
                                                             </span>
                                                             
@@ -508,8 +508,8 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                                 <Badge variant="outline" className={cn(
                                                                     "text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest",
                                                                     (metadata as any).source === "discord_button" 
-                                                                        ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
-                                                                        : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                                        ? "bg-info/10 text-info border-info/20" 
+                                                                        : "bg-info/10 text-info border-info/20"
                                                                 )}>
                                                                     {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
                                                                 </Badge>
@@ -519,17 +519,17 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                         {log.action === "MISSION_VALIDATED" && (
                                                             <div className="flex items-center gap-3">
                                                                 {(metadata as any).xpReward > 0 && (
-                                                                    <span className="text-caption font-black text-emerald-400 flex items-center gap-1">
+                                                                    <span className="text-caption font-black text-success flex items-center gap-1">
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).xpReward} XP
                                                                     </span>
                                                                 )}
                                                                 {(metadata as any).guildatonsReward > 0 && (
-                                                                    <span className="text-caption font-black text-amber-500 flex items-center gap-1">
+                                                                    <span className="text-caption font-black text-warning flex items-center gap-1">
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).guildatonsReward} Guildatons
                                                                     </span>
                                                                 )}
                                                                 {(metadata as any).helpersCount > 0 && (
-                                                                    <span className="text-caption font-black text-indigo-400 flex items-center gap-1">
+                                                                    <span className="text-caption font-black text-info flex items-center gap-1">
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).helpersCount} Helpers
                                                                     </span>
                                                                 )}
@@ -541,8 +541,8 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 {log.targetType === "PROFILE" && (
                                                     <div className="space-y-1.5 mt-1">
                                                         <div className="flex items-center gap-2 flex-wrap text-sm">
-                                                            <span className="text-zinc-500">Mise à jour du profil de</span>
-                                                            <span className="font-bold text-zinc-300">
+                                                            <span className="text-muted-foreground">Mise à jour du profil de</span>
+                                                            <span className="font-bold text-foreground">
                                                                 {formatTargetLabel(log.targetId, log.metadata)}
                                                             </span>
                                                             
@@ -550,8 +550,8 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                                 <Badge variant="outline" className={cn(
                                                                     "text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest",
                                                                     (metadata as any).source === "discord_button" 
-                                                                        ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
-                                                                        : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                                        ? "bg-info/10 text-info border-info/20" 
+                                                                        : "bg-info/10 text-info border-info/20"
                                                                 )}>
                                                                     {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
                                                                 </Badge>
@@ -560,7 +560,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                         
                                                         {(metadata as any).points !== undefined && (
                                                             <div className="flex items-center gap-3">
-                                                                <span className="text-caption font-black text-emerald-400 flex items-center gap-1">
+                                                                <span className="text-caption font-black text-success flex items-center gap-1">
                                                                     <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
                                                                 </span>
                                                             </div>
@@ -571,7 +571,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                 {log.targetType === "GUILD" && (
                                                     <span className="text-sm">
                                                         {(metadata as any).bonusName && (
-                                                            <span className="font-medium text-cyan-300">{(metadata as any).bonusName}</span>
+                                                            <span className="font-medium text-info">{(metadata as any).bonusName}</span>
                                                         )}
                                                         {(metadata as any).cost && (
                                                             <span className="text-xs opacity-70 ml-2">{(metadata as any).cost} Guildatons</span>

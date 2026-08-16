@@ -325,39 +325,39 @@ export function GalleryClient({
     return (
         <div className="space-y-6 pb-20">
             {/* Hero Header */}
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40 p-8 lg:p-10">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-surface/40 p-8 lg:p-10">
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-xs font-medium shrink-0 w-fit">
-                                <ShieldCheck className="w-3.5 h-3.5 text-zinc-500" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border text-muted-foreground text-xs font-medium shrink-0 w-fit">
+                                <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
                                 Galerie de Guilde
                             </div>
                             
                             <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as any)} className="w-full sm:w-auto">
-                                <TabsList className="bg-black/60 border border-white/10 h-14 p-1.5 rounded-xl">
+                                <TabsList className="bg-black/60 border border-border h-14 p-1.5 rounded-xl">
                                     <TabsTrigger 
                                         value="STUFF" 
-                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-colors duration-200"
+                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-success data-[state=active]:text-foreground transition-colors duration-200"
                                     >
                                         <Sword className={cn("w-4 h-4 transition-transform", activeTab === "STUFF" ? "scale-110" : "opacity-40")} />
                                         Équipements
                                         <span className={cn(
                                             "ml-1 px-1.5 py-0.5 rounded-md text-xs font-semibold",
-                                            activeTab === "STUFF" ? "bg-white/20 text-white" : "bg-white/5 text-zinc-600"
+                                            activeTab === "STUFF" ? "bg-elevated text-foreground" : "bg-surface text-muted-foreground"
                                         )}>
                                             {stuffTotal}
                                         </span>
                                     </TabsTrigger>
                                     <TabsTrigger 
                                         value="SKIN" 
-                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-colors duration-200"
+                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-sky-500 data-[state=active]:text-foreground transition-colors duration-200"
                                     >
                                         <Sparkles className={cn("w-4 h-4 transition-transform", activeTab === "SKIN" ? "scale-110" : "opacity-40")} />
                                         Skins & Looks
                                         <span className={cn(
                                             "ml-1 px-1.5 py-0.5 rounded-md text-xs font-semibold",
-                                            activeTab === "SKIN" ? "bg-white/20 text-white" : "bg-white/5 text-zinc-600"
+                                            activeTab === "SKIN" ? "bg-elevated text-foreground" : "bg-surface text-muted-foreground"
                                         )}>
                                             {skinTotal}
                                         </span>
@@ -367,10 +367,10 @@ export function GalleryClient({
                         </div>
 
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight mb-2">
-                                Galerie <span className={cn("transition-colors duration-200", activeTab === "STUFF" ? "text-emerald-400" : "text-sky-400")}>Guilde</span>
+                            <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
+                                Galerie <span className={cn("transition-colors duration-200", activeTab === "STUFF" ? "text-success" : "text-sky-400")}>Guilde</span>
                             </h1>
-                            <p className="text-zinc-400 max-w-xl text-base leading-relaxed">
+                            <p className="text-muted-foreground max-w-xl text-base leading-relaxed">
                                 {activeTab === "STUFF" 
                                     ? "Découvrez les meilleurs builds optis partagés par les membres de la guilde."
                                     : "L'élégance à l'état pur. Explorez les plus beaux looks et skins de la communauté."}
@@ -381,19 +381,19 @@ export function GalleryClient({
                     {/* Search bar */}
                     <div className="relative group w-full lg:w-96" data-tour="galerie-search">
                         <Search className={cn(
-                            "absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 transition-colors",
-                            activeTab === "STUFF" ? "group-focus-within:text-emerald-400" : "group-focus-within:text-sky-400"
+                            "absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors",
+                            activeTab === "STUFF" ? "group-focus-within:text-success" : "group-focus-within:text-sky-400"
                         )} />
                         <Input
                             placeholder={activeTab === "STUFF" ? "Rechercher un build, un pseudo..." : "Rechercher un skin, un auteur..."}
                             value={searchQuery}
                             onChange={(e) => handleSearchChange(e.target.value)}
-                            className="bg-zinc-950/80 border-white/10 pl-11 h-14 rounded-2xl focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all text-sm text-white placeholder:text-zinc-600 shadow-2xl"
+                            className="bg-background/80 border-border pl-11 h-14 rounded-2xl focus:ring-success/20 focus:border-success/50 transition-all text-sm text-foreground placeholder:text-muted-foreground shadow-2xl"
                         />
                         {isLoading && (
                             <Loader2 className={cn(
                                 "absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin",
-                                activeTab === "STUFF" ? "text-emerald-500" : "text-sky-500"
+                                activeTab === "STUFF" ? "text-success" : "text-sky-500"
                             )} />
                         )}
                     </div>
@@ -402,11 +402,11 @@ export function GalleryClient({
 
             {/* Filter Bar */}
             <div className="sticky top-0 z-30 pt-2">
-                <div className="bg-zinc-950/80 border border-white/10 rounded-2xl px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                <div className="bg-background/80 border border-border rounded-2xl px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                     {/* Left: Filters */}
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* 1. Class Filter */}
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-white/5" data-tour="galerie-filters">
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-border" data-tour="galerie-filters">
                             <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
                         </div>
 
@@ -416,15 +416,15 @@ export function GalleryClient({
 
                         {activeTab === "STUFF" && (
                             <>
-                                <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
+                                <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
 
                                 {/* 2. Primary Elements */}
-                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-border">
                                     <button
                                         onClick={() => handleTagChange(null)}
                                         className={cn(
                                             "h-8 px-4 rounded-lg text-xs font-semibold transition-colors shrink-0",
-                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-white text-black" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
                                         Tous
@@ -438,7 +438,7 @@ export function GalleryClient({
                                                 onClick={() => handleTagChange(selectedTag === id ? null : id)}
                                                 className={cn(
                                                     "h-8 px-3 rounded-lg text-xs font-medium transition-colors shrink-0",
-                                                    selectedTag === id ? `${tag.className} ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                                    selectedTag === id ? `${tag.className} ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                                 )}
                                             >
                                                 {tag.label}
@@ -447,10 +447,10 @@ export function GalleryClient({
                                     })}
                                 </div>
 
-                                <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
+                                <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
 
                                 {/* 3. Advanced / Specialities */}
-                                <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5">
+                                <div className="flex items-center bg-black/40 p-1 rounded-xl border border-border">
                                     <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
                                 </div>
 
@@ -460,13 +460,13 @@ export function GalleryClient({
                     </div>
 
                     {/* Right: Count & Reset & Sort */}
-                    <div className="flex items-center gap-4 text-sm w-full xl:w-auto shrink-0 justify-between xl:justify-end border-t border-white/5 pt-4 xl:border-0 xl:pt-0 flex-wrap">
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-white/5 mr-2">
+                    <div className="flex items-center gap-4 text-sm w-full xl:w-auto shrink-0 justify-between xl:justify-end border-t border-border pt-4 xl:border-0 xl:pt-0 flex-wrap">
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-border mr-2">
                             <button
                                 onClick={() => handleSortChange("newest")}
                                 className={cn(
                                     "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
-                                    sortBy === "newest" ? "bg-white text-black" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                    sortBy === "newest" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                 )}
                             >
                                 <RefreshCw className="w-3.5 h-3.5" /> Récents
@@ -475,7 +475,7 @@ export function GalleryClient({
                                 onClick={() => handleSortChange("votes")}
                                 className={cn(
                                     "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
-                                    sortBy === "votes" ? "bg-yellow-500 text-black" : "text-zinc-500 hover:text-yellow-400 hover:bg-white/10"
+                                    sortBy === "votes" ? "bg-yellow-500 text-foreground" : "text-muted-foreground hover:text-yellow-400 hover:bg-surface"
                                 )}
                             >
                                 <Star className={cn("w-3.5 h-3.5", sortBy === "votes" && "fill-black")} /> Favoris
@@ -483,19 +483,19 @@ export function GalleryClient({
                         </div>
                         
                         <div className="flex items-center gap-3">
-                            <p className="text-sm text-zinc-500 flex items-center gap-2 tabular-nums">
-                                <span className="text-white font-semibold">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
+                            <p className="text-sm text-muted-foreground flex items-center gap-2 tabular-nums">
+                                <span className="text-foreground font-semibold">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
                                 <span> sur {activeTab === "STUFF" ? stuffTotal : skinTotal} item{ (activeTab === "STUFF" ? stuffTotal : skinTotal) !== 1 ? "s" : ""}</span>
                             </p>
                             {/* Espace du bouton Reset TOUJOURS réservé → pas de saut de page
                                 quand un filtre devient actif (#67 anti-layout-shift) */}
-                            <div className="w-px h-4 bg-white/10 shrink-0" />
+                            <div className="w-px h-4 bg-surface shrink-0" />
                             <button
                                 onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
                                 tabIndex={(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? 0 : -1}
                                 aria-hidden={!(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource)}
                                 className={cn(
-                                    "text-xs text-zinc-400 hover:text-white transition-colors font-medium flex items-center gap-1 shrink-0",
+                                    "text-xs text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1 shrink-0",
                                     !(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) && "invisible"
                                 )}
                             >
@@ -523,7 +523,7 @@ export function GalleryClient({
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                                 disabled={refreshingIds.has(build.id)}
-                                                className="p-1.5 bg-zinc-800/90 rounded-lg text-white hover:bg-zinc-700 transition-colors pointer-events-auto disabled:opacity-50"
+                                                className="p-1.5 bg-elevated/90 rounded-lg text-foreground hover:bg-muted transition-colors pointer-events-auto disabled:opacity-50"
                                                 title="Actualiser depuis Dofusbook"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", refreshingIds.has(build.id) && "animate-spin")} />
@@ -535,7 +535,7 @@ export function GalleryClient({
                                                     "p-1.5 rounded-lg transition-colors pointer-events-auto disabled:opacity-50 flex items-center justify-center gap-1.5",
                                                     build.hasVoted 
                                                         ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30" 
-                                                        : "bg-zinc-800/90 text-zinc-400 hover:text-yellow-400 hover:bg-zinc-700"
+                                                        : "bg-elevated/90 text-muted-foreground hover:text-yellow-400 hover:bg-muted"
                                                 )}
                                                 title={build.hasVoted ? "Retirer mon vote" : "Voter pour ce stuff !"}
                                             >
@@ -550,7 +550,7 @@ export function GalleryClient({
                                                     navigator.clipboard.writeText(build.url);
                                                     toast.success("Lien copié !");
                                                 }}
-                                                className="p-1.5 bg-zinc-800/90 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors pointer-events-auto"
+                                                className="p-1.5 bg-elevated/90 rounded-lg text-foreground hover:text-foreground hover:bg-muted transition-colors pointer-events-auto"
                                             >
                                                 <Copy className="w-3.5 h-3.5" />
                                             </button>
@@ -560,7 +560,7 @@ export function GalleryClient({
                                                     disabled={sharingIds.has(build.id) || !stuffShareConfigured}
                                                     className={cn(
                                                         "p-1.5 rounded-lg transition-colors pointer-events-auto disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed",
-                                                        "bg-indigo-500 text-white hover:bg-indigo-400"
+                                                        "bg-info text-info-foreground hover:bg-info"
                                                     )}
                                                     title={stuffShareConfigured ? "Propulser sur Discord !" : "Non configuré (Admin)"}
                                                 >
@@ -571,7 +571,7 @@ export function GalleryClient({
                                                 href={build.url} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
-                                                className="p-1.5 bg-emerald-500 rounded-lg text-white hover:bg-emerald-400 transition-colors pointer-events-auto"
+                                                className="p-1.5 bg-success rounded-lg text-foreground hover:bg-success transition-colors pointer-events-auto"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
                                             </a>
@@ -580,34 +580,34 @@ export function GalleryClient({
                                 </div>
                                 <div className="flex items-center justify-between px-2">
                                     <div className="flex items-center gap-2.5">
-                                        <Avatar className="w-6 h-6 border border-white/10">
+                                        <Avatar className="w-6 h-6 border border-border">
                                             <AvatarImage src={build.author.image || undefined} />
-                                            <AvatarFallback className="text-caption bg-zinc-900 text-zinc-500">
+                                            <AvatarFallback className="text-caption bg-surface text-muted-foreground">
                                                 {build.author.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-xs text-zinc-500">
-                                            Par <span className="text-zinc-300 font-semibold">{build.author.name}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            Par <span className="text-foreground font-semibold">{build.author.name}</span>
                                         </span>
                                         {build.createdAt && (
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <span className="text-xs text-zinc-600 font-medium ml-1 cursor-default">
+                                                        <span className="text-xs text-muted-foreground font-medium ml-1 cursor-default">
                                                             {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                                         </span>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-caption text-zinc-300">
+                                                    <TooltipContent side="top" className="bg-surface border-border text-caption text-foreground">
                                                         <p>Ajouté le {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
                                                         {build.updatedAt && build.updatedAt !== build.createdAt && (
-                                                            <p className="text-zinc-500">Mis à jour le {new Date(build.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                                            <p className="text-muted-foreground">Mis à jour le {new Date(build.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
                                                         )}
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         )}
                                     </div>
-                                    <span className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-md border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                    <span className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-md border bg-success/10 text-success border-success/20">
                                         DofusBook
                                     </span>
                                 </div>
@@ -622,7 +622,7 @@ export function GalleryClient({
                             <div key={skin.id} className="group/card flex flex-col gap-3">
                                 <div 
                                     onClick={() => setSelectedSkin(skin)}
-                                    className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 group-hover/card:border-sky-500/50 transition-all cursor-pointer"
+                                    className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-border bg-surface group-hover/card:border-sky-500/50 transition-all cursor-pointer"
                                 >
                                     {skin.thumbnailUrl ? (
                                         <div className="absolute inset-x-0 top-0 bottom-14 flex items-center justify-center">
@@ -630,20 +630,20 @@ export function GalleryClient({
                                                 src={skin.thumbnailUrl} 
                                                 alt={skin.name} 
                                                 fill 
-                                                className="object-contain object-[50%_20%] group-hover/card:scale-105 transition-transform duration-300 bg-zinc-950/30" 
+                                                className="object-contain object-[50%_20%] group-hover/card:scale-105 transition-transform duration-300 bg-background/30" 
                                             />
                                         </div>
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-zinc-950">
+                                        <div className="w-full h-full flex items-center justify-center bg-background">
                                             <NextImage src="/assets/dofus/logo-sigil.png" alt="Sigil" width={64} height={64} className="opacity-10 grayscale" />
                                         </div>
                                     )}
 
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent p-4 flex flex-col justify-end">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h3 className="text-sm font-semibold text-white truncate max-w-[150px]">{skin.name}</h3>
+                                            <h3 className="text-sm font-semibold text-foreground truncate max-w-[150px]">{skin.name}</h3>
                                             <div className="flex items-center gap-1">
-                                                <span className="text-xs px-1.5 py-0.5 rounded-md bg-white/10 text-white/70 font-medium">
+                                                <span className="text-xs px-1.5 py-0.5 rounded-md bg-surface text-foreground/70 font-medium">
                                                     {skin.provider}
                                                 </span>
                                             </div>
@@ -652,7 +652,7 @@ export function GalleryClient({
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-1.5 mb-0.5">
                                                 {skin.metadata?.class && DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.icon && (
-                                                    <div className="w-6 h-6 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center" title={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.name || skin.metadata.class}>
+                                                    <div className="w-6 h-6 rounded-lg bg-black/50 border border-border flex items-center justify-center" title={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.name || skin.metadata.class}>
                                                         <NextImage 
                                                             src={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.icon || ""} 
                                                             alt="" width={14} height={14} 
@@ -660,8 +660,8 @@ export function GalleryClient({
                                                     </div>
                                                 )}
                                                 {skin.metadata?.gender && (
-                                                    <div className="w-6 h-6 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center">
-                                                        {skin.metadata.gender === "M" ? <Mars className="w-3 h-3 text-blue-400" /> : <Venus className="w-3 h-3 text-pink-400" />}
+                                                    <div className="w-6 h-6 rounded-lg bg-black/50 border border-border flex items-center justify-center">
+                                                        {skin.metadata.gender === "M" ? <Mars className="w-3 h-3 text-info" /> : <Venus className="w-3 h-3 text-pink-400" />}
                                                     </div>
                                                 )}
                                             </div>
@@ -673,8 +673,8 @@ export function GalleryClient({
                                                     className={cn(
                                                         "p-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5",
                                                         skin.hasVoted 
-                                                            ? "bg-yellow-500 text-black" 
-                                                            : "bg-zinc-800/90 text-zinc-400 hover:text-yellow-400 hover:bg-zinc-700"
+                                                            ? "bg-yellow-500 text-foreground" 
+                                                            : "bg-elevated/90 text-muted-foreground hover:text-yellow-400 hover:bg-muted"
                                                     )}
                                                 >
                                                     <Star className={cn("w-3.5 h-3.5", skin.hasVoted && "fill-current")} />
@@ -688,7 +688,7 @@ export function GalleryClient({
                                                          disabled={sharingIds.has(skin.id) || !skinShareConfigured}
                                                          className={cn(
                                                              "p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center",
-                                                             "bg-indigo-500 text-white hover:bg-indigo-400"
+                                                             "bg-info text-info-foreground hover:bg-info"
                                                          )}
                                                          title={skinShareConfigured ? "Partager sur Discord" : "Non configuré (Admin)"}
                                                      >
@@ -705,7 +705,7 @@ export function GalleryClient({
                                                     href={skin.url} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
-                                                    className="p-1.5 bg-zinc-800/90 border border-white/10 rounded-lg text-white hover:bg-zinc-700 transition-colors flex items-center justify-center"
+                                                    className="p-1.5 bg-elevated/90 border border-border rounded-lg text-foreground hover:bg-muted transition-colors flex items-center justify-center"
                                                     title={`Voir sur ${skin.provider === 'BARBOFUS' ? 'Barbofus' : skin.provider === 'DOFUSSKINMANGA' ? 'SkinManga' : 'Source'}`}
                                                 >
                                                     <img 
@@ -720,17 +720,17 @@ export function GalleryClient({
                                 </div>
                                 <div className="flex items-center justify-between px-2">
                                     <div className="flex items-center gap-2.5">
-                                        <Avatar className="w-6 h-6 border border-white/10">
+                                        <Avatar className="w-6 h-6 border border-border">
                                             <AvatarImage src={skin.author.image || undefined} />
-                                            <AvatarFallback className="text-caption bg-zinc-900 text-zinc-500">
+                                            <AvatarFallback className="text-caption bg-surface text-muted-foreground">
                                                 {skin.author.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-caption text-zinc-500">
-                                            Par <span className="text-zinc-300 font-bold">{skin.author.name}</span>
+                                        <span className="text-caption text-muted-foreground">
+                                            Par <span className="text-foreground font-bold">{skin.author.name}</span>
                                         </span>
                                     </div>
-                                    <span className="text-caption text-zinc-600 font-medium" suppressHydrationWarning>
+                                    <span className="text-caption text-muted-foreground font-medium" suppressHydrationWarning>
                                         {new Date(skin.createdAt).toLocaleDateString("fr-FR")}
                                     </span>
                                 </div>
@@ -749,13 +749,13 @@ export function GalleryClient({
                         onClick={loadMore}
                         variant="outline"
                         className={cn(
-                            "gap-2 border-white/10 hover:bg-white/5 transition-all px-12 h-12 rounded-2xl font-black text-xs uppercase tracking-widest",
-                            activeTab === "STUFF" ? "hover:border-emerald-500/30 hover:text-emerald-400" : "hover:border-sky-500/30 hover:text-sky-400"
+                            "gap-2 border-border hover:bg-surface transition-all px-12 h-12 rounded-2xl font-black text-xs uppercase tracking-widest",
+                            activeTab === "STUFF" ? "hover:border-success/30 hover:text-success" : "hover:border-sky-500/30 hover:text-sky-400"
                         )}
                     >
                         <ChevronDown className="w-4 h-4" />
                         Charger plus {activeTab === "STUFF" ? "de builds" : "de skins"}
-                        <span className="text-caption text-zinc-500 ml-1">
+                        <span className="text-caption text-muted-foreground ml-1">
                             ({(activeTab === "STUFF" ? stuffTotal - stuffBuilds.length : skinTotal - skinBuilds.length)} restants)
                         </span>
                     </Button>
@@ -764,13 +764,13 @@ export function GalleryClient({
 
             {/* Skin Detail Modal */}
             <Dialog open={!!selectedSkin} onOpenChange={(open) => !open && setSelectedSkin(null)}>
-                <DialogContent className="bg-zinc-950/95 backdrop-blur-2xl border-white/10 text-white sm:max-w-xl w-[95vw] h-auto max-h-[90vh] p-0 rounded-[2rem] overflow-hidden shadow-2xl">
+                <DialogContent className="bg-background/95 backdrop-blur-2xl border-border text-foreground sm:max-w-xl w-[95vw] h-auto max-h-[90vh] p-0 rounded-[2rem] overflow-hidden shadow-2xl">
                     <DialogTitle className="sr-only">Détails du Look</DialogTitle>
                     <DialogDescription className="sr-only">Aperçu et métadonnées du skin partagé par la guilde.</DialogDescription>
                     {selectedSkin && (
                         <div className="flex flex-col h-full max-h-[90vh]">
                             {/* Visual Header */}
-                            <div className="relative aspect-video bg-black/40 flex items-center justify-center shrink-0 border-b border-white/5">
+                            <div className="relative aspect-video bg-black/40 flex items-center justify-center shrink-0 border-b border-border">
                                 {selectedSkin.thumbnailUrl ? (
                                     <NextImage 
                                         src={selectedSkin.thumbnailUrl} 
@@ -780,7 +780,7 @@ export function GalleryClient({
                                         unoptimized
                                     />
                                 ) : (
-                                    <Sparkles className="w-16 h-16 text-zinc-800" />
+                                    <Sparkles className="w-16 h-16 text-foreground" />
                                 )}
                                 
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -789,13 +789,13 @@ export function GalleryClient({
                                             {selectedSkin.provider}
                                         </span>
                                     </div>
-                                    <div className="bg-zinc-950/80 backdrop-blur-xl px-3 py-1 rounded-xl border border-white/10 w-fit shadow-2xl flex items-center gap-2">
-                                        <Avatar className="w-4 h-4 border border-white/10">
+                                    <div className="bg-background/80 backdrop-blur-xl px-3 py-1 rounded-xl border border-border w-fit shadow-2xl flex items-center gap-2">
+                                        <Avatar className="w-4 h-4 border border-border">
                                             <AvatarImage src={selectedSkin.author.image || undefined} />
-                                            <AvatarFallback className="text-caption bg-zinc-900">{selectedSkin.author.name.substring(0,2)}</AvatarFallback>
+                                            <AvatarFallback className="text-caption bg-surface">{selectedSkin.author.name.substring(0,2)}</AvatarFallback>
                                         </Avatar>
-                                        <span className="text-caption font-black text-zinc-400 tracking-tighter uppercase">
-                                            Partagé par <span className="text-white">{selectedSkin.author.name}</span>
+                                        <span className="text-caption font-black text-muted-foreground tracking-tighter uppercase">
+                                            Partagé par <span className="text-foreground">{selectedSkin.author.name}</span>
                                         </span>
                                     </div>
                                 </div>
@@ -805,7 +805,7 @@ export function GalleryClient({
                             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
                                 <div className="p-6 space-y-8">
                                     <div>
-                                        <h2 className="text-2xl font-black text-white uppercase tracking-tight leading-none">
+                                        <h2 className="text-2xl font-black text-foreground uppercase tracking-tight leading-none">
                                             {selectedSkin.name}
                                         </h2>
                                         <div className="flex flex-wrap items-center gap-3 mt-4">
@@ -820,19 +820,19 @@ export function GalleryClient({
                                                 </div>
                                             )}
                                             {selectedSkin.metadata?.gender && (
-                                                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl shadow-inner">
+                                                <div className="flex items-center gap-2 px-3 py-1.5 bg-info/10 text-info border border-info/20 rounded-xl shadow-inner">
                                                      <span className="text-caption font-black uppercase tracking-widest">
                                                         {selectedSkin.metadata.gender === "M" ? "Mâle" : "Femelle"}
                                                     </span>
                                                 </div>
                                             )}
                                             {selectedSkin.metadata?.head && (
-                                                <div className="flex items-center gap-2 px-1 py-1 pr-3 bg-zinc-900/80 text-zinc-300 border border-white/5 rounded-xl shadow-inner group/head">
-                                                    <div className="w-6 h-6 rounded-lg overflow-hidden bg-black/40 border border-white/5">
+                                                <div className="flex items-center gap-2 px-1 py-1 pr-3 bg-surface/80 text-foreground border border-border rounded-xl shadow-inner group/head">
+                                                    <div className="w-6 h-6 rounded-lg overflow-hidden bg-black/40 border border-border">
                                                         {String(selectedSkin.metadata.head).startsWith('http') ? (
                                                             <NextImage src={selectedSkin.metadata.head} alt="Head" width={24} height={24} className="object-cover group-hover/head:scale-110 transition-transform" unoptimized />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-caption font-bold text-zinc-600">
+                                                            <div className="w-full h-full flex items-center justify-center text-caption font-bold text-muted-foreground">
                                                                 #{selectedSkin.metadata.head}
                                                             </div>
                                                         )}
@@ -848,7 +848,7 @@ export function GalleryClient({
                                     {/* Colors */}
                                     {selectedSkin.colors && Object.keys(selectedSkin.colors).length > 0 && (
                                         <div className="space-y-4">
-                                            <h3 className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                            <h3 className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1 h-1 rounded-full bg-sky-500" />
                                                 Harmonie de Couleurs
                                             </h3>
@@ -860,20 +860,20 @@ export function GalleryClient({
                                                             navigator.clipboard.writeText(hex as string);
                                                             toast.success(`Couleur ${label} (${hex}) copiée ! 🎨`);
                                                         }}
-                                                        className="bg-white/5 border border-white/5 rounded-xl p-2 flex items-center justify-between gap-3 hover:bg-sky-500/10 hover:border-sky-500/30 transition-all text-left group/color cursor-pointer active:scale-95"
+                                                        className="bg-surface border border-border rounded-xl p-2 flex items-center justify-between gap-3 hover:bg-sky-500/10 hover:border-sky-500/30 transition-all text-left group/color cursor-pointer active:scale-95"
                                                         title="Cliquer pour copier le code hexadécimal"
                                                     >
                                                         <div className="flex items-center gap-3 min-w-0">
                                                             <div 
-                                                                className="w-8 h-8 rounded-lg shadow-inner border border-white/10 shrink-0 transition-transform group-hover/color:scale-105"
+                                                                className="w-8 h-8 rounded-lg shadow-inner border border-border shrink-0 transition-transform group-hover/color:scale-105"
                                                                 style={{ backgroundColor: hex as string }}
                                                             />
                                                             <div className="min-w-0">
-                                                                <p className="text-caption font-bold text-zinc-500 truncate uppercase tracking-tighter group-hover/color:text-sky-300 transition-colors">{label}</p>
-                                                                <p className="text-caption font-black text-white uppercase font-mono">{hex as string}</p>
+                                                                <p className="text-caption font-bold text-muted-foreground truncate uppercase tracking-tighter group-hover/color:text-sky-300 transition-colors">{label}</p>
+                                                                <p className="text-caption font-black text-foreground uppercase font-mono">{hex as string}</p>
                                                             </div>
                                                         </div>
-                                                        <div className="p-1.5 rounded-lg bg-white/5 text-zinc-400 group-hover/color:bg-sky-500/20 group-hover/color:text-sky-400 transition-all shrink-0">
+                                                        <div className="p-1.5 rounded-lg bg-surface text-muted-foreground group-hover/color:bg-sky-500/20 group-hover/color:text-sky-400 transition-all shrink-0">
                                                             <Copy className="w-3.5 h-3.5" />
                                                         </div>
                                                     </button>
@@ -885,24 +885,24 @@ export function GalleryClient({
                                     {/* Equipment */}
                                     {selectedSkin.equipment && Array.isArray(selectedSkin.equipment) && selectedSkin.equipment.length > 0 && (
                                         <div className="space-y-4 pb-4">
-                                            <h3 className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                                <div className="w-1 h-1 rounded-full bg-purple-500" />
+                                            <h3 className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                                <div className="w-1 h-1 rounded-full bg-info" />
                                                 Composition du Look
                                             </h3>
                                             <div className="grid grid-cols-1 gap-2">
                                                 {selectedSkin.equipment.map((item: any, idx: number) => (
-                                                    <div key={idx} className="bg-zinc-900/40 border border-white/5 rounded-xl p-2.5 flex items-center justify-between group/item hover:bg-zinc-900/80 transition-all">
+                                                    <div key={idx} className="bg-surface/40 border border-border rounded-xl p-2.5 flex items-center justify-between group/item hover:bg-surface/80 transition-all">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 bg-black/40 rounded-lg flex items-center justify-center p-1 border border-white/5">
+                                                            <div className="w-10 h-10 bg-black/40 rounded-lg flex items-center justify-center p-1 border border-border">
                                                                 {item.icon ? (
                                                                     <NextImage src={item.icon} alt={item.name} width={32} height={32} unoptimized />
                                                                 ) : (
-                                                                    <Sparkles className="w-5 h-5 text-zinc-800" />
+                                                                    <Sparkles className="w-5 h-5 text-foreground" />
                                                                 )}
                                                             </div>
                                                             <div>
-                                                                <p className="text-label font-bold text-white group-hover/item:text-sky-400 transition-colors leading-tight">{item.name}</p>
-                                                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-wider">{item.type}</p>
+                                                                <p className="text-label font-bold text-foreground group-hover/item:text-sky-400 transition-colors leading-tight">{item.name}</p>
+                                                                <p className="text-caption text-muted-foreground font-medium uppercase tracking-wider">{item.type}</p>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -914,11 +914,11 @@ export function GalleryClient({
                             </div>
 
                             {/* Sticky Footer */}
-                            <div className="p-4 bg-zinc-900/80 backdrop-blur-lg border-t border-white/5 grid grid-cols-2 gap-3 shrink-0">
+                            <div className="p-4 bg-surface/80 backdrop-blur-lg border-t border-border grid grid-cols-2 gap-3 shrink-0">
                                 <Button 
                                     asChild
                                     variant="outline" 
-                                    className="rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 h-12 text-xs font-bold text-zinc-300 hover:text-white transition-all gap-2"
+                                    className="rounded-xl border-border bg-surface hover:bg-surface hover:border-border-strong h-12 text-xs font-bold text-foreground hover:text-foreground transition-all gap-2"
                                 >
                                     <a href={selectedSkin.url} target="_blank" rel="noopener noreferrer" className="gap-2">
                                         <img 
@@ -931,7 +931,7 @@ export function GalleryClient({
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="rounded-xl border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500 hover:text-white hover:border-sky-500 h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
+                                    className="rounded-xl border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500 hover:text-foreground hover:border-sky-500 h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
                                     onClick={() => handleCopyLink(selectedSkin.url)}
                                 >
                                     <Copy className="w-4 h-4" />
@@ -940,7 +940,7 @@ export function GalleryClient({
                                 {currentProfileId === selectedSkin.author.id && (
                                     <Button 
                                         variant="outline" 
-                                        className="rounded-xl border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 h-12 text-xs font-black uppercase tracking-widest transition-all gap-2 col-span-2"
+                                        className="rounded-xl border-info/30 bg-info/10 text-info hover:bg-info hover:text-foreground hover:border-info h-12 text-xs font-black uppercase tracking-widest transition-all gap-2 col-span-2"
                                         onClick={() => handleShare(selectedSkin.id, "SKIN", selectedSkin.author.id)}
                                         disabled={sharingIds.has(selectedSkin.id) || !skinShareConfigured}
                                     >
@@ -965,13 +965,13 @@ export function GalleryClient({
 
 function EmptyState({ guildId, tab, searchQuery, onReset }: { guildId: string, tab: "STUFF"|"SKIN", searchQuery: string, onReset: () => void }) {
     return (
-        <div className="col-span-full py-20 bg-zinc-950/20 rounded-3xl border border-dashed border-white/5 flex flex-col items-center justify-center text-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-zinc-900/50 flex items-center justify-center border border-white/5">
-                <Search className="w-8 h-8 text-zinc-700" />
+        <div className="col-span-full py-20 bg-background/20 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-surface/50 flex items-center justify-center border border-border">
+                <Search className="w-8 h-8 text-muted-foreground" />
             </div>
             <div className="space-y-1">
-                <h3 className="text-zinc-300 font-semibold text-lg">Aucun {tab === "STUFF" ? "build" : "skin"} trouvé</h3>
-                <p className="text-zinc-500 text-sm max-w-md mx-auto">
+                <h3 className="text-foreground font-semibold text-lg">Aucun {tab === "STUFF" ? "build" : "skin"} trouvé</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto">
                     {tab === "STUFF" 
                         ? "Importez vos stuffs DofusBook depuis votre profil pour qu'ils s'affichent ici."
                         : "Importez vos skins Barbofus ou SkinManga depuis votre profil pour inspirer la guilde !"}
@@ -979,13 +979,13 @@ function EmptyState({ guildId, tab, searchQuery, onReset }: { guildId: string, t
             </div>
             <div className="flex items-center gap-3 mt-2">
                 {searchQuery && (
-                    <Button variant="outline" size="sm" onClick={onReset} className="border-white/10 hover:bg-white/5 text-zinc-400">
+                    <Button variant="outline" size="sm" onClick={onReset} className="border-border hover:bg-surface text-muted-foreground">
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Réinitialiser
                     </Button>
                 )}
                 <a href={`/dashboard/${guildId}/profile?tab=${tab === "STUFF" ? "combat" : "skins"}`}>
-                    <Button size="sm" className={cn("font-bold text-white", tab === "STUFF" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-sky-600 hover:bg-sky-500")}>
+                    <Button size="sm" className={cn("font-bold text-foreground", tab === "STUFF" ? "bg-success hover:bg-success" : "bg-sky-600 hover:bg-sky-500")}>
                         Mon Profil
                         <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>

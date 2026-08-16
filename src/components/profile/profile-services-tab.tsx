@@ -46,16 +46,16 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
     };
 
     return (
-        <Card className="p-6 bg-zinc-950/60 border border-white/10 rounded-3xl space-y-6 backdrop-blur-md shadow-2xl">
+        <Card className="p-6 bg-background/60 border border-border rounded-3xl space-y-6 backdrop-blur-md shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between border-b border-border pb-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <Wrench className="w-5 h-5 text-orange-400" />
                     </div>
                     <div>
-                        <h3 className="text-base font-black text-white uppercase tracking-wider">Services Proposés</h3>
-                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Listings actifs sur la plateforme</p>
+                        <h3 className="text-base font-black text-foreground uppercase tracking-wider">Services Proposés</h3>
+                        <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Listings actifs sur la plateforme</p>
                     </div>
                 </div>
 
@@ -68,13 +68,13 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
 
             {/* Empty State */}
             {!hasServices ? (
-                <div className="p-10 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="p-10 rounded-2xl bg-black/40 border border-border flex flex-col items-center justify-center text-center space-y-4">
                     <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <Wrench className="w-7 h-7 text-orange-400" />
                     </div>
                     <div className="space-y-1 max-w-sm">
-                        <h4 className="text-sm font-black text-white uppercase tracking-wider">Aucun service proposé actuellement</h4>
-                        <p className="text-xs text-zinc-500">
+                        <h4 className="text-sm font-black text-foreground uppercase tracking-wider">Aucun service proposé actuellement</h4>
+                        <p className="text-xs text-muted-foreground">
                             {readOnly
                                 ? "Ce membre n'a aucune annonce de service active sur le marché de guilde."
                                 : "Vous n'avez pas encore publié de service (Passeur, FM, Prêt d'équipement, Tutorat...)."}
@@ -96,11 +96,11 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                         return (
                             <div
                                 key={service.id}
-                                className="p-5 rounded-2xl bg-black/40 border border-white/10 hover:border-orange-500/40 transition-all space-y-3 relative group"
+                                className="p-5 rounded-2xl bg-black/40 border border-border hover:border-orange-500/40 transition-all space-y-3 relative group"
                             >
                                 <div className="flex items-start gap-3">
                                     {/* Miniature du service (icône item / image donjon / icône métier) */}
-                                    <div className="relative h-12 w-12 rounded-xl shrink-0 overflow-hidden border border-white/10 bg-zinc-900 flex items-center justify-center shadow-inner">
+                                    <div className="relative h-12 w-12 rounded-xl shrink-0 overflow-hidden border border-border bg-surface flex items-center justify-center shadow-inner">
                                         {service.imageUrl ? (
                                             <Image
                                                 src={service.imageUrl}
@@ -116,7 +116,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                                 className="object-contain p-1"
                                             />
                                         ) : service.category === "PASSAGE_DONJON" ? (
-                                            <Swords className="w-5 h-5 text-cyan-400" />
+                                            <Swords className="w-5 h-5 text-info" />
                                         ) : (
                                             <Wrench className="w-5 h-5 text-orange-400" />
                                         )}
@@ -126,13 +126,13 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                         <span className="inline-flex items-center gap-1 text-caption font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20 mb-1.5">
                                             <Tag className="w-3 h-3" /> {service.category}
                                         </span>
-                                        <h4 className="text-sm font-black text-white group-hover:text-orange-300 transition-colors leading-tight">
+                                        <h4 className="text-sm font-black text-foreground group-hover:text-orange-300 transition-colors leading-tight">
                                             {service.title}
                                         </h4>
                                     </div>
 
                                     {service.price !== null && service.price !== "" && (
-                                        <span className="flex items-center gap-1 text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20 shrink-0 font-mono">
+                                        <span className="flex items-center gap-1 text-xs font-black text-warning bg-warning/10 px-2.5 py-1 rounded-xl border border-warning/20 shrink-0 font-mono">
                                             <Coins className="w-3.5 h-3.5" />
                                             {Number(service.price).toLocaleString("fr-FR")} K
                                         </span>
@@ -143,7 +143,7 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                 {profIcons.length > 1 && (
                                     <div className="flex flex-wrap gap-1.5 pl-1">
                                         {profIcons.slice(1).map((icon, i) => (
-                                            <div key={i} className="relative h-6 w-6 rounded-md overflow-hidden border border-white/10 bg-zinc-900">
+                                            <div key={i} className="relative h-6 w-6 rounded-md overflow-hidden border border-border bg-surface">
                                                 <Image src={icon} alt={`métier ${i}`} fill className="object-contain" />
                                             </div>
                                         ))}
@@ -151,12 +151,12 @@ export function ProfileServicesTab({ guildId, activeServices = [], readOnly = fa
                                 )}
 
                                 {service.description && (
-                                    <p className="text-xs text-zinc-400 line-clamp-3 leading-relaxed">
+                                    <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                                         {service.description}
                                     </p>
                                 )}
 
-                                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-caption text-zinc-500 font-medium">
+                                <div className="pt-2 border-t border-border flex items-center justify-between text-caption text-muted-foreground font-medium">
                                     <span className="flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
                                         Publié {formatDistanceToNow(new Date(service.createdAt), { addSuffix: true, locale: fr })}

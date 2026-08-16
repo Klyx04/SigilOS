@@ -134,34 +134,34 @@ export function DungeonFinderClient({
                     const isActive = activeTab === tab.id;
                     const colorVariants = {
                         indigo: {
-                            border: "border-indigo-500/50",
-                            icon: "bg-indigo-500/15 border-indigo-500/30 text-indigo-400",
-                            sub: "text-indigo-300",
-                            glow: "bg-indigo-500",
+                            border: "border-info/50",
+                            icon: "bg-info/15 border-info/30 text-info",
+                            sub: "text-info",
+                            glow: "bg-info",
                             shadow: "",
-                            inactiveIcon: "bg-indigo-500/8 border-indigo-500/15 text-indigo-400",
-                            inactiveSub: "text-indigo-400/70",
-                            inactiveBorder: "border-indigo-500/20"
+                            inactiveIcon: "bg-info/8 border-info/15 text-info",
+                            inactiveSub: "text-info/70",
+                            inactiveBorder: "border-info/20"
                         },
                         amber: {
-                            border: "border-amber-500/50",
-                            icon: "bg-amber-500/15 border-amber-500/30 text-amber-400",
-                            sub: "text-amber-300",
-                            glow: "bg-amber-500",
+                            border: "border-warning/50",
+                            icon: "bg-warning/15 border-warning/30 text-warning",
+                            sub: "text-warning",
+                            glow: "bg-warning",
                             shadow: "",
-                            inactiveIcon: "bg-amber-500/8 border-amber-500/15 text-amber-400",
-                            inactiveSub: "text-amber-400/70",
-                            inactiveBorder: "border-amber-500/20"
+                            inactiveIcon: "bg-warning/8 border-warning/15 text-warning",
+                            inactiveSub: "text-warning/70",
+                            inactiveBorder: "border-warning/20"
                         },
                         emerald: {
-                            border: "border-emerald-500/50",
-                            icon: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400",
-                            sub: "text-emerald-300",
-                            glow: "bg-emerald-500",
+                            border: "border-success/50",
+                            icon: "bg-success/15 border-success/30 text-success",
+                            sub: "text-success",
+                            glow: "bg-success",
                             shadow: "",
-                            inactiveIcon: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400",
-                            inactiveSub: "text-emerald-400/70",
-                            inactiveBorder: "border-emerald-500/20"
+                            inactiveIcon: "bg-success/8 border-success/15 text-success",
+                            inactiveSub: "text-success/70",
+                            inactiveBorder: "border-success/20"
                         }
                     }[tab.color];
 
@@ -172,17 +172,17 @@ export function DungeonFinderClient({
                             className={cn(
                                 "relative group flex items-center gap-4 p-5 rounded-2xl border transition-colors",
                                 isActive
-                                    ? cn("bg-zinc-800/90 z-10", colorVariants.border)
-                                    : cn("bg-zinc-900/70 hover:bg-zinc-800/70", colorVariants.inactiveBorder)
+                                    ? cn("bg-elevated/90 z-10", colorVariants.border)
+                                    : cn("bg-surface/70 hover:bg-elevated/70", colorVariants.inactiveBorder)
                             )}
                         >
                             {/* Top Indicator */}
                             {isActive && (
                                 <span className={cn(
                                     "absolute top-0 inset-x-0 h-[2px] z-20",
-                                    tab.color === 'indigo' ? 'bg-indigo-500' :
-                                    tab.color === 'amber' ? 'bg-amber-500' :
-                                    'bg-emerald-500'
+                                    tab.color === 'indigo' ? 'bg-info' :
+                                    tab.color === 'amber' ? 'bg-warning' :
+                                    'bg-success'
                                 )} />
                             )}
 
@@ -196,9 +196,9 @@ export function DungeonFinderClient({
                                 {isActive && (
                                     <div className={cn(
                                         "absolute inset-0 opacity-20 bg-gradient-to-br",
-                                        tab.color === 'indigo' ? 'from-indigo-400 to-indigo-700' :
-                                        tab.color === 'amber' ? 'from-amber-400 to-amber-700' :
-                                        'from-emerald-400 to-emerald-700'
+                                        tab.color === 'indigo' ? 'from-info to-info' :
+                                        tab.color === 'amber' ? 'from-warning to-warning' :
+                                        'from-success to-success'
                                     )} />
                                 )}
                                 <Icon className={cn("w-5 h-5 relative z-10", isActive ? "scale-110" : "scale-100 transition-transform group-")} />
@@ -208,7 +208,7 @@ export function DungeonFinderClient({
                             <div className="text-left relative z-10">
                                 <p className={cn(
                                     "font-black text-caption uppercase tracking-widest transition-colors duration-300",
-                                    isActive ? "text-white" : "text-zinc-300 group-hover:text-white"
+                                    isActive ? "text-foreground" : "text-foreground group-hover:text-foreground"
                                 )}>
                                     {tab.label}
                                 </p>
@@ -244,7 +244,7 @@ export function DungeonFinderClient({
                                     variant="outline" size="icon"
                                     onClick={handleRefresh}
                                     disabled={isRefreshing}
-                                    className="w-10 h-10 border-slate-700 text-slate-400 hover:text-white"
+                                    className="w-10 h-10 border-border text-muted-foreground hover:text-foreground"
                                     title="Rafraîchir"
                                 >
                                     <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -254,8 +254,8 @@ export function DungeonFinderClient({
                                     disabled={!canCreate}
                                     title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
                                     className={`font-black h-10 gap-2 ${canCreate
-                                        ? "bg-white hover:bg-zinc-200 text-zinc-900"
-                                        : "bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed opacity-70"
+                                        ? "bg-background hover:bg-surface text-foreground"
+                                        : "bg-elevated/50 text-muted-foreground border border-border cursor-not-allowed opacity-70"
                                         }`}
                                 >
                                     {canCreate ? (
@@ -265,7 +265,7 @@ export function DungeonFinderClient({
                                     )}
                                     Nouveau post
                                     {!canCreate && (
-                                        <span className="ml-1 text-xs font-bold bg-amber-500/20 px-1.5 py-0.5 rounded">
+                                        <span className="ml-1 text-xs font-bold bg-warning/20 px-1.5 py-0.5 rounded">
                                             {myActivePosts.length}/3
                                         </span>
                                     )}
@@ -275,13 +275,13 @@ export function DungeonFinderClient({
 
                         {/* Anti-spam hint */}
                         {!canCreate && (
-                            <div className="flex items-center gap-3 text-sm text-amber-400 bg-amber-500/8 border border-amber-500/20 rounded-xl px-4 py-3">
+                            <div className="flex items-center gap-3 text-sm text-warning bg-warning/8 border border-warning/20 rounded-xl px-4 py-3">
                                 <AlertTriangle className="w-4 h-4 shrink-0" />
                                 <span>
                                     Tu as <strong>{myActivePosts.length}/3</strong> posts actifs.{" "}
                                     <button
                                         onClick={() => setFilters({ ...DEFAULT_FILTERS, search: "" })}
-                                        className="underline underline-offset-2 hover:text-amber-300 transition-colors"
+                                        className="underline underline-offset-2 hover:text-warning transition-colors"
                                     >
                                         Ferme ou expire un post existant
                                     </button>{" "}
@@ -292,12 +292,12 @@ export function DungeonFinderClient({
 
                         {/* Posts grid */}
                         {filteredPosts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-white/10 rounded-2xl bg-zinc-950/50">
-                                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center mb-4">
-                                    <Search className="w-6 h-6 text-slate-500" />
+                            <div className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-border rounded-2xl bg-background/50">
+                                <div className="w-14 h-14 rounded-2xl bg-surface border border-border flex items-center justify-center mb-4">
+                                    <Search className="w-6 h-6 text-muted-foreground" />
                                 </div>
-                                <h3 className="text-base font-bold text-slate-300 mb-1">Aucun post actif</h3>
-                                <p className="text-sm text-slate-600 text-center max-w-xs">
+                                <h3 className="text-base font-bold text-foreground mb-1">Aucun post actif</h3>
+                                <p className="text-sm text-muted-foreground text-center max-w-xs">
                                     {filters.search || filters.mode
                                         ? "Modifie les filtres pour voir plus de posts."
                                         : "Sois le premier à créer un post de recherche de groupe !"}
@@ -305,7 +305,7 @@ export function DungeonFinderClient({
                                 {canCreate && (
                                     <Button
                                         data-tour="donjons-create"
-                                        className="mt-5 bg-white hover:bg-zinc-200 text-zinc-900 font-bold"
+                                        className="mt-5 bg-background hover:bg-surface text-foreground font-bold"
                                         onClick={() => setIsCreateOpen(true)}
                                     >
                                         <Plus className="w-4 h-4 mr-2" /> Créer un post

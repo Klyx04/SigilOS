@@ -64,19 +64,19 @@ export function KralamoureWidget() {
 
     if (loading) {
         return (
-            <div className="flex-1 min-h-[140px] rounded-2xl bg-white/5 animate-pulse border border-white/5 flex items-center justify-center">
-                <Loader2 className="h-5 w-5 text-emerald-500 animate-spin opacity-50" />
+            <div className="flex-1 min-h-[140px] rounded-2xl bg-surface animate-pulse border border-border flex items-center justify-center">
+                <Loader2 className="h-5 w-5 text-success animate-spin opacity-50" />
             </div>
         );
     }
 
     if (error || events.length === 0) {
         return (
-            <div className="flex-1 rounded-2xl bg-gradient-to-br from-emerald-950/20 to-black border border-emerald-900/30 p-5 flex flex-col items-center justify-center text-center">
-                <Anchor className="h-8 w-8 text-emerald-500/30 mb-2" />
-                <h4 className="text-sm font-bold text-white mb-1">Antre du Kralamoure Géant</h4>
-                <p className="text-xs text-zinc-500">Aucune ouverture prévue sur votre serveur via Metamob pour le moment.</p>
-                <a href="https://metamob.fr/" target="_blank" rel="noopener noreferrer" className="mt-3 text-caption uppercase font-bold tracking-widest text-emerald-500 hover:text-emerald-400 flex items-center gap-1 transition-colors">
+            <div className="flex-1 rounded-2xl bg-gradient-to-br from-success/20 to-black border border-success/30 p-5 flex flex-col items-center justify-center text-center">
+                <Anchor className="h-8 w-8 text-success/30 mb-2" />
+                <h4 className="text-sm font-bold text-foreground mb-1">Antre du Kralamoure Géant</h4>
+                <p className="text-xs text-muted-foreground">Aucune ouverture prévue sur votre serveur via Metamob pour le moment.</p>
+                <a href="https://metamob.fr/" target="_blank" rel="noopener noreferrer" className="mt-3 text-caption uppercase font-bold tracking-widest text-success hover:text-success flex items-center gap-1 transition-colors">
                     Consulter Metamob <ExternalLink className="h-3 w-3" />
                 </a>
             </div>
@@ -104,36 +104,36 @@ export function KralamoureWidget() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center border border-emerald-500/20 shadow-inner">
-                            <Anchor className="h-4 w-4 text-emerald-400" />
+                        <div className="w-8 h-8 rounded-lg bg-success/15 flex items-center justify-center border border-success/20 shadow-inner">
+                            <Anchor className="h-4 w-4 text-success" />
                         </div>
                         <div>
-                            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-foreground flex items-center gap-2">
                                 Kralamoure Géant
-                                <span className="px-1.5 py-0.5 rounded text-caption tracking-widest bg-emerald-500/20 text-emerald-300">
+                                <span className="px-1.5 py-0.5 rounded text-caption tracking-widest bg-success/20 text-success">
                                     {nextEvent.server.name}
                                 </span>
                             </h3>
-                            <p className="text-caption text-zinc-400 font-medium tracking-wide">Prochaine ouverture Prévue</p>
+                            <p className="text-caption text-muted-foreground font-medium tracking-wide">Prochaine ouverture Prévue</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Event Info */}
-                <div className="bg-black/40 rounded-xl p-3 border border-white/5 flex-1 flex flex-col justify-center relative overflow-hidden">
+                <div className="bg-black/40 rounded-xl p-3 border border-border flex-1 flex flex-col justify-center relative overflow-hidden">
                     {isImminent && (
-                        <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50" />
+                        <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-success to-transparent opacity-50" />
                     )}
 
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-emerald-950 flex items-center justify-center flex-shrink-0 border border-emerald-800/50">
-                            <Clock className={cn("h-5 w-5 text-emerald-400", isImminent && "animate-pulse text-emerald-300")} />
+                        <div className="h-10 w-10 rounded-full bg-success flex items-center justify-center flex-shrink-0 border border-success/50">
+                            <Clock className={cn("h-5 w-5 text-success", isImminent && "animate-pulse text-success")} />
                         </div>
                         <div>
-                            <div className="text-emerald-100 font-bold text-sm tracking-wide capitalize">
+                            <div className="text-success font-bold text-sm tracking-wide capitalize">
                                 {formatDate(nextEvent.event_datetime)}
                             </div>
-                            <div className="flex items-center gap-3 mt-1 text-caption font-medium text-emerald-400/70">
+                            <div className="flex items-center gap-3 mt-1 text-caption font-medium text-success/70">
                                 <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {nextEvent.participants_count ?? 0} Inscrits</span>
                                 <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Tourbière [-60,-8]</span>
                             </div>
@@ -147,7 +147,7 @@ export function KralamoureWidget() {
                         href={`https://metamob.fr/krala/${nextEvent.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-emerald-500 hover:text-emerald-400 transition-colors"
+                        className="inline-flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-success hover:text-success transition-colors"
                     >
                         S'inscrire sur Metamob <ExternalLink className="h-3 w-3 mb-0.5" />
                     </a>

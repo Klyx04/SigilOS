@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-destructive text-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
         secondary:
@@ -19,9 +19,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
-        sigil: "group relative bg-gradient-to-br from-amber-500 to-amber-700 text-white font-bold overflow-hidden   border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
-        "sigil-emerald": "group relative bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold overflow-hidden   border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
-        "sigil-destructive": "group relative bg-gradient-to-br from-rose-500 to-rose-700 text-white font-bold overflow-hidden   border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        sigil: "group relative bg-gradient-to-br from-warning to-warning text-foreground font-bold overflow-hidden   border-t border-border-strong active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        "sigil-emerald": "group relative bg-gradient-to-br from-success to-success text-foreground font-bold overflow-hidden   border-t border-border-strong active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        "sigil-destructive": "group relative bg-gradient-to-br from-danger to-danger text-foreground font-bold overflow-hidden   border-t border-border-strong active:scale-95 transition-all duration-300 uppercase tracking-wide",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -60,7 +60,7 @@ function Button({
     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-300 ease-in-out pointer-events-none" />
   ) : null
   const pulse = isSigil ? (
-    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse  shrink-0" />
+    <div className="w-1.5 h-1.5 rounded-full bg-background animate-pulse  shrink-0" />
   ) : null
 
   if (asChild) {

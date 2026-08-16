@@ -200,18 +200,18 @@ export default async function DashboardPage({
                         <div className="rounded-xl border border-border/60 bg-background/40 p-3.5">
                             <div className="flex items-center gap-2 mb-2 px-1">
                                 <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
-                                <span className="flex-1 h-px bg-white/[0.06]" />
+                                <span className="flex-1 h-px bg-surface" />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                                 {todoItems.map((item) => (
                                     <Link
                                         key={item.href + item.label}
                                         href={item.href}
-                                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+                                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
                                     >
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                        <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
                                         <span className="text-body-sm truncate">{item.label}</span>
-                                        <span className="ml-auto text-label font-medium text-emerald-400/80 shrink-0">{item.action}</span>
+                                        <span className="ml-auto text-label font-medium text-success/80 shrink-0">{item.action}</span>
                                     </Link>
                                 ))}
                             </div>

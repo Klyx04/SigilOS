@@ -77,25 +77,25 @@ export function AssetGalleryModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[95vw] sm:max-w-4xl bg-zinc-950 border-zinc-800 p-0 overflow-hidden flex flex-col h-[80vh] shadow-2xl">
-                <DialogHeader className="p-4 sm:p-6 border-b border-white/5 bg-black/40">
+            <DialogContent className="w-[95vw] sm:max-w-4xl bg-background border-border p-0 overflow-hidden flex flex-col h-[80vh] shadow-2xl">
+                <DialogHeader className="p-4 sm:p-6 border-b border-border bg-black/40">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <DialogTitle className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
-                                {type === "portraits" ? <ImageIconLucide className="text-amber-500" /> : <MapIcon className="text-amber-500" />}
+                            <DialogTitle className="text-xl sm:text-2xl font-black text-foreground uppercase italic tracking-tighter flex items-center gap-3">
+                                {type === "portraits" ? <ImageIconLucide className="text-warning" /> : <MapIcon className="text-warning" />}
                                 {title}
                             </DialogTitle>
-                            <DialogDescription className="text-zinc-500 text-caption sm:text-caption font-black uppercase tracking-widest mt-1">
+                            <DialogDescription className="text-muted-foreground text-caption sm:text-caption font-black uppercase tracking-widest mt-1">
                                 {assets.length} fichiers détectés dans /assets/avis/{type}
                             </DialogDescription>
                         </div>
                         
-                        <div className="flex bg-zinc-900 p-1 rounded-xl border border-white/5 self-start sm:self-auto">
+                        <div className="flex bg-surface p-1 rounded-xl border border-border self-start sm:self-auto">
                             <button
                                 onClick={() => setType("portraits")}
                                 className={cn(
                                     "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-caption sm:text-caption font-black uppercase italic transition-all flex items-center gap-2",
-                                    type === "portraits" ? "bg-amber-500 text-black shadow-lg" : "text-zinc-500 hover:text-white"
+                                    type === "portraits" ? "bg-warning text-warning-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
                                 <ImageIconLucide size={14} />
@@ -105,7 +105,7 @@ export function AssetGalleryModal({
                                 onClick={() => setType("maps")}
                                 className={cn(
                                     "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-caption sm:text-caption font-black uppercase italic transition-all flex items-center gap-2",
-                                    type === "maps" ? "bg-amber-500 text-black shadow-lg" : "text-zinc-500 hover:text-white"
+                                    type === "maps" ? "bg-warning text-warning-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
                                 <MapIcon size={14} />
@@ -115,21 +115,21 @@ export function AssetGalleryModal({
                     </div>
 
                     <div className="mt-6 relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-warning transition-colors" size={18} />
                         <Input
                             placeholder="Rechercher un fichier..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-12 bg-zinc-900/50 border-white/5 text-white font-bold h-12 rounded-xl focus-visible:ring-amber-500/50"
+                            className="pl-12 bg-surface/50 border-border text-foreground font-bold h-12 rounded-xl focus-visible:ring-warning/50"
                         />
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 min-h-0 flex flex-col p-6 bg-zinc-950">
+                <div className="flex-1 min-h-0 flex flex-col p-6 bg-background">
                     {loading ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-                            <Loader2 className="animate-spin text-amber-500" size={40} />
-                            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">Indexation des fichiers...</span>
+                            <Loader2 className="animate-spin text-warning" size={40} />
+                            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Indexation des fichiers...</span>
                         </div>
                     ) : filteredAssets.length > 0 ? (
                         <ScrollArea className="h-full pr-4">
@@ -145,8 +145,8 @@ export function AssetGalleryModal({
                                         className={cn(
                                             "group relative aspect-square rounded-2xl border-2 overflow-hidden transition-all duration-300",
                                             selectedUrl === asset.url
-                                                ? "border-amber-500 bg-amber-500/10 "
-                                                : "border-white/5 bg-zinc-900 hover:border-white/20"
+                                                ? "border-warning bg-warning/10 "
+                                                : "border-border bg-surface hover:border-border-strong"
                                         )}
                                     >
                                         <div className="absolute inset-0 flex items-center justify-center p-2">
@@ -162,17 +162,17 @@ export function AssetGalleryModal({
                                         </div>
                                         
                                         <div className={cn(
-                                            "absolute inset-x-0 bottom-0 p-2 bg-black/80 backdrop-blur-sm border-t border-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300",
+                                            "absolute inset-x-0 bottom-0 p-2 bg-black/80 backdrop-blur-sm border-t border-border translate-y-full group-hover:translate-y-0 transition-transform duration-300",
                                             selectedUrl === asset.url && "translate-y-0"
                                         )}>
-                                            <p className="text-caption font-bold text-zinc-300 truncate text-center">
+                                            <p className="text-caption font-bold text-foreground truncate text-center">
                                                 {asset.name}
                                             </p>
                                         </div>
 
                                         {selectedUrl === asset.url && (
-                                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center shadow-lg animate-in zoom-in">
-                                                <Check size={14} className="text-black font-bold" />
+                                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-warning flex items-center justify-center shadow-lg animate-in zoom-in">
+                                                <Check size={14} className="text-foreground font-bold" />
                                             </div>
                                         )}
                                     </button>
@@ -180,29 +180,29 @@ export function AssetGalleryModal({
                             </div>
                         </ScrollArea>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-700 gap-4">
+                        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-4">
                             <ImageIconLucide size={64} className="opacity-20" />
                             <p className="text-sm font-bold italic">Aucun asset trouvé</p>
                         </div>
                     )}
                 </div>
 
-                <div className="p-4 sm:p-6 border-t border-white/5 bg-black/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-caption sm:text-caption font-bold text-zinc-500 text-center sm:text-left">
+                <div className="p-4 sm:p-6 border-t border-border bg-black/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p className="text-caption sm:text-caption font-bold text-muted-foreground text-center sm:text-left">
                         Double-cliquez pour sélectionner instantanément
                     </p>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         <Button
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
-                            className="flex-1 sm:flex-none text-zinc-500 hover:text-white text-caption sm:text-sm"
+                            className="flex-1 sm:flex-none text-muted-foreground hover:text-foreground text-caption sm:text-sm"
                         >
                             Annuler
                         </Button>
                         <Button
                             disabled={!selectedUrl}
                             onClick={handleConfirm}
-                            className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-black font-black uppercase italic px-4 sm:px-8 text-caption sm:text-sm"
+                            className="flex-1 sm:flex-none bg-warning hover:bg-warning text-warning-foreground font-black uppercase italic px-4 sm:px-8 text-caption sm:text-sm"
                         >
                             Confirmer
                         </Button>

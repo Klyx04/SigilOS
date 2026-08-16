@@ -40,7 +40,7 @@ export default async function PermissionsPage({
         const res = await onboardGuild(guildId);
         if (!res.success) {
             return (
-                <div className="p-6 text-red-500">
+                <div className="p-6 text-danger">
                     <h2 className="text-xl font-bold">Onboarding Failed</h2>
                     <p>{res.error}</p>
                 </div>
@@ -59,7 +59,7 @@ export default async function PermissionsPage({
     } catch (e) {
         return (
             <div className="p-6 flex flex-col gap-4">
-                <h1 className="text-2xl font-bold text-red-500">Discord Connection Failed</h1>
+                <h1 className="text-2xl font-bold text-danger">Discord Connection Failed</h1>
                 <p>Could not fetch roles from Discord. Please verify:</p>
                 <ul className="list-disc list-inside text-muted-foreground">
                     <li><code>DISCORD_BOT_TOKEN</code> is correct in .env</li>
@@ -92,10 +92,10 @@ export default async function PermissionsPage({
                     actions={<AdminTourReplay phase="adminPermissions" />}
                 />
             </div>
-            <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 mb-8">
-                <AlertTriangle className="h-5 w-5 !text-amber-500" />
-                <AlertTitle className="pl-8 font-black uppercase tracking-widest text-amber-500">Accès restreint : qui peut gérer les permissions ?</AlertTitle>
-                <AlertDescription className="pl-8 mt-2 leading-relaxed text-amber-500/90 font-medium">
+            <Alert className="bg-warning/10 border-warning/20 text-warning mb-8">
+                <AlertTriangle className="h-5 w-5 !text-warning" />
+                <AlertTitle className="pl-8 font-black uppercase tracking-widest text-warning">Accès restreint : qui peut gérer les permissions ?</AlertTitle>
+                <AlertDescription className="pl-8 mt-2 leading-relaxed text-warning/90 font-medium">
                     Deux profils peuvent gérer cette matrice : les <strong>Administrateurs Discord</strong> (propriétaire ou permission native) et les détenteurs de la permission RBAC <strong>« Gestion des Accès »</strong> (<code>system:rbac</code>) — donnée par un administrateur pour désigner un successeur. Les permissions <strong>« Administrateur Suprême »</strong> et <strong>« Gestion des Accès »</strong> elles-mêmes restent réservées aux administrateurs Discord : un gestionnaire délégué ne peut pas les octroyer ni les révoquer (anti-escalade).
                 </AlertDescription>
             </Alert>

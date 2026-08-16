@@ -16,16 +16,16 @@ export function ActivitiesNav({ guildId }: { guildId: string }) {
     ];
 
     const colorMap: Record<string, string> = {
-        emerald: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5",
-        indigo: "text-indigo-400 border-indigo-500/20 bg-indigo-500/5",
-        cyan: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5",
-        amber: "text-amber-400 border-amber-500/20 bg-amber-500/5",
-        rose: "text-rose-400 border-rose-500/20 bg-rose-500/5",
+        emerald: "text-success border-success/20 bg-success/5",
+        indigo: "text-info border-info/20 bg-info/5",
+        cyan: "text-info border-info/20 bg-info/5",
+        amber: "text-warning border-warning/20 bg-warning/5",
+        rose: "text-danger border-danger/20 bg-danger/5",
     };
 
     return (
         <nav className="relative w-full mb-6">
-            <div className="flex items-center gap-1 p-1 bg-zinc-950/50 backdrop-blur-xl border border-white/5 rounded-2xl w-fit overflow-x-auto scrollbar-hide no-scrollbar shadow-2xl">
+            <div className="flex items-center gap-1 p-1 bg-background/50 backdrop-blur-xl border border-border rounded-2xl w-fit overflow-x-auto scrollbar-hide no-scrollbar shadow-2xl">
                 {tabs.map((tab) => {
                     const isActive = pathname.startsWith(tab.href);
                     const scheme = colorMap[tab.color];
@@ -37,14 +37,14 @@ export function ActivitiesNav({ guildId }: { guildId: string }) {
                             href={tab.href}
                             className={cn(
                                 "group relative flex h-10 items-center gap-2.5 px-4 rounded-xl transition-all duration-300",
-                                "border border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]",
+                                "border border-transparent text-muted-foreground hover:text-foreground hover:bg-surface",
                                 isActive && cn(
-                                    "bg-white/[0.04] border-white/10 shadow-inner font-bold text-white",
+                                    "bg-surface border-border shadow-inner font-bold text-foreground",
                                     scheme
                                 )
                             )}
                         >
-                            <Icon className={cn("w-4 h-4 transition-colors", isActive ? "" : "text-zinc-600 group-hover:text-zinc-400")} />
+                            <Icon className={cn("w-4 h-4 transition-colors", isActive ? "" : "text-muted-foreground group-hover:text-muted-foreground")} />
                             <span className="text-caption font-black uppercase tracking-[0.15em] whitespace-nowrap">
                                 {tab.name}
                             </span>

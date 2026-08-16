@@ -16,17 +16,17 @@ interface MissionPickerProps {
 const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: string; borderColor: string; fallbackImage: string; label: string }> = {
     DONJON: {
         icon: Swords,
-        color: "text-rose-400",
-        bgColor: "bg-rose-500/10",
-        borderColor: "border-rose-500/20",
+        color: "text-danger",
+        bgColor: "bg-danger/10",
+        borderColor: "border-danger/20",
         fallbackImage: "/assets/missions/donjon.png",
         label: "Donjon"
     },
     REGULATION: {
         icon: Skull,
-        color: "text-emerald-400",
-        bgColor: "bg-emerald-500/10",
-        borderColor: "border-emerald-500/20",
+        color: "text-success",
+        bgColor: "bg-success/10",
+        borderColor: "border-success/20",
         fallbackImage: "/assets/missions/regulation.png",
         label: "Régulation"
     },
@@ -40,17 +40,17 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
     },
     SONGES: {
         icon: InfinityIcon,
-        color: "text-cyan-400",
-        bgColor: "bg-cyan-500/10",
-        borderColor: "border-cyan-500/20",
+        color: "text-info",
+        bgColor: "bg-info/10",
+        borderColor: "border-info/20",
         fallbackImage: "/assets/missions/songes.png",
         label: "Songes"
     },
     EXPEDITION: {
         icon: Clock,
-        color: "text-amber-400",
-        bgColor: "bg-amber-500/10",
-        borderColor: "border-amber-500/20",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
+        borderColor: "border-warning/20",
         fallbackImage: "/assets/missions/expedition.png",
         label: "Expédition"
     },
@@ -102,25 +102,25 @@ export function MissionPicker({ guildId, selectedIds, onSelect }: MissionPickerP
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-8 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-                <Loader2 className="h-6 w-6 text-amber-500 animate-spin mr-3" />
-                <span className="text-zinc-400 font-bold uppercase tracking-widest text-xs italic">Chargement des missions...</span>
+            <div className="flex items-center justify-center p-8 bg-surface/50 border border-border rounded-xl">
+                <Loader2 className="h-6 w-6 text-warning animate-spin mr-3" />
+                <span className="text-muted-foreground font-bold uppercase tracking-widest text-xs italic">Chargement des missions...</span>
             </div>
         );
     }
 
     if (missions.length === 0) {
         return (
-            <div className="p-8 text-center bg-zinc-900/50 border border-dashed border-zinc-800 rounded-xl">
-                <p className="text-zinc-500 text-sm font-bold italic">Aucune mission active trouvée pour cette semaine.</p>
+            <div className="p-8 text-center bg-surface/50 border border-dashed border-border rounded-xl">
+                <p className="text-muted-foreground text-sm font-bold italic">Aucune mission active trouvée pour cette semaine.</p>
             </div>
         );
     }
 
     return (
         <div className="space-y-4">
-            <h4 className="text-caption font-black uppercase tracking-[3px] text-zinc-500 flex items-center gap-2 px-1">
-                <Check className="h-3 w-3 text-emerald-500" />
+            <h4 className="text-caption font-black uppercase tracking-[3px] text-muted-foreground flex items-center gap-2 px-1">
+                <Check className="h-3 w-3 text-success" />
                 Sélectionner les objectifs ({selectedIds.length})
             </h4>
             
@@ -152,8 +152,8 @@ export function MissionPicker({ guildId, selectedIds, onSelect }: MissionPickerP
                             className={cn(
                                 "group relative aspect-[4/3] rounded-xl border-2 overflow-hidden transition-all duration-300",
                                 isSelected 
-                                    ? "border-emerald-500 ring-2 ring-emerald-500/20" 
-                                    : "border-zinc-800 hover:border-zinc-700 bg-zinc-900/50"
+                                    ? "border-success ring-2 ring-success/20" 
+                                    : "border-border hover:border-border bg-surface/50"
                             )}
                         >
                             {/* Background image */}
@@ -170,27 +170,27 @@ export function MissionPicker({ guildId, selectedIds, onSelect }: MissionPickerP
                                 />
                                 <div className={cn(
                                     "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent",
-                                    isSelected && "bg-emerald-500/10"
+                                    isSelected && "bg-success/10"
                                 )} />
                             </div>
 
                             {/* Content overlay */}
                             <div className="absolute inset-x-0 bottom-0 p-2 z-10">
-                                <p className="text-caption font-black text-white uppercase tracking-tighter line-clamp-1 text-shadow">
+                                <p className="text-caption font-black text-foreground uppercase tracking-tighter line-clamp-1 text-shadow">
                                     {title}
                                 </p>
                             </div>
 
                             {/* Selection checkmark */}
                             {isSelected && (
-                                <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg border border-white/20 z-20">
-                                    <Check className="h-3 w-3 text-white" />
+                                <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-success flex items-center justify-center shadow-lg border border-border-strong z-20">
+                                    <Check className="h-3 w-3 text-foreground" />
                                 </div>
                             )}
 
                             {/* Category Indicator */}
                             <div className={cn(
-                                "absolute top-2 left-2 p-1 rounded bg-black/60 border border-white/10 backdrop-blur-md z-10",
+                                "absolute top-2 left-2 p-1 rounded bg-black/60 border border-border backdrop-blur-md z-10",
                                 config.color
                             )}>
                                 <config.icon className="h-2.5 w-2.5" />

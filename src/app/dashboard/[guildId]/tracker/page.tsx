@@ -38,37 +38,37 @@ export default async function MemberTrackerPage({ params }: TrackerPageProps) {
             <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
             
             {/* Header Area */}
-            <div className="relative z-10 px-8 pt-10 pb-6 border-b border-white/5 bg-zinc-950/40 backdrop-blur-3xl">
+            <div className="relative z-10 px-8 pt-10 pb-6 border-b border-border bg-background/40 backdrop-blur-3xl">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="space-y-2">
                         <div className="flex items-center gap-3 mb-1">
-                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                <BugIcon className="w-5 h-5 text-amber-500" />
+                            <div className="p-2 rounded-xl bg-warning/10 border border-warning/20">
+                                <BugIcon className="w-5 h-5 text-warning" />
                             </div>
-                            <span className="text-caption font-black uppercase tracking-widest text-amber-500/60">Système de Suivi</span>
+                            <span className="text-caption font-black uppercase tracking-widest text-warning/60">Système de Suivi</span>
                         </div>
-                        <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
+                        <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-4">
                             Tracker de Bugs & Améliorations
                         </h1>
-                        <p className="text-zinc-500 text-sm font-medium max-w-2xl">
+                        <p className="text-muted-foreground text-sm font-medium max-w-2xl">
                             Transparence totale sur l&apos;état technique du projet. Suivez les correctifs en temps réel et les évolutions à venir.
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-6 px-6 py-4 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-xl">
+                    <div className="flex items-center gap-6 px-6 py-4 rounded-3xl bg-surface border border-border backdrop-blur-xl">
                         <div className="text-center">
-                            <p className="text-caption font-black text-zinc-600 uppercase tracking-widest mb-1">Total</p>
-                            <p className="text-xl font-black text-white">{issues.length}</p>
+                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1">Total</p>
+                            <p className="text-xl font-black text-foreground">{issues.length}</p>
                         </div>
-                        <div className="w-px h-8 bg-white/5" />
+                        <div className="w-px h-8 bg-surface" />
                         <div className="text-center">
-                            <p className="text-caption font-black text-amber-500 uppercase tracking-widest mb-1">En cours</p>
-                            <p className="text-xl font-black text-white">{issues.filter(i => i.status === 'EN_COURS').length}</p>
+                            <p className="text-caption font-black text-warning uppercase tracking-widest mb-1">En cours</p>
+                            <p className="text-xl font-black text-foreground">{issues.filter(i => i.status === 'EN_COURS').length}</p>
                         </div>
-                        <div className="w-px h-8 bg-white/5" />
+                        <div className="w-px h-8 bg-surface" />
                         <div className="text-center">
-                            <p className="text-caption font-black text-emerald-500 uppercase tracking-widest mb-1">Résolus</p>
-                            <p className="text-xl font-black text-white">{issues.filter(i => i.status === 'TERMINE').length}</p>
+                            <p className="text-caption font-black text-success uppercase tracking-widest mb-1">Résolus</p>
+                            <p className="text-xl font-black text-foreground">{issues.filter(i => i.status === 'TERMINE').length}</p>
                         </div>
                     </div>
                 </div>
@@ -82,13 +82,13 @@ export default async function MemberTrackerPage({ params }: TrackerPageProps) {
             </div>
 
             {/* Footer Status */}
-            <div className="px-8 py-3 bg-zinc-950/80 border-t border-white/5 flex items-center justify-between text-caption font-black uppercase tracking-[0.2em] text-zinc-600 relative z-10">
+            <div className="px-8 py-3 bg-background/80 border-t border-border flex items-center justify-between text-caption font-black uppercase tracking-[0.2em] text-muted-foreground relative z-10">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 " />
-                        <span className="text-emerald-500/60">Flux de données actif</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-success " />
+                        <span className="text-success/60">Flux de données actif</span>
                     </div>
-                    <div className="w-px h-3 bg-white/10" />
+                    <div className="w-px h-3 bg-surface" />
                     <span className="flex items-center gap-2">
                         <ShieldCheck className="w-3 h-3" />
                         Accès Membre Autorisé

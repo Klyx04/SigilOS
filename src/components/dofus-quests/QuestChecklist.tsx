@@ -116,7 +116,7 @@ function QuestEntryRow({
     return (
         <div
             className={`group flex flex-col rounded-2xl transition-all duration-300 border ${
-                isCompleted ? "bg-[#10b98108] border-[#10b98125]" : "bg-[#ffffff03] border-white/5 hover:border-white/10"
+                isCompleted ? "bg-[#10b98108] border-[#10b98125]" : "bg-[#ffffff03] border-border hover:border-border"
             } ${entry.isOptional ? "opacity-60" : ""} ${isPending ? "opacity-50 pointer-events-none" : ""}`}
         >
             {/* ── Header row ── */}
@@ -135,14 +135,14 @@ function QuestEntryRow({
                     {isCompleted ? (
                         <CheckCircle2 className="w-5 h-5" style={{ color: dofusColor, filter: `drop-shadow(0 0 8px ${dofusColor}44)` }} />
                     ) : isLocked ? (
-                        <Lock className="w-5 h-5 text-zinc-700" />
+                        <Lock className="w-5 h-5 text-muted-foreground" />
                     ) : (
-                        <Circle className="w-5 h-5 text-white/10 group-hover:text-white/30 transition-colors" />
+                        <Circle className="w-5 h-5 text-foreground/10 group-hover:text-foreground/30 transition-colors" />
                     )}
                 </button>
 
                 {/* Type icon */}
-                <span className={`flex-shrink-0 ${isCompleted ? "" : "text-white/20"}`} style={{ color: isCompleted ? dofusColor : undefined }}>
+                <span className={`flex-shrink-0 ${isCompleted ? "" : "text-foreground/20"}`} style={{ color: isCompleted ? dofusColor : undefined }}>
                     <QuestTypeIcon type={entry.questType} />
                 </span>
 
@@ -150,26 +150,26 @@ function QuestEntryRow({
                 <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-x-2">
                         <span className={`text-body font-black italic tracking-tight transition-colors ${
-                            isCompleted ? "text-white/30 line-through" : "text-white"
+                            isCompleted ? "text-foreground/30 line-through" : "text-foreground"
                         }`}>
                             {entry.name}
                         </span>
                         <div className="flex items-center gap-2">
-                            {entry.zone && <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest">{entry.zone}</span>}
-                            {(entry as any).level != null && <span className="text-caption text-zinc-600 font-medium">Lvl {(entry as any).level}</span>}
+                            {entry.zone && <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest">{entry.zone}</span>}
+                            {(entry as any).level != null && <span className="text-caption text-muted-foreground font-medium">Lvl {(entry as any).level}</span>}
                         </div>
                     </div>
                 </div>
 
                 {/* Badges */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                    {hasDungeons && <span className="text-caption text-rose-400/80 font-black uppercase">🏰 DJ</span>}
+                    {hasDungeons && <span className="text-caption text-danger/80 font-black uppercase">🏰 DJ</span>}
                     {entry.isLast && (
                         <span className="text-caption font-black uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ background: `${dofusColor}20`, color: dofusColor }}>
                             🎯 Final
                         </span>
                     )}
-                    <div className={`text-white/10 group-hover:text-white/40 transition-all ${showDetail ? "rotate-180" : ""}`}>
+                    <div className={`text-foreground/10 group-hover:text-foreground/40 transition-all ${showDetail ? "rotate-180" : ""}`}>
                         <ChevronDown className="w-4 h-4" />
                     </div>
                 </div>
@@ -185,12 +185,12 @@ function QuestEntryRow({
                         className="overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="px-5 pb-5 pt-2 ml-[10px] sm:ml-[42px] border-l border-white/5 space-y-4">
+                        <div className="px-5 pb-5 pt-2 ml-[10px] sm:ml-[42px] border-l border-border space-y-4">
 
                             {/* V3 Structured Dungeons */}
                             {structuredDungeons.map((d, dx) => (
-                                <div key={`sd-${dx}`} className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-black/60 border border-rose-500/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                                <div key={`sd-${dx}`} className="p-3 bg-danger/10 border border-danger/20 rounded-2xl flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-xl bg-black/60 border border-danger/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
                                         {d.img ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={d.img} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -198,16 +198,16 @@ function QuestEntryRow({
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                         ) : (
-                                            <span className="text-rose-400">🏰</span>
+                                            <span className="text-danger">🏰</span>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-caption font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon requis</div>
-                                        <div className="text-body-sm font-black text-white italic truncate">{d.name}</div>
+                                        <div className="text-caption font-black text-danger uppercase tracking-widest mb-0.5">🏰 Donjon requis</div>
+                                        <div className="text-body-sm font-black text-foreground italic truncate">{d.name}</div>
                                         <div className="flex items-center gap-2 mt-0.5">
-                                            {d.level && d.level > 0 && <span className="text-caption text-zinc-500 font-bold">Lvl {d.level}</span>}
-                                            {d.bossName && <span className="text-caption text-zinc-600 italic">— {d.bossName}</span>}
-                                            {d.idoleName && <span className="text-caption font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
+                                            {d.level && d.level > 0 && <span className="text-caption text-muted-foreground font-bold">Lvl {d.level}</span>}
+                                            {d.bossName && <span className="text-caption text-muted-foreground italic">— {d.bossName}</span>}
+                                            {d.idoleName && <span className="text-caption font-black text-warning bg-warning/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
                                         </div>
                                     </div>
                                     {(d as any).dplnUrl && (
@@ -228,18 +228,18 @@ function QuestEntryRow({
 
                             {/* Fallback text-parsed dungeons */}
                             {structuredDungeons.length === 0 && dungeonInfos.map((di, dx) => (
-                                <div key={`di-${dx}`} className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3">
+                                <div key={`di-${dx}`} className="p-3 bg-danger/10 border border-danger/20 rounded-2xl flex items-center gap-3">
                                     {di.mapImg && (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={di.mapImg} alt={di.dungeonName} className="w-12 h-12 object-cover rounded-xl border border-rose-500/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                        <img src={di.mapImg} alt={di.dungeonName} className="w-12 h-12 object-cover rounded-xl border border-danger/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                     )}
                                     <div className="flex-1">
-                                        <div className="text-caption font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon</div>
-                                        <div className="text-body-sm font-black text-white italic">{di.dungeonName}</div>
+                                        <div className="text-caption font-black text-danger uppercase tracking-widest mb-0.5">🏰 Donjon</div>
+                                        <div className="text-body-sm font-black text-foreground italic">{di.dungeonName}</div>
                                     </div>
                                     {di.x !== undefined && (
                                         <Link href={`/dashboard/${guildId}/worldmap?x=${di.x}&y=${di.y}&zoom=4&world=${di.worldId ?? 0}`}
-                                            className="h-8 w-8 rounded-xl bg-rose-500 text-black flex items-center justify-center  transition-transform flex-shrink-0"
+                                            className="h-8 w-8 rounded-xl bg-danger text-danger-foreground flex items-center justify-center  transition-transform flex-shrink-0"
                                             onClick={(e) => e.stopPropagation()}>
                                             <MapPin className="w-4 h-4" />
                                         </Link>
@@ -249,32 +249,32 @@ function QuestEntryRow({
 
                             {/* NPC GPS */}
                             {(entry as any).coords && (
-                                <div className="p-3 bg-zinc-900/50 rounded-2xl border border-white/5 flex items-center justify-between hover:bg-zinc-900 transition-all">
+                                <div className="p-3 bg-surface/50 rounded-2xl border border-border flex items-center justify-between hover:bg-surface transition-all">
                                     <div className="flex items-center gap-3 cursor-pointer group/travel"
                                         onClick={(e) => { e.stopPropagation(); copyWithToast(`/travel ${(entry as any).coords.x} ${(entry as any).coords.y}`); }}>
-                                        <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                        <div className="w-8 h-8 rounded-xl bg-info/10 flex items-center justify-center text-info">
                                             <Wand2 className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <div className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                            <div className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                                                 PNJ OBJECTIF
-                                                <span className="text-caption bg-white/5 px-1 py-0.5 rounded opacity-0 group-hover/travel:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                <span className="text-caption bg-surface px-1 py-0.5 rounded opacity-0 group-hover/travel:opacity-100 transition-opacity flex items-center gap-0.5">
                                                     <Copy className="w-2.5 h-2.5" /> COPIER
                                                 </span>
                                             </div>
-                                            <div className="text-label font-bold text-white italic group-hover/travel:text-emerald-400 transition-colors">
+                                            <div className="text-label font-bold text-foreground italic group-hover/travel:text-success transition-colors">
                                                 {(() => {
                                                     const objectives = Array.isArray((entry as any).objectives) ? (entry as any).objectives : [];
                                                     const objWithNpc = objectives.find((o: any) => extractObjectiveText(o).includes("{npc,"));
                                                     const match = extractObjectiveText(objWithNpc).match(/\{npc,(\d+)\}/);
                                                     return match ? <NpcName npcId={match[1]} /> : ((entry as any).npcName || "PNJ");
-                                                })()} <span className="text-zinc-500 font-normal">[{(entry as any).coords.x}, {(entry as any).coords.y}]</span>
+                                                })()} <span className="text-muted-foreground font-normal">[{(entry as any).coords.x}, {(entry as any).coords.y}]</span>
                                             </div>
                                         </div>
                                     </div>
                                     <Link
                                         href={`/dashboard/${guildId}/worldmap?x=${(entry as any).coords.x}&y=${(entry as any).coords.y}&zoom=4&world=${(entry as any).coords.worldId ?? 0}`}
-                                        className="h-8 w-8 rounded-lg bg-emerald-500 text-black flex items-center justify-center  transition-transform "
+                                        className="h-8 w-8 rounded-lg bg-success text-success-foreground flex items-center justify-center  transition-transform "
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <MapPin className="w-4 h-4" />
@@ -285,13 +285,13 @@ function QuestEntryRow({
                             {/* Positions de lancement */}
                             {Array.isArray((entry as any).positions) && (entry as any).positions.length > 0 && (
                                 <div className="space-y-2">
-                                    <div className="text-caption font-black text-emerald-500/80 uppercase tracking-widest italic mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Positions de lancement</div>
+                                    <div className="text-caption font-black text-success/80 uppercase tracking-widest italic mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Positions de lancement</div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {(entry as any).positions.map((p: any, i: number) => (
-                                            <button key={i} onClick={(e) => { e.stopPropagation(); copyWithToast(`/travel ${p.x} ${p.y}`); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-bold font-mono hover:bg-emerald-500/20 transition-colors">
+                                            <button key={i} onClick={(e) => { e.stopPropagation(); copyWithToast(`/travel ${p.x} ${p.y}`); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold font-mono hover:bg-success/20 transition-colors">
                                                 <MapPin className="w-2.5 h-2.5" />
                                                 {p.x}, {p.y}
-                                                <Copy className="w-2.5 h-2.5 text-emerald-500/50" />
+                                                <Copy className="w-2.5 h-2.5 text-success/50" />
                                             </button>
                                         ))}
                                     </div>
@@ -301,7 +301,7 @@ function QuestEntryRow({
                             {/* Objectives */}
                             {Array.isArray((entry as any).objectives) && (entry as any).objectives.length > 0 && (
                                 <div className="space-y-2">
-                                    <div className="text-caption font-black text-zinc-600 uppercase tracking-widest italic mb-2">Marche à suivre</div>
+                                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest italic mb-2">Marche à suivre</div>
                                     {(entry as any).objectives.map((obj: any, i: number) => {
                                         const text = extractObjectiveText(obj);
                                         const isReturn = text.toLowerCase().includes("retour") || text.toLowerCase().includes("aller voir");
@@ -311,7 +311,7 @@ function QuestEntryRow({
                                                     style={{ background: isReturn ? `${dofusColor}40` : "rgba(255,255,255,0.05)", color: isReturn ? "#fff" : "rgba(255,255,255,0.4)" }}>
                                                     {i + 1}
                                                 </div>
-                                                <div className={`text-label font-medium leading-relaxed ${isReturn ? "text-white" : "text-zinc-400"}`}>
+                                                <div className={`text-label font-medium leading-relaxed ${isReturn ? "text-foreground" : "text-muted-foreground"}`}>
                                                     <ParsedObjective text={obj} guildId={guildId} zone={entry.zone ?? undefined} />
                                                 </div>
                                             </div>
@@ -363,13 +363,13 @@ function ChainSection({
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={`/assets/icons/${(chain as any).sectionIcon}.png`} alt="" className="w-5 h-5 object-contain shrink-0" />
                 )}
-                <span className="text-sm font-semibold text-white/80 flex-1">{chain.sectionName}</span>
+                <span className="text-sm font-semibold text-foreground/80 flex-1">{chain.sectionName}</span>
                 {chain.description && (
-                    <span className="text-xs text-white/30 hidden sm:block truncate max-w-[180px]">{chain.description}</span>
+                    <span className="text-xs text-foreground/30 hidden sm:block truncate max-w-[180px]">{chain.description}</span>
                 )}
-                <span className="text-xs text-white/30 tabular-nums">{completedCount}/{total}</span>
+                <span className="text-xs text-foreground/30 tabular-nums">{completedCount}/{total}</span>
                 {allDone && <span style={{ color: dofusColor }}>✓</span>}
-                {collapsed ? <ChevronDown className="w-4 h-4 text-white/30" /> : <ChevronUp className="w-4 h-4 text-white/30" />}
+                {collapsed ? <ChevronDown className="w-4 h-4 text-foreground/30" /> : <ChevronUp className="w-4 h-4 text-foreground/30" />}
             </button>
 
             {!collapsed && (
@@ -385,7 +385,7 @@ function ChainSection({
                         />
                     ))}
                     {total === 0 && (
-                        <p className="text-sm text-white/20 text-center py-4">Aucune entrée pour cette section</p>
+                        <p className="text-sm text-foreground/20 text-center py-4">Aucune entrée pour cette section</p>
                     )}
                 </div>
             )}
@@ -406,8 +406,8 @@ export function QuestChecklist({ chains, guildId, dofusColor, completedIds, onTo
     if (chains.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <ListChecks className="w-10 h-10 text-white/15" />
-                <p className="text-white/30 text-sm">Guide de quêtes à venir — données en cours d&apos;intégration</p>
+                <ListChecks className="w-10 h-10 text-foreground/15" />
+                <p className="text-foreground/30 text-sm">Guide de quêtes à venir — données en cours d&apos;intégration</p>
             </div>
         );
     }

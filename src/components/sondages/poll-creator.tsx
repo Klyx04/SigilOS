@@ -59,10 +59,10 @@ interface PollCreatorProps {
 }
 
 const CATEGORIES = [
-    { value: "SUGGESTION", label: "💡 Suggestion", color: "text-cyan-400" },
-    { value: "AMELIORATION", label: "🔧 Amélioration", color: "text-emerald-400" },
-    { value: "EVENT", label: "🎉 Événement", color: "text-amber-400" },
-    { value: "MISSION", label: "🎯 Mission", color: "text-red-400" },
+    { value: "SUGGESTION", label: "💡 Suggestion", color: "text-info" },
+    { value: "AMELIORATION", label: "🔧 Amélioration", color: "text-success" },
+    { value: "EVENT", label: "🎉 Événement", color: "text-warning" },
+    { value: "MISSION", label: "🎯 Mission", color: "text-danger" },
     { value: "AUTRE", label: "📋 Autres", color: "text-violet-400" },
 ];
 
@@ -308,8 +308,8 @@ export function PollCreator({
                             className={cn(
                                 "gap-2 transition-all font-bold uppercase tracking-wider text-caption h-11 px-6 rounded-xl",
                                 microStatus?.holder && !microStatus?.isMicroHolder
-                                    ? "bg-zinc-800 text-zinc-600 border border-white/5 cursor-not-allowed"
-                                    : "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-900/20"
+                                    ? "bg-elevated text-muted-foreground border border-border cursor-not-allowed"
+                                    : "bg-info hover:bg-info text-info-foreground shadow-lg shadow-cyan-900/20"
                             )}
                         >
                             {microStatus?.holder && !microStatus?.isMicroHolder ? (
@@ -327,18 +327,18 @@ export function PollCreator({
                     )}
                 </DialogTrigger>
 
-                <DialogContent className="w-[95vw] max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
-                    <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
+                <DialogContent className="w-[95vw] max-w-xl bg-background border border-border shadow-2xl rounded-2xl text-foreground max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
+                    <div className="p-6 pb-4 border-b border-border bg-surface/40 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-info/5 blur-3xl rounded-full -mr-16 -mt-16" />
                         <DialogTitle className="text-xl font-black flex items-center gap-3 relative z-10">
-                            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shadow-lg shadow-cyan-900/10">
-                                <Sparkles className="w-5 h-5 text-cyan-400" />
+                            <div className="w-10 h-10 rounded-2xl bg-info/10 border border-info/20 flex items-center justify-center shadow-lg shadow-cyan-900/10">
+                                <Sparkles className="w-5 h-5 text-info" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-xl tracking-tight text-white leading-none">
+                                <span className="text-xl tracking-tight text-foreground leading-none">
                                     {isEdit ? "Modifier un sondage" : "Lancer un sondage"}
                                 </span>
-                                <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                                <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">
                                     Consultation de la guilde
                                 </span>
                             </div>
@@ -348,34 +348,34 @@ export function PollCreator({
                     {/* Content Area */}
                     <div className="p-6">
                         {!microStatus?.isMicroHolder && !microStatus?.isSuperAdmin && (
-                            <div className="mb-6 rounded-3xl bg-zinc-900/60 border border-cyan-500/10 p-5 space-y-4">
+                            <div className="mb-6 rounded-3xl bg-surface/60 border border-info/10 p-5 space-y-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 shrink-0">
-                                        <Lock className="w-5 h-5 text-cyan-400" />
+                                    <div className="p-3 rounded-xl bg-info/10 border border-info/20 shrink-0">
+                                        <Lock className="w-5 h-5 text-info" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-bold text-white tracking-tight">Droit de Parole requis</h4>
-                                        <p className="text-caption text-zinc-500 leading-relaxed mt-0.5">
+                                        <h4 className="text-sm font-bold text-foreground tracking-tight">Droit de Parole requis</h4>
+                                        <p className="text-caption text-muted-foreground leading-relaxed mt-0.5">
                                             {microStatus?.holder
-                                                ? <><span className="text-cyan-400 font-bold">{microStatus.holder.name}</span> a actuellement le micro. Attendez qu'il se libère !</>
+                                                ? <><span className="text-info font-bold">{microStatus.holder.name}</span> a actuellement le micro. Attendez qu'il se libère !</>
                                                 : <>Un membre à la fois gère l'attention de la guilde. Prenez le micro pour lancer une consultation.</>}
                                         </p>
                                     </div>
                                 </div>
 
                                 {microStatus?.holder && (
-                                    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-4">
+                                    <div className="p-4 rounded-2xl bg-surface border border-border space-y-4">
                                         <div className="flex items-center gap-3">
                                             {microStatus.holder.image ? (
-                                                <img src={microStatus.holder.image} className="w-10 h-10 rounded-full border border-cyan-500/30 p-0.5" alt="" />
+                                                <img src={microStatus.holder.image} className="w-10 h-10 rounded-full border border-info/30 p-0.5" alt="" />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-zinc-800 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-xs">
+                                                <div className="w-10 h-10 rounded-full bg-elevated border border-info/30 flex items-center justify-center text-info font-bold text-xs">
                                                     {microStatus.holder.name[0]}
                                                 </div>
                                             )}
                                             <div className="min-w-0">
-                                                <p className="text-caption font-bold uppercase tracking-tight text-zinc-500 mb-0.5">Occupé par</p>
-                                                <p className="text-sm font-bold text-white truncate">{microStatus.holder.name}</p>
+                                                <p className="text-caption font-bold uppercase tracking-tight text-muted-foreground mb-0.5">Occupé par</p>
+                                                <p className="text-sm font-bold text-foreground truncate">{microStatus.holder.name}</p>
                                             </div>
                                         </div>
                                         {microStatus.isMicroHolder && (
@@ -383,7 +383,7 @@ export function PollCreator({
                                                 onClick={handleReleaseMicro}
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 w-full rounded-lg bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 text-caption font-bold uppercase transition-all"
+                                                className="h-8 w-full rounded-lg bg-surface hover:bg-danger/10 text-muted-foreground hover:text-danger text-caption font-bold uppercase transition-all"
                                             >
                                                 Relâcher le micro
                                             </Button>
@@ -395,12 +395,12 @@ export function PollCreator({
                                     <Button
                                         onClick={handleAcquireMicroStatus}
                                         disabled={isAcquiring || (!!microStatus?.holder && !microStatus?.isSuperAdmin)}
-                                        className="w-full h-11 rounded-xl font-bold uppercase tracking-wide text-caption shadow-lg bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/10 disabled:opacity-50"
+                                        className="w-full h-11 rounded-xl font-bold uppercase tracking-wide text-caption shadow-lg bg-info hover:bg-info text-info-foreground shadow-cyan-900/10 disabled:opacity-50"
                                     >
                                         {microStatus?.holder && !microStatus?.isSuperAdmin ? "Micro occupé" : "Prendre le Micro"}
                                     </Button>
                                 )}
-                                <p className="text-caption text-center text-zinc-600 font-bold italic uppercase tracking-tight">
+                                <p className="text-caption text-center text-muted-foreground font-bold italic uppercase tracking-tight">
                                     Libre après 1h ou publication.
                                 </p>
                             </div>
@@ -412,17 +412,17 @@ export function PollCreator({
                                     {/* Title + Category */}
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-caption font-bold uppercase tracking-widest text-zinc-500 ml-1">Question de la consultation</label>
+                                            <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground ml-1">Question de la consultation</label>
                                             <Input
                                                 value={title}
                                                 onChange={(e) => setTitle(e.target.value)}
                                                 placeholder="Ex: Quelle refonte pour les grades ?"
                                                 maxLength={200}
-                                                className="h-14 bg-zinc-900/60 border-white/5 text-white placeholder:text-zinc-700 text-lg font-bold rounded-xl focus:ring-cyan-500/20 focus:border-cyan-500/30 transition-all shadow-inner focus:outline-none"
+                                                className="h-14 bg-surface/60 border-border text-foreground placeholder:text-muted-foreground text-lg font-bold rounded-xl focus:ring-info/20 focus:border-info/30 transition-all shadow-inner focus:outline-none"
                                             />
                                         </div>
                                         <div className="space-y-3">
-                                            <label className="text-caption font-bold uppercase tracking-widest text-zinc-500 ml-1">Thématique</label>
+                                            <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground ml-1">Thématique</label>
                                             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                                 {CATEGORIES.map((c) => {
                                                     const isSelected = category === c.value;
@@ -434,14 +434,14 @@ export function PollCreator({
                                                             className={cn(
                                                                 "relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all",
                                                                 isSelected
-                                                                    ? "bg-white/10 border-white/20 shadow-lg"
-                                                                    : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
+                                                                    ? "bg-surface border-border-strong shadow-lg"
+                                                                    : "bg-surface border-border hover:bg-surface opacity-60"
                                                             )}
                                                         >
                                                             <span className="text-xl mb-1">{c.label.split(" ")[0]}</span>
                                                             <span className={cn(
                                                                 "text-caption font-bold uppercase tracking-tight text-center",
-                                                                isSelected ? c.color : "text-zinc-500"
+                                                                isSelected ? c.color : "text-muted-foreground"
                                                             )}>
                                                                 {c.label.split(" ").slice(1).join(" ")}
                                                             </span>
@@ -454,7 +454,7 @@ export function PollCreator({
 
                                     {/* Options */}
                                     <div className="space-y-4">
-                                        <label className="text-caption font-bold uppercase tracking-widest text-zinc-500 ml-1">Options ({options.length}/10)</label>
+                                        <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground ml-1">Options ({options.length}/10)</label>
                                         <div className="space-y-3">
                                             <AnimatePresence mode="popLayout">
                                                 {options.map((opt, i) => (
@@ -464,28 +464,28 @@ export function PollCreator({
                                                         initial={{ opacity: 0, y: 10 }}
                                                         animate={{ opacity: 1, y: 0 }}
                                                         exit={{ opacity: 0, scale: 0.95 }}
-                                                        className="flex items-center gap-2 p-1.5 rounded-xl bg-zinc-900/30 border border-white/5 focus-within:border-cyan-500/30 transition-all font-bold"
+                                                        className="flex items-center gap-2 p-1.5 rounded-xl bg-surface/30 border border-border focus-within:border-info/30 transition-all font-bold"
                                                     >
-                                                        <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center shrink-0">
-                                                            <GripVertical className="w-4 h-4 text-zinc-700" />
+                                                        <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                                                            <GripVertical className="w-4 h-4 text-muted-foreground" />
                                                         </div>
                                                         <input
                                                             value={opt.emoji}
                                                             onChange={(e) => updateOption(i, "emoji", e.target.value)}
-                                                            className="w-10 h-10 bg-transparent border-none text-center text-xl focus:ring-0 outline-none text-white"
+                                                            className="w-10 h-10 bg-transparent border-none text-center text-xl focus:ring-0 outline-none text-foreground"
                                                         />
                                                         <Input
                                                             value={opt.label}
                                                             onChange={(e) => updateOption(i, "label", e.target.value)}
                                                             placeholder={`Option ${i + 1}`}
                                                             maxLength={100}
-                                                            className="flex-1 bg-transparent border-none text-white placeholder:text-zinc-800 h-10 font-bold text-md focus-visible:ring-0"
+                                                            className="flex-1 bg-transparent border-none text-foreground placeholder:text-foreground h-10 font-bold text-md focus-visible:ring-0"
                                                         />
                                                         {options.length > 2 && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => removeOption(i)}
-                                                                className="w-10 h-10 flex items-center justify-center rounded-lg text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                                                className="w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </button>
@@ -501,8 +501,8 @@ export function PollCreator({
                                                 className={cn(
                                                     "flex items-center gap-2 w-full justify-center py-4 rounded-xl border border-dashed transition-all",
                                                     options.length >= 10
-                                                        ? "border-white/5 opacity-20"
-                                                        : "border-white/10 text-zinc-500 hover:text-cyan-400 hover:border-cyan-500/30 bg-white/[0.01]"
+                                                        ? "border-border opacity-20"
+                                                        : "border-border text-muted-foreground hover:text-info hover:border-info/30 bg-surface"
                                                 )}
                                             >
                                                 <Plus className="w-4 h-4" />
@@ -515,15 +515,15 @@ export function PollCreator({
 
                                     {/* Settings Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-6">
+                                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-xl bg-purple-500/10">
-                                                        <Users className="w-4 h-4 text-purple-400" />
+                                                    <div className="p-2.5 rounded-xl bg-info/10">
+                                                        <Users className="w-4 h-4 text-info" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-caption font-bold text-white uppercase tracking-tight">Votes multiples</p>
-                                                        <p className="text-caption text-zinc-500 font-medium tracking-tight">Plusieurs choix possibles</p>
+                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tight">Votes multiples</p>
+                                                        <p className="text-caption text-muted-foreground font-medium tracking-tight">Plusieurs choix possibles</p>
                                                     </div>
                                                 </div>
                                                 <Switch checked={allowMultipleVotes} onCheckedChange={setAllowMultipleVotes} className="scale-90" />
@@ -531,12 +531,12 @@ export function PollCreator({
 
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-xl bg-amber-500/10">
-                                                        <Clock className="w-4 h-4 text-amber-400" />
+                                                    <div className="p-2.5 rounded-xl bg-warning/10">
+                                                        <Clock className="w-4 h-4 text-warning" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-caption font-bold text-white uppercase tracking-tight">Expiration</p>
-                                                        <p className="text-caption text-zinc-500 font-medium tracking-tight">Fin automatique</p>
+                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tight">Expiration</p>
+                                                        <p className="text-caption text-muted-foreground font-medium tracking-tight">Fin automatique</p>
                                                     </div>
                                                 </div>
                                                 <Switch checked={hasExpiry} onCheckedChange={setHasExpiry} className="scale-90" />
@@ -550,7 +550,7 @@ export function PollCreator({
                                                         exit={{ opacity: 0, height: 0 }}
                                                         className="overflow-hidden"
                                                     >
-                                                        <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-zinc-900/80 border border-white/5 mt-3">
+                                                        <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-surface/80 border border-border mt-3">
                                                             {[
                                                                 { value: 24, label: "24h", emoji: "⏳" },
                                                                 { value: 48, label: "48h", emoji: "⌛" },
@@ -563,14 +563,14 @@ export function PollCreator({
                                                                     className={cn(
                                                                         "relative py-3 rounded-lg text-caption font-bold uppercase tracking-widest transition-all",
                                                                         expiryHours === opt.value
-                                                                            ? "text-cyan-400"
-                                                                            : "text-zinc-600 hover:text-zinc-400 hover:bg-white/5"
+                                                                            ? "text-info"
+                                                                            : "text-muted-foreground hover:text-muted-foreground hover:bg-surface"
                                                                     )}
                                                                 >
                                                                     {expiryHours === opt.value && (
                                                                         <motion.div
                                                                             layoutId="expiry-bg"
-                                                                            className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-lg"
+                                                                            className="absolute inset-0 bg-info/10 border border-info/20 rounded-lg"
                                                                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                                                         />
                                                                     )}
@@ -586,14 +586,14 @@ export function PollCreator({
                                             </AnimatePresence>
                                         </div>
 
-                                        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-6">
+                                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-cyan-500/10">
-                                                    <Info className="w-4 h-4 text-cyan-400" />
+                                                <div className="p-2.5 rounded-xl bg-info/10">
+                                                    <Info className="w-4 h-4 text-info" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-caption font-bold text-white uppercase tracking-tight">Lien externe (Optionnel)</p>
-                                                    <p className="text-caption text-zinc-500 font-medium tracking-tight">URL associée au sondage</p>
+                                                    <p className="text-caption font-bold text-foreground uppercase tracking-tight">Lien externe (Optionnel)</p>
+                                                    <p className="text-caption text-muted-foreground font-medium tracking-tight">URL associée au sondage</p>
                                                 </div>
                                             </div>
                                             <Input
@@ -601,40 +601,40 @@ export function PollCreator({
                                                 placeholder="https://..."
                                                 value={externalUrl}
                                                 onChange={(e) => setExternalUrl(e.target.value)}
-                                                className="bg-zinc-950/40 border-white/10 focus:border-cyan-500/30 text-white rounded-xl text-xs h-10 focus:outline-none"
+                                                className="bg-background/40 border-border focus:border-info/30 text-foreground rounded-xl text-xs h-10 focus:outline-none"
                                             />
                                         </div>
                                     </div>
 
                                     {/* Description */}
                                     <div className="space-y-3">
-                                        <p className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">Description (Optionnel)</p>
+                                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Description (Optionnel)</p>
                                         <textarea
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
                                             rows={3}
                                             placeholder="Contextualisez votre question..."
                                             maxLength={2000}
-                                            className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none transition-all resize-none shadow-xl placeholder:text-zinc-500"
+                                            className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-info/50 focus:ring-2 focus:ring-info/10 rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none shadow-xl placeholder:text-muted-foreground"
                                         />
                                     </div>
 
                                     {/* Footer - Details Step */}
-                                    <div className="pt-8 border-t border-white/5 mt-4">
+                                    <div className="pt-8 border-t border-border mt-4">
                                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
                                             <Button
                                                 variant="ghost"
                                                 onClick={() => setOpen(false)}
-                                                className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                                className="h-12 px-8 rounded-xl text-caption font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-[0.2em] border border-border hover:bg-surface order-2 sm:order-1"
                                             >
                                                 Annuler
                                             </Button>
                                             <Button
-                                                className="flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20"
+                                                className="flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-info hover:bg-info text-info-foreground shadow-cyan-900/20"
                                                 onClick={() => setStep(2)}
                                                 disabled={!isValid}
                                             >
-                                                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                                <div className="absolute inset-0 bg-background opacity-0 group-hover:opacity-10 transition-opacity" />
                                                 <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
                                                     <ChevronRight className="w-4 h-4" />
                                                     SUIVANT
@@ -648,59 +648,59 @@ export function PollCreator({
                             {step === 2 && (
                                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                     <div className="text-center space-y-3 mb-8">
-                                        <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto ">
-                                            <Hash className="w-8 h-8 text-cyan-400" />
+                                        <div className="w-16 h-16 rounded-3xl bg-info/10 border border-info/20 flex items-center justify-center mx-auto ">
+                                            <Hash className="w-8 h-8 text-info" />
                                         </div>
-                                        <h3 className="text-xl font-black uppercase tracking-tight text-white">Configuration Discord</h3>
-                                        <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">Voulez-vous notifier la guilde de ce sondage sur Discord ?</p>
+                                        <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Configuration Discord</h3>
+                                        <p className="text-sm text-muted-foreground max-w-xs mx-auto font-medium">Voulez-vous notifier la guilde de ce sondage sur Discord ?</p>
                                     </div>
 
-                                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
+                                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-info/10 border-info/30' : 'bg-surface/50 border-border'}`}>
                                         <div className="flex items-center justify-between">
                                             <div className="flex flex-col">
-                                                <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-cyan-400' : 'text-zinc-300'}`}>Synchro Automatique</span>
+                                                <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-info' : 'text-foreground'}`}>Synchro Automatique</span>
                                                 {publishToDiscord ? (
                                                     <div className="flex items-center gap-1 mt-1 animate-in fade-in">
-                                                        <Hash className="w-3 h-3 text-cyan-400/70" />
-                                                        <span className="text-caption text-cyan-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                                        <Hash className="w-3 h-3 text-info/70" />
+                                                        <span className="text-caption text-info/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
+                                                    <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">Désactivé</span>
                                                 )}
                                             </div>
                                             <Switch
                                                 checked={publishToDiscord && !!discordSetup?.channelId}
                                                 onCheckedChange={setPublishToDiscord}
                                                 disabled={!discordSetup?.channelId}
-                                                className="data-[state=checked]:bg-cyan-500 scale-125 origin-right"
+                                                className="data-[state=checked]:bg-info scale-125 origin-right"
                                             />
                                         </div>
 
                                         {!discordSetup?.channelId && (
-                                            <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-                                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                                                <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
+                                            <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-center gap-3">
+                                                <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+                                                <p className="text-caption text-warning/70 font-bold uppercase tracking-wider">
                                                     Discord non configuré pour ce module. Contactez un admin.
                                                 </p>
                                             </div>
                                         )}
 
                                         {publishToDiscord && discordRolesList.length > 0 && (
-                                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-cyan-500/20 space-y-3">
-                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
-                                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                                    <p className="text-caption text-amber-300/80 font-medium leading-relaxed">
-                                                        <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour donner de la visibilité à votre sondage.
+                                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-info/20 space-y-3">
+                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                                                    <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                                                    <p className="text-caption text-warning/80 font-medium leading-relaxed">
+                                                        <span className="font-bold text-warning">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour donner de la visibilité à votre sondage.
                                                     </p>
                                                 </div>
-                                                <span className="text-caption font-black text-cyan-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
+                                                <span className="text-caption font-black text-info/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
                                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                                     <PopoverTrigger asChild>
                                                         <Button
                                                             variant="outline"
                                                             role="combobox"
                                                             aria-expanded={roleOpen}
-                                                            className="h-14 bg-zinc-950/50 border-white/10 text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-zinc-950 px-4"
+                                                            className="h-14 bg-background/50 border-border text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-background px-4"
                                                         >
                                                             <div className="flex items-center gap-3 truncate">
                                                                 {mentionRoleIds.length > 0 ? (
@@ -730,7 +730,7 @@ export function PollCreator({
                                                                                             e.stopPropagation();
                                                                                             setMentionRoleIds(prev => prev.filter(rid => rid !== id));
                                                                                         }}
-                                                                                        className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                                                                        className="ml-0.5 hover:bg-elevated rounded-full p-0.5 transition-colors"
                                                                                     >
                                                                                         <X className="h-2.5 w-2.5" />
                                                                                     </button>
@@ -738,20 +738,20 @@ export function PollCreator({
                                                                             );
                                                                         })}
                                                                         {mentionRoleIds.length > 3 && (
-                                                                            <span className="text-caption font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                            <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide px-1.5">
                                                                                 +{mentionRoleIds.length - 3} rôles
                                                                             </span>
                                                                         )}
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
+                                                                    <span className="text-muted-foreground italic">Aucun ping (recommandé si petit besoin)</span>
                                                                 )}
                                                             </div>
                                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                         </Button>
                                                     </PopoverTrigger>
-                                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
-                                                        <Command className="bg-transparent text-white">
+                                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
+                                                        <Command className="bg-transparent text-foreground">
                                                             <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
                                                             <CommandList className="max-h-[320px] premium-scrollbar p-2">
                                                                 <CommandEmpty>Aucun rôle.</CommandEmpty>
@@ -760,10 +760,10 @@ export function PollCreator({
                                                                         onSelect={() => {
                                                                             setMentionRoleIds([]);
                                                                         }}
-                                                                        className="text-zinc-500 italic focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                                        className="text-muted-foreground italic focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
                                                                     >
                                                                         <span className="font-bold uppercase tracking-widest">Aucun ping</span>
-                                                                        {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-zinc-400" />}
+                                                                        {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-muted-foreground" />}
                                                                     </CommandItem>
                                                                     {discordRolesList.map((role) => (
                                                                         <CommandItem
@@ -775,7 +775,7 @@ export function PollCreator({
                                                                                         : [...prev, role.id]
                                                                                 );
                                                                             }}
-                                                                            className="text-white focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
+                                                                            className="text-foreground focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
                                                                         >
                                                                             <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
                                                                                 <div
@@ -787,7 +787,7 @@ export function PollCreator({
                                                                                 />
                                                                                 <span className="truncate group-hover:translate-x-1 transition-transform">{role.name}</span>
                                                                             </div>
-                                                                            {mentionRoleIds.includes(role.id) && <Check className="h-4 w-4 text-cyan-400 shrink-0" />}
+                                                                            {mentionRoleIds.includes(role.id) && <Check className="h-4 w-4 text-info shrink-0" />}
                                                                         </CommandItem>
                                                                     ))}
                                                                 </CommandGroup>
@@ -800,21 +800,21 @@ export function PollCreator({
                                         )}
                                     </div>
 
-                                    <div className="pt-8 border-t border-white/5 mt-4">
+                                    <div className="pt-8 border-t border-border mt-4">
                                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
                                             <Button
                                                 variant="ghost"
                                                 onClick={() => setStep(1)}
-                                                className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                                className="h-12 px-8 rounded-xl text-caption font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-[0.2em] border border-border hover:bg-surface order-2 sm:order-1"
                                             >
                                                 Retour
                                             </Button>
                                             <Button
-                                                className="flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20"
+                                                className="flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-info hover:bg-info text-info-foreground shadow-cyan-900/20"
                                                 onClick={() => executeSubmit()}
                                                 disabled={isPending}
                                             >
-                                                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                                <div className="absolute inset-0 bg-background opacity-0 group-hover:opacity-10 transition-opacity" />
                                                 <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
                                                     {isPending ? (
                                                         <div className="w-4 h-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />

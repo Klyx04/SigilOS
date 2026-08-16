@@ -26,13 +26,13 @@ type HubCard = {
 
 // #5 — Accent unique emerald (fini l'arc-en-ciel par carte)
 const ACCENT = {
-    emerald: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    amber: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    indigo: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    violet: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    rose: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    cyan: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    slate: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    emerald: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    amber: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    indigo: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    violet: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    rose: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    cyan: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    slate: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
 };
 
 export default async function AnnuaireHubPage({
@@ -107,9 +107,9 @@ export default async function AnnuaireHubPage({
                     if (!card.visible) return null;
 
                     return (
-                        <Link key={card.href} href={card.href} className="group outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 rounded-2xl">
+                        <Link key={card.href} href={card.href} className="group outline-none focus-visible:ring-2 focus-visible:ring-success/50 rounded-2xl">
                             <div className={cn(
-                                "relative flex flex-col h-full rounded-2xl border border-border bg-foreground/[0.02] p-8 transition-colors duration-200 hover:border-emerald-500/40 hover:bg-foreground/[0.04] overflow-hidden"
+                                "relative flex flex-col h-full rounded-2xl border border-border bg-foreground/[0.02] p-8 transition-colors duration-200 hover:border-success/40 hover:bg-foreground/[0.04] overflow-hidden"
                             )}>
                                 <div className="relative z-10 flex flex-col h-full">
                                     <div className="flex items-center justify-between mb-8">

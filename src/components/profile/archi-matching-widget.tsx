@@ -109,7 +109,7 @@ export function ArchiMatchingWidget({
                                         </div>
                                         <Badge
                                             variant="outline"
-                                            className="shrink-0 text-caption px-1.5 bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                            className="shrink-0 text-caption px-1.5 bg-warning/10 text-warning border-warning/30"
                                         >
                                             x{match.ownerQuantite}
                                         </Badge>
@@ -126,7 +126,7 @@ export function ArchiMatchingWidget({
                                 onClick={handleCopyMP}
                             >
                                 {copiedMsg ? (
-                                    <Check className="h-4 w-4 text-emerald-500" />
+                                    <Check className="h-4 w-4 text-success" />
                                 ) : (
                                     <Copy className="h-4 w-4" />
                                 )}

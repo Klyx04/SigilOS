@@ -5,9 +5,9 @@ import { getArchimonstres, syncOcreArchimonstres, syncWorldMonsters, deleteArchi
 import { RefreshCw, Trash2, Search, Loader2, CheckCircle2, XCircle, MapPin } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-    archimonstre: { label: 'Archi', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-    boss:         { label: 'Boss',  color: 'bg-red-500/20 text-red-300 border-red-500/30' },
-    monstre:      { label: 'Mob',   color: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
+    archimonstre: { label: 'Archi', color: 'bg-warning/20 text-warning border-warning/30' },
+    boss:         { label: 'Boss',  color: 'bg-danger/20 text-danger border-danger/30' },
+    monstre:      { label: 'Mob',   color: 'bg-muted/20 text-foreground border-border/30' },
 };
 
 const WORLD_LABELS: Record<number, string> = {
@@ -112,15 +112,15 @@ export default function ArchimonstreManager() {
             {/* Header + Sync */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <p className="text-sm text-slate-400">
-                        <span className="text-white font-bold">{rows.length}</span> archimonstres en base
+                    <p className="text-sm text-muted-foreground">
+                        <span className="text-foreground font-bold">{rows.length}</span> archimonstres en base
                         {rows.length > 0 && (
-                            <> · <span className={withSubarea === rows.length ? 'text-emerald-400' : 'text-amber-400'}>
+                            <> · <span className={withSubarea === rows.length ? 'text-success' : 'text-warning'}>
                                 {withSubarea}/{rows.length} avec zone résolue
                             </span></>
                         )}
                     </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                         Synchronisé depuis Metamob (zones) + DofusDB (images/coords)
                     </p>
                 </div>
@@ -128,7 +128,7 @@ export default function ArchimonstreManager() {
                     <button
                         onClick={handleSync}
                         disabled={isPending}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning hover:bg-warning disabled:opacity-50 text-foreground font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20"
                     >
                         {isPending ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                         {isPending ? 'Synchronisation…' : 'Sync depuis Metamob'}
@@ -136,7 +136,7 @@ export default function ArchimonstreManager() {
                     <button
                         onClick={handleCatalogueSync}
                         disabled={catalogSync.status === 'running'}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-bold text-sm transition-all active:scale-95 shadow-lg shadow-sky-500/20"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-foreground font-bold text-sm transition-all active:scale-95 shadow-lg shadow-sky-500/20"
                     >
                         {catalogSync.status === 'running' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                         {catalogSync.status === 'running'
@@ -152,7 +152,7 @@ export default function ArchimonstreManager() {
             {catalogSync.status !== 'idle' && catalogSync.status !== 'done' && (
                 <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm ${
                     catalogSync.status === 'error'
-                        ? 'bg-red-500/10 border-red-500/20 text-red-300'
+                        ? 'bg-danger/10 border-danger/20 text-danger'
                         : 'bg-sky-500/10 border-sky-500/20 text-sky-300'
                 }`}>
                     {catalogSync.status === 'error' ? <XCircle size={16} className="shrink-0" /> : <Loader2 size={16} className="animate-spin shrink-0" />}
@@ -163,12 +163,12 @@ export default function ArchimonstreManager() {
                                     ? catalogSync.error
                                     : `Sync catalogue DofusDB… ${catalogSync.processed ?? 0}/${catalogSync.total ?? '…'}`}
                             </span>
-                            <span className="text-slate-400">
+                            <span className="text-muted-foreground">
                                 {catalogSync.status !== 'error' && `✅ ${catalogSync.synced ?? 0} · ⏭ ${catalogSync.skipped ?? 0}`}
                             </span>
                         </div>
                         {catalogSync.status === 'running' && catalogSync.total ? (
-                            <div className="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="mt-2 h-1.5 bg-elevated rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-sky-500 transition-all duration-300"
                                     style={{ width: `${Math.min(100, ((catalogSync.processed || 0) / catalogSync.total) * 100)}%` }}
@@ -179,7 +179,7 @@ export default function ArchimonstreManager() {
                 </div>
             )}
             {catalogSync.status === 'done' && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl border text-sm bg-emerald-500/10 border-emerald-500/20 text-emerald-300">
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl border text-sm bg-success/10 border-success/20 text-success">
                     <CheckCircle2 size={16} className="shrink-0" />
                     <span>Catalogue DofusDB synchronisé — {catalogSync.synced} ajoutés/mis à jour · {catalogSync.skipped} ignorés (total {catalogSync.total})</span>
                 </div>
@@ -189,8 +189,8 @@ export default function ArchimonstreManager() {
             {syncStatus && (
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm ${
                     syncStatus.error
-                        ? 'bg-red-500/10 border-red-500/20 text-red-300'
-                        : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                        ? 'bg-danger/10 border-danger/20 text-danger'
+                        : 'bg-success/10 border-success/20 text-success'
                 }`}>
                     {syncStatus.error ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
                     {syncStatus.error
@@ -202,13 +202,13 @@ export default function ArchimonstreManager() {
             {/* Filters */}
             <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative flex-1 min-w-[180px]">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
                         type="text"
                         placeholder="Rechercher…"
                         value={search}
                         onChange={e => handleSearch(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500/50"
+                        className="w-full pl-8 pr-3 py-2 rounded-lg bg-elevated border border-border text-foreground placeholder-slate-500 text-sm focus:outline-none focus:border-warning/50"
                     />
                 </div>
                 <div className="flex gap-1">
@@ -216,8 +216,8 @@ export default function ArchimonstreManager() {
                         <button key={t} onClick={() => handleType(t)}
                             className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
                                 typeFilter === t
-                                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                                    ? 'bg-warning/20 border-warning/40 text-warning'
+                                    : 'bg-elevated border-border text-muted-foreground hover:text-foreground'
                             }`}>
                             {t === 'all' ? 'Tous' : TYPE_LABELS[t]?.label ?? t}
                         </button>
@@ -227,21 +227,21 @@ export default function ArchimonstreManager() {
 
             {/* Table */}
             {loading ? (
-                <div className="flex items-center justify-center py-16 text-slate-500">
+                <div className="flex items-center justify-center py-16 text-muted-foreground">
                     <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
                 </div>
             ) : rows.length === 0 ? (
-                <div className="text-center py-16 text-slate-500 border border-dashed border-slate-700 rounded-xl">
+                <div className="text-center py-16 text-muted-foreground border border-dashed border-border rounded-xl">
                     <p className="font-semibold">Aucun archimonstre</p>
-                    <p className="text-sm mt-1 text-slate-600">
+                    <p className="text-sm mt-1 text-muted-foreground">
                         {search ? 'Aucun résultat pour cette recherche.' : 'Cliquez sur "Sync depuis Metamob" pour importer les données.'}
                     </p>
                 </div>
             ) : (
-                <div className="rounded-xl border border-slate-700/50 overflow-hidden text-sm">
+                <div className="rounded-xl border border-border/50 overflow-hidden text-sm">
                     <table className="w-full">
                         <thead>
-                            <tr className="bg-slate-800/60 border-b border-slate-700/50 text-slate-400 text-xs uppercase tracking-wider">
+                            <tr className="bg-elevated/60 border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider">
                                 <th className="text-left px-4 py-2.5">Monstre</th>
                                 <th className="text-left px-4 py-2.5">Type</th>
                                 <th className="text-left px-4 py-2.5">Zone Metamob</th>
@@ -251,43 +251,43 @@ export default function ArchimonstreManager() {
                                 <th className="px-4 py-2.5 w-8"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700/30">
+                        <tbody className="divide-y divide-border/30">
                             {rows.map(row => (
-                                <tr key={row.id} className="hover:bg-slate-800/30 transition-colors group">
+                                <tr key={row.id} className="hover:bg-elevated/30 transition-colors group">
                                     <td className="px-4 py-2.5">
                                         <div className="flex items-center gap-2.5">
                                             {row.imageUrl
                                                 ? <img src={row.imageUrl} alt={row.name} className="w-7 h-7 object-contain rounded" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
-                                                : <div className="w-7 h-7 rounded bg-slate-700 flex items-center justify-center text-slate-500 text-xs">?</div>
+                                                : <div className="w-7 h-7 rounded bg-muted flex items-center justify-center text-muted-foreground text-xs">?</div>
                                             }
-                                            <span className="text-white font-medium">{row.name}</span>
+                                            <span className="text-foreground font-medium">{row.name}</span>
                                         </div>
                                     </td>
                                     <td className="px-4 py-2.5">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs border ${TYPE_LABELS[row.type]?.color ?? 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs border ${TYPE_LABELS[row.type]?.color ?? 'bg-muted/20 text-foreground border-border/30'}`}>
                                             {TYPE_LABELS[row.type]?.label ?? row.type}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-2.5 text-slate-300">
+                                    <td className="px-4 py-2.5 text-foreground">
                                         <div className="flex items-center gap-1">
-                                            <MapPin size={11} className="text-slate-500 shrink-0" />
+                                            <MapPin size={11} className="text-muted-foreground shrink-0" />
                                             <span className="truncate max-w-[160px]">{row.zone || '—'}</span>
                                         </div>
-                                        {row.subzone && <div className="text-xs text-slate-500 ml-3.5 truncate max-w-[160px]">{row.subzone}</div>}
+                                        {row.subzone && <div className="text-xs text-muted-foreground ml-3.5 truncate max-w-[160px]">{row.subzone}</div>}
                                     </td>
-                                    <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">
+                                    <td className="px-4 py-2.5 text-muted-foreground text-xs whitespace-nowrap">
                                         {WORLD_LABELS[row.worldMapId] ?? `Monde ${row.worldMapId}`}
                                     </td>
-                                    <td className="px-4 py-2.5 text-slate-400">{row.level || '—'}</td>
-                                    <td className="px-4 py-2.5 font-mono text-xs text-slate-500">
+                                    <td className="px-4 py-2.5 text-muted-foreground">{row.level || '—'}</td>
+                                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
                                         {Array.isArray(row.subareaIds) && row.subareaIds.length > 0
                                             ? `[${(row.subareaIds as number[]).join(', ')}]`
-                                            : <span className="text-red-400/60">⚠ manquant</span>
+                                            : <span className="text-danger/60">⚠ manquant</span>
                                         }
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <button onClick={() => handleDelete(row.id)} disabled={deletingId === row.id}
-                                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-all disabled:opacity-50">
+                                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/20 text-danger transition-all disabled:opacity-50">
                                             {deletingId === row.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                         </button>
                                     </td>

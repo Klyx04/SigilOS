@@ -83,19 +83,19 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent pointer-events-none" />
 
             <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-3 px-5 pt-5">
-                <CardTitle className="text-base font-black flex items-center gap-2 text-white">
+                <CardTitle className="text-base font-black flex items-center gap-2 text-foreground">
                     <Skull className="h-5 w-5 text-pink-500 fill-pink-500/10" />
                     Kralamoure
                 </CardTitle>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
+                    className="h-9 w-9 rounded-xl bg-surface border border-border hover:bg-surface hover:border-border transition-all group"
                     onClick={loadEvents}
                     disabled={loading}
                 >
                     <RefreshCw
-                        className={cn("h-4 w-4 text-muted-foreground group-hover:text-white transition-colors", loading && "animate-spin")}
+                        className={cn("h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors", loading && "animate-spin")}
                     />
                 </Button>
             </CardHeader>
@@ -104,7 +104,7 @@ export function KralamoureWidget({ guildId, maxEvents = 3, canManageCalendar = f
                 {loading && events.length === 0 ? (
                     <div className="space-y-3">
                         {[...Array(2)].map((_, i) => (
-                            <div key={i} className="h-16 w-full bg-white/5 animate-pulse rounded-lg" />
+                            <div key={i} className="h-16 w-full bg-surface animate-pulse rounded-lg" />
                         ))}
                     </div>
                 ) : error ? (
@@ -190,12 +190,12 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             transition={{ delay: index * 0.1 }}
             className={cn(
                 "relative p-4 rounded-xl border transition-all duration-300 overflow-hidden",
-                "bg-zinc-900/40 backdrop-blur-md",
+                "bg-surface/40 backdrop-blur-md",
                 isImminent
-                    ? "border-red-500/50 "
+                    ? "border-danger/50 "
                     : isUpcoming
-                        ? "border-amber-500/40"
-                        : "border-white/5 hover:border-white/10"
+                        ? "border-warning/40"
+                        : "border-border hover:border-border"
             )}
         >
             {/* Background Gradient */}
@@ -205,10 +205,10 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             <div className="relative z-10 flex items-start justify-between mb-3">
                 <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                        <h4 className="font-black text-sm text-white tracking-tight">
+                        <h4 className="font-black text-sm text-foreground tracking-tight">
                             CHASSE KRALAMOURE
                         </h4>
-                        {isUpcoming && <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />}
+                        {isUpcoming && <Sparkles className="h-3 w-3 text-warning animate-pulse" />}
                     </div>
                     <p className="text-caption font-black text-pink-500 uppercase tracking-[0.1em]">
                         {event.server.name}
@@ -216,7 +216,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                 </div>
 
                 {isImported && (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
+                    <Badge className="bg-success/10 text-success border border-success/20 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
                         <CalendarCheck className="h-3 w-3 mr-1" />
                         Importé
                     </Badge>
@@ -226,7 +226,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             {/* Middle Row: Content & Time */}
             <div className="relative z-10 flex items-end justify-between gap-4">
                 <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3 text-caption font-bold text-zinc-500">
+                    <div className="flex items-center gap-3 text-caption font-bold text-muted-foreground">
                         <span className="flex items-center gap-1">
                             <Users className="h-3 w-3" />
                             {event.participants_count}
@@ -241,7 +241,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                     </div>
 
                     {event.description && (
-                        <p className="text-caption text-zinc-400/70 italic line-clamp-1 border-l-2 border-white/5 pl-2">
+                        <p className="text-caption text-muted-foreground/70 italic line-clamp-1 border-l-2 border-border pl-2">
                             {event.description}
                         </p>
                     )}
@@ -250,12 +250,12 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                 <div className="text-right shrink-0">
                     <p className={cn(
                         "text-caption font-black uppercase tracking-wider mb-0.5",
-                        isImminent ? "text-red-400" : isUpcoming ? "text-amber-400" : "text-zinc-500"
+                        isImminent ? "text-danger" : isUpcoming ? "text-warning" : "text-muted-foreground"
                     )}>
                         {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
                     </p>
                     <div className="flex items-center gap-3">
-                        <span className="text-xl font-black text-white tabular-nums leading-none">
+                        <span className="text-xl font-black text-foreground tabular-nums leading-none">
                             {format(eventTime, "HH:mm", { locale: fr })}
                         </span>
                         
@@ -263,7 +263,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 rounded-lg bg-white/5 border-white/10 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all"
+                                className="h-8 w-8 rounded-lg bg-surface border-border hover:bg-pink-500 hover:text-foreground hover:border-pink-500 transition-all"
                                 onClick={handleImport}
                                 disabled={isImporting}
                             >

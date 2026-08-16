@@ -219,17 +219,17 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
         <div className="space-y-8 relative">
             {/* Background Ambient Glow */}
             <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/[0.02] radial-gradient blur-[160px] rounded-full pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-surface radial-gradient blur-[160px] rounded-full pointer-events-none" />
 
             {/* ⚠️ Warning Banner: roles missing DASHBOARD_ACCESS */}
             {rolesNeedingMigration.length > 0 && (
-                <div className="flex items-start gap-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-6 py-4">
+                <div className="flex items-start gap-4 bg-warning/10 border border-warning/30 rounded-2xl px-6 py-4">
                     <span className="text-2xl mt-0.5">⚠️</span>
                     <div>
-                        <p className="text-amber-400 font-black uppercase tracking-widest text-sm">
+                        <p className="text-warning font-black uppercase tracking-widest text-sm">
                             Accès non explicite détecté
                         </p>
-                        <p className="text-amber-400/80 text-xs mt-1 leading-relaxed">
+                        <p className="text-warning/80 text-xs mt-1 leading-relaxed">
                             {rolesNeedingMigration.length > 0 && (
                                 <>
                                     {rolesNeedingMigration.map(rId => roles.find(r => r.id === rId)?.name || rId).join(", ")} — 
@@ -245,13 +245,13 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
 
             {/* ⚠️ Chantier #72 — kill-switch God « Membres Spécifiques » désactivé */}
             {!usersMappingEnabled && (
-                <div className="flex items-start gap-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl px-6 py-4">
+                <div className="flex items-start gap-4 bg-danger/10 border border-danger/30 rounded-2xl px-6 py-4">
                     <span className="text-2xl mt-0.5">🚫</span>
                     <div>
-                        <p className="text-rose-400 font-black uppercase tracking-widest text-sm">
+                        <p className="text-danger font-black uppercase tracking-widest text-sm">
                             Permissions « Membres Spécifiques » désactivées par la plateforme
                         </p>
-                        <p className="text-rose-400/80 text-xs mt-1 leading-relaxed">
+                        <p className="text-danger/80 text-xs mt-1 leading-relaxed">
                             L'option par membre est temporairement coupée (panel God). Les sélecteurs individuels
                             sont masqués et aucune modification ne sera enregistrée. Les permissions de <strong>rôles</strong>
                             restent entièrement configurables.
@@ -261,15 +261,15 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
             )}
 
             {/* Sticky Action Bar — Sigma 2026 Style */}
-            <div className="flex flex-col sm:flex-row justify-between items-center bg-zinc-800/90 backdrop-blur-2xl px-6 py-5 rounded-[2rem] border border-white/20 sticky top-4 z-20 gap-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]">
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-elevated/90 backdrop-blur-2xl px-6 py-5 rounded-[2rem] border border-border-strong sticky top-4 z-20 gap-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]">
                 <div className="flex items-center gap-5">
                     <div className="p-3 bg-primary/20 rounded-2xl border border-primary/40">
                         <ShieldAlert className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-base font-semibold text-white leading-none tracking-tight">Matrice des Droits</h2>
+                        <h2 className="text-base font-semibold text-foreground leading-none tracking-tight">Matrice des Droits</h2>
                         <div className="flex items-center gap-3 mt-2">
-                            <div className="h-2 w-48 bg-white/10 rounded-full overflow-hidden border border-white/5">
+                            <div className="h-2 w-48 bg-surface rounded-full overflow-hidden border border-border">
                                 <div 
                                     className="h-full bg-primary transition-all duration-200"
                                     style={{ 
@@ -277,7 +277,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                     }}
                                 />
                             </div>
-                            <span className="text-xs font-semibold text-white tracking-wide">
+                            <span className="text-xs font-semibold text-foreground tracking-wide">
                                 {totalConfigured} / {Object.values(PERMISSIONS).length} activés
                             </span>
                         </div>
@@ -286,18 +286,18 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-72">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground" />
                         <Input
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Rechercher une permission..."
-                            className="pl-11 bg-black/40 border-white/10 h-12 rounded-xl text-sm focus-visible:ring-primary/40 w-full placeholder:text-zinc-500 text-white"
+                            className="pl-11 bg-black/40 border-border h-12 rounded-xl text-sm focus-visible:ring-primary/40 w-full placeholder:text-muted-foreground text-foreground"
                         />
                     </div>
                     <Button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="bg-white hover:bg-primary text-black font-semibold rounded-xl h-12 px-8 transition-colors"
+                        className="bg-background hover:bg-primary text-foreground font-semibold rounded-xl h-12 px-8 transition-colors"
                     >
                         {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 mr-3" />}
                         {isPending ? "Synchronisation..." : "Sauvegarder"}
@@ -306,14 +306,14 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
             </div>
 
             {/* Module Filter Island */}
-            <div className="flex flex-wrap gap-2.5 p-2.5 bg-zinc-800/40 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
+            <div className="flex flex-wrap gap-2.5 p-2.5 bg-elevated/40 rounded-2xl border border-border overflow-x-auto no-scrollbar">
                 <button
                     onClick={() => setActiveModule("all")}
                     className={cn(
                         "px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide uppercase whitespace-nowrap border transition-colors",
                         activeModule === "all"
-                            ? "bg-white text-black border-white"
-                            : "bg-transparent text-zinc-400 border-transparent hover:text-white hover:bg-white/10"
+                            ? "bg-background text-foreground border-border"
+                            : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
                     )}
                 >
                     Tous les modules
@@ -328,8 +328,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             className={cn(
                                 "px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide uppercase whitespace-nowrap flex items-center gap-2.5 border transition-colors",
                                 isActive
-                                    ? "text-white border-white/20"
-                                    : "text-zinc-400 border-transparent hover:text-white hover:bg-white/10"
+                                    ? "text-foreground border-border-strong"
+                                    : "text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
                             )}
                             style={{ 
                                 backgroundColor: isActive ? `${module.color}40` : undefined,
@@ -347,9 +347,9 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
             {isSearchActive ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {visiblePermissions.length === 0 ? (
-                        <div className="col-span-full py-32 text-center bg-zinc-800/20 rounded-[2rem] border border-dashed border-white/20">
-                            <Search className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                            <p className="text-zinc-400 font-extrabold uppercase tracking-widest text-sm">No assignments found for "{searchQuery}"</p>
+                        <div className="col-span-full py-32 text-center bg-elevated/20 rounded-[2rem] border border-dashed border-border-strong">
+                            <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground font-extrabold uppercase tracking-widest text-sm">No assignments found for "{searchQuery}"</p>
                         </div>
                     ) : (
                         visiblePermissions.map(permId => (
@@ -393,7 +393,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                                 {module.label}
                                             </h2>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 text-xs font-semibold rounded border border-white/10">
+                                                <span className="px-2 py-0.5 bg-elevated text-foreground text-xs font-semibold rounded border border-border">
                                                     {modulePerms.length} permission{modulePerms.length > 1 ? "s" : ""}
                                                 </span>
                                             </div>
@@ -401,12 +401,12 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                     </div>
                                     
                                     <div className="hidden md:flex flex-col items-end gap-2">
-                                        <div className="text-xs font-semibold text-zinc-500 tracking-wide">Configurées</div>
+                                        <div className="text-xs font-semibold text-muted-foreground tracking-wide">Configurées</div>
                                         <div className="flex gap-2">
                                             {Array.from({ length: modulePerms.length }).map((_, i) => (
                                                 <div 
                                                     key={i}
-                                                    className="h-2 w-7 rounded-[2px] transition-colors duration-200 border border-white/5"
+                                                    className="h-2 w-7 rounded-[2px] transition-colors duration-200 border border-border"
                                                     style={{ 
                                                         backgroundColor: i < configuredCount ? module.color : 'rgba(255,255,255,0.08)'
                                                     }}
@@ -436,7 +436,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                 </div>
                                 
                                 {moduleKey !== MODULE_ORDER[MODULE_ORDER.length - 1] && (
-                                    <div className="h-px w-full bg-white/5" />
+                                    <div className="h-px w-full bg-surface" />
                                 )}
                             </section>
                         );

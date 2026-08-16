@@ -120,7 +120,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
     function renderModal() {
         return (
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-white/10 text-white" onClick={(e) => e.stopPropagation()}>
+                <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-border text-foreground" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-purple-400">
                             <Bell className="w-5 h-5" />
@@ -150,7 +150,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                                 placeholder="Ex: On commence dans 15 minutes, tout le monde en jeu !"
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
-                                className="bg-white/5 border-white/10 focus:border-purple-500/50 min-h-[80px] text-sm"
+                                className="bg-surface border-border focus:border-purple-500/50 min-h-[80px] text-sm"
                             />
                         </div>
 
@@ -162,7 +162,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                                         <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "w-full justify-start text-left font-normal bg-white/5 border-white/10 text-xs",
+                                                "w-full justify-start text-left font-normal bg-surface border-border text-xs",
                                                 !date && "text-muted-foreground"
                                             )}
                                         >
@@ -170,13 +170,13 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                                             {date ? format(date, "PPP", { locale: fr }) : <span>Choisir</span>}
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-black border-white/10 z-[200]">
+                                    <PopoverContent className="w-auto p-0 bg-black border-border z-[200]">
                                         <Calendar
                                             mode="single"
                                             selected={date}
                                             onSelect={setDate}
                                             initialFocus
-                                            className="bg-black text-white"
+                                            className="bg-background text-foreground"
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -190,7 +190,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                                         type="time"
                                         value={time}
                                         onChange={(e) => setTime(e.target.value)}
-                                        className="bg-white/5 border-white/10 pl-9 text-xs"
+                                        className="bg-surface border-border pl-9 text-xs"
                                     />
                                 </div>
                             </div>
@@ -201,14 +201,14 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                         <Button
                             variant="ghost"
                             onClick={() => setIsModalOpen(false)}
-                            className="text-white/60 hover:text-white"
+                            className="text-foreground/60 hover:text-foreground"
                         >
                             Annuler
                         </Button>
                         <Button
                             onClick={handleSendReminder}
                             disabled={loading}
-                            className="bg-purple-600 hover:bg-purple-500 text-white min-w-[120px]"
+                            className="bg-purple-600 hover:bg-purple-500 text-foreground min-w-[120px]"
                         >
                             {loading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />

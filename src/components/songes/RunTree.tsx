@@ -142,7 +142,7 @@ function FloorNode({ floor, isCurrent, isCompleted, isLocked, isLeader, palierCo
                 {isCompleted && (
                     <div className="absolute -bottom-1 -right-1 z-10" style={{ transform: "translateZ(30px)" }}>
                         <div className="bg-emerald-500 rounded-full p-0.5 border border-black/60 shadow">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-foreground" />
                         </div>
                     </div>
                 )}
@@ -153,10 +153,10 @@ function FloorNode({ floor, isCurrent, isCompleted, isLocked, isLeader, palierCo
                 className={cn(
                     "text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border transition-all",
                     isCurrent
-                        ? "bg-white text-black border-white  scale-110"
+                        ? "bg-background text-foreground border-border  scale-110"
                         : isCompleted
-                            ? "bg-white/15 text-white/70 border-white/15"
-                            : "bg-black/40 text-white/35 border-white/10"
+                            ? "bg-elevated text-foreground/70 border-border-strong"
+                            : "bg-black/40 text-foreground/35 border-border"
                 )}
             >
                 {floor}
@@ -233,7 +233,7 @@ function BossNode({ isCurrent, isCompleted, isLeader, onClick }: {
                 {/* Checkmark */}
                 {isCompleted && (
                     <div className="absolute bottom-6 right-6 z-10" style={{ transform: "translateZ(50px)" }}>
-                        <div className="bg-amber-500 text-black rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
+                        <div className="bg-amber-500 text-foreground rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
                             <CheckCircle2 className="w-6 h-6" />
                         </div>
                     </div>
@@ -253,7 +253,7 @@ function BossNode({ isCurrent, isCompleted, isLeader, onClick }: {
                     </span>
                     <Waves className="w-3.5 h-3.5 text-amber-400/70" />
                 </div>
-                <p className="text-caption text-white/25 tracking-wider">
+                <p className="text-caption text-foreground/25 tracking-wider">
                     Enchaînez les vagues pour maximiser vos Bribes de Rêve
                 </p>
             </div>
@@ -318,7 +318,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
     const isBossCompleted = currentFloor > 26;
 
     return (
-        <div className="w-full bg-[#05010a] rounded-xl border border-white/10 flex flex-col relative overflow-hidden shadow-2xl">
+        <div className="w-full bg-[#05010a] rounded-xl border border-border flex flex-col relative overflow-hidden shadow-2xl">
             {/* ── Background ── */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <Image
@@ -347,11 +347,11 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                     Run de {leaderName || "L'Inconnu"}
                 </h2>
                 <div className="flex items-center justify-center gap-3 mt-1">
-                    <div className="h-px w-10 bg-white/15" />
-                    <p className="text-white/30 text-xs font-mono uppercase tracking-widest">
+                    <div className="h-px w-10 bg-elevated" />
+                    <p className="text-foreground/30 text-xs font-mono uppercase tracking-widest">
                         Puits des Songes Infinis
                     </p>
-                    <div className="h-px w-10 bg-white/15" />
+                    <div className="h-px w-10 bg-elevated" />
                 </div>
             </div>
 
@@ -416,8 +416,8 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                                         isActivePalier
                                             ? "scale-110  border-current"
                                             : isPalierCompleted
-                                                ? "opacity-50 border-white/10"
-                                                : "opacity-30 border-white/5"
+                                                ? "opacity-50 border-border"
+                                                : "opacity-30 border-border"
                                     )}
                                     style={{
                                         color: palier.color,
@@ -509,7 +509,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                                     <button
                                         onClick={handleCloseRun}
                                         disabled={updating}
-                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest text-sm hover:bg-amber-500 hover:text-black transition-all duration-300   disabled:opacity-50"
+                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest text-sm hover:bg-amber-500 hover:text-foreground transition-all duration-300   disabled:opacity-50"
                                     >
                                         {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                         Clôturer la run
@@ -518,13 +518,13 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                             )}
                             {runStatus === "COMPLETED" && (
                                 <>
-                                    <p className="text-white/30 text-xs uppercase tracking-widest text-center">
+                                    <p className="text-foreground/30 text-xs uppercase tracking-widest text-center">
                                         Le rêve est scellé
                                     </p>
                                     <button
                                         onClick={handleReopenRun}
                                         disabled={updating}
-                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-white/20 text-white font-bold uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-300 shadow-lg disabled:opacity-50"
+                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-border-strong text-foreground font-bold uppercase tracking-widest text-sm hover:bg-background hover:text-foreground transition-all duration-300 shadow-lg disabled:opacity-50"
                                     >
                                         {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
                                         Réouvrir le portail
@@ -537,12 +537,12 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
             </div>
 
             {/* ── Legend compacte en bas ── */}
-            <div className="relative z-20 border-t border-white/5 px-5 py-3 flex items-center gap-4 flex-wrap">
+            <div className="relative z-20 border-t border-border px-5 py-3 flex items-center gap-4 flex-wrap">
                 <LegendItem color="bg-emerald-500" label="Étage actif" />
-                <LegendItem color="bg-white/20" label="Terminé" />
-                <LegendItem color="bg-white/5" label="Verrouillé" />
+                <LegendItem color="bg-elevated" label="Terminé" />
+                <LegendItem color="bg-surface" label="Verrouillé" />
                 {isLeader && (
-                    <span className="ml-auto text-caption text-white/20 uppercase tracking-widest">
+                    <span className="ml-auto text-caption text-foreground/20 uppercase tracking-widest">
                         {isLeader && "Cliquer pour définir l'étage"}
                     </span>
                 )}
@@ -556,7 +556,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                             <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full animate-pulse" />
                             <Loader2 className="w-12 h-12 text-cyan-400 animate-spin relative z-10" />
                         </div>
-                        <span className="text-white/60 font-medium tracking-widest uppercase text-xs animate-pulse">
+                        <span className="text-foreground/60 font-medium tracking-widest uppercase text-xs animate-pulse">
                             Voyage Onirique...
                         </span>
                     </div>
@@ -582,7 +582,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
     return (
         <div className="flex items-center gap-1.5">
             <div className={cn("w-2 h-2 rounded-full", color)} />
-            <span className="text-caption text-white/25 uppercase tracking-wider">{label}</span>
+            <span className="text-caption text-foreground/25 uppercase tracking-wider">{label}</span>
         </div>
     );
 }

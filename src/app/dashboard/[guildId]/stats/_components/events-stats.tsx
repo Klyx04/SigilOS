@@ -41,20 +41,20 @@ export default function EventsStats({ events }: EventsStatsProps) {
         <div className="space-y-5">
             {/* Quick stats */}
             <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-white/5 p-3 text-center">
-                    <CalendarDays className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-white">{events.thisMonth}</p>
-                    <p className="text-xs text-zinc-500">Ce mois</p>
+                <div className="rounded-lg bg-surface p-3 text-center">
+                    <CalendarDays className="w-5 h-5 text-info mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-foreground">{events.thisMonth}</p>
+                    <p className="text-xs text-muted-foreground">Ce mois</p>
                 </div>
-                <div className="rounded-lg bg-white/5 p-3 text-center">
+                <div className="rounded-lg bg-surface p-3 text-center">
                     <Users className="w-5 h-5 text-violet-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-white">{events.avgParticipation}</p>
-                    <p className="text-xs text-zinc-500">Moy. participants</p>
+                    <p className="text-2xl font-bold text-foreground">{events.avgParticipation}</p>
+                    <p className="text-xs text-muted-foreground">Moy. participants</p>
                 </div>
-                <div className="rounded-lg bg-white/5 p-3 text-center">
-                    <Medal className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-white">{events.total}</p>
-                    <p className="text-xs text-zinc-500">Total events</p>
+                <div className="rounded-lg bg-surface p-3 text-center">
+                    <Medal className="w-5 h-5 text-warning mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-foreground">{events.total}</p>
+                    <p className="text-xs text-muted-foreground">Total events</p>
                 </div>
             </div>
 
@@ -62,7 +62,7 @@ export default function EventsStats({ events }: EventsStatsProps) {
             {pieData.length > 0 && (
                 <div className="h-44">
                     {!mounted ? (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-caption italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-caption italic bg-surface rounded-xl border border-dashed border-border">
                             Chargement du graphique...
                         </div>
                     ) : (
@@ -97,7 +97,7 @@ export default function EventsStats({ events }: EventsStatsProps) {
                     {mounted && (
                         <div className="flex flex-wrap gap-3 justify-center">
                             {pieData.map((d, i) => (
-                                <div key={d.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                                <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                                     {d.name}
                                 </div>
@@ -110,13 +110,13 @@ export default function EventsStats({ events }: EventsStatsProps) {
             {/* Top Organizers */}
             {events.topOrganizers.length > 0 && (
                 <div>
-                    <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Top Organisateurs</h4>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Top Organisateurs</h4>
                     <div className="space-y-1.5">
                         {events.topOrganizers.map((org, i) => (
                             <div key={org.name} className="flex items-center gap-2 text-sm">
-                                <span className="text-zinc-600 w-4 font-mono">{i + 1}.</span>
-                                <span className="text-white font-medium truncate flex-1">{org.name}</span>
-                                <span className="text-cyan-400 font-bold">{org.value}</span>
+                                <span className="text-muted-foreground w-4 font-mono">{i + 1}.</span>
+                                <span className="text-foreground font-medium truncate flex-1">{org.name}</span>
+                                <span className="text-info font-bold">{org.value}</span>
                             </div>
                         ))}
                     </div>

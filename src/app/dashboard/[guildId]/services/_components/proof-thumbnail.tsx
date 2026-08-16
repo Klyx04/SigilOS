@@ -23,7 +23,7 @@ export function ProofThumbnail({ src, alt = "Preuve", size = "sm" }: ProofThumbn
         <>
             <button
                 onClick={() => setOpen(true)}
-                className={`${sizeClasses} relative rounded-lg overflow-hidden border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer group shrink-0`}
+                className={`${sizeClasses} relative rounded-lg overflow-hidden border border-border hover:border-info/50 transition-all cursor-pointer group shrink-0`}
             >
                 <img
                     src={src}
@@ -31,12 +31,12 @@ export function ProofThumbnail({ src, alt = "Preuve", size = "sm" }: ProofThumbn
                     className="absolute inset-0 w-full h-full object-cover group- transition-transform"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <span className="text-white opacity-0 group-hover:opacity-100 text-caption font-bold">🔍</span>
+                    <span className="text-foreground opacity-0 group-hover:opacity-100 text-caption font-bold">🔍</span>
                 </div>
             </button>
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 p-2">
+                <DialogContent className="max-w-2xl bg-background border-border p-2">
                     <div className="relative w-full aspect-video">
                         <img
                             src={src}

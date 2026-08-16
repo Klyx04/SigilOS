@@ -112,18 +112,18 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
         <div ref={containerRef} className="space-y-3">
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
                     value={query}
                     onChange={(e) => handleQueryChange(e.target.value)}
                     onFocus={handleFocus}
                     placeholder="Quête Ocre, Ligue de la Magie..."
                     disabled={disabled}
-                    className="bg-white/5 border-white/10 pl-9 pr-8"
+                    className="bg-surface border-border pl-9 pr-8"
                 />
-                {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-zinc-500" />}
+                {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
                 {selected && !loading && (
-                    <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors">
+                    <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                         <X className="h-3.5 w-3.5" />
                     </button>
                 )}
@@ -132,7 +132,7 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
             {/* Selected state */}
             {selected && (
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className={selected.isManual ? "border-amber-500/30 text-amber-400 text-caption" : "border-violet-500/30 text-violet-400 text-caption"}>
+                    <Badge variant="outline" className={selected.isManual ? "border-warning/30 text-warning text-caption" : "border-violet-500/30 text-violet-400 text-caption"}>
                         {selected.isManual ? "Saisie libre" : "DofusDB ✓"}
                     </Badge>
                     {selected.dofusdbUrl && (
@@ -152,7 +152,7 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
             {/* Sous-catégorie combat */}
             {showSubCategory && (
                 <div className="space-y-1.5">
-                    <p className="text-caption font-bold uppercase tracking-wider text-zinc-500">Type de combat (optionnel)</p>
+                    <p className="text-caption font-bold uppercase tracking-wider text-muted-foreground">Type de combat (optionnel)</p>
                     <div className="flex gap-2">
                         {([["COMBAT", "⚔️ Combat de quête"], ["TACTIQUE", "🧩 Combat tactique"]] as const).map(([val, label]) => (
                             <button
@@ -161,7 +161,7 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
                                 onClick={() => handleQuestType(val)}
                                 className={`px-3 py-1 rounded text-xs font-medium border transition-all ${questType === val
                                         ? "border-violet-500/60 bg-violet-500/15 text-violet-300"
-                                        : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                                        : "border-border bg-surface text-muted-foreground hover:border-border-strong"
                                     }`}
                             >
                                 {label}
@@ -173,22 +173,22 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
 
             {/* Dropdown */}
             {open && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-zinc-950 shadow-xl">
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-background shadow-xl">
                     <ul className="max-h-56 overflow-auto py-1">
                         {results.map((quest) => (
                             <li key={quest.id}>
                                 <button
                                     onClick={() => handleSelectFromAPI(quest)}
-                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0"
+                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-surface transition-colors text-left border-b border-border last:border-0"
                                 >
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-white truncate">{quest.name}</p>
+                                        <p className="font-medium text-foreground truncate">{quest.name}</p>
                                         {quest.isDungeonQuest && (
-                                            <p className="text-caption text-cyan-400">Quête de donjon</p>
+                                            <p className="text-caption text-info">Quête de donjon</p>
                                         )}
                                     </div>
                                     {quest.levelMin && (
-                                        <span className="text-xs text-zinc-500 flex-shrink-0">Niv. {quest.levelMin}{quest.levelMax && quest.levelMax !== quest.levelMin ? `–${quest.levelMax}` : ""}</span>
+                                        <span className="text-xs text-muted-foreground flex-shrink-0">Niv. {quest.levelMin}{quest.levelMax && quest.levelMax !== quest.levelMin ? `–${quest.levelMax}` : ""}</span>
                                     )}
                                 </button>
                             </li>
@@ -198,16 +198,16 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
                             <li>
                                 <button
                                     onClick={handleSelectManual}
-                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-amber-500/5 transition-colors text-left border-t border-white/5"
+                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-warning/5 transition-colors text-left border-t border-border"
                                 >
-                                    <PenLine className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                                    <span className="text-amber-400">Utiliser &quot;{query.trim()}&quot; (saisie libre)</span>
+                                    <PenLine className="h-4 w-4 text-warning flex-shrink-0" />
+                                    <span className="text-warning">Utiliser &quot;{query.trim()}&quot; (saisie libre)</span>
                                 </button>
                             </li>
                         )}
 
                         {results.length === 0 && !loading && (
-                            <li className="px-3 py-4 text-center text-sm text-zinc-500">
+                            <li className="px-3 py-4 text-center text-sm text-muted-foreground">
                                 {query.length >= 2 ? `Aucune quête trouvée sur DofusDB` : "Tapez pour rechercher..."}
                             </li>
                         )}

@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
+import { GuildAccentStyle } from "@/components/layout/guild-accent-style";
 import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
 
@@ -176,24 +177,6 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
-            {/* #5 — Couleur de guilde : teinte OKLCH imposée (le système fixe luminosité
-                et chroma → contraste garanti dans les deux thèmes, design system §5.2). */}
-            {accentHue != null && (
-                <style>{`
-                    :root {
-                        --accent: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
-                        --ring: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
-                        --accent-foreground: oklch(0.16 0.02 ${Math.max(0, Math.min(360, accentHue))});
-                        --color-guild: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
-                    }
-                    .light {
-                        --accent: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
-                        --ring: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
-                        --accent-foreground: oklch(0.98 0.005 ${Math.max(0, Math.min(360, accentHue))});
-                        --color-guild: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
-                    }
-                `}</style>
-            )}
             <GameProvider>
             <TelemetryTracker />
             <TourProvider guildId={guildId} modules={modules} user={user}>
@@ -201,7 +184,14 @@ export default async function DashboardLayout({
                     <TourOverlay />
                     <TourCompletion guildId={guildId} />
                 </div>
-                <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
+                {/* V2 Phase 0 — teinte de guilde posée sur le root EXISTANT du dashboard
+                    (pas de div empilé, ne casse pas le flex h-screen) :
+                    --guild-hue / --guild-chroma-* / --success-hue → --accent / --ring /
+                    --success recalculés par les tokens GROK. Un seul mécanisme d'injection. */}
+                <GuildAccentStyle
+                    hue={accentHue}
+                    className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout"
+                >
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
@@ -248,7 +238,7 @@ export default async function DashboardLayout({
 
                                 {/* Page Content */}
                                 <div className="flex-1 animate-in fade-in duration-200">
-                                    <Suspense fallback={<div className="h-full w-full bg-white/5 animate-pulse rounded-2xl min-h-[400px]" />}>
+                                    <Suspense fallback={<div className="h-full w-full bg-surface animate-pulse rounded-2xl min-h-[400px]" />}>
                                         {children}
                                     </Suspense>
                                 </div>
@@ -298,7 +288,7 @@ export default async function DashboardLayout({
                         requireActivities={!user.hasPreferredActivities}
                     />
                 )}
-            </div>
+            </GuildAccentStyle>
             </TourProvider>
             </GameProvider>
         </NebulaClientWrapper>

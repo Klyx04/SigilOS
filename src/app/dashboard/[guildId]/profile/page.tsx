@@ -36,7 +36,7 @@ export default async function ProfilePage({ params, searchParams }: {
 
     if (!profileResponse.success || !profileResponse.data) {
         return (
-            <div className="p-8 text-center text-red-400">
+            <div className="p-8 text-center text-danger">
                 <h2 className="text-xl font-bold">Erreur de chargement</h2>
                 <p>{profileResponse.error}</p>
             </div>

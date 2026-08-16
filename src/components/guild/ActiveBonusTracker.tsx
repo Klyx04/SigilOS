@@ -113,19 +113,19 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
                                 <Clock className="w-6 h-6 text-orange-400" />
                             )}
                             <div>
-                                <h3 className="font-bold text-white">{bonus.config.name}</h3>
-                                <p className="text-xs text-slate-400">{bonus.config.description}</p>
+                                <h3 className="font-bold text-foreground">{bonus.config.name}</h3>
+                                <p className="text-xs text-muted-foreground">{bonus.config.description}</p>
                             </div>
                         </div>
 
                         {/* Progress + Time */}
                         <div className="flex-1 max-w-md">
                             {/* Progress Bar */}
-                            <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden mb-1">
+                            <div className="relative h-3 bg-elevated rounded-full overflow-hidden mb-1">
                                 <div
                                     className={`
                                         h-full transition-all duration-300 rounded-full
-                                        ${isActive ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-orange-500 to-yellow-400"}
+                                        ${isActive ? "bg-gradient-to-r from-green-500 to-success" : "bg-gradient-to-r from-orange-500 to-yellow-400"}
                                     `}
                                     style={{ width: `${progress}%` }}
                                 />
@@ -136,7 +136,7 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
                                 <span className={isActive ? "text-green-400" : "text-orange-400"}>
                                     {isPending ? "Activation dans" : "Expire dans"}
                                 </span>
-                                <span className="font-mono font-bold text-white">
+                                <span className="font-mono font-bold text-foreground">
                                     {timeRemaining}
                                 </span>
                             </div>

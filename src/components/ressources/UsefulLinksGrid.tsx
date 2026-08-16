@@ -54,7 +54,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[400px]">
                 {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="h-64 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse" />
+                    <div key={i} className="h-64 rounded-2xl bg-surface border border-border animate-pulse" />
                 ))}
             </div>
         );
@@ -66,7 +66,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                 <div className="flex justify-end pr-2">
                     <button
                         onClick={() => setEditingCatId("new")}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-success/10 hover:bg-success/20 text-success border border-success/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                     >
                         <Plus className="h-3.5 w-3.5" /> Nouvelle Catégorie
                     </button>
@@ -100,7 +100,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                     className="w-1.5 h-5 rounded-full flex-shrink-0"
                                     style={{ background: cat.color, boxShadow: `0 0 8px ${cat.color}80` }}
                                 />
-                                <h3 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-400">
+                                <h3 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">
                                     {cat.label}
                                 </h3>
                             </div>
@@ -109,13 +109,13 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
                                         onClick={() => setAddingToCatId(cat.id)}
-                                        className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-colors"
+                                        className="p-1.5 hover:bg-surface rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         <Plus className="h-3.5 w-3.5" />
                                     </button>
                                     <button
                                         onClick={() => setEditingCatId(cat.id)}
-                                        className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-colors"
+                                        className="p-1.5 hover:bg-surface rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         <Edit2 className="h-3.5 w-3.5" />
                                     </button>
@@ -141,7 +141,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                 }
                             `}</style>
                             {cat.links.length === 0 && (
-                                <div className="py-10 text-center text-zinc-600 text-caption font-medium tracking-widest uppercase italic">
+                                <div className="py-10 text-center text-muted-foreground text-caption font-medium tracking-widest uppercase italic">
                                     Aucun lien pour le moment
                                 </div>
                             )}
@@ -187,7 +187,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-white group-hover/link:text-white/90 transition-colors truncate">
+                                                <span className="text-sm font-semibold text-foreground group-hover/link:text-foreground/90 transition-colors truncate">
                                                     {link.title}
                                                 </span>
                                                 {link.isOfficial && (
@@ -203,7 +203,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-xs text-zinc-500 leading-tight truncate">{link.description}</p>
+                                            <p className="text-xs text-muted-foreground leading-tight truncate">{link.description}</p>
                                         </div>
 
                                         <ExternalLink
@@ -216,7 +216,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                         <div className="absolute top-1/2 -translate-y-1/2 right-10 flex gap-1 opacity-0 group-hover/link-container:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => setEditingLinkId(link.id)}
-                                                className="p-1 px-2 bg-black/60 hover:bg-black/80 text-zinc-400 hover:text-white rounded border border-white/5 text-caption transition-colors"
+                                                className="p-1 px-2 bg-black/60 hover:bg-black/80 text-muted-foreground hover:text-foreground rounded border border-border text-caption transition-colors"
                                             >
                                                 Edit
                                             </button>
@@ -276,45 +276,45 @@ function CategoryModal({ guildId, category, onClose, onSuccess }: any) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="w-full max-w-md bg-[#0f1113] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+            <div className="w-full max-w-md bg-[#0f1113] border border-border rounded-2xl p-6 shadow-2xl relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors">
                     <X className="h-5 w-5" />
                 </button>
 
-                <h2 className="text-xl font-black uppercase tracking-widest text-white mb-6">
+                <h2 className="text-xl font-black uppercase tracking-widest text-foreground mb-6">
                     {category ? "Editer Catégorie" : "Nouvelle Catégorie"}
                 </h2>
 
                 <div className="space-y-4">
                     <div>
-                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Nom</label>
-                        <input value={label} onChange={e => setLabel(e.target.value)} type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                        <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Nom</label>
+                        <input value={label} onChange={e => setLabel(e.target.value)} type="text" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-success/50 transition-colors" />
                     </div>
                     <div>
-                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Couleur (Hex)</label>
+                        <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Couleur (Hex)</label>
                         <div className="flex gap-3">
-                            <input value={color} onChange={e => setColor(e.target.value)} type="text" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
-                            <div className="w-12 h-12 rounded-xl border border-white/10" style={{ background: color }} />
+                            <input value={color} onChange={e => setColor(e.target.value)} type="text" className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-success/50 transition-colors" />
+                            <div className="w-12 h-12 rounded-xl border border-border" style={{ background: color }} />
                         </div>
                     </div>
                     <div>
-                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Ordre</label>
-                        <input value={order} onChange={e => setOrder(parseInt(e.target.value))} type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                        <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Ordre</label>
+                        <input value={order} onChange={e => setOrder(parseInt(e.target.value))} type="number" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-success/50 transition-colors" />
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3 mt-8">
                     {category && (
-                        <button onClick={handleDelete} className="flex items-center justify-center gap-2 p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl transition-all">
+                        <button onClick={handleDelete} className="flex items-center justify-center gap-2 p-3 bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 rounded-xl transition-all">
                             <Trash2 className="h-5 w-5" />
                         </button>
                     )}
                     <button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-success hover:bg-success disabled:opacity-50 text-foreground rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
                     >
-                        {isPending ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Save className="h-4 w-4" />}
+                        {isPending ? <Loader2 className="h-4 w-4 animate-spin text-foreground" /> : <Save className="h-4 w-4" />}
                         {category ? "Enregistrer" : "Créer"}
                     </button>
                 </div>
@@ -360,49 +360,49 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="w-full max-w-md bg-[#0f1113] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+            <div className="w-full max-w-md bg-[#0f1113] border border-border rounded-2xl p-6 shadow-2xl relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors">
                     <X className="h-5 w-5" />
                 </button>
 
-                <h2 className="text-xl font-black uppercase tracking-widest text-white mb-6">
+                <h2 className="text-xl font-black uppercase tracking-widest text-foreground mb-6">
                     {link ? "Editer Lien" : "Ajouter un Lien"}
                 </h2>
 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div className="grid grid-cols-4 gap-3">
                         <div className="col-span-1">
-                            <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Emoji (Optionnel)</label>
-                            <input value={emoji} onChange={e => setEmoji(e.target.value)} type="text" placeholder="🔗" className="text-center w-full bg-white/5 border border-white/10 rounded-xl px-2 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                            <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Emoji (Optionnel)</label>
+                            <input value={emoji} onChange={e => setEmoji(e.target.value)} type="text" placeholder="🔗" className="text-center w-full bg-surface border border-border rounded-xl px-2 py-3 text-foreground focus:outline-none focus:border-success/50 transition-colors" />
                         </div>
                         <div className="col-span-3">
-                            <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Titre</label>
-                            <input value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                            <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Titre</label>
+                            <input value={title} onChange={e => setTitle(e.target.value)} type="text" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-success/50 transition-colors" />
                         </div>
                     </div>
                     <div>
-                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">URL</label>
-                        <input value={url} onChange={e => setUrl(e.target.value)} type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                        <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">URL</label>
+                        <input value={url} onChange={e => setUrl(e.target.value)} type="text" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-xs focus:outline-none focus:border-success/50 transition-colors" />
                     </div>
                     <div>
-                        <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Description</label>
-                        <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-colors resize-none" />
+                        <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Description</label>
+                        <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2} className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-xs focus:outline-none focus:border-success/50 transition-colors resize-none" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-caption uppercase font-black tracking-widest text-zinc-500 mb-1.5 block">Ordre</label>
-                            <input value={order} onChange={e => setOrder(parseInt(e.target.value))} type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                            <label className="text-caption uppercase font-black tracking-widest text-muted-foreground mb-1.5 block">Ordre</label>
+                            <input value={order} onChange={e => setOrder(parseInt(e.target.value))} type="number" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-success/50 transition-colors" />
                         </div>
                         <div className="flex items-center h-full pt-6">
                             <label className="flex items-center gap-3 cursor-pointer group/check">
                                 <div className={cn(
                                     "w-6 h-6 rounded border transition-all flex items-center justify-center",
-                                    isOfficial ? "bg-red-500 border-red-500" : "bg-white/5 border-white/10"
+                                    isOfficial ? "bg-danger border-danger" : "bg-surface border-border"
                                 )}>
-                                    {isOfficial && <Save className="h-3 w-3 text-white" />}
+                                    {isOfficial && <Save className="h-3 w-3 text-foreground" />}
                                 </div>
                                 <input type="checkbox" checked={isOfficial} onChange={e => setIsOfficial(e.target.checked)} className="hidden" />
-                                <span className="text-caption uppercase font-black tracking-widest text-zinc-400 group-hover/check:text-white transition-colors">Officiel ?</span>
+                                <span className="text-caption uppercase font-black tracking-widest text-muted-foreground group-hover/check:text-foreground transition-colors">Officiel ?</span>
                             </label>
                         </div>
                     </div>
@@ -410,16 +410,16 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
 
                 <div className="flex items-center gap-3 mt-8">
                     {link && (
-                        <button onClick={handleDelete} className="flex items-center justify-center gap-2 p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl transition-all">
+                        <button onClick={handleDelete} className="flex items-center justify-center gap-2 p-3 bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 rounded-xl transition-all">
                             <Trash2 className="h-5 w-5" />
                         </button>
                     )}
                     <button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-success hover:bg-success disabled:opacity-50 text-foreground rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
                     >
-                        {isPending ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Save className="h-4 w-4" />}
+                        {isPending ? <Loader2 className="h-4 w-4 animate-spin text-foreground" /> : <Save className="h-4 w-4" />}
                         {link ? "Mettre à jour" : "Ajouter"}
                     </button>
                 </div>

@@ -209,7 +209,7 @@ export function RunCloseModal({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 12 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="relative w-full max-w-md bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                        className="relative w-full max-w-md bg-background border border-border rounded-2xl shadow-2xl overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Top glow bar (difficulty color) */}
@@ -221,7 +221,7 @@ export function RunCloseModal({
                         />
 
                         {/* Header */}
-                        <div className="p-6 pb-4 border-b border-white/5 bg-slate-900/30">
+                        <div className="p-6 pb-4 border-b border-border bg-surface/30">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-center gap-3">
                                     <div
@@ -234,7 +234,7 @@ export function RunCloseModal({
                                         <Moon className="w-5 h-5" style={{ color: accentColor }} />
                                     </div>
                                     <div>
-                                        <h2 className="text-base font-black text-white">
+                                        <h2 className="text-base font-black text-foreground">
                                             Clôturer la Run
                                         </h2>
                                         <p
@@ -247,7 +247,7 @@ export function RunCloseModal({
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="text-slate-600 hover:text-white transition-colors mt-0.5"
+                                    className="text-muted-foreground hover:text-foreground transition-colors mt-0.5"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -259,7 +259,7 @@ export function RunCloseModal({
 
                             {/* Loading state */}
                             {isLoading && (
-                                <div className="flex flex-col items-center justify-center py-8 gap-3 text-slate-500">
+                                <div className="flex flex-col items-center justify-center py-8 gap-3 text-muted-foreground">
                                     <Loader2 className="w-6 h-6 animate-spin" style={{ color: accentColor }} />
                                     <span className="text-sm">Chargement des profils…</span>
                                 </div>
@@ -279,15 +279,15 @@ export function RunCloseModal({
                                             className="w-4 h-4 mt-0.5 shrink-0"
                                             style={{ color: accentColor }}
                                         />
-                                        <p className="text-xs text-slate-300 leading-relaxed">
+                                        <p className="text-xs text-foreground leading-relaxed">
                                             Valide les membres qui ont{" "}
-                                            <strong className="text-white">réellement participé</strong>{" "}
+                                            <strong className="text-foreground">réellement participé</strong>{" "}
                                             pour leur attribuer{" "}
                                             <strong style={{ color: accentColor }}>
                                                 +{pts} point{pts > 1 ? "s" : ""} de contribution
                                             </strong>
                                             .{" "}
-                                            <span className="text-slate-500">
+                                            <span className="text-muted-foreground">
                                                 Tu ne reçois pas de point en tant que leader.
                                             </span>
                                         </p>
@@ -299,7 +299,7 @@ export function RunCloseModal({
                                             className="w-2 h-2 rounded-full shrink-0"
                                             style={{ backgroundColor: accentColor }}
                                         />
-                                        <span className="text-caption uppercase tracking-widest font-bold text-slate-400">
+                                        <span className="text-caption uppercase tracking-widest font-bold text-muted-foreground">
                                             Barème — {diffConfig?.label}
                                         </span>
                                         <div className="flex items-center gap-1 ml-auto">
@@ -325,7 +325,7 @@ export function RunCloseModal({
                                     {/* Participants list */}
                                     {totalListCount > 0 && (
                                         <div className="space-y-2">
-                                            <p className="text-caption text-slate-500 font-bold uppercase tracking-widest">
+                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
                                                 Membres ({runParticipants.length} dans la run
                                                 {extraMembers.length > 0
                                                     ? ` + ${extraMembers.length} ajouté${extraMembers.length > 1 ? "s" : ""}`
@@ -342,8 +342,8 @@ export function RunCloseModal({
                                                         className={cn(
                                                             "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
                                                             isVal 
-                                                                ? "bg-black/40 border-white/10 shadow-inner" 
-                                                                : "bg-slate-900/20 border-white/5 hover:bg-slate-900/40"
+                                                                ? "bg-black/40 border-border shadow-inner" 
+                                                                : "bg-surface/20 border-border hover:bg-surface/40"
                                                         )}
                                                         style={{ 
                                                             borderColor: isVal ? `${accentColor}20` : undefined,
@@ -352,12 +352,12 @@ export function RunCloseModal({
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
-                                                            <AvatarFallback className="bg-slate-800 text-white/50 text-caption font-black">
+                                                            <AvatarFallback className="bg-elevated text-foreground/50 text-caption font-black">
                                                                 {m.name.charAt(0).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-white/90 truncate">
+                                                            <p className="text-sm font-bold text-foreground/90 truncate">
                                                                 {m.name}
                                                             </p>
                                                         </div>
@@ -374,11 +374,11 @@ export function RunCloseModal({
                                                             </span>
                                                         )}
                                                         {isVal ? (
-                                                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-white/5 border border-white/10">
+                                                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-surface border border-border">
                                                                 <CheckCircle2 className="w-3.5 h-3.5" style={{ color: accentColor }} />
                                                             </div>
                                                         ) : (
-                                                            <Circle className="w-5 h-5 text-white/5 shrink-0" />
+                                                            <Circle className="w-5 h-5 text-foreground/5 shrink-0" />
                                                         )}
                                                     </button>
                                                 );
@@ -394,12 +394,12 @@ export function RunCloseModal({
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
-                                                            <AvatarFallback className="bg-slate-700 text-white text-xs font-bold">
+                                                            <AvatarFallback className="bg-muted text-foreground text-xs font-bold">
                                                                 {m.name.charAt(0).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-white truncate">
+                                                            <p className="text-sm font-bold text-foreground truncate">
                                                                 {m.name}
                                                             </p>
                                                             <p className="text-caption text-amber-400/70">
@@ -410,12 +410,12 @@ export function RunCloseModal({
                                                             {isVal ? (
                                                                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                                                             ) : (
-                                                                <Circle className="w-5 h-5 text-slate-600" />
+                                                                <Circle className="w-5 h-5 text-muted-foreground" />
                                                             )}
                                                         </button>
                                                         <button
                                                             onClick={() => removeExtra(m.id)}
-                                                            className="text-slate-600 hover:text-rose-400 transition-colors shrink-0"
+                                                            className="text-muted-foreground hover:text-rose-400 transition-colors shrink-0"
                                                         >
                                                             <X className="w-4 h-4" />
                                                         </button>
@@ -427,18 +427,18 @@ export function RunCloseModal({
 
                                     {/* Empty state */}
                                     {totalListCount === 0 && (
-                                        <div className="text-center py-4 text-slate-600">
+                                        <div className="text-center py-4 text-muted-foreground">
                                             <Circle className="w-8 h-8 mx-auto mb-2 opacity-30" />
                                             <p className="text-sm">Aucun membre dans cette run.</p>
-                                            <p className="text-xs text-slate-700 mt-1">
+                                            <p className="text-xs text-muted-foreground mt-1">
                                                 Tu peux en ajouter manuellement ci-dessous.
                                             </p>
                                         </div>
                                     )}
 
                                     {/* ── Add member manually ─────────────────────────────── */}
-                                    <div className="pt-2 border-t border-white/5" ref={dropdownRef}>
-                                        <p className="text-caption text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <div className="pt-2 border-t border-border" ref={dropdownRef}>
+                                        <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                             <UserPlus className="w-3 h-3" />
                                             Ajouter un participant hors-liste
                                         </p>
@@ -449,7 +449,7 @@ export function RunCloseModal({
                                                     setDropdownOpen((v) => !v);
                                                     setTimeout(() => searchRef.current?.focus(), 50);
                                                 }}
-                                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-900/60 border border-white/10 rounded-xl text-sm text-slate-400 hover:border-purple-500/40 hover:text-white transition-all"
+                                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-surface/60 border border-border rounded-xl text-sm text-muted-foreground hover:border-purple-500/40 hover:text-foreground transition-all"
                                             >
                                                 <Search className="w-4 h-4 shrink-0" />
                                                 <span className="flex-1 text-left truncate">
@@ -467,24 +467,24 @@ export function RunCloseModal({
                                                         animate={{ opacity: 1, y: 0 }}
                                                         exit={{ opacity: 0, y: -4 }}
                                                         transition={{ duration: 0.15 }}
-                                                        className="absolute z-10 top-full mt-1 w-full bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                                                        className="absolute z-10 top-full mt-1 w-full bg-surface border border-border rounded-xl shadow-2xl overflow-hidden"
                                                     >
-                                                        <div className="p-2 border-b border-white/5">
+                                                        <div className="p-2 border-b border-border">
                                                             <div className="flex items-center gap-2 px-2">
-                                                                <Search className="w-3 h-3 text-slate-500 shrink-0" />
+                                                                <Search className="w-3 h-3 text-muted-foreground shrink-0" />
                                                                 <input
                                                                     ref={searchRef}
                                                                     type="text"
                                                                     value={search}
                                                                     onChange={(e) => setSearch(e.target.value)}
                                                                     placeholder="Nom du membre…"
-                                                                    className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none py-1"
+                                                                    className="flex-1 bg-transparent text-sm text-foreground placeholder-slate-600 outline-none py-1"
                                                                 />
                                                             </div>
                                                         </div>
                                                         <div className="max-h-48 overflow-y-auto">
                                                             {filteredSuggestions.length === 0 ? (
-                                                                <p className="text-center text-xs text-slate-600 py-4 italic">
+                                                                <p className="text-center text-xs text-muted-foreground py-4 italic">
                                                                     {search ? "Aucun résultat" : "Tous les membres sont déjà listés"}
                                                                 </p>
                                                             ) : (
@@ -493,15 +493,15 @@ export function RunCloseModal({
                                                                         key={m.id}
                                                                         type="button"
                                                                         onClick={() => addExtra(m)}
-                                                                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                                                                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface transition-colors text-left"
                                                                     >
                                                                         <Avatar className="w-7 h-7 shrink-0">
                                                                             <AvatarImage src={m.image ?? undefined} />
-                                                                            <AvatarFallback className="bg-slate-700 text-white text-xs">
+                                                                            <AvatarFallback className="bg-muted text-foreground text-xs">
                                                                                 {m.name.charAt(0).toUpperCase()}
                                                                             </AvatarFallback>
                                                                         </Avatar>
-                                                                        <span className="text-sm text-white font-medium truncate">
+                                                                        <span className="text-sm text-foreground font-medium truncate">
                                                                             {m.name}
                                                                         </span>
                                                                     </button>
@@ -516,8 +516,8 @@ export function RunCloseModal({
 
                                     {/* Summary */}
                                     {validatedCount > 0 && (
-                                        <p className="text-caption text-slate-500 text-center">
-                                            <strong className="text-slate-300">{validatedCount}</strong>{" "}
+                                        <p className="text-caption text-muted-foreground text-center">
+                                            <strong className="text-foreground">{validatedCount}</strong>{" "}
                                             membre{validatedCount > 1 ? "s" : ""}{" "}
                                             recevra{validatedCount > 1 ? "ont" : ""}{" "}
                                             <strong style={{ color: accentColor }}>
@@ -530,19 +530,19 @@ export function RunCloseModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 pb-6 pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 border-t border-white/5">
+                        <div className="px-6 pb-6 pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 border-t border-border">
                             <Button
                                 variant="ghost"
                                 onClick={onClose}
                                 disabled={isPending}
-                                className="flex-1 h-12 border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 font-bold rounded-xl transition-all order-2 sm:order-1"
+                                className="flex-1 h-12 border border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-surface font-bold rounded-xl transition-all order-2 sm:order-1"
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending || isLoading}
-                                className="flex-1 h-12 text-white font-black uppercase tracking-[0.15em] text-caption rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl order-1 sm:order-2"
+                                className="flex-1 h-12 text-foreground font-black uppercase tracking-[0.15em] text-caption rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl order-1 sm:order-2"
                                 style={{ 
                                     backgroundColor: "#0d0d12",
                                     borderColor: `${accentColor}30`,

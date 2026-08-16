@@ -16,14 +16,14 @@ export function GodHeader() {
     const pathname = usePathname();
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-slate-800/50 bg-slate-950/95 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80">
+        <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="container mx-auto px-4 py-4">
                 <div className="flex items-center justify-between">
                     {/* Left: Branding */}
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <Crown className="w-6 h-6 text-yellow-500" />
-                            <h1 className="text-xl font-bold text-white">
+                            <h1 className="text-xl font-bold text-foreground">
                                 SigilOS <span className="text-yellow-500">GOD</span>
                             </h1>
                         </div>
@@ -47,8 +47,8 @@ export function GodHeader() {
                                     className={cn(
                                         "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
                                         isActive
-                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                                            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                                            ? "bg-info text-info-foreground shadow-lg shadow-indigo-600/30"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-elevated/50"
                                     )}
                                 >
                                     <Icon className="w-4 h-4" />
@@ -62,14 +62,14 @@ export function GodHeader() {
                     <div className="flex items-center gap-2">
                         <Link
                             href="/"
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-elevated/50 transition-all"
                         >
                             <Home className="w-4 h-4" />
                             <span className="hidden sm:inline">Retour App</span>
                         </Link>
                         <button
                             onClick={() => signOut({ callbackUrl: "/" })}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-950/30 transition-all"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-danger hover:text-danger hover:bg-danger/30 transition-all"
                         >
                             <LogOut className="w-4 h-4" />
                             <span className="hidden sm:inline">Déconnexion</span>

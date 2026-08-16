@@ -28,25 +28,25 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
         label: "Tous",
         icon: <Star className="w-4 h-4" />,
         color: "text-purple-300 border-purple-500/30 hover:bg-purple-500/20",
-        activeColor: "bg-purple-600 text-white border-purple-600"
+        activeColor: "bg-purple-600 text-foreground border-purple-600"
     },
     REVE: {
         label: "Rêve",
         icon: <Moon className="w-4 h-4" />,
         color: "text-green-300 border-green-500/30 hover:bg-green-500/20",
-        activeColor: "bg-green-600 text-white border-green-600"
+        activeColor: "bg-green-600 text-foreground border-green-600"
     },
     PARADOXE: {
         label: "Paradoxe",
         icon: <Sparkles className="w-4 h-4" />,
         color: "text-amber-300 border-amber-500/30 hover:bg-amber-500/20",
-        activeColor: "bg-amber-600 text-white border-amber-600"
+        activeColor: "bg-amber-600 text-foreground border-amber-600"
     },
     CAUCHEMAR: {
         label: "Cauchemar",
         icon: <Flame className="w-4 h-4" />,
         color: "text-red-300 border-red-500/30 hover:bg-red-900/20",
-        activeColor: "bg-red-600 text-white border-red-600"
+        activeColor: "bg-red-600 text-foreground border-red-600"
     },
 };
 
@@ -95,7 +95,7 @@ export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, i
                             <span className="font-medium">{config.label}</span>
                             <span className={`
                                 text-xs px-1.5 py-0.5 rounded-full
-                                ${isActive ? "bg-white/20" : "bg-current/10"}
+                                ${isActive ? "bg-elevated" : "bg-current/10"}
                             `}>
                                 {count}
                             </span>

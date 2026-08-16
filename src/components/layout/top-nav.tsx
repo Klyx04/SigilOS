@@ -112,7 +112,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-zinc-950 shadow-2xl">
+                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-background shadow-2xl">
                         <SheetTitle className="sr-only">Menu de Navigation Mobile</SheetTitle>
                         <SheetDescription className="sr-only">Accédez aux différents modules et outils de votre guilde.</SheetDescription>
                         <AppSidebar {...sidebarProps} />
@@ -120,15 +120,15 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                 </Sheet>
 
                 {/* Clear, High-Contrast Breadcrumbs */}
-                <nav className="hidden sm:flex items-center text-xs font-medium text-zinc-400 gap-1.5">
+                <nav className="hidden sm:flex items-center text-xs font-medium text-muted-foreground gap-1.5">
                     <Link 
                         href={`/dashboard/${sidebarProps.guildId}`} 
                         className={cn(
-                            "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:text-white hover:bg-white/5",
-                            breadcrumbSegments.length === 0 ? "text-foreground bg-white/5" : "text-zinc-400"
+                            "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:text-foreground hover:bg-surface",
+                            breadcrumbSegments.length === 0 ? "text-foreground bg-surface" : "text-muted-foreground"
                         )}
                     >
-                        <Home className="w-3.5 h-3.5 text-zinc-400" />
+                        <Home className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>Tableau de bord</span>
                     </Link>
 
@@ -138,14 +138,14 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
 
                         return (
                             <div key={href} className="flex items-center gap-1.5">
-                                <ChevronRight className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                 <Link
                                     href={href}
                                     className={cn(
                                         "px-2 py-1 rounded-md transition-colors truncate max-w-[120px] lg:max-w-[200px]",
                                         isLast 
-                                            ? "text-foreground bg-white/[0.04] border border-white/10" 
-                                            : "text-zinc-400 hover:text-white hover:bg-white/5 font-medium"
+                                            ? "text-foreground bg-surface border border-border" 
+                                            : "text-muted-foreground hover:text-foreground hover:bg-surface font-medium"
                                     )}
                                 >
                                     {formatSegment(segment)}
@@ -196,13 +196,13 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     {/* Interactive Tools */}
                     <div className="flex items-center px-1">
                         {roadmapEnabled && (
-                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="Roadmap">
+                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="Roadmap">
                                 <Rocket className="w-4 h-4" />
                             </Link>
                         )}
 
                         {sidebarProps.user.isAdmin && (
-                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors" title="RBAC / Permissions">
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />
                             </Link>
                         )}
@@ -225,16 +225,16 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                 variant="ghost"
                                 onClick={() => setIsArcadeOpen(!isArcadeOpen)}
                                 className={cn(
-                                    "h-10 px-4 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500 rounded-none transition-all flex items-center gap-2",
-                                    isArcadeOpen && "bg-emerald-500/20"
+                                    "h-10 px-4 bg-success/5 hover:bg-success/10 text-success rounded-none transition-all flex items-center gap-2",
+                                    isArcadeOpen && "bg-success/20"
                                 )}
                             >
                                 <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
                                 </span>
                                 <span className="text-caption font-semibold uppercase tracking-tighter hidden xl:inline">Live</span>
-                                <span className="bg-emerald-500 text-emerald-950 text-caption font-semibold px-1.5 py-0.5 rounded-md">
+                                <span className="bg-success text-success-foreground text-caption font-semibold px-1.5 py-0.5 rounded-md">
                                     {roomCount}
                                 </span>
                             </Button>
@@ -252,17 +252,17 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                 {((sidebarProps as any).modules?.chat) && (
                     <button 
                         onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
-                        className="h-9 px-3 flex items-center justify-center gap-2 text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-colors group relative mr-2 ring-1 ring-emerald-500/10 hover:ring-emerald-500/30"
+                        className="h-9 px-3 flex items-center justify-center gap-2 text-success text-success bg-success/10 hover:bg-success/20 border border-success/20 rounded-xl transition-colors group relative mr-2 ring-1 ring-success/10 hover:ring-success/30"
                         title="Chat de Guilde"
                     >
                         <MessageSquare className="w-4 h-4  transition-transform" />
                         <span className="text-caption font-semibold uppercase tracking-wider hidden sm:inline">Chat Live</span>
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-[2px] border-background" />
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-success rounded-full animate-pulse border-[2px] border-background" />
                     </button>
                 )}
 
-                {/* #16 — Bascule clair / sombre (masquée si kill-switch God actif) */}
-                <ThemeToggle className="h-9 w-9" />
+                {/* #16/V2 — Bascule clair / sombre (désactivée si kill-switch God actif) */}
+                <ThemeToggle />
 
                 {/* 4. User Profile (Standalone Dropdown) */}
                 <div className="flex items-center ml-2">
@@ -270,52 +270,52 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button
-                                    className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-white/5 transition-colors outline-none"
+                                    className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-surface transition-colors outline-none"
                                 >
                                     <div className="flex flex-col items-end leading-tight hidden lg:flex">
-                                        <span className="text-xs font-bold text-zinc-200 group-hover:text-white transition-colors">
+                                        <span className="text-xs font-bold text-foreground group-hover:text-foreground transition-colors">
                                             {sidebarProps.user.name}
                                         </span>
-                                        <span className="text-caption text-zinc-500 font-medium">
+                                        <span className="text-caption text-muted-foreground font-medium">
                                             {sidebarProps.user.roleName || "Membre"}
                                         </span>
                                     </div>
-                                    <Avatar className="h-8 w-8 border border-white/10 rounded-lg shrink-0">
+                                    <Avatar className="h-8 w-8 border border-border rounded-lg shrink-0">
                                         <AvatarImage src={sidebarProps.user.image || ""} />
-                                        <AvatarFallback className="text-xs font-bold bg-zinc-800 text-zinc-300">
+                                        <AvatarFallback className="text-xs font-bold bg-elevated text-foreground">
                                             {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent 
-                                className="w-52 bg-zinc-950 border border-white/10 shadow-2xl rounded-xl p-1 backdrop-blur-xl animate-in fade-in duration-150" 
+                                className="w-52 bg-background border border-border shadow-2xl rounded-xl p-1 backdrop-blur-xl animate-in fade-in duration-150" 
                                 align="end" 
                                 sideOffset={8}
                             >
-                                <DropdownMenuLabel className="px-3 py-2 text-caption font-bold text-zinc-500 uppercase tracking-wider">
+                                <DropdownMenuLabel className="px-3 py-2 text-caption font-bold text-muted-foreground uppercase tracking-wider">
                                     Mon Compte
                                 </DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-white/5" />
-                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
-                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-2.5 text-xs font-medium text-zinc-300 hover:text-white">
-                                        <Users className="w-4 h-4 text-zinc-400" />
+                                <DropdownMenuSeparator className="bg-surface" />
+                                <DropdownMenuItem asChild className="focus:bg-surface cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-2.5 text-xs font-medium text-foreground hover:text-foreground">
+                                        <Users className="w-4 h-4 text-muted-foreground" />
                                         <span>Mon Profil</span>
                                     </Link>
                                 </DropdownMenuItem>
                                 
-                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
-                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-2.5 text-xs font-medium text-zinc-300 hover:text-white">
-                                        <Settings className="w-4 h-4 text-zinc-400" />
+                                <DropdownMenuItem asChild className="focus:bg-surface cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-2.5 text-xs font-medium text-foreground hover:text-foreground">
+                                        <Settings className="w-4 h-4 text-muted-foreground" />
                                         <span>Réglages</span>
                                     </Link>
                                 </DropdownMenuItem>
                                 
-                                <DropdownMenuSeparator className="bg-white/5" />
+                                <DropdownMenuSeparator className="bg-surface" />
                                 
                                 <DropdownMenuItem 
                                     onClick={() => signOut()} 
-                                    className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer rounded-lg px-3 py-2.5 transition-colors flex items-center gap-2.5 text-xs font-medium"
+                                    className="text-danger focus:text-danger focus:bg-danger/10 cursor-pointer rounded-lg px-3 py-2.5 transition-colors flex items-center gap-2.5 text-xs font-medium"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>Déconnexion</span>

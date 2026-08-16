@@ -10,9 +10,9 @@ import { motion } from "framer-motion";
 
 export function IntelligenceCenter({ data }: { data: FocusCardData }) {
     const icons = {
-        OCRE_STEP: <Target className="w-6 h-6 text-amber-400" />,
-        SONGES_RECRUIT: <Users className="w-6 h-6 text-purple-400" />,
-        MISSION_URGENT: <Sparkles className="w-6 h-6 text-emerald-400" />,
+        OCRE_STEP: <Target className="w-6 h-6 text-warning" />,
+        SONGES_RECRUIT: <Users className="w-6 h-6 text-info" />,
+        MISSION_URGENT: <Sparkles className="w-6 h-6 text-success" />,
         WELCOME: <BrainCircuit className="w-6 h-6 text-primary" />,
     };
 
@@ -22,14 +22,14 @@ export function IntelligenceCenter({ data }: { data: FocusCardData }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
         >
-            <Card className="relative overflow-hidden group border-none bg-zinc-950/40 backdrop-blur-2xl ">
+            <Card className="relative overflow-hidden group border-none bg-background/40 backdrop-blur-2xl ">
                 {/* Liquid Glass Effects */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-50" />
                 <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
 
                 <CardContent className="p-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
                     {/* Visual Indicator */}
-                    <div className="relative h-16 w-16 shrink-0 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 shadow-inner">
+                    <div className="relative h-16 w-16 shrink-0 flex items-center justify-center rounded-2xl bg-surface border border-border shadow-inner">
                         <div className="absolute inset-0 blur-xl bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                         {icons[data.type]}
                     </div>
@@ -41,10 +41,10 @@ export function IntelligenceCenter({ data }: { data: FocusCardData }) {
                                 FOCUS INTELLIGENCE
                             </Badge>
                         </div>
-                        <h2 className="text-2xl md:text-3xl font-black text-zinc-100 tracking-tight leading-none">
+                        <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight leading-none">
                             {data.title}
                         </h2>
-                        <p className="text-zinc-400 font-medium text-sm md:text-base max-w-xl">
+                        <p className="text-muted-foreground font-medium text-sm md:text-base max-w-xl">
                             {data.description}
                         </p>
                     </div>
@@ -61,7 +61,7 @@ export function IntelligenceCenter({ data }: { data: FocusCardData }) {
                 </CardContent>
 
                 {/* Bottom Status Bar */}
-                <div className="h-1 w-full bg-zinc-900 overflow-hidden relative">
+                <div className="h-1 w-full bg-surface overflow-hidden relative">
                     <motion.div
                         className="absolute inset-y-0 left-0 bg-primary"
                         initial={{ width: 0 }}

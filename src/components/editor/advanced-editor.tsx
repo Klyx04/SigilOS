@@ -141,10 +141,10 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
     }
 
     return (
-        <div className="relative border border-white/10 rounded-2xl bg-zinc-950/50 flex flex-col h-full overflow-hidden shadow-2xl">
+        <div className="relative border border-border rounded-2xl bg-background/50 flex flex-col h-full overflow-hidden shadow-2xl">
             {/* TOOLBAR (Sticky at top of editor) */}
             {editable && (
-                <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-zinc-900/95 backdrop-blur-md flex-wrap z-20">
+                <div className="flex items-center gap-1 p-2 border-b border-border bg-surface/95 backdrop-blur-md flex-wrap z-20">
                     <ToolbarButton
                         onClick={() => editor.chain().focus().toggleBold().run()}
                         isActive={editor.isActive("bold")}
@@ -163,7 +163,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                         icon={Strikethrough}
                         tooltip="Barré"
                     />
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
                     <ToolbarButton
                         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
                         isActive={editor.isActive("heading", { level: 1 })}
@@ -182,7 +182,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                         icon={Heading3}
                         tooltip="Titre 3"
                     />
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
                     <ToolbarButton
                         onClick={() => editor.chain().focus().toggleBulletList().run()}
                         isActive={editor.isActive("bulletList")}
@@ -195,7 +195,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                         icon={ListOrdered}
                         tooltip="Liste numérotée"
                     />
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
                     <ToolbarButton
                         onClick={() => editor.chain().focus().toggleBlockquote().run()}
                         isActive={editor.isActive("blockquote")}
@@ -208,12 +208,12 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                         icon={Code}
                         tooltip="Bloc de code"
                     />
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
                     <input
                         type="color"
                         onInput={event => editor.chain().focus().setColor((event.target as HTMLInputElement).value).run()}
                         value={editor.getAttributes('textStyle').color || '#ffffff'}
-                        className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/10 cursor-pointer p-1 hover:bg-white/10 transition-colors"
+                        className="w-8 h-8 rounded-lg bg-surface border border-border cursor-pointer p-1 hover:bg-surface transition-colors"
                         title="Couleur du texte"
                     />
                     <ToolbarButton
@@ -242,7 +242,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                         tooltip="Insérer une image (Fichier ou URL)"
                     />
                     <EmojiPicker onSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()} />
-                    <div className="w-px h-6 bg-white/10 mx-1 ml-auto" />
+                    <div className="w-px h-6 bg-surface mx-1 ml-auto" />
                     <ToolbarButton
                         onClick={() => editor.chain().focus().undo().run()}
                         disabled={!editor.can().undo()}
@@ -264,7 +264,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
             )}
 
             {/* EDITOR CONTENT (Scrollable area) */}
-            <div className="flex-1 overflow-y-auto cursor-text bg-zinc-950/20" onClick={() => editor.chain().focus().run()}>
+            <div className="flex-1 overflow-y-auto cursor-text bg-background/20" onClick={() => editor.chain().focus().run()}>
                 <EditorContent editor={editor} className="min-h-full pb-32" />
             </div>
 
@@ -309,8 +309,8 @@ function ToolbarButton({
             className={cn(
                 "h-8 w-8 p-0 transition-all",
                 isActive
-                    ? "bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30"
-                    : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100",
+                    ? "bg-info/20 text-info hover:bg-info/30"
+                    : "text-muted-foreground hover:bg-surface hover:text-foreground",
                 size === "sm" && "h-7 w-7"
             )}
             title={tooltip}
@@ -329,7 +329,7 @@ function UnifiedBubbleMenu({ editor }: { editor: any }) {
         <BubbleMenu
             pluginKey="unified-menu-v3"
             editor={editor}
-            className="flex items-center gap-1 overflow-hidden rounded-xl border border-white/10 bg-zinc-900/95 backdrop-blur-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-200"
+            className="flex items-center gap-1 overflow-hidden rounded-xl border border-border bg-surface/95 backdrop-blur-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-200"
             shouldShow={({ from, to }: any) => {
                 // Determine if we should show the menu
                 const isSelection = from !== to;
@@ -342,7 +342,7 @@ function UnifiedBubbleMenu({ editor }: { editor: any }) {
                     <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { layout: 'left' }).run(); }}
-                        className={cn("p-2 rounded-lg transition-all hover:bg-white/10", editor.getAttributes("image").layout === 'left' ? "bg-indigo-500/20 text-indigo-400" : "text-zinc-400")}
+                        className={cn("p-2 rounded-lg transition-all hover:bg-surface", editor.getAttributes("image").layout === 'left' ? "bg-info/20 text-info" : "text-muted-foreground")}
                         title="Aligner à gauche (Habillage texte)"
                     >
                         <AlignLeft className="w-4 h-4" />
@@ -350,7 +350,7 @@ function UnifiedBubbleMenu({ editor }: { editor: any }) {
                     <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { layout: 'block' }).run(); }}
-                        className={cn("p-2 rounded-lg transition-all hover:bg-white/10", (editor.getAttributes("image").layout === 'block' || !editor.getAttributes("image").layout) ? "bg-indigo-500/20 text-indigo-400" : "text-zinc-400")}
+                        className={cn("p-2 rounded-lg transition-all hover:bg-surface", (editor.getAttributes("image").layout === 'block' || !editor.getAttributes("image").layout) ? "bg-info/20 text-info" : "text-muted-foreground")}
                         title="Centrer (Bloc)"
                     >
                         <AlignCenter className="w-4 h-4" />
@@ -358,7 +358,7 @@ function UnifiedBubbleMenu({ editor }: { editor: any }) {
                     <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { layout: 'right' }).run(); }}
-                        className={cn("p-2 rounded-lg transition-all hover:bg-white/10", editor.getAttributes("image").layout === 'right' ? "bg-indigo-500/20 text-indigo-400" : "text-zinc-400")}
+                        className={cn("p-2 rounded-lg transition-all hover:bg-surface", editor.getAttributes("image").layout === 'right' ? "bg-info/20 text-info" : "text-muted-foreground")}
                         title="Aligner à droite (Habillage texte)"
                     >
                         <AlignRight className="w-4 h-4" />
@@ -387,12 +387,12 @@ function UnifiedBubbleMenu({ editor }: { editor: any }) {
                         tooltip="Barré"
                         size="sm"
                     />
-                    <div className="w-px h-4 bg-white/10 mx-1" />
+                    <div className="w-px h-4 bg-surface mx-1" />
                     <input
                         type="color"
                         onInput={event => editor.chain().focus().setColor((event.target as HTMLInputElement).value).run()}
                         value={editor.getAttributes('textStyle').color || '#ffffff'}
-                        className="w-6 h-6 rounded-md bg-zinc-950 border border-white/5 cursor-pointer p-0.5"
+                        className="w-6 h-6 rounded-md bg-background border border-border cursor-pointer p-0.5"
                     />
                     <EmojiPicker onSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()} />
                 </>

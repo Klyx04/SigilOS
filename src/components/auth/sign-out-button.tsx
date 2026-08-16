@@ -11,8 +11,8 @@ interface SignOutButtonProps {
 export function SignOutButton({ variant = "default", className = "" }: SignOutButtonProps) {
     const baseStyles = "px-6 py-2 rounded-lg transition-colors font-medium flex items-center gap-2";
     const variantStyles = variant === "ghost"
-        ? "bg-zinc-800 hover:bg-zinc-700 text-white"
-        : "bg-white text-black hover:bg-zinc-200 font-bold";
+        ? "bg-elevated hover:bg-muted text-foreground"
+        : "bg-background text-foreground hover:bg-surface font-bold";
 
     return (
         <button

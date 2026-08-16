@@ -7,14 +7,16 @@ import {
 } from "next-themes";
 
 /**
- * #16 — Provider de thème réel (next-themes).
+ * #16/#5 V2 — Provider de thème réel (next-themes) — Phase 0 GROK.
  *
  * - `attribute="class"` → la classe `dark`/`light` est posée sur `<html>`.
  * - `defaultTheme="dark"` → nouveau visiteur = sombre par défaut (pas de flash clair).
- * - `enableSystem` → une option « Système » est disponible (suit l'OS).
+ * - `enableSystem` + `enableColorScheme` → option « Système » + color-scheme auto.
+ * - `disableTransitionOnChange` → switch sec (pas de fondu).
  * - `forcedTheme="dark"` (kill-switch God) → thème VERROUILLÉ en sombre pour tout le
- *   monde (fail-closed) ; `setTheme` devient no-op et les boutons sont désactivés.
+ *   monde (fail-closed) ; `setTheme` devient no-op et les toggles sont désactivés.
  * - `nonce` → respecte la CSP nonce-based (Security Headers).
+ * - `storageKey="sigilos-theme"` → clé localStorage de la préférence utilisateur.
  */
 interface ThemeProviderProps {
     children: React.ReactNode;
@@ -30,10 +32,12 @@ export function ThemeProvider({ children, forcedTheme, nonce }: ThemeProviderPro
             attribute="class"
             defaultTheme="dark"
             enableSystem
+            enableColorScheme
             disableTransitionOnChange
             themes={["light", "dark", "system"]}
             forcedTheme={forcedTheme}
             nonce={nonce}
+            storageKey="sigilos-theme"
         >
             {children}
         </NextThemesProvider>

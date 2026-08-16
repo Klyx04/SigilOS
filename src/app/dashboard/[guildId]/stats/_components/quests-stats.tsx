@@ -21,37 +21,37 @@ export default function QuestsStats({ quests }: QuestStatsProps) {
     return (
         <div className="space-y-8">
             {/* Global Completion */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
+            <div className="p-4 rounded-xl bg-surface border border-border">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                        <span className="text-caption font-black uppercase tracking-widest text-zinc-400">Progression Globale</span>
+                        <TrendingUp className="w-4 h-4 text-success" />
+                        <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">Progression Globale</span>
                     </div>
-                    <span className="text-xl font-black text-white">{quests.guildCompletionRate}%</span>
+                    <span className="text-xl font-black text-foreground">{quests.guildCompletionRate}%</span>
                 </div>
-                <Progress value={quests.guildCompletionRate} className="h-2 bg-white/5" indicatorClassName="bg-emerald-500 " />
+                <Progress value={quests.guildCompletionRate} className="h-2 bg-surface" indicatorClassName="bg-success " />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Dofus Ownership */}
                 <div className="space-y-4">
-                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                        <Trophy className="w-3 h-3 text-amber-500" />
+                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                        <Trophy className="w-3 h-3 text-warning" />
                         Vitrine des Dofus
                     </h4>
                     <div className="space-y-3">
                         {quests.ownership.slice(0, 6).map((dofus) => (
                             <div key={dofus.slug} className="group">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-caption font-bold text-zinc-300 group-hover:text-white transition-colors">{dofus.name}</span>
-                                    <span className="text-caption font-black text-zinc-500">
+                                    <span className="text-caption font-bold text-foreground group-hover:text-foreground transition-colors">{dofus.name}</span>
+                                    <span className="text-caption font-black text-muted-foreground">
                                         {dofus.count} / {dofus.total}
                                     </span>
                                 </div>
                                 <Progress 
                                     value={(dofus.count / dofus.total) * 100} 
-                                    className="h-1 bg-white/5" 
-                                    indicatorClassName="bg-amber-500 group-hover:bg-amber-400 transition-all"
+                                    className="h-1 bg-surface" 
+                                    indicatorClassName="bg-warning group-hover:bg-warning transition-all"
                                 />
                             </div>
                         ))}
@@ -60,18 +60,18 @@ export default function QuestsStats({ quests }: QuestStatsProps) {
 
                 {/* Top Progressors */}
                 <div className="space-y-4">
-                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                        <Zap className="w-3 h-3 text-blue-500" />
+                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                        <Zap className="w-3 h-3 text-info" />
                         Top Explorateurs
                     </h4>
                     <div className="space-y-2">
                         {quests.topProgressors.slice(0, 5).map((player, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                            <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border hover:bg-surface transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-caption font-black text-zinc-600">#{idx + 1}</span>
-                                    <span className="text-caption font-bold text-zinc-200">{player.name}</span>
+                                    <span className="text-caption font-black text-muted-foreground">#{idx + 1}</span>
+                                    <span className="text-caption font-bold text-foreground">{player.name}</span>
                                 </div>
-                                <Badge variant="outline" className="text-caption font-black border-blue-500/20 text-blue-400">
+                                <Badge variant="outline" className="text-caption font-black border-info/20 text-info">
                                     {player.value}%
                                 </Badge>
                             </div>
@@ -83,21 +83,21 @@ export default function QuestsStats({ quests }: QuestStatsProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Bottlenecks */}
                 <div className="space-y-4">
-                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                         <Users className="w-3 h-3 text-pink-500" />
                         Goulots d'étranglement
                     </h4>
                     <div className="space-y-2">
                         {quests.bottlenecks.length > 0 ? (
                             quests.bottlenecks.map((b, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-red-500/5 border border-red-500/10">
-                                    <span className="text-caption font-bold text-zinc-300 truncate max-w-[200px]">{b.questName}</span>
+                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-danger/5 border border-danger/10">
+                                    <span className="text-caption font-bold text-foreground truncate max-w-[200px]">{b.questName}</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-caption font-black text-red-400">{b.count} membres</span>
+                                        <span className="text-caption font-black text-danger">{b.count} membres</span>
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger>
-                                                    <HelpCircle className="w-3 h-3 text-zinc-600" />
+                                                    <HelpCircle className="w-3 h-3 text-muted-foreground" />
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p className="text-caption">Utilisez ce goulot pour organiser une sortie guilde !</p>
@@ -108,14 +108,14 @@ export default function QuestsStats({ quests }: QuestStatsProps) {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-caption text-zinc-600 italic">Aucun blocage majeur détecté.</p>
+                            <p className="text-caption text-muted-foreground italic">Aucun blocage majeur détecté.</p>
                         )}
                     </div>
                 </div>
 
                 {/* Recent Dofus */}
                 <div className="space-y-4">
-                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+                    <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                         <Trophy className="w-3 h-3 text-yellow-500" />
                         Mur de la Gloire
                     </h4>
@@ -125,15 +125,15 @@ export default function QuestsStats({ quests }: QuestStatsProps) {
                                 <div key={idx} className="flex flex-col p-2.5 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
                                     <div className="flex items-center justify-between mb-1">
                                         <span className="text-caption font-black text-yellow-500 uppercase tracking-wider">{rd.name}</span>
-                                        <span className="text-caption text-zinc-500 font-bold">
+                                        <span className="text-caption text-muted-foreground font-bold">
                                             {formatDistanceToNow(new Date(rd.obtainedAt), { addSuffix: true, locale: fr })}
                                         </span>
                                     </div>
-                                    <span className="text-caption text-zinc-300 font-medium">Obtenu par <span className="font-black text-white">{rd.username}</span></span>
+                                    <span className="text-caption text-foreground font-medium">Obtenu par <span className="font-black text-foreground">{rd.username}</span></span>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-caption text-zinc-600 italic">Aucun Dofus récent.</p>
+                            <p className="text-caption text-muted-foreground italic">Aucun Dofus récent.</p>
                         )}
                     </div>
                 </div>

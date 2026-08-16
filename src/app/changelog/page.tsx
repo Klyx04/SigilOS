@@ -110,7 +110,7 @@ export default async function ChangelogPage() {
                                 <span className="text-3xl font-black text-amber-400 font-mono">
                                     {allEntries[0]?.version || "v3.6"}
                                 </span>
-                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                                <span className="text-caption font-bold text-zinc-500 uppercase tracking-widest">
                                     Dernière version
                                 </span>
                             </div>
@@ -153,7 +153,7 @@ export default async function ChangelogPage() {
                                             <div className="p-6 border-b border-zinc-800/60 bg-gradient-to-r from-zinc-900/80 to-transparent">
                                                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                                                     <div className="flex items-center gap-2.5">
-                                                        <Badge variant="outline" className={cn("px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest border flex items-center gap-1", config.bg, config.text, config.border)}>
+                                                        <Badge variant="outline" className={cn("px-2.5 py-0.5 text-caption font-black uppercase tracking-widest border flex items-center gap-1", config.bg, config.text, config.border)}>
                                                             <Icon className="w-3 h-3" />
                                                             {config.label}
                                                         </Badge>

@@ -48,12 +48,12 @@ export function DiscordEmbedPreview({
     const hexColor = color ? `#${color.toString(16).padStart(6, '0')}` : "#9333ea";
 
     return (
-        <div className={cn("flex flex-col gap-1 w-full max-w-[520px] font-sans text-[14px] leading-[1.375rem]", className)}>
+        <div className={cn("flex flex-col gap-1 w-full max-w-[520px] font-sans text-body leading-[1.375rem]", className)}>
             {/* Channel Info Header */}
             <div className="flex items-center gap-2 mb-2 px-1">
                 <Hash className="w-4 h-4 text-zinc-500" />
                 <span className="text-zinc-300 font-bold text-sm tracking-tight">{channelName}</span>
-                <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider ml-1 bg-zinc-800/50 px-1.5 py-0.5 rounded border border-white/5">Aperçu Discord</span>
+                <span className="text-caption text-zinc-500 font-medium uppercase tracking-wider ml-1 bg-zinc-800/50 px-1.5 py-0.5 rounded border border-white/5">Aperçu Discord</span>
             </div>
 
             <div className="flex gap-4 p-4 rounded-xl bg-[#313338] border border-white/5 shadow-2xl relative overflow-hidden group">
@@ -71,10 +71,10 @@ export function DiscordEmbedPreview({
                     {/* Message Header */}
                     <div className="flex items-center gap-2 mb-1">
                         <span className="font-bold text-white hover:underline cursor-pointer">SigilOS</span>
-                        <span className="bg-[#5865F2] text-white text-[10px] px-1.5 py-0.5 rounded-[3px] font-black uppercase flex items-center gap-0.5 leading-none">
+                        <span className="bg-[#5865F2] text-white text-caption px-1.5 py-0.5 rounded-[3px] font-black uppercase flex items-center gap-0.5 leading-none">
                              BOT
                         </span>
-                        <span className="text-[12px] text-zinc-400 font-medium">
+                        <span className="text-label text-zinc-400 font-medium">
                             {format(timestamp, "'Aujourd'hui à' HH:mm", { locale: fr })}
                         </span>
                     </div>
@@ -102,7 +102,7 @@ export function DiscordEmbedPreview({
                                 {author && (
                                     <div className="flex items-center gap-2 mb-2">
                                         {author.iconUrl && <img src={author.iconUrl} alt="" className="w-6 h-6 rounded-full" />}
-                                        <span className="text-white text-[13px] font-bold hover:underline cursor-pointer">{author.name}</span>
+                                        <span className="text-white text-body-sm font-bold hover:underline cursor-pointer">{author.name}</span>
                                     </div>
                                 )}
 
@@ -115,7 +115,7 @@ export function DiscordEmbedPreview({
 
                                 {/* Description */}
                                 {description && (
-                                    <div className="text-[#dbdee1] text-[14px] leading-[1.125rem] whitespace-pre-wrap break-words opacity-90">
+                                    <div className="text-[#dbdee1] text-body leading-[1.125rem] whitespace-pre-wrap break-words opacity-90">
                                         {description.split('\n').map((line, i) => (
                                             <p key={i} className={cn(i > 0 && "mt-1")}>{line}</p>
                                         ))}
@@ -133,8 +133,8 @@ export function DiscordEmbedPreview({
                                                     field.inline ? "sm:col-span-4" : "col-span-12"
                                                 )}
                                             >
-                                                <div className="text-white text-[13px] font-bold mb-1">{field.name}</div>
-                                                <div className="text-[#dbdee1] text-[13px] leading-[1.125rem] whitespace-pre-wrap">{field.value}</div>
+                                                <div className="text-white text-body-sm font-bold mb-1">{field.name}</div>
+                                                <div className="text-[#dbdee1] text-body-sm leading-[1.125rem] whitespace-pre-wrap">{field.value}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -158,7 +158,7 @@ export function DiscordEmbedPreview({
 
                         {/* Footer */}
                         {(footer || timestamp) && (
-                            <div className="px-3 pb-3 flex items-center gap-2 text-zinc-400 text-[11px] font-medium">
+                            <div className="px-3 pb-3 flex items-center gap-2 text-zinc-400 text-caption font-medium">
                                 <span>{footer || "SigilOS — Donjons & Quêtes"}</span>
                                 {timestamp && (
                                     <>
@@ -184,7 +184,7 @@ export function DiscordEmbedPreview({
                     </div>
                 </div>
             </div>
-            <p className="text-[10px] text-zinc-500 italic mt-1 ml-1 flex items-center gap-1">
+            <p className="text-caption text-zinc-500 italic mt-1 ml-1 flex items-center gap-1">
                 <Info className="w-3 h-3" /> Note: Cet aperçu simule l'affichage final sur Discord.
             </p>
         </div>

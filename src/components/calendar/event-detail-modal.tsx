@@ -405,7 +405,7 @@ export function EventDetailModal({
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
                     draggable
-                    className="w-[95vw] sm:max-w-2xl bg-zinc-900/98 backdrop-blur-xl border border-white/10 ring-1 ring-orange-500/25 p-0 overflow-hidden max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(249,115,22,0.2)] fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    className="w-[95vw] sm:max-w-2xl bg-zinc-900/98 backdrop-blur-xl border border-white/10 ring-1 ring-orange-500/25 p-0 overflow-hidden max-h-[90vh] flex flex-col  fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
                     {/* Header */}
                     <div className={cn("relative px-8 pt-12 pb-10 border-b border-zinc-800/50 overflow-hidden", typeConfig.bgColor)}>
@@ -436,10 +436,10 @@ export function EventDetailModal({
 
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
+                                        <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
                                             {typeConfig.label}
                                         </Badge>
-                                        <Badge className={cn("text-[10px] font-black uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
+                                        <Badge className={cn("text-caption font-black uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
                                             {statusConfig.label}
                                         </Badge>
                                     </div>
@@ -579,7 +579,7 @@ export function EventDetailModal({
                                     <Bell className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                                     <div className="space-y-1">
                                         <p className="text-xs font-bold text-amber-200 uppercase tracking-wide">Discord non configuré</p>
-                                        <p className="text-[10px] text-amber-400/80 leading-relaxed">
+                                        <p className="text-caption text-amber-400/80 leading-relaxed">
                                             Le salon Discord pour les événements n'est pas défini. Les notifications et la publication automatique sont désactivées.
                                         </p>
                                     </div>
@@ -605,7 +605,7 @@ export function EventDetailModal({
                                             <span className="font-black text-lg">{displayCount}</span>
                                             {event.maxParticipants && <span className="text-zinc-500 text-xs font-bold">/ {event.maxParticipants}</span>}
                                             {reserveCount > 0 && (
-                                                <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[10px] font-black">
+                                                <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-caption font-black">
                                                     +{reserveCount} WAITING
                                                 </Badge>
                                             )}
@@ -624,7 +624,7 @@ export function EventDetailModal({
                                             <div className="flex items-center gap-2">
                                                 <Avatar className="h-5 w-5 border border-zinc-700">
                                                     <AvatarImage src={event.creator.image || undefined} />
-                                                    <AvatarFallback className="text-[10px] bg-zinc-800">
+                                                    <AvatarFallback className="text-caption bg-zinc-800">
                                                         {event.creator.name?.charAt(0) || "?"}
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -664,11 +664,11 @@ export function EventDetailModal({
                                             </span>
                                         )}
                                         {raidMeta.openToExternal ? (
-                                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-black uppercase tracking-wider">
                                                 <Globe className="h-3 w-3" /> Ouvert aux extérieurs
                                             </span>
                                         ) : (
-                                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-500 text-[10px] font-black uppercase tracking-wider">
+                                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-500 text-caption font-black uppercase tracking-wider">
                                                 <Lock className="h-3 w-3" /> Guilde uniquement
                                             </span>
                                         )}
@@ -704,7 +704,7 @@ export function EventDetailModal({
                                                 {/* Fill */}
                                                 <div
                                                     className={cn(
-                                                        "h-full rounded-full transition-all duration-700",
+                                                        "h-full rounded-full transition-all duration-300",
                                                         registeredCount >= raidMeta.raidMin
                                                             ? "bg-gradient-to-r from-emerald-600 to-emerald-400"
                                                             : "bg-gradient-to-r from-red-700 to-amber-500"
@@ -712,7 +712,7 @@ export function EventDetailModal({
                                                     style={{ width: `${Math.min(100, (registeredCount / raidMeta.raidMax) * 100)}%` }}
                                                 />
                                             </div>
-                                            <div className="flex justify-between text-[10px] text-zinc-600 font-bold">
+                                            <div className="flex justify-between text-caption text-zinc-600 font-bold">
                                                 <span>0</span>
                                                 <span className="text-amber-500/70">{raidMeta.raidMin} min</span>
                                                 <span>{raidMeta.raidMax} max</span>
@@ -768,7 +768,7 @@ export function EventDetailModal({
                                                                         src={imageUrl} 
                                                                         alt={mTitle} 
                                                                         fill 
-                                                                        className="object-contain p-2 opacity-60 group-hover:opacity-100 transition-opacity duration-500" 
+                                                                        className="object-contain p-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300" 
                                                                         unoptimized
                                                                     />
                                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
@@ -782,18 +782,18 @@ export function EventDetailModal({
                                                                     </div>
 
                                                                     <div className="absolute inset-x-0 bottom-0 p-2">
-                                                                        <p className="text-[10px] font-black text-white uppercase tracking-tighter line-clamp-1 leading-none mb-1">
+                                                                        <p className="text-caption font-black text-white uppercase tracking-tighter line-clamp-1 leading-none mb-1">
                                                                             {mTitle}
                                                                         </p>
                                                                         {payload.objectives && (
-                                                                            <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest line-clamp-1">
+                                                                            <p className="text-caption font-bold text-zinc-400 uppercase tracking-widest line-clamp-1">
                                                                                 {payload.objectives}
                                                                             </p>
                                                                         )}
                                                                     </div>
                                                                 </Link>
                                                             </TooltipTrigger>
-                                                            <TooltipContent side="bottom" className="bg-amber-500 text-zinc-950 font-black uppercase text-[10px] tracking-widest border-none">
+                                                            <TooltipContent side="bottom" className="bg-amber-500 text-zinc-950 font-black uppercase text-caption tracking-widest border-none">
                                                                 Aller voir les missions ?
                                                             </TooltipContent>
                                                         </Tooltip>
@@ -864,10 +864,10 @@ export function EventDetailModal({
                                                 (eventMetadata.metamobParticipants as any[]).map((p, i) => (
                                                     <div key={`meta-${i}`} className="group relative flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/50 hover:bg-zinc-800/60 transition-all">
                                                         <div className="flex items-center gap-4 min-w-0">
-                                                            <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-black text-zinc-500 shrink-0 group-hover:border-pink-500/30 group-hover:text-pink-400 transition-colors">
+                                                            <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-caption font-black text-zinc-500 shrink-0 group-hover:border-pink-500/30 group-hover:text-pink-400 transition-colors">
                                                                 #{i + 1}
                                                             </div>
-                                                            <Avatar className="h-10 w-10 border border-zinc-800 shadow-xl group-hover:scale-110 transition-transform">
+                                                            <Avatar className="h-10 w-10 border border-zinc-800 shadow-xl group- transition-transform">
                                                                 <AvatarFallback className="bg-gradient-to-br from-zinc-800 to-zinc-900 text-zinc-400 text-xs font-bold">
                                                                     {p.username?.[0] || "?"}
                                                                 </AvatarFallback>
@@ -876,13 +876,13 @@ export function EventDetailModal({
                                                                 <span className="text-sm font-black text-zinc-100 truncate group-hover:text-white transition-colors uppercase italic tracking-tight">
                                                                     {(p.username || "Anonyme").replace(/\s\(\d+\)$/, "")}
                                                                 </span>
-                                                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">
+                                                                <span className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-0.5">
                                                                     {p.character_count || 1} { (p.character_count || 1) > 1 ? 'Personnages' : 'Personnage'}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Badge variant="outline" className="text-[10px] font-black border-pink-500/20 text-pink-400 bg-pink-500/5">
+                                                            <Badge variant="outline" className="text-caption font-black border-pink-500/20 text-pink-400 bg-pink-500/5">
                                                                 METAMOB
                                                             </Badge>
                                                         </div>
@@ -985,7 +985,7 @@ export function EventDetailModal({
                                         )}
                                     </div>
                                     {!hasMetamobKey && (
-                                        <p className="text-[11px] text-zinc-500 italic">
+                                        <p className="text-caption text-zinc-500 italic">
                                             Liez votre compte pour que SigilOS puisse synchroniser votre état de jeu.
                                         </p>
                                     )}
@@ -1098,7 +1098,7 @@ export function EventDetailModal({
             {/* ========== RAID COMPLETION MODAL ========== */}
             {isRaid && showRaidCompletion && (
                 <Dialog open={showRaidCompletion} onOpenChange={setShowRaidCompletion}>
-                    <DialogContent className="w-[95vw] sm:max-w-lg bg-zinc-900/98 backdrop-blur-xl border border-white/10 ring-1 ring-red-500/25 p-0 overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+                    <DialogContent className="w-[95vw] sm:max-w-lg bg-zinc-900/98 backdrop-blur-xl border border-white/10 ring-1 ring-red-500/25 p-0 overflow-hidden ">
                         <div className="relative p-6 border-b border-red-500/10 bg-red-500/5">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
@@ -1106,7 +1106,7 @@ export function EventDetailModal({
                                 </div>
                                 <div>
                                     <DialogTitle className="text-white font-black uppercase tracking-tight">Clôturer le Raid</DialogTitle>
-                                    <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Distribution des points & score</p>
+                                    <p className="text-caption text-zinc-500 uppercase tracking-wider">Distribution des points & score</p>
                                 </div>
                             </div>
                         </div>
@@ -1125,7 +1125,7 @@ export function EventDetailModal({
                                     onChange={e => setRaidScore(e.target.value)}
                                     className="w-full h-11 px-4 rounded-xl bg-zinc-950/80 border border-zinc-700 text-zinc-100 font-black text-base placeholder:text-zinc-600 focus:outline-none focus:border-red-500/50"
                                 />
-                                <p className="text-[10px] text-zinc-600 italic">Score visible dans le module de raid en jeu.</p>
+                                <p className="text-caption text-zinc-600 italic">Score visible dans le module de raid en jeu.</p>
                             </div>
 
                             {/* Participants présents */}
@@ -1171,7 +1171,7 @@ export function EventDetailModal({
                                                     </div>
                                                     <Avatar className="h-7 w-7 border border-zinc-700 shrink-0">
                                                         <AvatarImage src={p.user.image || undefined} />
-                                                        <AvatarFallback className="bg-zinc-800 text-[10px]">{p.user.name?.[0] || "?"}</AvatarFallback>
+                                                        <AvatarFallback className="bg-zinc-800 text-caption">{p.user.name?.[0] || "?"}</AvatarFallback>
                                                     </Avatar>
                                                     <span className={cn(
                                                         "text-sm font-black uppercase tracking-tight",
@@ -1180,7 +1180,7 @@ export function EventDetailModal({
                                                         {p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme"}
                                                     </span>
                                                     {isPresent && (
-                                                        <span className="ml-auto text-[10px] font-black text-emerald-400 uppercase">+50 pts</span>
+                                                        <span className="ml-auto text-caption font-black text-emerald-400 uppercase">+50 pts</span>
                                                     )}
                                                 </button>
                                             );
@@ -1349,7 +1349,7 @@ function ParticipantRow({
                             </TooltipProvider>
                         )}
                         {participant.hasParticipatedThisWeek && (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[9px] font-black uppercase py-0 px-1.5 shrink-0">
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-caption font-black uppercase py-0 px-1.5 shrink-0">
                                 ⚠️ Déjà participé cette semaine
                             </Badge>
                         )}
@@ -1367,7 +1367,7 @@ function ParticipantRow({
                             </div>
                         )}
                         {participant.comment && (
-                            <span className="text-[10px] text-zinc-500 italic truncate max-w-[100px]">
+                            <span className="text-caption text-zinc-500 italic truncate max-w-[100px]">
                                 "{participant.comment}"
                             </span>
                         )}
@@ -1413,7 +1413,7 @@ function ParticipantRow({
                                                 {isRaid && !isCurrentUser && onTransferCaptaincy && (
                     <>
                         {isTransferConfirming && (
-                            <span className="text-[10px] font-bold text-yellow-500/90 italic max-w-[180px] leading-tight inline-block align-middle">
+                            <span className="text-caption font-bold text-yellow-500/90 italic max-w-[180px] leading-tight inline-block align-middle">
                                 Le capitanat passera à ce joueur — tu perdras les contrôles d'organisateur de ce raid.
                             </span>
                         )}
@@ -1437,7 +1437,7 @@ function ParticipantRow({
                                 "shrink-0 transition-all",
                                 isTransferConfirming
                                     ? "h-8 px-3 text-xs font-medium bg-yellow-600 hover:bg-yellow-500 text-zinc-950"
-                                    : "h-8 px-2 text-[10px] font-black uppercase tracking-wider text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                                    : "h-8 px-2 text-caption font-black uppercase tracking-wider text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
                             )}
                             title={
                                 isTransferConfirming

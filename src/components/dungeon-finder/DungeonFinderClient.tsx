@@ -138,7 +138,7 @@ export function DungeonFinderClient({
                             icon: "bg-indigo-500/15 border-indigo-500/30 text-indigo-400",
                             sub: "text-indigo-300",
                             glow: "bg-indigo-500",
-                            shadow: "shadow-[0_0_20px_rgba(99,102,241,0.35)]",
+                            shadow: "",
                             inactiveIcon: "bg-indigo-500/8 border-indigo-500/15 text-indigo-400",
                             inactiveSub: "text-indigo-400/70",
                             inactiveBorder: "border-indigo-500/20"
@@ -148,7 +148,7 @@ export function DungeonFinderClient({
                             icon: "bg-amber-500/15 border-amber-500/30 text-amber-400",
                             sub: "text-amber-300",
                             glow: "bg-amber-500",
-                            shadow: "shadow-[0_0_20px_rgba(245,158,11,0.35)]",
+                            shadow: "",
                             inactiveIcon: "bg-amber-500/8 border-amber-500/15 text-amber-400",
                             inactiveSub: "text-amber-400/70",
                             inactiveBorder: "border-amber-500/20"
@@ -158,7 +158,7 @@ export function DungeonFinderClient({
                             icon: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400",
                             sub: "text-emerald-300",
                             glow: "bg-emerald-500",
-                            shadow: "shadow-[0_0_20px_rgba(16,185,129,0.35)]",
+                            shadow: "",
                             inactiveIcon: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400",
                             inactiveSub: "text-emerald-400/70",
                             inactiveBorder: "border-emerald-500/20"
@@ -201,19 +201,19 @@ export function DungeonFinderClient({
                                         'from-emerald-400 to-emerald-700'
                                     )} />
                                 )}
-                                <Icon className={cn("w-5 h-5 relative z-10", isActive ? "scale-110" : "scale-100 transition-transform group-hover:scale-110")} />
+                                <Icon className={cn("w-5 h-5 relative z-10", isActive ? "scale-110" : "scale-100 transition-transform group-")} />
                             </div>
 
                             {/* Labels */}
                             <div className="text-left relative z-10">
                                 <p className={cn(
-                                    "font-black text-[10px] uppercase tracking-[0.25em] transition-colors duration-500",
+                                    "font-black text-caption uppercase tracking-widest transition-colors duration-300",
                                     isActive ? "text-white" : "text-zinc-300 group-hover:text-white"
                                 )}>
                                     {tab.label}
                                 </p>
                                 <p className={cn(
-                                    "text-[11px] font-bold mt-1 transition-colors duration-500",
+                                    "text-caption font-bold mt-1 transition-colors duration-300",
                                     isActive ? colorVariants.sub : colorVariants.inactiveSub + " group-hover:" + colorVariants.sub
                                 )}>
                                     {tab.sub}

@@ -299,7 +299,7 @@ export function RunCloseModal({
                                             className="w-2 h-2 rounded-full shrink-0"
                                             style={{ backgroundColor: accentColor }}
                                         />
-                                        <span className="text-[11px] uppercase tracking-widest font-bold text-slate-400">
+                                        <span className="text-caption uppercase tracking-widest font-bold text-slate-400">
                                             Barème — {diffConfig?.label}
                                         </span>
                                         <div className="flex items-center gap-1 ml-auto">
@@ -325,7 +325,7 @@ export function RunCloseModal({
                                     {/* Participants list */}
                                     {totalListCount > 0 && (
                                         <div className="space-y-2">
-                                            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                                            <p className="text-caption text-slate-500 font-bold uppercase tracking-widest">
                                                 Membres ({runParticipants.length} dans la run
                                                 {extraMembers.length > 0
                                                     ? ` + ${extraMembers.length} ajouté${extraMembers.length > 1 ? "s" : ""}`
@@ -352,7 +352,7 @@ export function RunCloseModal({
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
-                                                            <AvatarFallback className="bg-slate-800 text-white/50 text-[10px] font-black">
+                                                            <AvatarFallback className="bg-slate-800 text-white/50 text-caption font-black">
                                                                 {m.name.charAt(0).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
@@ -363,7 +363,7 @@ export function RunCloseModal({
                                                         </div>
                                                         {isVal && (
                                                             <span
-                                                                className="flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md border"
+                                                                className="flex items-center gap-1 text-caption font-black px-2 py-0.5 rounded-md border"
                                                                 style={{
                                                                     color: `${accentColor}cc`,
                                                                     backgroundColor: `${accentColor}10`,
@@ -402,7 +402,7 @@ export function RunCloseModal({
                                                             <p className="text-sm font-bold text-white truncate">
                                                                 {m.name}
                                                             </p>
-                                                            <p className="text-[10px] text-amber-400/70">
+                                                            <p className="text-caption text-amber-400/70">
                                                                 Ajouté manuellement
                                                             </p>
                                                         </div>
@@ -438,7 +438,7 @@ export function RunCloseModal({
 
                                     {/* ── Add member manually ─────────────────────────────── */}
                                     <div className="pt-2 border-t border-white/5" ref={dropdownRef}>
-                                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                        <p className="text-caption text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                             <UserPlus className="w-3 h-3" />
                                             Ajouter un participant hors-liste
                                         </p>
@@ -516,7 +516,7 @@ export function RunCloseModal({
 
                                     {/* Summary */}
                                     {validatedCount > 0 && (
-                                        <p className="text-[11px] text-slate-500 text-center">
+                                        <p className="text-caption text-slate-500 text-center">
                                             <strong className="text-slate-300">{validatedCount}</strong>{" "}
                                             membre{validatedCount > 1 ? "s" : ""}{" "}
                                             recevra{validatedCount > 1 ? "ont" : ""}{" "}
@@ -542,7 +542,7 @@ export function RunCloseModal({
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending || isLoading}
-                                className="flex-1 h-12 text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl order-1 sm:order-2"
+                                className="flex-1 h-12 text-white font-black uppercase tracking-[0.15em] text-caption rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl order-1 sm:order-2"
                                 style={{ 
                                     backgroundColor: "#0d0d12",
                                     borderColor: `${accentColor}30`,

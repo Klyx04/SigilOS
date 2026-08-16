@@ -145,7 +145,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
+        <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header & Smart Search */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-white/5">
                 <div className="space-y-1">
@@ -261,16 +261,16 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                 <div className="flex-1 space-y-2 min-w-0">
                                     <div className="flex items-center justify-between gap-4">
                                         <div className="flex items-center gap-3 flex-wrap">
-                                            <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                                            <span className="px-2 py-0.5 rounded-md bg-white/5 text-caption font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
                                                 {getTypeIcon(notif.type)}
                                                 {notif.type.replace('_', ' ')}
                                             </span>
-                                            <span className="text-zinc-600 text-[10px] flex items-center gap-1.5 font-bold whitespace-nowrap">
+                                            <span className="text-zinc-600 text-caption flex items-center gap-1.5 font-bold whitespace-nowrap">
                                                 <Clock className="w-3 h-3" />
                                                 {format(new Date(notif.createdAt), "d MMMM HH:mm", { locale: fr })}
                                             </span>
                                             {link && (
-                                                <span className="text-rose-400/50 text-[10px] flex items-center gap-1 font-bold whitespace-nowrap group-hover:text-rose-400 transition-colors">
+                                                <span className="text-rose-400/50 text-caption flex items-center gap-1 font-bold whitespace-nowrap group-hover:text-rose-400 transition-colors">
                                                     <ExternalLink className="w-3 h-3" />
                                                     Détails
                                                 </span>
@@ -280,7 +280,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                         {!notif.isRead && (
                                             <button 
                                                 onClick={(e) => handleMarkRead(notif.id, e)}
-                                                className="text-[10px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300 transition-colors shrink-0 px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 rounded-md z-20"
+                                                className="text-caption font-black text-rose-400 uppercase tracking-widest hover:text-rose-300 transition-colors shrink-0 px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 rounded-md z-20"
                                             >
                                                 Marquer lu
                                             </button>
@@ -299,7 +299,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                         <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {Object.entries(notif.metadata).map(([key, value]) => (
                                                 <div key={key} className="space-y-0.5 min-w-0">
-                                                    <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest truncate">{key}</div>
+                                                    <div className="text-caption font-black text-zinc-600 uppercase tracking-widest truncate">{key}</div>
                                                     <div className="text-xs text-zinc-300 font-mono truncate">{String(value)}</div>
                                                 </div>
                                             ))}
@@ -315,7 +315,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                 className={cn(
                                     "group relative overflow-hidden p-6 bg-zinc-900/40 border border-white/5 rounded-3xl transition-all duration-300 hover:bg-zinc-900/80 hover:border-white/10",
                                     !notif.isRead && "ring-1 ring-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10",
-                                    link && "cursor-pointer hover:shadow-[0_0_30px_rgba(244,63,94,0.1)] hover:-translate-y-0.5"
+                                    link && "cursor-pointer  hover:-translate-y-0.5"
                                 )}
                             >
                                 {link ? (

@@ -12,6 +12,8 @@ import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
+import { hasFilledAvailability } from "@/lib/dofus-assets";
 import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
@@ -29,6 +31,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
+import { AvailabilityReminderPopup } from "@/components/dashboard/availability-reminder-popup";
 
 export default async function DashboardPage({
     params,
@@ -73,6 +76,7 @@ export default async function DashboardPage({
         calendarResult,
         pollsResult,
         activeRaid,
+        availabilityModuleEnabled,
     ] = await Promise.all([
         getActivePresence(guildId, 50),
         getUserProfile(guildId),
@@ -85,6 +89,7 @@ export default async function DashboardPage({
         getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
         user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
         getActiveRaid(guildId).catch(() => null),
+        isModuleEnabled(guildId, "availability"),
     ]);
 
     // Derived Data
@@ -95,6 +100,15 @@ export default async function DashboardPage({
     const upcomingEvents = calendarResult.success ? calendarResult.events : [];
     const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
     const hasRaidNow = !!activeRaid;
+
+    // Module Disponibilités — rappel hebdomadaire doux.
+    // JAMAIS si : onboarding en cours, module inactif, pas de permission, ou semaine déjà remplie.
+    const showAvailabilityReminder =
+        user.isOnboardingComplete &&
+        availabilityModuleEnabled &&
+        !!user.canViewAvailability &&
+        !!profile &&
+        !hasFilledAvailability((profile as any).availability);
 
     // Quick Stats Data
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
@@ -163,7 +177,7 @@ export default async function DashboardPage({
                         <h1 className="text-[26px] md:text-[28px] font-bold italic tracking-tight text-foreground">
                             {greeting} {firstName} ⚔
                         </h1>
-                        <p className="text-[13px] text-muted-foreground mt-1">{contextLine}</p>
+                        <p className="text-body-sm text-muted-foreground mt-1">{contextLine}</p>
                     </div>
                     <DashboardAdminTourButton isAdmin={user.isAdmin} />
                 </header>
@@ -190,7 +204,7 @@ export default async function DashboardPage({
                     <section data-tour="dash-todo" className="animate-in fade-in slide-in-from-top-1 duration-150">
                         <div className="rounded-xl border border-border/60 bg-background/40 p-3.5">
                             <div className="flex items-center gap-2 mb-2 px-1">
-                                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
+                                <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
                                 <span className="flex-1 h-px bg-white/[0.06]" />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
@@ -201,8 +215,8 @@ export default async function DashboardPage({
                                         className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
                                     >
                                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
-                                        <span className="text-[13px] truncate">{item.label}</span>
-                                        <span className="ml-auto text-[12px] font-medium text-emerald-400/80 shrink-0">{item.action}</span>
+                                        <span className="text-body-sm truncate">{item.label}</span>
+                                        <span className="ml-auto text-label font-medium text-emerald-400/80 shrink-0">{item.action}</span>
                                     </Link>
                                 ))}
                             </div>
@@ -270,6 +284,9 @@ export default async function DashboardPage({
                 </div>
 
             </div>
+
+            {/* #Module Disponibilités — popup hebdo (1x/semaine si non rempli) */}
+            <AvailabilityReminderPopup guildId={guildId} enabled={showAvailabilityReminder} />
         </div>
     );
 }

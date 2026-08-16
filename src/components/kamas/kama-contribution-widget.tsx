@@ -24,6 +24,20 @@ interface KamaContributionWidgetProps {
     initialStatus: KamaWeeklyStatus | null;
 }
 
+/**
+ * Sécurité (CodeQL js/xss-through-dom) : seules les URLs blob: (aperçu fichier local)
+ * ou data:image/* sont acceptées en src d'image — jamais de javascript:/autre protocole.
+ */
+function safePreviewSrc(url: string | null): string | null {
+    if (!url) return null;
+    try {
+        const u = new URL(url);
+        return u.protocol === "blob:" || (u.protocol === "data:" && u.pathname.startsWith("image/")) ? u.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
 export function KamaContributionWidget({ guildId, initialStatus }: KamaContributionWidgetProps) {
     const [status, setStatus] = useState<KamaWeeklyStatus | null>(initialStatus);
     const [expanded, setExpanded] = useState(false);
@@ -35,6 +49,8 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
     const [submitting, setSubmitting] = useState(false);
     const [step, setStep] = useState<"form" | "proof">("form");
     const [shouldPulse, setShouldPulse] = useState(false);
+
+    const previewSrc = safePreviewSrc(preview);
     
     const fileRef = useRef<HTMLInputElement>(null);
     const widgetRef = useRef<HTMLDivElement>(null);
@@ -133,7 +149,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                 className={cn(
                     "rounded-xl border overflow-hidden transition-all duration-300 shadow-lg",
                     shouldPulse 
-                        ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-[1.01] ring-1 ring-amber-500/50" 
+                        ? "border-amber-500  scale-[1.01] ring-1 ring-amber-500/50" 
                         : "border-amber-500/30 bg-gradient-to-b from-amber-500/[0.04] to-zinc-950/80 shadow-[0_4px_20px_rgba(245,158,11,0.05)] hover:border-amber-500/50"
                 )}
             >
@@ -166,11 +182,11 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                     );
                                 })}
                             </div>
-                            <span className="text-[10px] text-zinc-500">
+                            <span className="text-caption text-zinc-500">
                                 {KAMA_MAX_TRANCHES - tranchesLeft}/{KAMA_MAX_TRANCHES} tranches
                             </span>
                             {pendingCount > 0 && (
-                                <span className="text-[9px] bg-amber-500/15 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">
+                                <span className="text-caption bg-amber-500/15 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">
                                     {pendingCount} en attente
                                 </span>
                             )}
@@ -179,7 +195,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
 
                     <div className="shrink-0 flex items-center gap-1.5">
                         {!canContribute && (
-                            <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                            <span className="text-caption bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
                                 MAX ✓
                             </span>
                         )}
@@ -204,19 +220,19 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                         <div className="flex flex-col gap-2 bg-amber-500/[0.03] rounded-lg p-3 border border-amber-500/20">
                             <div className="flex items-start gap-2">
                                 <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                <div className="text-[10px] text-zinc-400 space-y-0.5">
+                                <div className="text-caption text-zinc-400 space-y-0.5">
                                     <p>Max <span className="text-white font-bold">{KAMA_MAX_PER_WEEK.toLocaleString("fr-FR")} kamas</span> par semaine</p>
                                     <p>Chaque tranche de <span className="text-amber-400 font-bold">10 000k</span> → {REWARDS_PER_TRANCHE.xp} XP · {REWARDS_PER_TRANCHE.guildatons} guildatons</p>
                                 </div>
                             </div>
-                            <div className="pt-2 border-t border-amber-500/10 text-[9px] text-amber-300/80 leading-relaxed">
+                            <div className="pt-2 border-t border-amber-500/10 text-caption text-amber-300/80 leading-relaxed">
                                 ⚠️ **Important :** Les dons en Kamas servent directement à financer les **Raids de guilde**. Votre participation aux dons est indispensable pour maintenir l&apos;accès à ces raids.
                             </div>
                         </div>
 
                         {/* Weekly progress bar */}
                         <div className="space-y-1">
-                            <div className="flex justify-between text-[10px]">
+                            <div className="flex justify-between text-caption">
                                 <span className="text-zinc-500">Progression hebdo</span>
                                 <span className="text-zinc-400 font-mono">
                                     {submittedKamas.toLocaleString("fr-FR")} / {KAMA_MAX_PER_WEEK.toLocaleString("fr-FR")} k
@@ -224,7 +240,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                             </div>
                             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500"
+                                    className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-300"
                                     style={{ width: `${progressPct}%` }}
                                 />
                             </div>
@@ -235,7 +251,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                 <>
                                     {/* Tranche selector */}
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                                        <label className="text-caption font-bold text-zinc-400 uppercase tracking-widest">
                                             Nombre de tranches
                                         </label>
                                         <div className="flex items-center gap-2">
@@ -248,7 +264,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                             </button>
                                             <div className="flex-1 text-center">
                                                 <div className="text-lg font-black text-amber-400 font-mono">{tranches}</div>
-                                                <div className="text-[10px] text-zinc-500">= {totalKamas.toLocaleString("fr-FR")} kamas</div>
+                                                <div className="text-caption text-zinc-500">= {totalKamas.toLocaleString("fr-FR")} kamas</div>
                                             </div>
                                             <button
                                                 onClick={() => setTranches(t => Math.min(tranchesLeft, t + 1))}
@@ -259,7 +275,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                             </button>
                                             <button
                                                 onClick={() => setTranches(tranchesLeft)}
-                                                className="px-2.5 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-[10px] font-bold text-zinc-400 hover:text-white hover:border-white/20 transition-all"
+                                                className="px-2.5 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-caption font-bold text-zinc-400 hover:text-white hover:border-white/20 transition-all"
                                             >
                                                 MAX
                                             </button>
@@ -269,11 +285,11 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                     {/* Rewards preview */}
                                     <div className="flex items-center gap-2 bg-zinc-900/60 rounded-lg px-3 py-2 border border-white/5">
                                         <Star className="w-3 h-3 text-amber-400 shrink-0" />
-                                        <span className="text-[10px] text-zinc-400">Récompenses :</span>
+                                        <span className="text-caption text-zinc-400">Récompenses :</span>
                                         <div className="flex items-center gap-3 ml-auto">
-                                            <span className="text-[10px] font-bold text-blue-300">+{totalRewards.xp} XP</span>
-                                            <span className="text-[10px] font-bold text-amber-300">+{totalRewards.guildatons} guildatons</span>
-                                            <span className="text-[10px] font-bold text-emerald-300">+{totalRewards.guild_kamas} k.g.</span>
+                                            <span className="text-caption font-bold text-blue-300">+{totalRewards.xp} XP</span>
+                                            <span className="text-caption font-bold text-amber-300">+{totalRewards.guildatons} guildatons</span>
+                                            <span className="text-caption font-bold text-emerald-300">+{totalRewards.guild_kamas} k.g.</span>
                                         </div>
                                     </div>
 
@@ -291,19 +307,19 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => setStep("form")}
-                                            className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                                            className="text-caption text-zinc-500 hover:text-zinc-300 transition-colors"
                                         >
                                             ← Retour
                                         </button>
-                                        <span className="text-[10px] text-zinc-600">
+                                        <span className="text-caption text-zinc-600">
                                             {totalKamas.toLocaleString("fr-FR")} kamas ({tranches} tranche{tranches > 1 ? "s" : ""})
                                         </span>
                                     </div>
 
-                                    {preview ? (
+                                    {previewSrc ? (
                                         <div className="relative rounded-xl overflow-hidden border border-white/10 bg-zinc-800/50">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={preview} alt="Preuve" className="w-full max-h-48 object-contain" />
+                                            <img src={previewSrc} alt="Preuve" className="w-full max-h-48 object-contain" />
                                             <button
                                                 onClick={() => { setPreview(null); setFile(null); }}
                                                 className="absolute top-2 right-2 p-1 rounded-full bg-zinc-900/80 border border-white/10 text-zinc-300 hover:text-red-400 transition-colors"
@@ -333,7 +349,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                                         cliquez ici
                                                     </button>
                                                 </p>
-                                                <p className="text-[10px] text-zinc-600 mt-1">JPEG · PNG · WebP · max 10MB</p>
+                                                <p className="text-caption text-zinc-600 mt-1">JPEG · PNG · WebP · max 10MB</p>
                                             </div>
                                         </div>
                                     )}
@@ -363,7 +379,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                                 </div>
                                 <p className="text-xs font-bold text-emerald-300 text-center">Maximum hebdomadaire atteint !</p>
-                                <p className="text-[10px] text-zinc-500 text-center">
+                                <p className="text-caption text-zinc-500 text-center">
                                     {submittedKamas.toLocaleString("fr-FR")} kamas contribués cette semaine.<br />
                                     Reset au prochain cycle de missions.
                                 </p>
@@ -373,7 +389,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                         {pendingCount > 0 && (
                             <div className="flex items-center gap-2 bg-amber-500/5 border border-amber-500/15 rounded-lg px-2.5 py-2">
                                 <Clock className="w-3 h-3 text-amber-400 shrink-0" />
-                                <p className="text-[10px] text-amber-300">
+                                <p className="text-caption text-amber-300">
                                     {pendingCount} don{pendingCount > 1 ? "s" : ""} en cours de validation.
                                 </p>
                             </div>
@@ -398,7 +414,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm font-black text-white">Comment déclarer un don ?</p>
-                                <p className="text-[10px] text-zinc-500">Mécanique officielle Dofus</p>
+                                <p className="text-caption text-zinc-500">Mécanique officielle Dofus</p>
                             </div>
                             <button
                                 onClick={() => setShowHelp(false)}
@@ -416,7 +432,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                 className="w-full object-contain max-h-52"
                             />
                             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-zinc-950/90 to-transparent p-3">
-                                <p className="text-[10px] text-amber-300 font-bold">
+                                <p className="text-caption text-amber-300 font-bold">
                                     📍 Interface du comptoir d&apos;inventaire en jeu
                                 </p>
                             </div>
@@ -430,7 +446,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                 { step: "4", text: "Un admin valide. Dès validation : XP et guildatons comptabilisés automatiquement." },
                             ].map(({ step, text }) => (
                                 <div key={step} className="flex items-start gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                                    <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-caption font-black flex items-center justify-center shrink-0 mt-0.5">
                                         {step}
                                     </div>
                                     <p className="text-xs text-zinc-400 leading-relaxed">{text}</p>
@@ -438,8 +454,8 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                             ))}
 
                             <div className="mt-3 p-3 bg-zinc-800/50 rounded-xl border border-white/5">
-                                <p className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest mb-2">Limites hebdomadaires</p>
-                                <div className="grid grid-cols-2 gap-1.5 text-[10px] text-zinc-500">
+                                <p className="text-caption font-bold text-zinc-300 uppercase tracking-widest mb-2">Limites hebdomadaires</p>
+                                <div className="grid grid-cols-2 gap-1.5 text-caption text-zinc-500">
                                     <span>Max par semaine :</span>
                                     <span className="text-amber-400 font-bold">{KAMA_MAX_PER_WEEK.toLocaleString("fr-FR")} kamas</span>
                                     <span>Max tranches :</span>

@@ -46,7 +46,7 @@ export function UnifiedModuleHeader({
                 <Button
                     asChild
                     variant="ghost"
-                    className="inline-flex h-auto items-center gap-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors group mb-2 p-0 bg-transparent hover:bg-transparent"
+                    className="inline-flex h-auto items-center gap-2.5 text-caption font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors group mb-2 p-0 bg-transparent hover:bg-transparent"
                 >
                     <Link href={backHref}>
                         <div className="h-8 w-8 rounded-xl border border-foreground/5 bg-foreground/[0.03] backdrop-blur-xl flex items-center justify-center group-hover:border-foreground/20 group-hover:bg-foreground/10 transition-colors">

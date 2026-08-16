@@ -57,12 +57,12 @@ export function ResourcesTabs({
                             key={t.value}
                             value={t.value}
                             {...(t.tourKey ? { "data-tour": t.tourKey } : {})}
-                            className="relative px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all duration-500 
+                            className="relative px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 
                                      data-[state=inactive]:text-zinc-500 data-[state=inactive]:hover:text-zinc-300 data-[state=inactive]:hover:bg-white/5
                                      data-[state=active]:text-white z-10 border border-transparent data-[state=active]:border-white/10 overflow-hidden"
                         >
                             <div className="flex items-center gap-3 relative z-20">
-                                <t.icon className={cn("w-4 h-4 transition-transform duration-500 group-data-[state=active]:scale-110", t.color)} />
+                                <t.icon className={cn("w-4 h-4 transition-transform duration-300 group-data-[state=active]:scale-110", t.color)} />
                                 <span>{t.label}</span>
                             </div>
                             {activeTab === t.value && (

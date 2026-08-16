@@ -39,7 +39,7 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
                     Ouvrir un ticket sur Discord
                 </a>
 
-                <p className="text-[12px] text-zinc-500 leading-relaxed">
+                <p className="text-label text-zinc-500 leading-relaxed">
                     Réponse généralement sous 24-48h. Déjà membre ? Fermez cette fenêtre et{" "}
                     <button onClick={onClose} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
                         connectez-vous avec Discord

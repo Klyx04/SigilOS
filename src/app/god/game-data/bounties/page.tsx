@@ -132,7 +132,7 @@ export default function GodBountiesPage() {
                         <Loader2 className="animate-spin text-amber-500" size={48} />
                         <div className="absolute inset-0 blur-2xl bg-amber-500/20 animate-pulse" />
                     </div>
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">Chargement des Archives...</span>
+                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Chargement des Archives...</span>
                 </div>
             </div>
         );
@@ -148,7 +148,7 @@ export default function GodBountiesPage() {
                             <ShieldAlert className="text-amber-500" size={24} />
                             Avis de Recherche
                         </h1>
-                        <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] mt-2 ml-1">
+                        <p className="text-zinc-500 text-caption sm:text-caption font-black uppercase tracking-widest mt-2 ml-1">
                             Base de données tactique · {bounties.length} Records
                         </p>
                     </div>
@@ -168,7 +168,7 @@ export default function GodBountiesPage() {
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Bounty List */}
                 <div className={cn(
-                    "w-full lg:w-[380px] border-r border-white/5 overflow-y-auto p-4 sm:p-6 space-y-3 bg-black/20 shrink-0 custom-scrollbar transition-all duration-500",
+                    "w-full lg:w-[380px] border-r border-white/5 overflow-y-auto p-4 sm:p-6 space-y-3 bg-black/20 shrink-0 custom-scrollbar transition-all duration-300",
                     selectedBounty && "hidden lg:block"
                 )}>
                     {filteredBounties.map(b => (
@@ -178,11 +178,11 @@ export default function GodBountiesPage() {
                             className={cn(
                                 "w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left group border relative overflow-hidden",
                                 selectedBounty?.id === b.id
-                                    ? 'bg-amber-500/10 border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.05)]'
+                                    ? 'bg-amber-500/10 border-amber-500/40 '
                                     : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-white/10'
                             )}
                         >
-                            <div className="w-14 h-14 rounded-xl bg-black/60 flex items-center justify-center overflow-hidden border border-white/10 shrink-0 group-hover:scale-105 transition-transform relative z-10">
+                            <div className="w-14 h-14 rounded-xl bg-black/60 flex items-center justify-center overflow-hidden border border-white/10 shrink-0 group- transition-transform relative z-10">
                                 {b.imageUrl ? (
                                     <img src={b.imageUrl} alt="" className="w-12 h-12 object-contain" />
                                 ) : (
@@ -196,15 +196,15 @@ export default function GodBountiesPage() {
                                 )}>
                                     {b.name}
                                 </p>
-                                <p className="text-[10px] font-bold text-zinc-500 truncate mt-1 flex items-center gap-2">
+                                <p className="text-caption font-bold text-zinc-500 truncate mt-1 flex items-center gap-2">
                                     <MapIcon size={10} /> {b.zoneName || "Zone Inconnue"}
                                 </p>
                             </div>
                             {b.mechanics && (
-                                <div className="w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] relative z-10" />
+                                <div className="w-1 h-1 rounded-full bg-amber-500  relative z-10" />
                             )}
                             {selectedBounty?.id === b.id && (
-                                <div className="absolute right-0 top-0 bottom-0 w-1 bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,1)]" />
+                                <div className="absolute right-0 top-0 bottom-0 w-1 bg-amber-500 " />
                             )}
                         </button>
                     ))}
@@ -212,7 +212,7 @@ export default function GodBountiesPage() {
 
                 {/* Editor Section */}
                 <div className={cn(
-                    "flex-1 overflow-y-auto bg-[#080808] custom-scrollbar transition-all duration-500",
+                    "flex-1 overflow-y-auto bg-[#080808] custom-scrollbar transition-all duration-300",
                     !selectedBounty && "hidden lg:block"
                 )}>
                     {selectedBounty ? (
@@ -230,13 +230,13 @@ export default function GodBountiesPage() {
                             <Tabs defaultValue="general" className="space-y-8 lg:space-y-12">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between sticky top-0 py-2 bg-[#080808] z-20 gap-4">
                                     <TabsList className="bg-black/40 border border-white/5 p-1 h-auto lg:h-14 rounded-xl lg:rounded-2xl flex-wrap lg:flex-nowrap">
-                                        <TabsTrigger value="general" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-[9px] lg:text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                        <TabsTrigger value="general" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-caption lg:text-caption tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
                                             Config
                                         </TabsTrigger>
-                                        <TabsTrigger value="rewards" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-[9px] lg:text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                        <TabsTrigger value="rewards" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-caption lg:text-caption tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
                                             Rewards
                                         </TabsTrigger>
-                                        <TabsTrigger value="mechanics" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-[9px] lg:text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                        <TabsTrigger value="mechanics" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-caption lg:text-caption tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
                                             Briefing
                                         </TabsTrigger>
                                     </TabsList>
@@ -258,7 +258,7 @@ export default function GodBountiesPage() {
                                         <div className="space-y-8">
                                             <div className="grid grid-cols-2 gap-6">
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] italic ml-1 flex items-center gap-2 drop-shadow-sm">
+                                                    <label className="text-caption font-black text-amber-500 uppercase tracking-widest italic ml-1 flex items-center gap-2 drop-shadow-sm">
                                                         <Crosshair size={12} /> Portrait Cible
                                                     </label>
                                                     <button 
@@ -266,13 +266,13 @@ export default function GodBountiesPage() {
                                                         className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
                                                     >
                                                         {selectedBounty.imageUrl ? (
-                                                            <img src={selectedBounty.imageUrl} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
+                                                            <img src={selectedBounty.imageUrl} alt="" className="w-full h-full object-contain group- transition-transform duration-300" />
                                                         ) : (
                                                             <ImageIcon size={48} className="text-zinc-700" />
                                                         )}
                                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                                             <ImageIcon size={24} className="text-amber-500" />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-white">Changer</span>
+                                                            <span className="text-caption font-black uppercase tracking-widest text-white">Changer</span>
                                                         </div>
                                                     </button>
                                                     <div className="flex gap-2">
@@ -280,7 +280,7 @@ export default function GodBountiesPage() {
                                                             value={selectedBounty.imageUrl || ""}
                                                             onChange={(e) => setSelectedBounty({ ...selectedBounty, imageUrl: e.target.value })}
                                                             placeholder="Portrait URL..."
-                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-[10px] text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
+                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-caption text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
                                                         />
                                                         <Button 
                                                             onClick={() => { setGalleryType("portraits"); setGalleryOpen(true); }}
@@ -293,7 +293,7 @@ export default function GodBountiesPage() {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] italic ml-1 flex items-center gap-2 drop-shadow-sm">
+                                                    <label className="text-caption font-black text-amber-500 uppercase tracking-widest italic ml-1 flex items-center gap-2 drop-shadow-sm">
                                                         <MapIcon size={12} /> Zone de Spawn
                                                     </label>
                                                     <button 
@@ -301,13 +301,13 @@ export default function GodBountiesPage() {
                                                         className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
                                                     >
                                                         {selectedBounty.mapUrl ? (
-                                                            <img src={selectedBounty.mapUrl} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" />
+                                                            <img src={selectedBounty.mapUrl} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-300" />
                                                         ) : (
                                                             <MapIcon size={48} className="text-zinc-700" />
                                                         )}
                                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                                             <MapIcon size={24} className="text-amber-500" />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-white">Changer</span>
+                                                            <span className="text-caption font-black uppercase tracking-widest text-white">Changer</span>
                                                         </div>
                                                     </button>
                                                     <div className="flex gap-2">
@@ -315,7 +315,7 @@ export default function GodBountiesPage() {
                                                             value={selectedBounty.mapUrl || ""}
                                                             onChange={(e) => setSelectedBounty({ ...selectedBounty, mapUrl: e.target.value })}
                                                             placeholder="Minimap URL..."
-                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-[10px] text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
+                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-caption text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
                                                         />
                                                         <Button 
                                                             onClick={() => { setGalleryType("maps"); setGalleryOpen(true); }}
@@ -331,7 +331,7 @@ export default function GodBountiesPage() {
 
                                         <div className="space-y-8">
                                             <div className="space-y-3">
-                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Identité de l'avis</label>
+                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Identité de l'avis</label>
                                                 <Input
                                                     value={selectedBounty.name}
                                                     onChange={(e) => setSelectedBounty({ ...selectedBounty, name: e.target.value })}
@@ -341,7 +341,7 @@ export default function GodBountiesPage() {
 
                                             <div className="grid grid-cols-2 gap-6">
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Niveau prérequis &gt;</label>
+                                                    <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Niveau prérequis &gt;</label>
                                                     <Input
                                                         type="number"
                                                         value={selectedBounty.level}
@@ -350,7 +350,7 @@ export default function GodBountiesPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Origine / Milice</label>
+                                                    <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Origine / Milice</label>
                                                     <Input
                                                         value={selectedBounty.milice || ""}
                                                         onChange={(e) => setSelectedBounty({ ...selectedBounty, milice: e.target.value })}
@@ -360,9 +360,9 @@ export default function GodBountiesPage() {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1 flex items-center justify-between">
+                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1 flex items-center justify-between">
                                                     <span>Position de départ (NPC / Milice)</span>
-                                                    <span className="text-[8px] opacity-40">Format: X,Y (ex: 4,-18)</span>
+                                                    <span className="text-caption opacity-40">Format: X,Y (ex: 4,-18)</span>
                                                 </label>
                                                 <div className="relative group">
                                                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
@@ -380,7 +380,7 @@ export default function GodBountiesPage() {
                                                                 navigator.clipboard.writeText(`/travel ${selectedBounty.position}`);
                                                                 toast.success("Commande /travel copiée !");
                                                             }}
-                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-zinc-500 hover:text-white h-10 px-4 rounded-xl"
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-caption font-black uppercase text-zinc-500 hover:text-white h-10 px-4 rounded-xl"
                                                         >
                                                             <Copy size={12} className="mr-2" /> /travel
                                                         </Button>
@@ -389,7 +389,7 @@ export default function GodBountiesPage() {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Lien DofusPourLesNoobs (DPNL)</label>
+                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Lien DofusPourLesNoobs (DPNL)</label>
                                                 <div className="relative group">
                                                     <ExternalLink className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
                                                     <Input
@@ -402,11 +402,11 @@ export default function GodBountiesPage() {
                                             </div>
 
                                             <div className="space-y-3 relative">
-                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1 flex items-center justify-between">
+                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1 flex items-center justify-between">
                                                     <span className="flex items-center gap-2"><MapPin size={11} /> Localisation (Zones)</span>
                                                     {selectedBounty.zoneName && (
                                                         <span className={cn(
-                                                            "text-[8px] font-black uppercase px-2 py-0.5 rounded-md",
+                                                            "text-caption font-black uppercase px-2 py-0.5 rounded-md",
                                                             subareaNames.includes(selectedBounty.zoneName)
                                                                 ? "bg-emerald-500/10 text-emerald-400"
                                                                 : "bg-rose-500/10 text-rose-400"
@@ -439,7 +439,7 @@ export default function GodBountiesPage() {
                                                                     n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)
                                                                 ).slice(0, 40);
                                                                 if (filtered.length === 0) return (
-                                                                    <div className="px-4 py-3 text-zinc-600 text-[10px] italic text-center">Aucune zone trouvée</div>
+                                                                    <div className="px-4 py-3 text-zinc-600 text-caption italic text-center">Aucune zone trouvée</div>
                                                                 );
                                                                 return filtered.map(name => (
                                                                     <button
@@ -477,7 +477,7 @@ export default function GodBountiesPage() {
                                                 <Coins className="text-amber-500" size={24} />
                                                 Dotations de Capture
                                             </h3>
-                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Liste des récompenses obtenues à la remise de l'avis</p>
+                                            <p className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-1">Liste des récompenses obtenues à la remise de l'avis</p>
                                         </div>
                                         <Button
                                             onClick={addReward}
@@ -500,16 +500,16 @@ export default function GodBountiesPage() {
 
                                                 <div className="flex-1 grid grid-cols-3 gap-8">
                                                     <div className="space-y-2">
-                                                        <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] italic ml-1">Type de monnaie</label>
+                                                        <label className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic ml-1">Type de monnaie</label>
                                                         <div className="flex flex-wrap gap-2">
                                                             {REWARD_TYPES.map(type => (
                                                                 <button
                                                                     key={type.id}
                                                                     onClick={() => updateReward(idx, "type", type.id)}
                                                                     className={cn(
-                                                                        "px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all border",
+                                                                        "px-4 py-2 rounded-xl text-caption font-black uppercase italic transition-all border",
                                                                         reward.type === type.id
-                                                                            ? "bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                                                                            ? "bg-amber-500 text-black border-amber-500 "
                                                                             : "bg-white/5 text-zinc-500 border-white/5 hover:border-white/10"
                                                                     )}
                                                                 >
@@ -519,7 +519,7 @@ export default function GodBountiesPage() {
                                                         </div>
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] italic ml-1">Montant</label>
+                                                        <label className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic ml-1">Montant</label>
                                                         <Input
                                                             type="number"
                                                             value={reward.amount}
@@ -547,18 +547,18 @@ export default function GodBountiesPage() {
                                                 <Sparkles className="text-amber-500" size={24} />
                                                 Briefing Tactique
                                             </h3>
-                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Supporte le Markdown pour un formattage riche</p>
+                                            <p className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-1">Supporte le Markdown pour un formattage riche</p>
                                         </div>
                                         <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
                                             <button
                                                 onClick={() => setPreviewMode(false)}
-                                                className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", !previewMode ? "bg-amber-500 text-black" : "text-zinc-500 hover:text-white")}
+                                                className={cn("px-4 py-2 rounded-lg text-caption font-black uppercase transition-all", !previewMode ? "bg-amber-500 text-black" : "text-zinc-500 hover:text-white")}
                                             >
                                                 Édition
                                             </button>
                                             <button
                                                 onClick={() => setPreviewMode(true)}
-                                                className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", previewMode ? "bg-amber-500 text-black" : "text-zinc-500 hover:text-white")}
+                                                className={cn("px-4 py-2 rounded-lg text-caption font-black uppercase transition-all", previewMode ? "bg-amber-500 text-black" : "text-zinc-500 hover:text-white")}
                                             >
                                                 Aperçu
                                             </button>
@@ -567,7 +567,7 @@ export default function GodBountiesPage() {
 
                                     <div className="grid grid-cols-1 gap-6">
                                         <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-white/5 to-transparent border border-white/5 shadow-2xl relative overflow-hidden group min-h-[500px]">
-                                            <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/20 group-hover:bg-amber-500 transition-all shadow-[0_0_20px_rgba(245,158,11,0.5)]" />
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/20 group-hover:bg-amber-500 transition-all " />
                                             {!previewMode ? (
                                                 <div className="relative h-full">
                                                     <AdvancedEditor
@@ -596,7 +596,7 @@ export default function GodBountiesPage() {
                             </div>
                             <div className="space-y-4">
                                 <p className="text-4xl font-black uppercase italic tracking-tighter text-zinc-800">Archive Scellée</p>
-                                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-600">Sélectionnez une cible pour engager le protocole d'édition</p>
+                                <p className="text-caption font-black uppercase tracking-widest text-zinc-600">Sélectionnez une cible pour engager le protocole d'édition</p>
                             </div>
                         </div>
                     )}

@@ -84,7 +84,7 @@ export function ServerTimersPanel() {
             <div className="px-6 py-5 flex items-center justify-between relative z-10"
                 style={{ background: "rgba(0,0,0,0.3)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                 <div>
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400 mb-1 flex items-center gap-2">
+                    <h3 className="text-caption font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-2">
                         <Clock className="h-3 w-3" /> Heure Dofus (Paris)
                     </h3>
                     <div className="text-3xl font-black text-white tracking-widest tabular-nums leading-none">
@@ -97,13 +97,13 @@ export function ServerTimersPanel() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400">En ligne</span>
+                    <span className="text-caption font-bold uppercase tracking-widest text-emerald-400">En ligne</span>
                 </div>
             </div>
 
             {/* Timers List */}
             <div className="flex-1 p-5 space-y-3 relative z-10 overflow-hidden">
-                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">
+                <div className="text-caption font-bold text-zinc-500 uppercase tracking-widest mb-4">
                     Échéances du moment
                 </div>
 
@@ -116,15 +116,15 @@ export function ServerTimersPanel() {
                                 <div className="w-6 h-6 rounded-md bg-fuchsia-500/10 flex items-center justify-center border border-fuchsia-500/20">
                                     <Wrench className="h-3 w-3 text-fuchsia-400" />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-fuchsia-400">
+                                <span className="text-caption font-black uppercase tracking-widest text-fuchsia-400">
                                     Maintenance
                                 </span>
                             </div>
                             <div className="text-sm font-semibold text-white">Sauvegarde Dofus</div>
-                            <div className="text-[10px] text-zinc-500 mt-0.5">Mardi, estimé 08:00 - 10:30</div>
+                            <div className="text-caption text-zinc-500 mt-0.5">Mardi, estimé 08:00 - 10:30</div>
                         </div>
                         <div className="text-right">
-                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 font-bold">Dans :</div>
+                            <div className="text-caption text-zinc-500 uppercase tracking-widest mb-1 font-bold">Dans :</div>
                             <div className="text-lg font-black text-fuchsia-300 tabular-nums">
                                 {isMaintenanceTime ? "En cours ⏳" : formatTimeLeft(tNextMaintenance)}
                             </div>
@@ -141,15 +141,15 @@ export function ServerTimersPanel() {
                                 <div className="w-6 h-6 rounded-md bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
                                     <RefreshCw className="h-3 w-3 text-amber-400" />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                                <span className="text-caption font-black uppercase tracking-widest text-amber-400">
                                     Quotidien
                                 </span>
                             </div>
                             <div className="text-sm font-semibold text-white">Reset Journalier</div>
-                            <div className="text-[10px] text-zinc-500 mt-0.5">Almanax, Dopeuls, Quêtes répétables</div>
+                            <div className="text-caption text-zinc-500 mt-0.5">Almanax, Dopeuls, Quêtes répétables</div>
                         </div>
                         <div className="text-right">
-                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 font-bold">Dans :</div>
+                            <div className="text-caption text-zinc-500 uppercase tracking-widest mb-1 font-bold">Dans :</div>
                             <div className="text-lg font-black text-amber-300 tabular-nums">
                                 {formatTimeLeft(tNextMidnight)}
                             </div>
@@ -160,7 +160,7 @@ export function ServerTimersPanel() {
             </div>
 
             {/* Note en bas */}
-            <div className="px-5 py-3 border-t border-white/5 text-[9px] text-zinc-600 flex items-center justify-center gap-1.5 bg-black/20">
+            <div className="px-5 py-3 border-t border-white/5 text-caption text-zinc-600 flex items-center justify-center gap-1.5 bg-black/20">
                 <ShieldAlert className="w-3 h-3 text-zinc-500" />
                 Les durées de maintenance sont approximatives selon Ankama.
             </div>

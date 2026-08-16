@@ -26,7 +26,7 @@ export function NotLinkedState({
 
     if (isNotLinked) {
         return (
-            <div className="max-w-3xl mx-auto py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="max-w-3xl mx-auto py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="text-center space-y-3">
                     <div className="inline-flex p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 mb-2">
                         <Crown className="w-8 h-8" />
@@ -49,8 +49,8 @@ export function NotLinkedState({
                 <Card className="bg-blue-500/5 border-blue-500/20 rounded-2xl">
                     <CardContent className="p-4 flex gap-4 items-start">
                         <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-blue-300/80 leading-relaxed">
-                            <p className="font-bold text-blue-300 mb-1 uppercase tracking-widest text-[10px]">Pourquoi lier mon compte ?</p>
+                        <div className="text-caption text-blue-300/80 leading-relaxed">
+                            <p className="font-bold text-blue-300 mb-1 uppercase tracking-widest text-caption">Pourquoi lier mon compte ?</p>
                             SigilOS utilise l'API Metamob pour récupérer vos archimonstres manquants en temps réel. 
                             Cela vous permet de voir instantanément qui dans votre guilde possède ce qu'il vous manque.
                         </div>

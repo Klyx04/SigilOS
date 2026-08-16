@@ -33,7 +33,7 @@ function ResourceNameLink({ itemId, fallbackName }: { itemId: string; fallbackNa
             href={`https://dofusdb.fr/fr/database/item/${itemId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[12px] font-black text-amber-400 italic hover:text-amber-300 transition-colors uppercase tracking-tight block truncate"
+            className="text-label font-black text-amber-400 italic hover:text-amber-300 transition-colors uppercase tracking-tight block truncate"
         >
             {name || fallbackName || `Ressource #${itemId}`}
         </a>
@@ -178,17 +178,17 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
             >
                 <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 w-full sm:w-auto">
                     <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-2xl transition-transform group-hover:scale-110 shrink-0",
+                        "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-2xl transition-transform group- shrink-0",
                         isExpanded ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-zinc-500"
                     )}>
                         <Info className="w-6 h-6" />
                     </div>
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-12 w-full text-center sm:text-left">
                         <div>
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-1">RÉCAPITULATIF GLOBAL</div>
+                            <div className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1">RÉCAPITULATIF GLOBAL</div>
                             <div className="text-[18px] font-black text-white italic uppercase tracking-tighter">Logistique du Dofus</div>
                         </div>
-                        <div className="flex flex-wrap justify-center sm:justify-start items-center gap-4 sm:gap-8 text-[11px] font-black uppercase tracking-widest text-zinc-500">
+                        <div className="flex flex-wrap justify-center sm:justify-start items-center gap-4 sm:gap-8 text-caption font-black uppercase tracking-widest text-zinc-500">
                             <div className="flex items-center gap-2"><ScrollText className="w-4 h-4" /> {logistics.totalQuests} Quêtes</div>
                             <div className="flex items-center gap-2"><Package className="w-4 h-4" /> {isLoadingItems ? "..." : filteredItems.length} Ressources</div>
                         </div>
@@ -216,14 +216,14 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                             {/* Resources Column */}
                             <div className="lg:col-span-5 space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.4em] flex items-center gap-3">
+                                    <h4 className="text-caption font-black text-zinc-400 uppercase tracking-widest flex items-center gap-3">
                                         <Package className="w-4 h-4" /> Ressources à prévoir
                                     </h4>
-                                    <span className="text-[10px] font-black px-3 py-1 bg-white/5 rounded-full text-zinc-500">{filteredItems.length} TYPES</span>
+                                    <span className="text-caption font-black px-3 py-1 bg-white/5 rounded-full text-zinc-500">{filteredItems.length} TYPES</span>
                                 </div>
 
                                 {isLoadingItems ? (
-                                    <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-[13px] flex flex-col items-center gap-2">
+                                    <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-body-sm flex flex-col items-center gap-2">
                                         <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin"></div>
                                         Analyse logistique en cours...
                                     </div>
@@ -235,22 +235,22 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                                     <img 
                                                         src={item.img || `https://static.dofusdb.fr/items/${item.id}.png`} 
                                                         alt="" 
-                                                        className="w-full h-full object-contain group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                                                        className="w-full h-full object-contain group- transition-transform drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]"
                                                         onError={(e) => (e.currentTarget.style.display = 'none')}
                                                     />
-                                                    <div className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-lg border border-white/10">
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black text-caption font-black px-1.5 py-0.5 rounded-md shadow-lg border border-white/10">
                                                         x{item.amount}
                                                     </div>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <ResourceNameLink itemId={item.id} fallbackName={item.name} />
-                                                    <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest block mt-0.5">ID: {item.id}</span>
+                                                    <span className="text-caption font-bold text-zinc-600 uppercase tracking-widest block mt-0.5">ID: {item.id}</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-[13px]">
+                                    <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-body-sm">
                                         Aucune ressource spécifique listée.
                                     </div>
                                 )}
@@ -259,10 +259,10 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                             {/* Dungeons Column - REFACTORED TO GRID */}
                             <div className="lg:col-span-7 space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.4em] flex items-center gap-3">
+                                    <h4 className="text-caption font-black text-zinc-400 uppercase tracking-widest flex items-center gap-3">
                                         <Sword className="w-4 h-4" /> Donjons Requis
                                     </h4>
-                                    <span className="text-[10px] font-black px-3 py-1 bg-white/5 rounded-full text-zinc-500">{logistics.dungeons.length} BOSS</span>
+                                    <span className="text-caption font-black px-3 py-1 bg-white/5 rounded-full text-zinc-500">{logistics.dungeons.length} BOSS</span>
                                 </div>
 
                                 {logistics.dungeons.length > 0 ? (
@@ -279,13 +279,13 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                                 >
                                                     {/* Idol Badge */}
                                                     {d.idoleName && (
-                                                        <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500/20 border-b border-l border-amber-500/30 rounded-bl-lg text-[7px] font-black text-amber-500 uppercase tracking-widest z-10">
+                                                        <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500/20 border-b border-l border-amber-500/30 rounded-bl-lg text-caption font-black text-amber-500 uppercase tracking-widest z-10">
                                                             {d.idoleName}
                                                         </div>
                                                     )}
                                                     
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-black/60 border border-white/5 flex items-center justify-center p-1 shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform shadow-inner">
+                                                        <div className="w-10 h-10 rounded-xl bg-black/60 border border-white/5 flex items-center justify-center p-1 shrink-0 relative overflow-hidden group- transition-transform shadow-inner">
                                                             {(d.id || d.img) ? (
                                                                 <img 
                                                                     src={d.img || `https://static.dofusdb.fr/monsters/${d.id}.png`} 
@@ -298,15 +298,15 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="text-[11px] font-black text-white italic truncate group-hover:text-rose-400 transition-colors uppercase leading-tight">
+                                                            <div className="text-caption font-black text-white italic truncate group-hover:text-rose-400 transition-colors uppercase leading-tight">
                                                                 {d.name}
                                                             </div>
                                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 opacity-50">
                                                                 {d.level && d.level > 0 && (
-                                                                    <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider whitespace-nowrap">Lvl {d.level}</span>
+                                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-wider whitespace-nowrap">Lvl {d.level}</span>
                                                                 )}
                                                                 {d.bossName && (
-                                                                    <span className="text-[8px] text-zinc-600 font-bold italic truncate">— {d.bossName}</span>
+                                                                    <span className="text-caption text-zinc-600 font-bold italic truncate">— {d.bossName}</span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -316,7 +316,7 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-[13px]">
+                                    <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-body-sm">
                                         Aucun donjon requis.
                                     </div>
                                 )}

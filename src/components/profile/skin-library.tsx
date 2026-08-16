@@ -132,8 +132,19 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
         }
 
         const timer = setTimeout(async () => {
-            const isSupported = newSkinUrl.includes("barbofus.com") || 
-                              newSkinUrl.includes("dofusskinmanga.com");
+            // Sécurité (CodeQL js/incomplete-url-substring-sanitization) : on parse l'URL
+            // et on compare le hostname exactement (ou sous-domaine) — plus d'includes() naïf.
+            const SUPPORTED_SKIN_HOSTS = ["barbofus.com", "dofusskinmanga.com"];
+            const isSupported = (() => {
+                try {
+                    const hostname = new URL(newSkinUrl.trim()).hostname.toLowerCase();
+                    return SUPPORTED_SKIN_HOSTS.some(
+                        (h) => hostname === h || hostname.endsWith(`.${h}`)
+                    );
+                } catch {
+                    return false;
+                }
+            })();
             
             if (!isSupported) return;
 
@@ -269,7 +280,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                             <h3 className="text-xl font-bold text-white">Ma Garde-Robe</h3>
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8 rounded-xl border-pink-500/30 bg-pink-500/5 text-pink-400 hover:bg-pink-500 hover:text-white transition-all gap-2 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-pink-500/10">
+                                    <Button variant="outline" size="sm" className="h-8 rounded-xl border-pink-500/30 bg-pink-500/5 text-pink-400 hover:bg-pink-500 hover:text-white transition-all gap-2 text-caption font-black uppercase tracking-widest shadow-lg shadow-pink-500/10">
                                         <HelpCircle className="w-3.5 h-3.5" />
                                         Comment ça marche ?
                                     </Button>
@@ -283,7 +294,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                     </div>
                                     <div className="p-6 space-y-8">
                                         <div className="space-y-4">
-                                            <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">1. Choisir un site</p>
+                                            <p className="text-caption text-zinc-500 font-black uppercase tracking-[0.2em]">1. Choisir un site</p>
                                             <div className="grid grid-cols-1 gap-3">
                                                 <a 
                                                     href="https://barbofus.com" 
@@ -297,7 +308,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-black text-white uppercase tracking-wider">Barbofus</span>
-                                                            <span className="text-[9px] text-zinc-500">Le roi des skins</span>
+                                                            <span className="text-caption text-zinc-500">Le roi des skins</span>
                                                         </div>
                                                     </div>
                                                     <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-pink-400 transition-colors" />
@@ -314,7 +325,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-black text-white uppercase tracking-wider">SkinManga</span>
-                                                            <span className="text-[9px] text-zinc-500">Inspiration & Manga</span>
+                                                            <span className="text-caption text-zinc-500">Inspiration & Manga</span>
                                                         </div>
                                                     </div>
                                                     <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 transition-colors" />
@@ -323,7 +334,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         </div>
 
                                         <div className="space-y-4">
-                                            <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">2. Méthode Express</p>
+                                            <p className="text-caption text-zinc-500 font-black uppercase tracking-[0.2em]">2. Méthode Express</p>
                                             <div className="space-y-5">
                                                 {[
                                                     { step: 1, text: "Crée ton skin sur un site.", sub: "Personalise tout à fond !" },
@@ -331,12 +342,12 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                     { step: 3, text: "Colle le lien sur SigilOS.", sub: "On récupère tout auto !" }
                                                 ].map((s) => (
                                                     <div key={s.step} className="flex gap-4">
-                                                        <div className="w-6 h-6 rounded-lg bg-pink-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-lg shadow-pink-500/20 uppercase">
+                                                        <div className="w-6 h-6 rounded-lg bg-pink-500 text-white text-caption font-black flex items-center justify-center shrink-0 shadow-lg shadow-pink-500/20 uppercase">
                                                             {s.step}
                                                         </div>
                                                         <div className="flex flex-col gap-0.5">
-                                                            <p className="text-[11px] text-zinc-200 font-bold leading-tight">{s.text}</p>
-                                                            <p className="text-[9px] text-zinc-500 italic">{s.sub}</p>
+                                                            <p className="text-caption text-zinc-200 font-bold leading-tight">{s.text}</p>
+                                                            <p className="text-caption text-zinc-500 italic">{s.sub}</p>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -345,7 +356,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                     </div>
                                     <div className="bg-white/5 p-4 border-t border-white/5 flex items-center justify-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
-                                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest text-center">Magie SigilOS Activée</p>
+                                        <p className="text-caption text-zinc-400 font-bold uppercase tracking-widest text-center">Magie SigilOS Activée</p>
                                     </div>
                                 </PopoverContent>
                             </Popover>
@@ -410,7 +421,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                     <>
                                                         <p className="text-sm font-bold text-white truncate">{previewData?.name}</p>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-[10px] font-black text-pink-500 uppercase tracking-tighter">
+                                                            <span className="text-caption font-black text-pink-500 uppercase tracking-tighter">
                                                                 {previewData?.provider}
                                                                 {(previewData?.equipment?.length > 0 || Object.keys(previewData?.colors || {}).length > 0) && " + Détails détectés"}
                                                             </span>
@@ -424,7 +435,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
 
                                 <div className="bg-pink-500/5 border border-pink-500/10 rounded-xl p-3 flex gap-3">
                                     <Info className="w-5 h-5 text-pink-400 shrink-0" />
-                                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                                    <p className="text-caption text-zinc-400 leading-relaxed">
                                         Nous irons chercher automatiquement la miniature et les informations du skin pour vous.
                                     </p>
                                 </div>
@@ -445,9 +456,9 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                     className="rounded-xl relative overflow-hidden group/btn active:scale-95 transition-all shadow-lg shadow-pink-500/20"
                                 >
                                     {/* Shine Effect on Hover/Active */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700 ease-in-out pointer-events-none" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-300 ease-in-out pointer-events-none" />
                                     
-                                    <span className="relative z-10 flex items-center justify-center font-black uppercase tracking-widest text-[11px]">
+                                    <span className="relative z-10 flex items-center justify-center font-black uppercase tracking-widest text-caption">
                                         {isSubmitting ? (
                                             <>
                                                 <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin text-white" /> 
@@ -483,7 +494,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { setSearchQuery(""); setSelectedClass(null); setSelectedGender(null); }}
-                            className="ml-auto xl:ml-0 h-10 px-4 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 gap-2 text-[10px] font-black uppercase tracking-widest"
+                            className="ml-auto xl:ml-0 h-10 px-4 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 gap-2 text-caption font-black uppercase tracking-widest"
                         >
                             <RefreshCw className="w-3 h-3" />
                             Reset
@@ -492,7 +503,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                 </div>
 
                 <div className="ml-auto hidden xl:flex items-center gap-2">
-                    <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">
+                    <p className="text-caption text-zinc-600 font-black uppercase tracking-widest">
                         <span className="text-pink-500">{filteredSkins.length}</span> Skins trouvés
                     </p>
                 </div>
@@ -502,7 +513,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
             {skins.length === 0 && (
                 <div className="flex flex-col items-center justify-center p-20 bg-zinc-900/20 rounded-[2.5rem] border-2 border-dashed border-white/5 group">
                     <div className="relative mb-6">
-                        <div className="p-8 bg-zinc-900/50 rounded-full border border-white/5 transition-transform group-hover:scale-110 duration-500">
+                        <div className="p-8 bg-zinc-900/50 rounded-full border border-white/5 transition-transform group- duration-300">
                             <LayoutGrid className="w-12 h-12 text-zinc-700" />
                         </div>
                         <Sparkles className="absolute -top-2 -right-2 w-8 h-8 text-pink-500/30 animate-pulse" />
@@ -550,7 +561,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         src={skin.thumbnailUrl} 
                                         alt={skin.name}
                                         fill
-                                        className="object-contain object-[50%_20%] transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-1"
+                                        className="object-contain object-[50%_20%] transition-all duration-300 ease-out group- group-hover:rotate-1"
                                         unoptimized // Often useful for external thumbnails
                                     />
                                 </div>
@@ -561,7 +572,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                             )}
 
                             {/* Class & Gender Badge - UX 2026 Perfected */}
-                            <div className="absolute top-4 left-4 z-10 transition-transform duration-500 group-hover:translate-x-1 group-hover:translate-y-1">
+                            <div className="absolute top-4 left-4 z-10 transition-transform duration-300 group-hover:translate-x-1 group-hover:translate-y-1">
                                 {(() => {
                                     const skinClass = skin.metadata?.class;
                                     const skinGender = skin.metadata?.gender;
@@ -580,7 +591,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                 <NextImage src={classData?.icon || "/assets/dofus/classes/1.png"} alt="Classe" fill className="object-contain" />
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black text-white tracking-widest uppercase truncate max-w-[80px]">
+                                                <span className="text-caption font-black text-white tracking-widest uppercase truncate max-w-[80px]">
                                                     {classData?.name || "???"}
                                                 </span>
                                                 <div className={cn(
@@ -613,10 +624,10 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                             </button>
 
                             {/* UX 2026: PREMIUM OVERLAY */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 opacity-0 group-hover:opacity-100 backdrop-blur-[2px] transition-all duration-500 z-20 flex flex-col items-center justify-between p-4 pointer-events-none">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 opacity-0 group-hover:opacity-100 backdrop-blur-[2px] transition-all duration-300 z-20 flex flex-col items-center justify-between p-4 pointer-events-none">
                                 
                                 {/* TOP ACTIONS: CORNER CONTROLS */}
-                                <div className="w-full flex justify-end gap-2 pointer-events-auto transform translate-y-[-10px] group-hover:translate-y-0 transition-transform duration-500">
+                                <div className="w-full flex justify-end gap-2 pointer-events-auto transform translate-y-[-10px] group-hover:translate-y-0 transition-transform duration-300">
                                     <Button 
                                         variant="outline"
                                         size="icon"
@@ -659,7 +670,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                 </div>
 
                                 {/* CENTER ACTION: PRIMARY EYE */}
-                                <div className="pointer-events-auto transform scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 delay-75">
+                                <div className="pointer-events-auto transform scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 delay-75">
                                     <Button 
                                         variant="secondary" 
                                         size="icon" 
@@ -669,11 +680,11 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         <Eye className="w-7 h-7 group-hover/eye:scale-110 transition-transform" />
                                         <div className="absolute inset-0 rounded-full bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </Button>
-                                    <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em] mt-3 text-center">Aperçu</p>
+                                    <p className="text-caption font-black text-white/40 uppercase tracking-widest mt-3 text-center">Aperçu</p>
                                 </div>
 
                                 {/* BOTTOM ACTION BAR: FLOATING GLASS */}
-                                <div className="w-full pointer-events-auto transform translate-y-[20px] group-hover:translate-y-0 transition-all duration-500 delay-100">
+                                <div className="w-full pointer-events-auto transform translate-y-[20px] group-hover:translate-y-0 transition-all duration-300 delay-100">
                                     <div className="flex items-center gap-1 bg-zinc-950/80 border border-white/10 p-1.5 rounded-2xl">
                                         <Button 
                                             variant="outline"
@@ -746,13 +757,13 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                 
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                                     <div className="bg-pink-500/20 backdrop-blur-xl px-3 py-1 rounded-full border border-pink-500/30 w-fit">
-                                        <span className="text-[10px] font-black text-pink-400 tracking-widest uppercase">
+                                        <span className="text-caption font-black text-pink-400 tracking-widest uppercase">
                                             {selectedSkin.provider}
                                         </span>
                                     </div>
                                     {selectedSkin.metadata?.author && (
                                         <div className="bg-zinc-950/80 backdrop-blur-xl px-3 py-1 rounded-xl border border-white/10 w-fit shadow-2xl">
-                                            <span className="text-[10px] font-black text-zinc-400 tracking-tighter uppercase">
+                                            <span className="text-caption font-black text-zinc-400 tracking-tighter uppercase">
                                                 Créé par <span className="text-white">{selectedSkin.metadata.author}</span>
                                             </span>
                                         </div>
@@ -770,7 +781,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                         <div className="flex flex-wrap items-center gap-3 mt-4">
                                             {selectedSkin.metadata?.class && (
                                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-pink-500/10 text-pink-400 border border-pink-500/20 rounded-xl shadow-inner">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                                    <span className="text-caption font-black uppercase tracking-widest">
                                                         {(() => {
                                                             const classData = DOFUS_CLASSES.find(c => {
                                                                 const match = c.icon.match(/\/(\d+)\.png$/);
@@ -783,7 +794,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                             )}
                                             {selectedSkin.metadata?.gender && (
                                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-xl shadow-inner">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                                    <span className="text-caption font-black uppercase tracking-widest">
                                                         {selectedSkin.metadata.gender}
                                                     </span>
                                                 </div>
@@ -794,12 +805,12 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                         {selectedSkin.metadata.head.startsWith('http') ? (
                                                             <NextImage src={selectedSkin.metadata.head} alt="Head" width={24} height={24} className="object-cover group-hover/head:scale-110 transition-transform" unoptimized />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-zinc-600">
+                                                            <div className="w-full h-full flex items-center justify-center text-caption font-bold text-zinc-600">
                                                                 #{selectedSkin.metadata.head}
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest opacity-70">
+                                                    <span className="text-caption font-black uppercase tracking-widest opacity-70">
                                                         Visage {selectedSkin.metadata.head.startsWith('http') ? "" : selectedSkin.metadata.head}
                                                     </span>
                                                 </div>
@@ -810,7 +821,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                     {/* Colors Section */}
                                     {selectedSkin.colors && Object.keys(selectedSkin.colors).length > 0 && (
                                         <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                                            <h3 className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1 h-1 rounded-full bg-pink-500" />
                                                 Couleurs du Skin
                                             </h3>
@@ -831,8 +842,8 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                                 style={{ backgroundColor: hex as string }}
                                                             />
                                                             <div className="min-w-0">
-                                                                <p className="text-[9px] font-bold text-zinc-500 truncate uppercase tracking-tighter group-hover/color:text-pink-300 transition-colors">{label}</p>
-                                                                <p className="text-[11px] font-black text-white uppercase font-mono">{hex as string}</p>
+                                                                <p className="text-caption font-bold text-zinc-500 truncate uppercase tracking-tighter group-hover/color:text-pink-300 transition-colors">{label}</p>
+                                                                <p className="text-caption font-black text-white uppercase font-mono">{hex as string}</p>
                                                             </div>
                                                         </div>
                                                         <div className="p-1.5 rounded-lg bg-white/5 text-zinc-400 group-hover/color:bg-pink-500/20 group-hover/color:text-pink-400 transition-all shrink-0">
@@ -847,7 +858,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                     {/* Equipment Section */}
                                     {selectedSkin.equipment && Array.isArray(selectedSkin.equipment) && selectedSkin.equipment.length > 0 && (
                                         <div className="space-y-4 pb-4">
-                                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                                            <h3 className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1 h-1 rounded-full bg-emerald-500" />
                                                 Équipements
                                             </h3>
@@ -863,8 +874,8 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                                                 )}
                                                             </div>
                                                             <div>
-                                                                <p className="text-[12px] font-bold text-white group-hover/item:text-emerald-400 transition-colors leading-tight">{item.name}</p>
-                                                                <p className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">{item.type}</p>
+                                                                <p className="text-label font-bold text-white group-hover/item:text-emerald-400 transition-colors leading-tight">{item.name}</p>
+                                                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-wider">{item.type}</p>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -929,13 +940,13 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
 
             {/* Delete Confirmation Modal */}
             <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-                <DialogContent className="bg-zinc-950/95 backdrop-blur-2xl border-2 border-red-500/20 text-white sm:max-w-md p-0 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_-12px_rgba(239,68,68,0.3)]">
+                <DialogContent className="bg-zinc-950/95 backdrop-blur-2xl border-2 border-red-500/20 text-white sm:max-w-md p-0 rounded-[2.5rem] overflow-hidden ">
                     <DialogTitle className="sr-only">Confirmer la suppression</DialogTitle>
                     <DialogDescription className="sr-only">Cette action est irréversible.</DialogDescription>
                     
                     <div className="p-8 flex flex-col items-center text-center">
                         <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20 mb-6 group">
-                            <Trash2 className="w-10 h-10 text-red-500 group-hover:scale-110 transition-transform duration-500" />
+                            <Trash2 className="w-10 h-10 text-red-500 group- transition-transform duration-300" />
                         </div>
                         
                         <h3 className="text-xl font-black uppercase tracking-tight mb-2">Supprimer ce skin ?</h3>
@@ -948,7 +959,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                         <Button 
                             variant="ghost" 
                             onClick={() => setIsDeleteOpen(false)}
-                            className="rounded-2xl hover:bg-white/5 text-zinc-400 font-bold uppercase tracking-widest text-[10px]"
+                            className="rounded-2xl hover:bg-white/5 text-zinc-400 font-bold uppercase tracking-widest text-caption"
                         >
                             Annuler
                         </Button>
@@ -956,7 +967,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                             variant="destructive"
                             onClick={handleDeleteSkin}
                             disabled={isSubmitting}
-                            className="rounded-2xl bg-red-500 hover:bg-red-600 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-red-500/20 active:scale-95 transition-all"
+                            className="rounded-2xl bg-red-500 hover:bg-red-600 font-black uppercase tracking-widest text-caption shadow-lg shadow-red-500/20 active:scale-95 transition-all"
                         >
                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Oui, Supprimer"}
                         </Button>
@@ -993,7 +1004,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                 placeholder="https://..."
                             />
                             {editedUrl !== skinToEdit?.url && (
-                                <p className="text-[10px] text-amber-500/80 font-medium italic">
+                                <p className="text-caption text-amber-500/80 font-medium italic">
                                     Note : Changer le lien actualisera automatiquement la miniature et les détails.
                                 </p>
                             )}
@@ -1012,7 +1023,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                             variant="sigil" 
                             onClick={handleUpdateSkin}
                             disabled={isSubmitting || !editedName.trim() || !editedUrl.trim() || (editedName === skinToEdit?.name && editedUrl === skinToEdit?.url)}
-                            className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 active:scale-95 transition-all font-black uppercase tracking-widest text-[10px]"
+                            className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 active:scale-95 transition-all font-black uppercase tracking-widest text-caption"
                         >
                             {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Enregistrer"}
                         </Button>

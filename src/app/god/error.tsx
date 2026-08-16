@@ -37,7 +37,7 @@ export default function GodError({
                         </code>
                     )}
                     {error.digest && (
-                        <p className="text-[10px] font-mono text-zinc-700">
+                        <p className="text-caption font-mono text-zinc-700">
                             REF: {error.digest}
                         </p>
                     )}

@@ -60,7 +60,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+        <div className="space-y-8 animate-in fade-in duration-300 pb-10">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* ── MAIN CONFIG ── */}
                 <Card className="lg:col-span-2 bg-zinc-900/40 border-white/5 backdrop-blur-xl shrink-0 overflow-hidden relative group">
@@ -97,7 +97,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
                                 </div>
                                 <div className="space-y-0.5">
                                     <p className="text-xs font-black uppercase text-white tracking-widest">ID du Salon Blacklist</p>
-                                    <p className="text-[10px] text-zinc-500 font-medium">Récupérez l&apos;ID via Discord (Clic droit {'>'} Copier l&apos;ID)</p>
+                                    <p className="text-caption text-zinc-500 font-medium">Récupérez l&apos;ID via Discord (Clic droit {'>'} Copier l&apos;ID)</p>
                                 </div>
                             </div>
                             
@@ -121,20 +121,20 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                                <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest">
+                                <div className="flex items-center gap-2 text-white font-black text-caption uppercase tracking-widest">
                                     <ArrowRightLeft className="w-3.5 h-3.5 text-red-400" />
                                     Synchro Bidirectionnelle
                                 </div>
-                                <p className="text-[11px] text-zinc-500 leading-relaxed italic">
+                                <p className="text-caption text-zinc-500 leading-relaxed italic">
                                     Ajoutez, modifiez ou supprimez des entrées sur Discord ou le Dashboard, les changements se répercutent instantanément des deux côtés.
                                 </p>
                             </div>
                             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                                <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest">
+                                <div className="flex items-center gap-2 text-white font-black text-caption uppercase tracking-widest">
                                     <MessageSquare className="w-3.5 h-3.5 text-red-400" />
                                     Formatage Automatique
                                 </div>
-                                <p className="text-[11px] text-zinc-500 leading-relaxed italic">
+                                <p className="text-caption text-zinc-500 leading-relaxed italic">
                                     Le bot formate proprement les signalements sur Discord avec des embeds colorés pour une lecture rapide par vos modérateurs.
                                 </p>
                             </div>
@@ -154,19 +154,19 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
                         <CardContent className="pt-6 space-y-4">
                             <div className="space-y-3">
                                 <div className="flex gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</div>
+                                    <div className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-caption font-black shrink-0 mt-0.5">1</div>
                                     <p className="text-xs text-zinc-400 leading-relaxed font-medium">
                                         Créez ou choisissez un salon dédié aux signalements sur votre Discord.
                                     </p>
                                 </div>
                                 <div className="flex gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</div>
+                                    <div className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-caption font-black shrink-0 mt-0.5">2</div>
                                     <p className="text-xs text-zinc-400 leading-relaxed font-medium">
                                         Saisissez son ID ici. Le Bot SigilOS doit avoir accès en <span className="text-white">lecture/écriture</span>.
                                     </p>
                                 </div>
                                 <div className="flex gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</div>
+                                    <div className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-caption font-black shrink-0 mt-0.5">3</div>
                                     <p className="text-xs text-zinc-400 leading-relaxed font-medium">
                                         Postez n&apos;importe quoi dans ce salon : SigilOS le capturera et l&apos;ajoutera à la blacklist dashboard !
                                     </p>
@@ -176,7 +176,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
                             <div className="pt-4 border-t border-white/5">
                                 <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
                                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                    <p className="text-[10px] text-amber-200/70 italic leading-relaxed font-medium">
+                                    <p className="text-caption text-amber-200/70 italic leading-relaxed font-medium">
                                         Note: Seuls les messages textuels sont synchronisés. Les images/fichiers ne sont pas importés.
                                     </p>
                                 </div>

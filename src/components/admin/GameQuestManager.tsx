@@ -206,7 +206,7 @@ export default function GameQuestManager() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-slate-800/60">
                     {/* Zone/Category dropdown */}
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Zone / Catégorie</label>
+                        <label className="text-caption font-bold uppercase tracking-widest text-slate-500">Zone / Catégorie</label>
                         <select
                             value={selectedCategory}
                             onChange={e => setSelectedCategory(e.target.value)}
@@ -221,7 +221,7 @@ export default function GameQuestManager() {
 
                     {/* Min Level */}
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Niveau Min</label>
+                        <label className="text-caption font-bold uppercase tracking-widest text-slate-500">Niveau Min</label>
                         <Input
                             type="number"
                             placeholder="1"
@@ -235,7 +235,7 @@ export default function GameQuestManager() {
 
                     {/* Max Level */}
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Niveau Max</label>
+                        <label className="text-caption font-bold uppercase tracking-widest text-slate-500">Niveau Max</label>
                         <Input
                             type="number"
                             placeholder="200"
@@ -249,7 +249,7 @@ export default function GameQuestManager() {
 
                     {/* Source */}
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Source</label>
+                        <label className="text-caption font-bold uppercase tracking-widest text-slate-500">Source</label>
                         <select
                             value={selectedSource}
                             onChange={e => setSelectedSource(e.target.value)}
@@ -312,7 +312,7 @@ export default function GameQuestManager() {
                                                     <h4 className="font-semibold text-slate-200 text-sm truncate">{quest.name}</h4>
                                                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                         {(quest.levelMin || quest.levelMax) && (
-                                                            <span className="text-[10px] text-slate-500">
+                                                            <span className="text-caption text-slate-500">
                                                                 Niv. {quest.levelMin ?? "?"}{quest.levelMax && quest.levelMax !== quest.levelMin ? `–${quest.levelMax}` : ""}
                                                             </span>
                                                         )}
@@ -322,13 +322,13 @@ export default function GameQuestManager() {
                                                                     href={`https://dofusdb.fr/fr/database/quest/${quest.dofusDbId}`}
                                                                     target="_blank" rel="noopener noreferrer"
                                                                     onClick={e => e.stopPropagation()}
-                                                                    className="text-[10px] text-cyan-500 hover:text-cyan-400 flex items-center gap-0.5"
+                                                                    className="text-caption text-cyan-500 hover:text-cyan-400 flex items-center gap-0.5"
                                                                 >
                                                                     <ExternalLink className="w-2.5 h-2.5" /> DofusDB
                                                                 </a>
                                                                 <button
                                                                     onClick={() => togglePrerequisites(quest.id, quest.dofusDbId!)}
-                                                                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
+                                                                    className="text-caption text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
                                                                 >
                                                                     {loadingPrereqs[quest.dofusDbId] ? (
                                                                         <Loader2 className="w-2.5 h-2.5 animate-spin" />
@@ -341,7 +341,7 @@ export default function GameQuestManager() {
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-[10px] text-amber-500 font-medium">Manuel</span>
+                                                            <span className="text-caption text-amber-500 font-medium">Manuel</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -380,7 +380,7 @@ export default function GameQuestManager() {
 
                                                             if (!hasConditions && !hasQuests && !hasAchievements) {
                                                                 return (
-                                                                    <div className="text-[10px] text-slate-500 italic py-1">
+                                                                    <div className="text-caption text-slate-500 italic py-1">
                                                                         Aucun prérequis spécifique enregistré pour cette quête.
                                                                     </div>
                                                                 );
@@ -390,10 +390,10 @@ export default function GameQuestManager() {
                                                                 <div className="space-y-2 text-left">
                                                                     {hasConditions && (
                                                                         <div className="space-y-0.5">
-                                                                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Conditions de départ</span>
+                                                                            <span className="text-caption uppercase font-bold text-slate-500 tracking-wider">Conditions de départ</span>
                                                                             <ul className="space-y-0.5">
                                                                                 {prereqs.conditions.map((cond: string, idx: number) => (
-                                                                                    <li key={idx} className="text-[10px] text-slate-300 flex items-center gap-1">
+                                                                                    <li key={idx} className="text-caption text-slate-300 flex items-center gap-1">
                                                                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/85 shrink-0" />
                                                                                         <span>{cond}</span>
                                                                                     </li>
@@ -404,7 +404,7 @@ export default function GameQuestManager() {
 
                                                                     {hasQuests && (
                                                                         <div className="space-y-1">
-                                                                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Quêtes requises ({prereqs.prerequisiteQuests.length})</span>
+                                                                            <span className="text-caption uppercase font-bold text-slate-500 tracking-wider">Quêtes requises ({prereqs.prerequisiteQuests.length})</span>
                                                                             <div className="flex flex-wrap gap-1">
                                                                                 {prereqs.prerequisiteQuests.map((pq: any) => (
                                                                                     <a
@@ -412,7 +412,7 @@ export default function GameQuestManager() {
                                                                                         href={`https://dofusdb.fr/fr/database/quest/${pq.id}`}
                                                                                         target="_blank"
                                                                                         rel="noopener noreferrer"
-                                                                                        className="text-[9px] px-1.5 py-0.5 bg-indigo-950/40 border border-indigo-900/60 text-indigo-300 rounded hover:bg-indigo-900/50 hover:text-indigo-200 transition-all flex items-center gap-1 max-w-full"
+                                                                                        className="text-caption px-1.5 py-0.5 bg-indigo-950/40 border border-indigo-900/60 text-indigo-300 rounded hover:bg-indigo-900/50 hover:text-indigo-200 transition-all flex items-center gap-1 max-w-full"
                                                                                     >
                                                                                         <BookOpen className="w-2.5 h-2.5 shrink-0 text-indigo-400" />
                                                                                         <span className="truncate">{pq.name}</span>
@@ -424,7 +424,7 @@ export default function GameQuestManager() {
 
                                                                     {hasAchievements && (
                                                                         <div className="space-y-1">
-                                                                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Succès requis ({prereqs.prerequisiteAchievements.length})</span>
+                                                                            <span className="text-caption uppercase font-bold text-slate-500 tracking-wider">Succès requis ({prereqs.prerequisiteAchievements.length})</span>
                                                                             <div className="flex flex-wrap gap-1">
                                                                                 {prereqs.prerequisiteAchievements.map((pa: any) => (
                                                                                     <a
@@ -432,7 +432,7 @@ export default function GameQuestManager() {
                                                                                         href={`https://dofusdb.fr/fr/database/achievement/${pa.id}`}
                                                                                         target="_blank"
                                                                                         rel="noopener noreferrer"
-                                                                                        className="text-[9px] px-1.5 py-0.5 bg-amber-950/40 border border-amber-900/60 text-amber-300 rounded hover:bg-amber-900/50 hover:text-amber-200 transition-all flex items-center gap-1 max-w-full"
+                                                                                        className="text-caption px-1.5 py-0.5 bg-amber-950/40 border border-amber-900/60 text-amber-300 rounded hover:bg-amber-900/50 hover:text-amber-200 transition-all flex items-center gap-1 max-w-full"
                                                                                     >
                                                                                         <Award className="w-2.5 h-2.5 shrink-0 text-amber-400" />
                                                                                         <span className="truncate">{pa.name}</span>

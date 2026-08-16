@@ -94,7 +94,7 @@ function BonusBarItem({ bonus }: { bonus: BonusData }) {
                         <h4 className="font-bold text-white text-xs truncate uppercase">{bonus.config.name}</h4>
                         <Sparkles className="w-3 h-3 text-green-400 animate-pulse flex-shrink-0" />
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate">
+                    <p className="text-caption text-slate-400 truncate">
                         Acheté par {bonus.purchaserName || "un membre"}
                     </p>
                 </div>
@@ -104,11 +104,11 @@ function BonusBarItem({ bonus }: { bonus: BonusData }) {
             <div className="flex-1 min-w-[100px]">
                 <div className="relative h-1.5 bg-slate-800 rounded-full overflow-hidden mb-0.5">
                     <div
-                        className="h-full transition-all duration-1000 rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
+                        className="h-full transition-all duration-300 rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
                         style={{ width: `${countdown.progress}%` }}
                     />
                 </div>
-                <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center justify-between text-caption">
                     <span className="text-green-400">
                         Expire dans
                     </span>
@@ -117,7 +117,7 @@ function BonusBarItem({ bonus }: { bonus: BonusData }) {
             </div>
 
             {/* Status Badge */}
-            <div className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap flex-shrink-0 bg-green-500/20 text-green-400">
+            <div className="px-2 py-0.5 rounded-full text-caption font-bold uppercase whitespace-nowrap flex-shrink-0 bg-green-500/20 text-green-400">
                 ✨ DISPONIBLE
             </div>
         </div>

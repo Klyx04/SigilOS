@@ -45,7 +45,7 @@ export function ProfileActivityTab({
                     </div>
                     <div>
                         <h3 className="text-base font-black text-white uppercase tracking-wider">Activité & Présence</h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Rétrospective de participation de {displayName}</p>
+                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Rétrospective de participation de {displayName}</p>
                     </div>
                 </div>
 
@@ -58,7 +58,7 @@ export function ProfileActivityTab({
             {/* Stat Cards */}
             <div className={cn("grid gap-4", canViewMissions ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 md:grid-cols-2")}>
                 <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500">
+                    <div className="flex items-center gap-2 text-caption font-black uppercase text-zinc-500">
                         <Flame className="w-3.5 h-3.5 text-amber-400" /> XP Guilde Totale
                     </div>
                     <p className="text-2xl font-black text-amber-400 font-mono">
@@ -69,7 +69,7 @@ export function ProfileActivityTab({
                 {canViewMissions ? (
                     <>
                         <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500">
+                            <div className="flex items-center gap-2 text-caption font-black uppercase text-zinc-500">
                                 <Trophy className="w-3.5 h-3.5 text-emerald-400" /> Missions Validées
                             </div>
                             <p className="text-2xl font-black text-emerald-400 font-mono">
@@ -78,7 +78,7 @@ export function ProfileActivityTab({
                         </div>
 
                         <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500">
+                            <div className="flex items-center gap-2 text-caption font-black uppercase text-zinc-500">
                                 <Sparkles className="w-3.5 h-3.5 text-sky-400" /> XP Cette Semaine
                             </div>
                             <p className="text-2xl font-black text-sky-400 font-mono">
@@ -87,7 +87,7 @@ export function ProfileActivityTab({
                         </div>
 
                         <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500">
+                            <div className="flex items-center gap-2 text-caption font-black uppercase text-zinc-500">
                                 <ShieldCheck className="w-3.5 h-3.5 text-purple-400" /> Points Contribution
                             </div>
                             <p className="text-2xl font-black text-purple-400 font-mono">
@@ -100,7 +100,7 @@ export function ProfileActivityTab({
                         <Trophy className="w-5 h-5 text-amber-400 shrink-0" />
                         <div>
                             <p className="text-xs font-bold text-amber-300">Mode Vitrine Activé</p>
-                            <p className="text-[10px] text-zinc-400">Les statistiques détaillées de missions sont masquées.</p>
+                            <p className="text-caption text-zinc-400">Les statistiques détaillées de missions sont masquées.</p>
                         </div>
                     </div>
                 )}

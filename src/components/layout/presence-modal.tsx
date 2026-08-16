@@ -140,7 +140,7 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                             <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors truncate">
                                                 {member.name}
                                             </span>
-                                            <span className="text-[10px] font-medium text-zinc-500 truncate">
+                                            <span className="text-caption font-medium text-zinc-500 truncate">
                                                 {member.pseudoDofus
                                                     ? <>Dofus : <span className="text-indigo-400/80">{member.pseudoDofus}</span></>
                                                     : "Membre de la guilde"}
@@ -180,8 +180,8 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                             {/* Status Indicator Light: Yellow/Amber if AFK > 15min, Green if Active <= 15min */}
                                             <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-[#09090b] rounded-full transition-all ${
                                                 isAfk 
-                                                    ? 'bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.7)]' 
-                                                    : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.7)]'
+                                                    ? 'bg-amber-400 ' 
+                                                    : 'bg-emerald-500 '
                                             }`} />
                                         </div>
                                         <div className="flex flex-col">
@@ -189,13 +189,13 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors cursor-pointer hover:underline">{user.name}</span>
                                                     {isAfk && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                                                        <span className="px-1.5 py-0.5 rounded text-caption font-black uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20">
                                                             AFK
                                                         </span>
                                                     )}
                                                 </div>
                                             </Link>
-                                            <span className={`text-[10px] font-medium ${isAfk ? 'text-amber-400/80' : 'text-zinc-500'}`}>
+                                            <span className={`text-caption font-medium ${isAfk ? 'text-amber-400/80' : 'text-zinc-500'}`}>
                                                 {isAfk 
                                                     ? (lastActiveDate ? `AFK depuis ${formatDistanceToNow(lastActiveDate, { locale: fr })}` : "AFK (> 15 min)")
                                                     : (lastActiveDate ? `Actif ${formatDistanceToNow(lastActiveDate, { addSuffix: true, locale: fr })}` : "Actif à l'instant")

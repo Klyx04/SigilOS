@@ -58,7 +58,7 @@ export function MemberStats({ stats }: MemberStatsProps) {
         : 0;
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300 pb-12">
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard icon={Star} label="XP Total" value={stats.xp.toLocaleString()} accent="violet" />
@@ -73,8 +73,8 @@ export function MemberStats({ stats }: MemberStatsProps) {
                 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                     <div>
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-3 italic">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+                        <h3 className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-3 italic">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 " />
                             Engagement Discord
                         </h3>
                         <p className="text-zinc-400 text-xs mt-2 font-medium">Votre activité sur le serveur Discord de la guilde.</p>
@@ -86,7 +86,7 @@ export function MemberStats({ stats }: MemberStatsProps) {
                                 key={period}
                                 onClick={() => setDiscordPeriod(period)}
                                 className={cn(
-                                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                                    "px-4 py-2 rounded-xl text-caption font-black uppercase tracking-widest transition-all",
                                     discordPeriod === period 
                                         ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" 
                                         : "text-zinc-500 hover:text-zinc-300"
@@ -107,7 +107,7 @@ export function MemberStats({ stats }: MemberStatsProps) {
                             <div className="text-2xl font-black text-white tabular-nums tracking-tighter italic">
                                 {currentDiscordStats.messages.toLocaleString()}
                             </div>
-                            <div className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mt-1">Messages Envoyés</div>
+                            <div className="text-caption font-black uppercase text-zinc-500 tracking-widest mt-1">Messages Envoyés</div>
                         </div>
                     </div>
 
@@ -119,7 +119,7 @@ export function MemberStats({ stats }: MemberStatsProps) {
                             <div className="text-2xl font-black text-white tabular-nums tracking-tighter italic">
                                 {voiceHours}h {voiceMinutes}m
                             </div>
-                            <div className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mt-1">Temps en Vocal</div>
+                            <div className="text-caption font-black uppercase text-zinc-500 tracking-widest mt-1">Temps en Vocal</div>
                         </div>
                     </div>
                 </div>
@@ -137,8 +137,8 @@ export function MemberStats({ stats }: MemberStatsProps) {
                 {/* Activity Trend */}
                 <div className="lg:col-span-2 rounded-[2rem] border border-white/5 bg-black/40 backdrop-blur-xl p-8 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-[100px] pointer-events-none transition-all group-hover:bg-violet-500/10" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-8 flex items-center gap-3 italic">
-                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+                    <h3 className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-8 flex items-center gap-3 italic">
+                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 " />
                         Courbe d'Activité Personnelle
                     </h3>
                     <div className="mt-4">
@@ -149,13 +149,13 @@ export function MemberStats({ stats }: MemberStatsProps) {
                 {/* Categories Breakdown */}
                 <div className="rounded-[2rem] border border-white/5 bg-black/40 backdrop-blur-xl p-8 relative overflow-hidden group flex flex-col">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none transition-all group-hover:bg-emerald-500/10" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-8 flex items-center gap-3 italic">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                    <h3 className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-8 flex items-center gap-3 italic">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 " />
                         Répartition des Missions
                     </h3>
                     
                     {pieData.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-zinc-600 text-[10px] uppercase font-bold italic tracking-widest bg-white/[0.02] rounded-3xl border border-dashed border-white/5 mt-4 min-h-[200px]">
+                        <div className="flex-1 flex items-center justify-center text-zinc-600 text-caption uppercase font-bold italic tracking-widest bg-white/[0.02] rounded-3xl border border-dashed border-white/5 mt-4 min-h-[200px]">
                             Aucune mission validée
                         </div>
                     ) : (
@@ -194,15 +194,15 @@ export function MemberStats({ stats }: MemberStatsProps) {
                                     <span className="text-3xl font-black text-white italic leading-none tracking-tighter">
                                         {pieData.reduce((acc, curr) => acc + curr.value, 0)}
                                     </span>
-                                    <span className="text-[9px] text-zinc-600 uppercase font-black tracking-widest mt-1">Total</span>
+                                    <span className="text-caption text-zinc-600 uppercase font-black tracking-widest mt-1">Total</span>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-8">
                                 {pieData.map((entry, i) => (
                                     <div key={entry.name} className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                        <span className="text-[10px] font-black text-zinc-400 uppercase italic truncate">{entry.name}</span>
-                                        <span className="text-[10px] font-black text-white ml-auto">{entry.value}</span>
+                                        <div className="w-1.5 h-1.5 rounded-full " style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                        <span className="text-caption font-black text-zinc-400 uppercase italic truncate">{entry.name}</span>
+                                        <span className="text-caption font-black text-white ml-auto">{entry.value}</span>
                                     </div>
                                 ))}
                             </div>
@@ -214,7 +214,7 @@ export function MemberStats({ stats }: MemberStatsProps) {
             {/* Bottom Note */}
             <div className="flex items-center justify-center gap-3 py-6 border-t border-white/5 opacity-50">
                 <BarChart3 className="w-4 h-4 text-zinc-600" />
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 italic">
+                <p className="text-caption font-black uppercase tracking-[0.2em] text-zinc-600 italic">
                     Données certifiées • Synchronisation temps-réel via Robot SigilOS
                 </p>
             </div>

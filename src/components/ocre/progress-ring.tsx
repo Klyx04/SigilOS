@@ -83,7 +83,7 @@ export function ProgressRing({
                     <span className="text-xs text-muted-foreground mt-0.5">{label}</span>
                 )}
                 {sublabel && (
-                    <span className="text-[10px] text-muted-foreground/70">{sublabel}</span>
+                    <span className="text-caption text-muted-foreground/70">{sublabel}</span>
                 )}
             </div>
         </div>

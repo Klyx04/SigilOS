@@ -5,7 +5,7 @@ export function GodCard({ className, children, ...props }: HTMLAttributes<HTMLDi
     return (
         <div className={cn(
             "relative rounded-3xl border border-white/5 bg-zinc-900/10 backdrop-blur-xl",
-            "shadow-[0_0_30px_rgba(0,0,0,0.3)]",
+            "",
             className
         )} {...props}>
             {children}

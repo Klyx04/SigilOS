@@ -41,7 +41,7 @@ export function DocOutlineSidebar({ content, className }: DocOutlineSidebarProps
         return (
             <div className={cn("p-6 flex flex-col items-center justify-center text-center opacity-30", className)}>
                 <ListTree className="w-8 h-8 mb-2" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aucun titre détecté (H2/H3)</p>
+                <p className="text-caption font-black uppercase tracking-widest text-zinc-500">Aucun titre détecté (H2/H3)</p>
             </div>
         );
     }
@@ -51,9 +51,9 @@ export function DocOutlineSidebar({ content, className }: DocOutlineSidebarProps
             <div className="p-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <ListTree className="w-3 h-3 text-teal-400" />
-                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Chapitrage Temps Réel</span>
+                    <span className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Chapitrage Temps Réel</span>
                 </div>
-                <span className="bg-teal-500/10 text-teal-400 px-1.5 py-0.5 rounded text-[9px] font-black">
+                <span className="bg-teal-500/10 text-teal-400 px-1.5 py-0.5 rounded text-caption font-black">
                     {headings.length}
                 </span>
             </div>
@@ -83,7 +83,7 @@ export function DocOutlineSidebar({ content, className }: DocOutlineSidebarProps
                                     {h.text}
                                 </p>
                                 {isTooLong && (
-                                    <div className="flex items-center gap-1 mt-0.5 text-[9px] text-amber-500 font-bold uppercase tracking-tighter">
+                                    <div className="flex items-center gap-1 mt-0.5 text-caption text-amber-500 font-bold uppercase tracking-tighter">
                                         <AlertCircle className="w-2.5 h-2.5" />
                                         Titre trop long
                                     </div>
@@ -95,7 +95,7 @@ export function DocOutlineSidebar({ content, className }: DocOutlineSidebarProps
             </nav>
 
             <div className="p-4 border-t border-white/5 bg-zinc-950/40">
-                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest leading-relaxed">
+                <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest leading-relaxed">
                     Utilisez les balises 2.0 et 3.0 dans l'éditeur pour structurer votre documentation.
                 </p>
             </div>

@@ -112,7 +112,7 @@ export function VacationMode({
                     <h3 className="text-sm font-medium text-zinc-400">Mode Vacances</h3>
                 </div>
                 {isOnVacation && (
-                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 px-1.5 py-0 h-5 text-[10px]">
+                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 px-1.5 py-0 h-5 text-caption">
                         Actif
                     </Badge>
                 )}
@@ -241,9 +241,9 @@ export function VacationMode({
 
                     {/* Quick Presets */}
                     <div className="flex items-center gap-1.5 pt-1">
-                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(2)} className="h-6 text-[10px] px-2 border-white/10 hover:bg-white/10">Weekend</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(7)} className="h-6 text-[10px] px-2 border-white/10 hover:bg-white/10">1 Semaine</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(30)} className="h-6 text-[10px] px-2 border-white/10 hover:bg-white/10">1 Mois</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(2)} className="h-6 text-caption px-2 border-white/10 hover:bg-white/10">Weekend</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(7)} className="h-6 text-caption px-2 border-white/10 hover:bg-white/10">1 Semaine</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(30)} className="h-6 text-caption px-2 border-white/10 hover:bg-white/10">1 Mois</Button>
                     </div>
 
                     {/* Reason */}
@@ -295,7 +295,7 @@ export function VacationMode({
                                 Notifier sur Discord
                             </Button>
                         ) : (
-                            <div className="w-full h-7 flex items-center justify-center text-[10px] text-zinc-500 italic bg-black/20 rounded border border-white/5">
+                            <div className="w-full h-7 flex items-center justify-center text-caption text-zinc-500 italic bg-black/20 rounded border border-white/5">
                                 Salon Discord non configuré
                             </div>
                         )

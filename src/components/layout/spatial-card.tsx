@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 export function SpatialCard({ title, desc, icon: Icon, colorClass }: { title: string, desc: string, icon: any, colorClass: string }) {
     return (
         <div className="group perspective-1000 h-full">
-            <div className="relative h-full transition-all duration-500 preserve-3d group-hover:rotate-x-2 group-hover:rotate-y-6">
+            <div className="relative h-full transition-all duration-300 preserve-3d group-hover:rotate-x-2 group-hover:rotate-y-6">
                 <div className="absolute -inset-1 bg-gradient-to-br from-foreground/10 to-transparent rounded-[40px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="relative h-full p-8 rounded-[40px] bg-background/80 dark:bg-black/60 border border-border backdrop-blur-3xl overflow-hidden flex flex-col">

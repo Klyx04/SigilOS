@@ -118,9 +118,9 @@ function PopupCard({ popup, onDismiss }: { popup: PopupItem; onDismiss: (id: str
             {/* Text */}
             <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-white leading-tight truncate">{popup.actorName}</p>
-                <p className={`text-[10px] font-semibold ${cfg.accent} leading-tight mt-0.5`}>{cfg.label}</p>
+                <p className={`text-caption font-semibold ${cfg.accent} leading-tight mt-0.5`}>{cfg.label}</p>
                 {popup.meta?.reason && (
-                    <p className="text-[9px] text-zinc-600 mt-0.5 truncate">"{popup.meta.reason}"</p>
+                    <p className="text-caption text-zinc-600 mt-0.5 truncate">"{popup.meta.reason}"</p>
                 )}
             </div>
 

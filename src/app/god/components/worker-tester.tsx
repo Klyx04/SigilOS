@@ -32,7 +32,7 @@ export function WorkerTester() {
     return (
         <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:bg-zinc-900/60 transition-all">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[60px] -translate-y-1/2 translate-x-1/2" />
-            <h3 className="text-sm font-black text-zinc-500 mb-6 uppercase tracking-[0.3em] flex items-center gap-3">
+            <h3 className="text-sm font-black text-zinc-500 mb-6 uppercase tracking-widest flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 Service Workers & API
             </h3>
@@ -56,7 +56,7 @@ export function WorkerTester() {
                     </p>
                     <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
                         <div className="space-y-2 flex-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Pseudo Dofus</label>
+                            <label className="text-caption font-black uppercase tracking-widest text-zinc-400">Pseudo Dofus</label>
                             <Input 
                                 placeholder="ex: Klyx" 
                                 value={testPseudo} 
@@ -65,7 +65,7 @@ export function WorkerTester() {
                             />
                         </div>
                         <div className="space-y-2 w-full md:w-32">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Server ID</label>
+                            <label className="text-caption font-black uppercase tracking-widest text-zinc-400">Server ID</label>
                             <Input 
                                 placeholder="295" 
                                 value={testServerId} 
@@ -85,7 +85,7 @@ export function WorkerTester() {
 
                     {/* API RESULT TERMINAL */}
                     {testResult && (
-                        <div className="mt-6 bg-black/80 border border-white/10 rounded-xl p-4 font-mono text-[11px] overflow-auto max-h-64">
+                        <div className="mt-6 bg-black/80 border border-white/10 rounded-xl p-4 font-mono text-caption overflow-auto max-h-64">
                             <div className="flex gap-2 items-center text-xs mb-2 border-b border-white/10 pb-2">
                                 <span className={testResult.success ? "text-emerald-400" : "text-rose-400"}>
                                     {testResult.success ? "✅ Fetch & Data OK" : `❌ Erreur (Status Code: ${testResult.statusSucces})`}

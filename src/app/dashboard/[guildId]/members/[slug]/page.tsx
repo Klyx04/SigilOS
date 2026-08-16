@@ -79,11 +79,11 @@ export default async function MemberProfilePage({
             )}
 
             <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border border-white/5 rounded-lg">
-                <div className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                <div className="flex items-center gap-2 text-caption text-zinc-500 uppercase font-black tracking-widest">
                     <div className="w-1 h-1 rounded-full bg-zinc-600" />
                     Dernière mise à jour du profil
                 </div>
-                <div className="text-[10px] font-bold text-zinc-400">
+                <div className="text-caption font-bold text-zinc-400">
                     {profile.userUpdatedAt 
                         ? format(new Date(profile.userUpdatedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr }) 
                         : profile.updatedAt 
@@ -97,8 +97,8 @@ export default async function MemberProfilePage({
                     <h1 className="text-2xl font-bold">Profil de {displayName}</h1>
                     {isOnline && (
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">En ligne</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse " />
+                            <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">En ligne</span>
                         </div>
                     )}
                 </div>

@@ -96,7 +96,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                         href={item.href}
                                         aria-current={isActive ? "page" : undefined}
                                         className={cn(
-                                            "px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
+                                            "px-3 py-1.5 rounded-md text-body-sm font-medium transition-colors",
                                             isActive
                                                 ? "text-white bg-white/5"
                                                 : "text-zinc-400 hover:text-white hover:bg-white/5"
@@ -127,8 +127,8 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                                     <AvatarFallback className="bg-zinc-800 text-white font-black">{user.name?.[0]}</AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col items-start -space-y-0.5 hidden sm:flex">
-                                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Session</span>
-                                                    <span className="text-[11px] font-bold text-white">{user.name}</span>
+                                                    <span className="text-caption font-black text-white/40 uppercase tracking-widest">Session</span>
+                                                    <span className="text-caption font-bold text-white">{user.name}</span>
                                                 </div>
                                             </button>
                                         </DropdownMenuTrigger>
@@ -136,7 +136,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                             <DropdownMenuLabel className="px-4 py-3">
                                                 <div className="flex flex-col space-y-1">
                                                     <p className="text-xs font-black text-white uppercase tracking-widest">Compte SigilOS</p>
-                                                    <p className="text-[10px] text-zinc-500 font-medium truncate">{user.email}</p>
+                                                    <p className="text-caption text-zinc-500 font-medium truncate">{user.email}</p>
                                                 </div>
                                             </DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-white/5 mx-2" />
@@ -147,14 +147,14 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                                     className="focus:bg-emerald-500/10 focus:text-emerald-400 rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
                                                 >
                                                     <LayoutDashboard className="w-4 h-4" />
-                                                    <span className="text-[11px] font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
+                                                    <span className="text-caption font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
                                                 </DropdownMenuItem>
                                             </DashboardDrawer>
 
                                             <DropdownMenuItem asChild className="focus:bg-zinc-800 focus:text-white rounded-xl p-3 cursor-pointer outline-none">
                                                 <Link href={dashboardHref} className="flex items-center gap-3 w-full">
                                                     <LayoutDashboard className="w-4 h-4 opacity-40" />
-                                                    <span className="text-[11px] font-black uppercase tracking-widest">Dashboard Central</span>
+                                                    <span className="text-caption font-black uppercase tracking-widest">Dashboard Central</span>
                                                 </Link>
                                             </DropdownMenuItem>
 
@@ -165,7 +165,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                                 className="focus:bg-rose-500/10 focus:text-rose-400 rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
                                             >
                                                 <LogOut className="w-4 h-4" />
-                                                <span className="text-[11px] font-black uppercase tracking-widest text-left flex-1">Déconnexion</span>
+                                                <span className="text-caption font-black uppercase tracking-widest text-left flex-1">Déconnexion</span>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -178,7 +178,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                     className="hidden sm:block"
                                 >
                                     <form action={loginWithDiscord}>
-                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.08] text-[13px] font-semibold text-white transition-colors">
+                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.08] text-body-sm font-semibold text-white transition-colors">
                                             <DiscordIcon className="w-4 h-4 text-emerald-400" />
                                             Connexion
                                         </button>

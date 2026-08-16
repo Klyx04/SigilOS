@@ -48,7 +48,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div className={cn(
-                                        "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all",
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-full border text-caption font-black uppercase tracking-widest transition-all",
                                         guild.isRecruiting
                                             ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                                             : "bg-zinc-500/10 border-white/10 text-zinc-500"
@@ -57,7 +57,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                                         {guild.isRecruiting ? "Public" : "Désactivé"}
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-zinc-900 border-white/10 text-[10px] font-medium text-zinc-300">
+                                <TooltipContent className="bg-zinc-900 border-white/10 text-caption font-medium text-zinc-300">
                                     {guild.isRecruiting
                                         ? "Visible dans l'annuaire public"
                                         : "Caché. Activez-le dans la configuration."}

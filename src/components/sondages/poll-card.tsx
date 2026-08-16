@@ -110,7 +110,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                     )}>
                         <div className="flex items-center gap-2.5">
                             <span className="text-lg">{cat.emoji}</span>
-                            <span className={cn("text-[10px] font-black uppercase tracking-[0.2em]", cat.color)}>{cat.label}</span>
+                            <span className={cn("text-caption font-black uppercase tracking-[0.2em]", cat.color)}>{cat.label}</span>
                         </div>
                         <div className="flex items-center gap-4">
                             {poll.isAnonymous && (
@@ -119,13 +119,13 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                         <TooltipTrigger asChild>
                                             <Lock className="w-4 h-4 text-zinc-600 hover:text-zinc-400 transition-colors" />
                                         </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="bg-zinc-900 border-white/10 text-[10px] uppercase font-bold tracking-widest">
+                                        <TooltipContent side="bottom" className="bg-zinc-900 border-white/10 text-caption uppercase font-bold tracking-widest">
                                             Votes anonymes
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                             )}
-                            <div className={cn("flex items-center gap-2 text-[10px] font-black uppercase tracking-widest", status.color)}>
+                            <div className={cn("flex items-center gap-2 text-caption font-black uppercase tracking-widest", status.color)}>
                                 <StatusIcon className="w-3.5 h-3.5" />
                                 {status.label}
                             </div>
@@ -138,7 +138,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                         {poll.outcome && (
                             <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-emerald-500/10 border border-emerald-500/20">
                                 <Crown className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Décision validée</span>
+                                <span className="text-caption font-black uppercase tracking-widest text-emerald-400">Décision validée</span>
                             </div>
                         )}
 
@@ -160,7 +160,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                 const isWinning = option._count.votes === maxVotes && totalVotes > 0;
                                 return (
                                     <div key={option.id} className="relative group/option">
-                                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] font-black mb-2.5 px-0.5">
+                                        <div className="flex items-center justify-between text-caption uppercase tracking-[0.2em] font-black mb-2.5 px-0.5">
                                             <span className={cn(
                                                 "truncate max-w-[80%] transition-all",
                                                 isWinning ? "text-white scale-105 origin-left" : "text-zinc-600 group-hover/option:text-zinc-400"
@@ -188,7 +188,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                 );
                             })}
                             {poll.options.length > 3 && (
-                                <p className="text-zinc-700 text-[9px] font-black uppercase tracking-[0.3em] text-center pt-2 opacity-60">
+                                <p className="text-zinc-700 text-caption font-black uppercase tracking-widest text-center pt-2 opacity-60">
                                     + {poll.options.length - 3} options supplémentaires
                                 </p>
                             )}
@@ -200,7 +200,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                         "flex items-center justify-between px-6 py-4 border-t relative z-10",
                         "border-white/[0.03] bg-white/[0.01]",
                     )}>
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-caption font-black uppercase tracking-widest text-zinc-600">
                             <span className="flex items-center gap-2">
                                 <span className="opacity-40">Par</span>
                                 <span className="text-zinc-400">{poll.creatorName}</span>

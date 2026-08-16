@@ -174,6 +174,7 @@ export type UserContext = {
     canValidateMissions: boolean;
     canManageBonus: boolean;
     canViewRoster: boolean;
+    canViewAvailability: boolean;
     canViewSonges: boolean;
     canCreateSonges: boolean;
     canJoinSonges: boolean;
@@ -312,6 +313,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canValidateMissions: false,
         canManageBonus: false,
         canViewRoster: false,
+        canViewAvailability: false,
         canViewSonges: false,
         canCreateSonges: false,
         canJoinSonges: false,
@@ -911,6 +913,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
+    // Module Disponibilités : accès communauté OU permission dédiée `availability:view`.
+    // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).
+    const canViewAvailability = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.AVAILABILITY_VIEW) || isAdminFinal || noRolesConfigured;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
     const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
@@ -980,6 +985,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canValidateMissions: !!applyModule(!!mod?.missions, !!canValidateMissions),
         canManageBonus: !!canManageBonus,
         canViewRoster: !!applyModule(!!mod?.roster, !!canViewRoster),
+        canViewAvailability: !!applyModule(!!mod?.availability, !!canViewAvailability),
         canViewSonges: !!applyModule(!!mod?.songes, !!canViewSonges),
         canCreateSonges: !!applyModule(!!mod?.songes, !!canCreateSonges),
         canJoinSonges: !!applyModule(!!mod?.songes, !!canJoinSonges),
@@ -1048,6 +1054,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canValidateMissions = false;
         finalContext.canManageBonus = false;
         finalContext.canViewRoster = false;
+        finalContext.canViewAvailability = false;
         finalContext.canViewSonges = false;
         finalContext.canCreateSonges = false;
         finalContext.canJoinSonges = false;

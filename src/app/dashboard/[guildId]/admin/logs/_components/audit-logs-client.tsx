@@ -42,7 +42,7 @@ const ACTION_COLORS: Record<string, string> = {
     POLL_CREATED: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
     POLL_CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     POLL_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]",
+    POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20 ",
     // GDPR
     USER_GDPR_DELETE: "bg-red-600/20 text-red-300 border-red-600/30",
 };
@@ -176,14 +176,14 @@ function PermissionChangesDisplay({
                                 <Badge key={`add-${i}`} variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
                                     <Plus className="w-3 h-3 mr-1" />
                                     {perm.label}
-                                    <span className="ml-1 text-emerald-400/60 text-[10px]">({perm.module})</span>
+                                    <span className="ml-1 text-emerald-400/60 text-caption">({perm.module})</span>
                                 </Badge>
                             ))}
                             {change.removed.map((perm, i) => (
                                 <Badge key={`rem-${i}`} variant="outline" className="bg-red-500/10 text-red-400 border-red-500/30 text-xs">
                                     <Minus className="w-3 h-3 mr-1" />
                                     {perm.label}
-                                    <span className="ml-1 text-red-400/60 text-[10px]">({perm.module})</span>
+                                    <span className="ml-1 text-red-400/60 text-caption">({perm.module})</span>
                                 </Badge>
                             ))}
                         </div>
@@ -455,7 +455,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     <span className="text-red-300">
                                                         Compte supprimé (RGPD)
                                                         {metadata.discordId && (
-                                                            <code className="ml-1.5 bg-red-900/30 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                                                            <code className="ml-1.5 bg-red-900/30 px-1.5 py-0.5 rounded text-caption font-mono">
                                                                 Discord #{metadata.discordId}
                                                             </code>
                                                         )}
@@ -490,7 +490,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                             
                                                             {(metadata as any).source && (
                                                                 <Badge variant="outline" className={cn(
-                                                                    "text-[9px] px-1.5 py-0 h-4 font-black uppercase tracking-widest",
+                                                                    "text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest",
                                                                     (metadata as any).source === "discord_button" 
                                                                         ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
                                                                         : "bg-blue-500/10 text-blue-400 border-blue-500/20"
@@ -503,17 +503,17 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                         {log.action === "MISSION_VALIDATED" && (
                                                             <div className="flex items-center gap-3">
                                                                 {(metadata as any).xpReward > 0 && (
-                                                                    <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                                                                    <span className="text-caption font-black text-emerald-400 flex items-center gap-1">
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).xpReward} XP
                                                                     </span>
                                                                 )}
                                                                 {(metadata as any).guildatonsReward > 0 && (
-                                                                    <span className="text-[10px] font-black text-amber-500 flex items-center gap-1">
+                                                                    <span className="text-caption font-black text-amber-500 flex items-center gap-1">
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).guildatonsReward} Guildatons
                                                                     </span>
                                                                 )}
                                                                 {(metadata as any).helpersCount > 0 && (
-                                                                    <span className="text-[10px] font-black text-indigo-400 flex items-center gap-1">
+                                                                    <span className="text-caption font-black text-indigo-400 flex items-center gap-1">
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).helpersCount} Helpers
                                                                     </span>
                                                                 )}
@@ -532,7 +532,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                             
                                                             {(metadata as any).source && (
                                                                 <Badge variant="outline" className={cn(
-                                                                    "text-[9px] px-1.5 py-0 h-4 font-black uppercase tracking-widest",
+                                                                    "text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest",
                                                                     (metadata as any).source === "discord_button" 
                                                                         ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
                                                                         : "bg-blue-500/10 text-blue-400 border-blue-500/20"
@@ -544,7 +544,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                         
                                                         {(metadata as any).points !== undefined && (
                                                             <div className="flex items-center gap-3">
-                                                                <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                                                                <span className="text-caption font-black text-emerald-400 flex items-center gap-1">
                                                                     <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
                                                                 </span>
                                                             </div>

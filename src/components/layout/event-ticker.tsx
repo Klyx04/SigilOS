@@ -191,7 +191,7 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                         >
                             {/* Type Badge */}
                             <div className={cn(
-                                "text-[9px] font-black px-1.5 py-0.5 rounded-md tracking-tighter uppercase",
+                                "text-caption font-black px-1.5 py-0.5 rounded-md tracking-tighter uppercase",
                                 typeConfig.bg, typeConfig.color, "border-none"
                             )}>
                                 {typeConfig.shortLabel}
@@ -201,18 +201,18 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                             <div className={cn("h-1.5 w-1.5 rounded-full", typeConfig.color.replace("text-", "bg-"))} />
 
                             {/* Title */}
-                            <span className="text-[11px] font-black text-foreground uppercase tracking-tight truncate max-w-[120px] lg:max-w-[180px] group-hover:text-primary transition-colors italic">
+                            <span className="text-caption font-black text-foreground uppercase tracking-tight truncate max-w-[120px] lg:max-w-[180px] group-hover:text-primary transition-colors italic">
                                 {event.title}
                             </span>
 
                             {/* Date */}
-                            <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest hidden sm:inline-block whitespace-nowrap">
+                            <span className="text-caption text-muted-foreground font-black uppercase tracking-widest hidden sm:inline-block whitespace-nowrap">
                                 {isToday(startDate) ? "Aujourd'hui" : format(startDate, "dd MMM", { locale: fr })} {format(startDate, "HH:mm")}
                             </span>
 
                             {/* Participants */}
                             <span className={cn(
-                                "text-[10px] font-black px-2 py-0.5 rounded-full bg-black/40 border border-white/5 flex items-center gap-1 min-w-[32px] justify-center",
+                                "text-caption font-black px-2 py-0.5 rounded-full bg-black/40 border border-white/5 flex items-center gap-1 min-w-[32px] justify-center",
                                 isFull ? "text-red-400 border-red-500/30" : "text-zinc-500"
                             )}>
                                 <Users className="h-2.5 w-2.5" />
@@ -238,7 +238,7 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                         >
                             {/* Type Badge */}
                             <div className={cn(
-                                "text-[9px] font-black px-1.5 py-0.5 rounded-md tracking-tighter uppercase",
+                                "text-caption font-black px-1.5 py-0.5 rounded-md tracking-tighter uppercase",
                                 typeConfig.bg, typeConfig.color, "border-none"
                             )}>
                                 {typeConfig.shortLabel}
@@ -259,7 +259,7 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
 
                             {/* Participants */}
                             <span className={cn(
-                                "text-[10px] font-black px-2 py-0.5 rounded-full bg-black/40 border border-white/5 flex items-center gap-1 min-w-[32px] justify-center",
+                                "text-caption font-black px-2 py-0.5 rounded-full bg-black/40 border border-white/5 flex items-center gap-1 min-w-[32px] justify-center",
                                 isFull ? "text-red-400 border-red-500/30" : "text-zinc-400"
                             )}>
                                 <Users className="h-2.5 w-2.5" />

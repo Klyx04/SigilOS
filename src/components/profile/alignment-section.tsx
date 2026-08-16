@@ -113,7 +113,7 @@ export function AlignmentSection({
                             <div className="flex items-center gap-2">
                                 <Badge 
                                     className={cn(
-                                        "text-[10px] uppercase font-black tracking-widest",
+                                        "text-caption uppercase font-black tracking-widest",
                                         alignment === "bontarien" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : 
                                         alignment === "brakmarien" ? "bg-red-500/20 text-red-400 border-red-500/30" : 
                                         "bg-zinc-800 text-zinc-400 border-white/5"
@@ -122,7 +122,7 @@ export function AlignmentSection({
                                     {currentAlignment?.name || "Neutre"}
                                 </Badge>
                                 {alignmentLevel !== null && alignmentLevel > 0 && (
-                                    <span className="text-[10px] font-bold text-zinc-500">
+                                    <span className="text-caption font-bold text-zinc-500">
                                         Niveau {alignmentLevel}
                                     </span>
                                 )}
@@ -162,14 +162,14 @@ export function AlignmentSection({
                                             if (align.id === "neutre") setSelectedOrder(null);
                                         }}
                                         className={cn(
-                                            "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-500 overflow-hidden",
+                                            "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 overflow-hidden",
                                             selectedAlignment === align.id
                                                 ? "border-indigo-500/50 bg-indigo-500/10"
                                                 : "border-white/5 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/10"
                                         )}
                                     >
                                         <div className={cn(
-                                            "relative w-16 h-16 rounded-full flex items-center justify-center border shadow-2xl transition-transform duration-500 group-hover:scale-110 overflow-hidden",
+                                            "relative w-16 h-16 rounded-full flex items-center justify-center border shadow-2xl transition-transform duration-300 group- overflow-hidden",
                                             align.id === "bontarien" ? "bg-blue-500/20 border-blue-500/30" :
                                             align.id === "brakmarien" ? "bg-red-500/20 border-red-500/30" :
                                             "bg-zinc-800 border-white/10"
@@ -178,7 +178,7 @@ export function AlignmentSection({
                                                 src={align.icon} 
                                                 alt={align.name} 
                                                 fill 
-                                                className="object-cover scale-[1.35] group-hover:scale-[1.45] transition-transform duration-500" 
+                                                className="object-cover scale-[1.35] group-hover:scale-[1.45] transition-transform duration-300" 
                                             />
                                         </div>
                                         <span className={cn(
@@ -189,7 +189,7 @@ export function AlignmentSection({
                                         </span>
 
                                         {selectedAlignment === align.id && (
-                                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+                                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center ">
                                                 <Check className="w-4 h-4 text-white" />
                                             </div>
                                         )}
@@ -213,13 +213,13 @@ export function AlignmentSection({
                                                     key={order.id}
                                                     onClick={() => setSelectedOrder(order.id)}
                                                     className={cn(
-                                                        "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-500 h-full",
+                                                        "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 h-full",
                                                         isSelected
                                                             ? "border-amber-500/50 bg-amber-500/10"
                                                             : "border-white/5 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/10"
                                                     )}
                                                 >
-                                                    <div className="relative w-20 h-20 bg-zinc-950 border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-105">
+                                                    <div className="relative w-20 h-20 bg-zinc-950 border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-transform duration-300 group-">
                                                         <Image 
                                                             src={order.icon} 
                                                             alt={order.name} 
@@ -237,7 +237,7 @@ export function AlignmentSection({
                                                     </div>
 
                                                     {isSelected && (
-                                                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+                                                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center ">
                                                             <Check className="w-4 h-4 text-white" />
                                                         </div>
                                                     )}
@@ -265,7 +265,7 @@ export function AlignmentSection({
                                                         className={cn(
                                                             "relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 text-center gap-2",
                                                             isExactSelected
-                                                                ? "border-amber-500 bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                                                ? "border-amber-500 bg-amber-500/20 "
                                                                 : "border-white/5 bg-zinc-950/50 hover:border-white/20 hover:bg-zinc-900"
                                                         )}
                                                     >
@@ -276,7 +276,7 @@ export function AlignmentSection({
                                                             Niv {level}
                                                         </span>
                                                         <span className={cn(
-                                                            "text-[10px] uppercase font-bold leading-tight",
+                                                            "text-caption uppercase font-bold leading-tight",
                                                             isExactSelected ? "text-white" : "text-zinc-600"
                                                         )}>
                                                             {title || getLevelTitle(selectedAlignment, selectedOrder, level)}

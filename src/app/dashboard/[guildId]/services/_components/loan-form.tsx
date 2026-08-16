@@ -262,7 +262,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                         <>
                                             <Avatar className="h-5 w-5 rounded-md">
                                                 <AvatarImage src={borrower.image || undefined} />
-                                                <AvatarFallback className="text-[8px] bg-zinc-800">{borrower.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback className="text-caption bg-zinc-800">{borrower.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                             <span className="font-bold text-white truncate">{borrower.name}</span>
                                         </>
@@ -318,7 +318,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                             onChange={(e) => { setNoDueDate(e.target.checked); if (e.target.checked) setDueDate(""); }}
                                             className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-amber-500"
                                         />
-                                        <span className="text-[11px] text-zinc-400 font-medium">Pas d'échéance (prêt ouvert)</span>
+                                        <span className="text-caption text-zinc-400 font-medium">Pas d'échéance (prêt ouvert)</span>
                                     </label>
                                 </div>
                             </div>
@@ -346,7 +346,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                         )}
                                         <div>
                                             <p className="text-sm font-black text-white">{linkedItem.name}</p>
-                                            <p className="text-[10px] text-zinc-500">Item sélectionné</p>
+                                            <p className="text-caption text-zinc-500">Item sélectionné</p>
                                         </div>
                                     </div>
                                 )}
@@ -394,7 +394,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                     {nsfwChecking && (
                                         <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
                                             <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-                                            <span className="text-[9px] font-black text-white uppercase tracking-widest">Analyse sécurité…</span>
+                                            <span className="text-caption font-black text-white uppercase tracking-widest">Analyse sécurité…</span>
                                         </div>
                                     )}
                                     <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-white">
@@ -416,7 +416,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                             </>
                                         )}
                                     </p>
-                                    <p className="text-[10px] text-zinc-600">PNG, JPEG, WebP — max 5MB</p>
+                                    <p className="text-caption text-zinc-600">PNG, JPEG, WebP — max 5MB</p>
                                 </div>
                             )}
                             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
@@ -429,7 +429,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                     <Send className={`h-4 w-4 ${notifyDiscord && isDiscordConfigured ? 'text-indigo-400' : 'text-zinc-500'}`} />
                                     <div>
                                         <p className={`text-xs font-bold ${notifyDiscord && isDiscordConfigured ? 'text-indigo-300' : 'text-zinc-300'}`}>Notifier sur Discord</p>
-                                        <p className="text-[10px] text-zinc-600">
+                                        <p className="text-caption text-zinc-600">
                                             {channelName
                                                 ? <>Envoyer un embed dans <span className="text-indigo-400 font-bold">#{channelName}</span></>
                                                 : "Envoyer un embed dans le salon prêts"}
@@ -449,7 +449,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                             {!isDiscordConfigured && (
                                 <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                                     <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                    <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                    <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
                                         Le salon Discord n&apos;est pas configuré. Les notifications sont désactivées.
                                     </p>
                                 </div>

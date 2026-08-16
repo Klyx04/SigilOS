@@ -137,7 +137,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                         {activeAnnouncement && (
                             <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                                <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">
                                     Diffusion en cours
                                 </span>
                             </div>
@@ -157,7 +157,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                 <div className="space-y-1">
                                     <p className="text-sm md:text-base font-bold leading-tight">{activeAnnouncement.message}</p>
                                     {activeAnnouncement.expiresAt && (
-                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                                        <p className="text-caption font-black uppercase tracking-widest opacity-60">
                                             Expiration : {new Date(activeAnnouncement.expiresAt).toLocaleString("fr-FR")}
                                         </p>
                                     )}
@@ -191,7 +191,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                             key={t}
                                             onClick={() => setBannerType(t)}
                                             className={cn(
-                                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                "px-5 py-2.5 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
                                                 bannerType === t
                                                     ? typeColors[t]
                                                     : "border-transparent text-zinc-500 hover:text-white"
@@ -203,7 +203,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                 </div>
 
                                 <div className="flex items-center gap-3 ml-auto">
-                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Durée :</span>
+                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Durée :</span>
                                     <select
                                         value={bannerExpiry}
                                         onChange={(e) => setBannerExpiry(Number(e.target.value))}
@@ -234,7 +234,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                         </div>
                         
                         <div className="bg-black/20 rounded-3xl p-6 border border-white/5 space-y-4">
-                            <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest text-center">Aperçu Dashboard</h4>
+                            <h4 className="text-caption font-black text-zinc-600 uppercase tracking-widest text-center">Aperçu Dashboard</h4>
                             <div className="flex items-center justify-center min-h-[100px]">
                                 {bannerMessage ? (
                                     <div className={cn("w-full p-4 rounded-xl border-l-4 shadow-lg", typeColors[bannerType])}>
@@ -283,7 +283,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                             key={t}
                                             onClick={() => setDiscordType(t)}
                                             className={cn(
-                                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
+                                                "px-5 py-2.5 rounded-xl text-caption font-black uppercase tracking-widest border transition-all flex items-center gap-2",
                                                 discordType === t
                                                     ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/10"
                                                     : "border-transparent text-zinc-500 hover:text-white"
@@ -314,7 +314,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                 <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/10 space-y-2 backdrop-blur-md">
                                     <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-                                        <span className="text-[10px] font-black text-violet-300 uppercase tracking-widest">
+                                        <span className="text-caption font-black text-violet-300 uppercase tracking-widest">
                                             Cibleur de Salon Spécifique (Guilde Dev)
                                         </span>
                                     </div>
@@ -346,14 +346,14 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                         </div>
 
                         <div className="bg-[#313338] rounded-3xl p-6 md:p-10 border border-black/50 shadow-2xl relative">
-                             <div className="absolute top-4 left-6 text-[10px] font-black text-white/20 uppercase tracking-widest">Aperçu Discord</div>
+                             <div className="absolute top-4 left-6 text-caption font-black text-white/20 uppercase tracking-widest">Aperçu Discord</div>
                              <div className="mt-8 flex gap-4">
                                 <div className="w-10 h-10 rounded-full bg-[#5865f2] flex-shrink-0 flex items-center justify-center font-bold text-white text-lg">S</div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-white font-bold text-sm">SigilBot</span>
-                                        <span className="bg-[#5865f2] text-white text-[10px] font-bold px-1 rounded uppercase">Bot</span>
-                                        <span className="text-white/20 text-[10px] font-medium">Aujourd'hui à {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
+                                        <span className="bg-[#5865f2] text-white text-caption font-bold px-1 rounded uppercase">Bot</span>
+                                        <span className="text-white/20 text-caption font-medium">Aujourd'hui à {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
                                     </div>
                                     <div className={cn(
                                         "rounded-lg overflow-hidden border-l-4 mt-2",

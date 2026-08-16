@@ -25,7 +25,7 @@ export function GodStatCard({ icon: Icon, label, value, status = "default", hint
     return (
         <div className={cn(
             "relative rounded-3xl border border-white/5 bg-zinc-900/10 backdrop-blur-xl p-5",
-            "shadow-[0_0_30px_rgba(0,0,0,0.3)]",
+            "",
             className
         )}>
             <div className="flex items-start justify-between gap-3">
@@ -34,7 +34,7 @@ export function GodStatCard({ icon: Icon, label, value, status = "default", hint
                 </div>
             </div>
             <div className="mt-4 space-y-1">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">{label}</p>
+                <p className="text-caption font-bold uppercase tracking-widest text-zinc-500">{label}</p>
                 <p className={cn("text-2xl font-black tracking-tight", ACCENT_STYLES[status])}>{value}</p>
                 {hint ? <p className="text-xs text-zinc-500">{hint}</p> : null}
             </div>

@@ -237,10 +237,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         <div className="flex items-center gap-2 mb-1">
                             <h3 className="text-xl font-black uppercase tracking-tight text-white leading-none truncate">{difficulty?.label || run.difficulty}</h3>
                             <div className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 shadow-sm">
-                                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{objective?.label}</span>
+                                <span className="text-caption font-black text-white/40 uppercase tracking-widest">{objective?.label}</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">
+                        <div className="flex items-center gap-2 text-caption font-black text-white/30 uppercase tracking-[0.2em]">
                             <Users className="w-3 h-3" /> {run.members.length}/4
                             <span className="opacity-20">•</span>
                             <span className="flex items-center gap-1.5">
@@ -270,14 +270,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                 <div className="py-1 space-y-4">
                                     <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                                         <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                                        <p className="text-[11px] text-red-200/80 font-medium leading-relaxed">
+                                        <p className="text-caption text-red-200/80 font-medium leading-relaxed">
                                             Cette action est <span className="font-black text-red-300">irréversible</span>.
                                             La run <span className="font-bold text-white">{DIFFICULTIES[run.difficulty as DifficultyKey]?.label || run.difficulty}</span>
                                             {run.members.length > 0 ? ` (${run.members.length} membre${run.members.length > 1 ? "s" : ""})` : ""}
                                             , ses candidatures et son annonce Discord seront définitivement supprimés.
                                         </p>
                                     </div>
-                                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                                    <p className="text-caption text-white/40 font-bold uppercase tracking-widest">
                                         {run.members.length > 0
                                             ? "Les participants perdront leur place."
                                             : "Aucun participant n'est inscrit."}
@@ -287,7 +287,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     <Button variant="outline" className="flex-1 rounded-xl h-10 border-white/10 bg-white/5 hover:bg-white/10 text-white" onClick={() => setDeleteDialogOpen(false)}>
                                         Annuler
                                     </Button>
-                                    <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] rounded-xl h-10 bg-red-600 hover:bg-red-500 text-white" onClick={handleDelete} disabled={loading}>
+                                    <Button variant="destructive" className="flex-1 font-black uppercase text-caption rounded-xl h-10 bg-red-600 hover:bg-red-500 text-white" onClick={handleDelete} disabled={loading}>
                                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
                                         Supprimer
                                     </Button>
@@ -303,9 +303,9 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 <div className="relative z-10 p-4 rounded-2xl border border-white/5 bg-white/5 mb-6">
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xl">{epreuve.icon}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
+                        <span className="text-caption font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
                     </div>
-                    <p className="text-[11px] text-white/40 leading-relaxed">{epreuve.description}</p>
+                    <p className="text-caption text-white/40 leading-relaxed">{epreuve.description}</p>
                 </div>
             )}
 
@@ -313,7 +313,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             <div className="relative z-10 mb-8">
                 <div className="flex justify-between items-end mb-3">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Étage Actuel</span>
+                        <span className="text-caption font-black uppercase tracking-widest text-white/30 mb-1">Étage Actuel</span>
                         <div className="flex items-baseline gap-2">
                            <span className="text-4xl font-black text-white">{run.currentFloor}</span>
                            <span className="text-sm font-bold text-white/10 uppercase">/ 26</span>
@@ -349,7 +349,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     {member ? (
                                         <Avatar className="w-full h-full">
                                             <AvatarImage src={profile?.avatar || undefined} />
-                                            <AvatarFallback className="text-[10px] font-black">
+                                            <AvatarFallback className="text-caption font-black">
                                                 {profile?.pseudoDofus?.charAt(0) || "?"}
                                             </AvatarFallback>
                                         </Avatar>
@@ -391,7 +391,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 <div className="relative z-10 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 mb-6 animate-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center gap-2 mb-4">
                         <Bell className="w-3.5 h-3.5 text-amber-500" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/70">Candidatures</p>
+                        <p className="text-caption font-black uppercase tracking-widest text-amber-500/70">Candidatures</p>
                     </div>
 
                     <div className="space-y-3">
@@ -404,11 +404,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <div className="flex items-center gap-3 min-w-0">
                                             <Avatar className="w-9 h-9 border border-white/10 rounded-xl">
                                                 <AvatarImage src={profile?.avatar || undefined} />
-                                                <AvatarFallback className="bg-zinc-800 text-[10px] font-bold">{name.charAt(0)}</AvatarFallback>
+                                                <AvatarFallback className="bg-zinc-800 text-caption font-bold">{name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
                                                 <p className="text-sm font-black text-white truncate">{name}</p>
-                                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30">
+                                                <div className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-white/30">
                                                     <ClassIcon classId={c.classe as DofusClass} size={12} />
                                                     {c.classe}
                                                 </div>
@@ -436,7 +436,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     </div>
                                     {c.message && (
                                         <div className="relative p-2.5 rounded-xl bg-white/5 border-l-2 border-amber-500/50">
-                                            <p className="text-[10px] italic text-white/50 leading-relaxed font-medium">“{c.message}”</p>
+                                            <p className="text-caption italic text-white/50 leading-relaxed font-medium">“{c.message}”</p>
                                         </div>
                                     )}
                                 </div>
@@ -461,7 +461,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         
                         <Button 
                             variant="secondary" 
-                            className="flex-1 h-11 bg-white/5 hover:bg-white/10 border-white/10 text-white font-black uppercase tracking-widest text-[10px] rounded-xl"
+                            className="flex-1 h-11 bg-white/5 hover:bg-white/10 border-white/10 text-white font-black uppercase tracking-widest text-caption rounded-xl"
                             onClick={() => setProgressModalOpen(true)}
                         >
                             <TrendingUp className="w-4 h-4 mr-2" />
@@ -469,14 +469,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         </Button>
                         <Button 
                             variant="secondary" 
-                            className="flex-1 h-11 bg-white/5 hover:bg-white/10 border-white/10 text-white font-black uppercase tracking-widest text-[10px] rounded-xl"
+                            className="flex-1 h-11 bg-white/5 hover:bg-white/10 border-white/10 text-white font-black uppercase tracking-widest text-caption rounded-xl"
                             onClick={() => setEditModalOpen(true)}
                         >
                             <Pencil className="w-4 h-4 mr-2" />
                             Modifier
                         </Button>
                         <Button 
-                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] rounded-xl transition-colors"
+                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-caption rounded-xl transition-colors"
                             onClick={() => setCloseModalOpen(true)}
                         >
                             <Check className="w-4 h-4 mr-2" />
@@ -486,7 +486,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 ) : isMember ? (
                     <Button 
                         variant="ghost" 
-                        className="flex-1 h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 font-black uppercase tracking-widest text-[10px] rounded-xl"
+                        className="flex-1 h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 font-black uppercase tracking-widest text-caption rounded-xl"
                         onClick={handleLeave}
                     >
                         <LogOut className="w-4 h-4 mr-2" />
@@ -494,7 +494,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </Button>
                 ) : pendingRequest ? (
                     <div className="flex-1 flex gap-2">
-                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest text-[10px]">
+                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest text-caption">
                             <Clock className="w-4 h-4 mr-2" />
                             En attente
                         </div>
@@ -508,14 +508,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                 ) : canApply ? (
                     <Button 
-                        className="flex-1 h-11 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-[10px] rounded-xl border border-white/10 transition-colors"
+                        className="flex-1 h-11 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-caption rounded-xl border border-white/10 transition-colors"
                         onClick={() => setJoinDialogOpen(true)}
                     >
                         <UserPlus className="w-4 h-4 mr-2" />
                         Postuler
                     </Button>
                 ) : (
-                    <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-white/5 text-white/20 text-[10px] font-black uppercase tracking-widest border border-white/5">
+                    <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-white/5 text-white/20 text-caption font-black uppercase tracking-widest border border-white/5">
                         <ShieldCheck className="w-4 h-4 mr-2" />
                         Équipe complète
                     </div>
@@ -533,7 +533,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         </DialogHeader>
                         <div className="space-y-6">
                             <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Classe Dofus</Label>
+                                <Label className="text-caption font-black uppercase tracking-widest text-white/30">Classe Dofus</Label>
                                 <Select value={selectedClasse} onValueChange={(v) => setSelectedClasse(v as DofusClass)}>
                                     <SelectTrigger className="bg-white/5 border-white/10 h-12 rounded-xl">
                                         <SelectValue />
@@ -551,7 +551,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                 </Select>
                             </div>
                             <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Note de motivation</Label>
+                                <Label className="text-caption font-black uppercase tracking-widest text-white/30">Note de motivation</Label>
                                 <Textarea
                                     placeholder="Dis-nous pourquoi on doit te prendre..."
                                     value={message}

@@ -221,7 +221,7 @@ export function OcreFilterBar({
                             className={cn(
                                 "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
                                 filters.selectedType !== "all"
-                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.12)]"
+                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-400 "
                                     : "border-white/[0.07] bg-[#161e20]/60 text-zinc-300 hover:bg-[#202a2d] hover:border-white/10"
                             )}
                         >
@@ -261,7 +261,7 @@ export function OcreFilterBar({
                             className={cn(
                                 "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
                                 filters.selectedStep !== "all"
-                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.12)]"
+                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-400 "
                                     : "border-white/[0.07] bg-[#161e20]/60 text-zinc-300 hover:bg-[#202a2d] hover:border-white/10"
                             )}
                         >
@@ -299,7 +299,7 @@ export function OcreFilterBar({
                             className={cn(
                                 "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
                                 filters.sortBy !== "step-asc"
-                                    ? "border-blue-500/40 bg-blue-500/10 text-blue-400 shadow-[0_0_16px_rgba(59,130,246,0.12)]"
+                                    ? "border-blue-500/40 bg-blue-500/10 text-blue-400 "
                                     : "border-white/[0.07] bg-[#161e20]/60 text-zinc-300 hover:bg-[#202a2d] hover:border-white/10"
                             )}
                         >
@@ -331,7 +331,7 @@ export function OcreFilterBar({
                                 className={cn(
                                     "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border max-w-[180px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
                                     filters.selectedZone !== "all"
-                                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.12)]"
+                                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 "
                                         : "border-white/[0.07] bg-[#161e20]/60 text-zinc-300 hover:bg-[#202a2d] hover:border-white/10"
                                 )}
                             >
@@ -371,7 +371,7 @@ export function OcreFilterBar({
                             className={cn(
                                 "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
                                 filters.minQuantity > 0
-                                    ? "border-purple-500/40 bg-purple-500/10 text-purple-400 shadow-[0_0_16px_rgba(168,85,247,0.12)]"
+                                    ? "border-purple-500/40 bg-purple-500/10 text-purple-400 "
                                     : "border-white/[0.07] bg-[#161e20]/60 text-zinc-300 hover:bg-[#202a2d] hover:border-white/10"
                             )}
                         >
@@ -396,7 +396,7 @@ export function OcreFilterBar({
 
                 {/* Active filters summary badge */}
                 {hasActiveFilters && (
-                    <Badge className="h-6 px-2.5 text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl">
+                    <Badge className="h-6 px-2.5 text-caption font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl">
                         Filtres actifs
                     </Badge>
                 )}

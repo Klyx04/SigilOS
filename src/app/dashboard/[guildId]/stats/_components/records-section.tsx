@@ -56,7 +56,7 @@ export default function RecordsSection({ records, topAchievers }: RecordsSection
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     {topAchievers.map((achiever, i) => (
                         <div key={achiever.name} className="relative group">
-                            <div className="p-3 rounded-lg bg-black/20 border border-white/5 flex flex-col items-center text-center transition-all hover:scale-105 hover:bg-black/30">
+                            <div className="p-3 rounded-lg bg-black/20 border border-white/5 flex flex-col items-center text-center transition-all  hover:bg-black/30">
                                 <span className={`text-xl font-bold mb-1 ${i === 0 ? "text-amber-400" : i === 1 ? "text-zinc-300" : i === 2 ? "text-orange-400" : "text-zinc-500"}`}>
                                     #{i + 1}
                                 </span>

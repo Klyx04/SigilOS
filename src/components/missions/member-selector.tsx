@@ -178,7 +178,7 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                         >
                             <Avatar className="h-6 w-6 border border-white/10">
                                 <AvatarImage src={member.image || undefined} />
-                                <AvatarFallback className="bg-zinc-700 text-[9px]">
+                                <AvatarFallback className="bg-zinc-700 text-caption">
                                     {member.name.substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
@@ -194,7 +194,7 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                 </div>
             )}
 
-            <div className="text-[10px] text-zinc-500">
+            <div className="text-caption text-zinc-500">
                 {selectedIds.length} / {maxSelection} participants sélectionnés
             </div>
         </div>

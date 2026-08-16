@@ -173,7 +173,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             </div>
                             <div>
                                 <div className="text-xs font-black text-amber-300 uppercase tracking-widest">Onboarding sub-god</div>
-                                <div className="text-[11px] text-amber-400/80 font-semibold">Étape {currentStep + 1} / {steps.length}</div>
+                                <div className="text-caption text-amber-400/80 font-semibold">Étape {currentStep + 1} / {steps.length}</div>
                             </div>
                         </div>
                         <button
@@ -212,7 +212,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             type="button"
                             onClick={prevStep}
                             disabled={currentStep === 0}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-black text-zinc-300 uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-caption font-black text-zinc-300 uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             <ChevronLeft className="w-4 h-4" /> Précédent
                         </button>
@@ -221,7 +221,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             <button
                                 type="button"
                                 onClick={closeTutorial}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[11px] font-black text-amber-200 uppercase tracking-widest transition-colors"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-caption font-black text-amber-200 uppercase tracking-widest transition-colors"
                             >
                                 J'ai compris <CheckIcon />
                             </button>
@@ -229,7 +229,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             <button
                                 type="button"
                                 onClick={nextStep}
-                                className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[11px] font-black text-amber-200 uppercase tracking-widest transition-colors"
+                                className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-caption font-black text-amber-200 uppercase tracking-widest transition-colors"
                             >
                                 Suivant <ChevronRight className="w-4 h-4" />
                             </button>
@@ -250,7 +250,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                     </div>
                     <div>
                         <div className="text-xs font-black text-amber-300 uppercase tracking-widest">Accès délégué (sub-god)</div>
-                        <div className="text-[11px] text-amber-400/80 font-semibold">Scopes actifs : {scopeNames}</div>
+                        <div className="text-caption text-amber-400/80 font-semibold">Scopes actifs : {scopeNames}</div>
                     </div>
                 </div>
 
@@ -265,7 +265,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                         type="button"
                         onClick={replayTutorial}
                         aria-label="Aide / Revoir le tutoriel"
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-black text-amber-200 uppercase tracking-widest transition-colors"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-caption font-black text-amber-200 uppercase tracking-widest transition-colors"
                     >
                         <HelpCircle className="w-4 h-4" /> Aide / Revoir le tuto
                     </button>
@@ -275,7 +275,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
             {/* 🔄 P3-R — Vue "Mon accès" : briques + temps restant, TOUJOURS visible (h/m/s temps réel) */}
             <div className="mx-4 md:mx-8 lg:mx-12 mt-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 backdrop-blur-md">
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                        <div className="text-caption font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
                             <KeyRound className="w-3.5 h-3.5" /> Vos accès actifs — temps réel
                         </div>
                     </div>
@@ -290,7 +290,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                                     <div key={g.brickId} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2">
                                         <div className="space-y-0.5">
                                             <div className="text-xs font-bold text-zinc-200">{g.label}</div>
-                                            <div className="text-[10px] text-zinc-500">{g.scope ? SCOPE_LABELS[g.scope] || g.scope : "—"}</div>
+                                            <div className="text-caption text-zinc-500">{g.scope ? SCOPE_LABELS[g.scope] || g.scope : "—"}</div>
                                         </div>
                                         {expired ? (
                                             <Badge className="bg-rose-500/15 text-rose-300 border-rose-500/30">EXPIRÉ</Badge>

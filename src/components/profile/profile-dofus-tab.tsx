@@ -79,7 +79,7 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                     </div>
                     <div>
                         <h3 className="text-base font-black text-white uppercase tracking-wider">Progression des Dofus</h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Vue synthétique en lecture seule</p>
+                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Vue synthétique en lecture seule</p>
                     </div>
                 </div>
 
@@ -139,15 +139,15 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                     {/* Stats summary banner */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div className="p-3 bg-zinc-900/60 border border-white/5 rounded-2xl text-center">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase">Dofus Obtenus</p>
+                            <p className="text-caption font-black text-zinc-500 uppercase">Dofus Obtenus</p>
                             <p className="text-xl font-black text-emerald-400 font-mono mt-0.5">{obtainedCount} / {list.length}</p>
                         </div>
                         <div className="p-3 bg-zinc-900/60 border border-white/5 rounded-2xl text-center">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase">En cours</p>
+                            <p className="text-caption font-black text-zinc-500 uppercase">En cours</p>
                             <p className="text-xl font-black text-amber-400 font-mono mt-0.5">{inProgressCount}</p>
                         </div>
                         <div className="p-3 bg-zinc-900/60 border border-white/5 rounded-2xl col-span-2 sm:col-span-1 text-center">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase">Complétion Globale</p>
+                            <p className="text-caption font-black text-zinc-500 uppercase">Complétion Globale</p>
                             <p className="text-xl font-black text-sky-400 font-mono mt-0.5">
                                 {list.length > 0 ? Math.round((obtainedCount / list.length) * 100) : 0}%
                             </p>
@@ -179,15 +179,15 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                                     <div className="flex items-center justify-between gap-1">
                                         <h5 className="text-xs font-black text-white truncate">{item.name}</h5>
                                         {item.isObtained ? (
-                                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                            <span className="inline-flex items-center gap-1 text-caption font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                                 <CheckCircle2 className="w-2.5 h-2.5" /> Obtenu
                                             </span>
                                         ) : item.progressPercent > 0 ? (
-                                            <span className="text-[9px] font-mono font-bold text-amber-400">
+                                            <span className="text-caption font-mono font-bold text-amber-400">
                                                 {item.progressPercent}%
                                             </span>
                                         ) : (
-                                            <span className="text-[9px] text-zinc-600 font-bold">Non démarré</span>
+                                            <span className="text-caption text-zinc-600 font-bold">Non démarré</span>
                                         )}
                                     </div>
 
@@ -195,7 +195,7 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                                     <div className="w-full h-1.5 bg-black/60 rounded-full overflow-hidden mt-2 border border-white/5">
                                         <div
                                             className={cn(
-                                                "h-full transition-all duration-500",
+                                                "h-full transition-all duration-300",
                                                 item.isObtained ? "bg-emerald-400" : "bg-amber-400"
                                             )}
                                             style={{ width: `${item.isObtained ? 100 : item.progressPercent}%` }}

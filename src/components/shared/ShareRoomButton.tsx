@@ -58,7 +58,7 @@ export function ShareRoomButton({ roomId, className }: ShareRoomButtonProps) {
             )}
         >
             <div className="flex flex-col items-start leading-none pointer-events-none">
-                <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em] italic mb-1">Partager</span>
+                <span className="text-caption font-black text-white/20 uppercase tracking-widest italic mb-1">Partager</span>
                 <span className="text-sm font-black text-white italic tracking-tighter uppercase">{roomId}</span>
             </div>
             

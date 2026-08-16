@@ -29,7 +29,7 @@ export function PrivateGuildView({ guild, isMember }: Props) {
             <main className="flex-1 flex items-center justify-center p-4 relative z-10">
                 <div className="relative group">
                     {/* Ambient Glow */}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-emerald-500/20 rounded-2xl blur-xl opacity-30 group-hover:opacity-50 transition duration-1000" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-emerald-500/20 rounded-2xl blur-xl opacity-30 group-hover:opacity-50 transition duration-300" />
 
                     <Card className="w-full max-w-md bg-zinc-950/40 border border-white/10 p-8 md:p-10 rounded-2xl shadow-2xl backdrop-blur-3xl overflow-hidden relative">
                         {/* Micro-texture Noise Overlay */}
@@ -51,7 +51,7 @@ export function PrivateGuildView({ guild, isMember }: Props) {
 
                             <div className="space-y-3">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80 mb-2">Contenu Privé</span>
+                                    <span className="text-caption font-black uppercase tracking-widest text-indigo-400/80 mb-2">Contenu Privé</span>
                                     <h1 className="text-3xl font-black text-white tracking-tighter">{guild.name}</h1>
                                 </div>
                                 <p className="text-zinc-400 font-medium leading-relaxed max-w-[280px] mx-auto">

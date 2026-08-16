@@ -124,7 +124,7 @@ export function ActiveBonusTracker({ guildId }: ActiveBonusTrackerProps) {
                             <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden mb-1">
                                 <div
                                     className={`
-                                        h-full transition-all duration-1000 rounded-full
+                                        h-full transition-all duration-300 rounded-full
                                         ${isActive ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-orange-500 to-yellow-400"}
                                     `}
                                     style={{ width: `${progress}%` }}

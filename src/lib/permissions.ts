@@ -18,6 +18,7 @@ export const PERMISSIONS = {
     // Community
     COMMUNITY_ACCESS: "community:access",
     COMMUNITY_MOD: "community:mod",
+    AVAILABILITY_VIEW: "availability:view",
 
     // Missions
     MISSIONS_PLAY: "missions:play",
@@ -117,6 +118,13 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "community",
         modules: ["Gestion Calendrier"]
     },
+    [PERMISSIONS.AVAILABILITY_VIEW]: {
+        label: "Voir les Disponibilités",
+        description: "Consulter les disponibilités et absences des membres dans l'annuaire et remplir son planning perso (module Disponibilités).",
+        module: "community",
+        modules: ["Annuaire (Disponibilités)", "Profil (Planning)"]
+    },
+
 
     // Missions
     [PERMISSIONS.MISSIONS_PLAY]: { 

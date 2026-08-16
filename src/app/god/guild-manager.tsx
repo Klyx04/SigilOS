@@ -103,7 +103,7 @@ export function GuildManager({ initialGuilds }: GuildManagerProps) {
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-white">Autoriser une Guilde</h2>
-                    <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded uppercase font-black tracking-widest border border-white/5">Etape 1: Permission</span>
+                    <span className="text-caption bg-zinc-800 text-zinc-500 px-2 py-1 rounded uppercase font-black tracking-widest border border-white/5">Etape 1: Permission</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Input

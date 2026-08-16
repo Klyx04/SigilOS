@@ -47,7 +47,7 @@ export function SyncPurgeCard({ guildId }: SyncPurgeCardProps) {
                 </div>
                 <div>
                     <h3 className="text-sm font-bold text-zinc-200">Actualisation des Membres</h3>
-                    <p className="text-[11px] text-zinc-500 leading-tight max-w-md">
+                    <p className="text-caption text-zinc-500 leading-tight max-w-md">
                         Synchronise votre liste SigilOS avec Discord pour archiver les membres ayant quitté le serveur.
                     </p>
                 </div>

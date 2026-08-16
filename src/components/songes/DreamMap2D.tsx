@@ -70,7 +70,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
             <div className="mb-6">
                 <div className="h-3 bg-purple-900/50 rounded-full overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-amber-500 transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-amber-500 transition-all duration-300"
                         style={{ width: `${(currentFloor / 26) * 100}%` }}
                     />
                 </div>
@@ -116,7 +116,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                                                         ? "border-purple-400/50 hover:border-purple-400"
                                                         : "border-purple-700/30"
                                             }
-                                            ${canClick ? "hover:scale-105 hover:z-10" : ""}
+                                            ${canClick ? " hover:z-10" : ""}
                                         `}
                                         onMouseEnter={() => setHoveredFloor(floor)}
                                         onMouseLeave={() => setHoveredFloor(null)}

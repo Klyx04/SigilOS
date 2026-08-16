@@ -67,7 +67,7 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
 
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline" className="bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 font-black uppercase tracking-widest text-[10px] px-4 py-2 rounded-xl gap-2">
+                        <Button variant="outline" className="bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 font-black uppercase tracking-widest text-caption px-4 py-2 rounded-xl gap-2">
                             + Nouveau Ban
                         </Button>
                     </DialogTrigger>
@@ -120,11 +120,11 @@ export function BlacklistSection({ bans }: { bans: any[] }) {
                     {bans.map((ban: any) => (
                         <div key={ban.id} className="p-4 rounded-2xl bg-zinc-900/30 border border-rose-500/10 flex items-center justify-between">
                             <div>
-                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                <span className="text-caption font-black uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
                                     {ban.entityType === 'GUILD' ? '🏰 Guilde' : '👤 User'}
                                 </span>
                                 <div className="text-xs font-mono font-bold text-white mt-1">{ban.discordId}</div>
-                                <div className="text-[10px] text-zinc-500 font-medium">{ban.reason}</div>
+                                <div className="text-caption text-zinc-500 font-medium">{ban.reason}</div>
                             </div>
                             <Button
                                 size="sm"

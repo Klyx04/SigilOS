@@ -34,7 +34,7 @@ export default async function AdminDocsPage() {
                             Structurez la connaissance technique et guidez les utilisateurs vers la maîtrise absolue de SigilOS.
                         </p>
                     </div>
-                    <Button asChild className="px-8 py-6 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black uppercase tracking-widest transition-all hover:scale-105 shadow-xl shadow-teal-500/20 group">
+                    <Button asChild className="px-8 py-6 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black uppercase tracking-widest transition-all  shadow-xl shadow-teal-500/20 group">
                         <Link href="/god/docs/new">
                             <Plus className="w-6 h-6 mr-3 group-hover:rotate-90 transition-transform" />
                             Nouvelle Page
@@ -65,13 +65,13 @@ export default async function AdminDocsPage() {
                                     <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors group">
                                         <td className="px-8 py-6 font-black text-white">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center border border-teal-500/20 group-hover:scale-110 transition-transform">
+                                                <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center border border-teal-500/20 group- transition-transform">
                                                     <FileText className="w-5 h-5 text-teal-400" />
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-lg group-hover:text-amber-400 transition-colors uppercase tracking-tight">{doc.title}</span>
                                                     {!doc.isPublished && (
-                                                        <span className="text-[10px] bg-amber-500/10 text-amber-500 w-fit px-2 py-0.5 rounded-full border border-amber-500/20 font-black tracking-widest uppercase mt-1">
+                                                        <span className="text-caption bg-amber-500/10 text-amber-500 w-fit px-2 py-0.5 rounded-full border border-amber-500/20 font-black tracking-widest uppercase mt-1">
                                                             Scanning / Brouillon
                                                         </span>
                                                     )}
@@ -82,7 +82,7 @@ export default async function AdminDocsPage() {
                                             /{doc.slug}
                                         </td>
                                         <td className="px-8 py-6">
-                                            <Badge variant="outline" className="px-3 py-1 rounded-full border-teal-500/20 bg-teal-500/5 text-teal-400 font-bold text-[10px] uppercase tracking-widest border">
+                                            <Badge variant="outline" className="px-3 py-1 rounded-full border-teal-500/20 bg-teal-500/5 text-teal-400 font-bold text-caption uppercase tracking-widest border">
                                                 {doc.category}
                                             </Badge>
                                         </td>

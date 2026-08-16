@@ -192,7 +192,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     />
                                 )}
                             </div>
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest truncate mt-1">
+                            <p className="text-caption font-black text-zinc-400 uppercase tracking-widest truncate mt-1">
                                 {subtitle}
                             </p>
                         </div>
@@ -215,7 +215,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             </a>
                         )}
                         <div className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider",
+                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-wider",
                             post.status === "OPEN"
                                 ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
                                 : post.status === "FULL"
@@ -238,7 +238,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Mode + Slots */}
                     <div className="flex items-center justify-between">
                         <span className={cn(
-                            "inline-flex items-center gap-2 text-[10px] uppercase font-black tracking-widest px-3 py-1.5 rounded-xl border",
+                            "inline-flex items-center gap-2 text-caption uppercase font-black tracking-widest px-3 py-1.5 rounded-xl border",
                             modeMeta.color
                         )}>
                             <ModIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
@@ -246,7 +246,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </span>
                         
                         <div className={cn(
-                            "flex items-center gap-2 text-[11px] font-black px-3 py-1.5 rounded-xl border group/slots transition-colors",
+                            "flex items-center gap-2 text-caption font-black px-3 py-1.5 rounded-xl border group/slots transition-colors",
                             spotsLeft > 0 && isOpen
                                 ? "text-zinc-300 bg-emerald-950/10 border-emerald-500/20"
                                 : "text-zinc-400 bg-zinc-950 border-white/10"
@@ -267,7 +267,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <div key={post.profileId} className="relative group/avatar" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
                             <Avatar className="h-9 w-9 ring-2 ring-indigo-500 hover:ring-indigo-400 transition-all border-2 border-zinc-950 shadow-lg">
                                 <AvatarImage src={post.profile.user.image || undefined} />
-                                <AvatarFallback className="bg-indigo-950 text-indigo-300 text-[10px] font-black">
+                                <AvatarFallback className="bg-indigo-950 text-indigo-300 text-caption font-black">
                                     {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
@@ -281,7 +281,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             <div key={p.id} className="relative group/avatar" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
                                 <Avatar className="h-9 w-9 ring-2 ring-zinc-800 hover:ring-indigo-500/50 transition-all border-2 border-zinc-950 shadow-lg">
                                     <AvatarImage src={p.profile.user.image || undefined} />
-                                    <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-bold">
+                                    <AvatarFallback className="bg-zinc-800 text-zinc-400 text-caption font-bold">
                                         {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -306,7 +306,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     <div
                                         key={a.id}
                                         title={a.challenge.name}
-                                        className="w-7 h-7 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-1 shrink-0 shadow-sm transition-transform hover:scale-110"
+                                        className="w-7 h-7 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-1 shrink-0 shadow-sm transition-transform "
                                     >
                                         {a.challenge.iconUrl && (
                                             <img src={a.challenge.iconUrl} alt={a.challenge.name} className="w-full h-full object-contain" />
@@ -314,7 +314,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     </div>
                                 ))}
                             {post.wantedAchievementIds.length > 5 && (
-                                <div className="w-7 h-7 rounded-lg bg-zinc-800 flex items-center justify-center text-[10px] font-black text-zinc-400 border border-white/5 shadow-inner">
+                                <div className="w-7 h-7 rounded-lg bg-zinc-800 flex items-center justify-center text-caption font-black text-zinc-400 border border-white/5 shadow-inner">
                                     +{post.wantedAchievementIds.length - 5}
                                 </div>
                             )}
@@ -327,11 +327,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             {post.requiredClasses.map(c => {
                                 const cls = getClass(c);
                                 return (
-                                    <div key={c} title={c} className="w-7 h-7 rounded-lg bg-zinc-950 border border-white/5 p-1 overflow-hidden shadow-inner transition-transform hover:scale-110">
+                                    <div key={c} title={c} className="w-7 h-7 rounded-lg bg-zinc-950 border border-white/5 p-1 overflow-hidden shadow-inner transition-transform ">
                                         {cls ? (
                                             <img src={cls.icon} alt={c} className="w-full h-full object-contain" />
                                         ) : (
-                                            <span className="text-[10px] font-black flex items-center justify-center h-full w-full rounded text-white"
+                                            <span className="text-caption font-black flex items-center justify-center h-full w-full rounded text-white"
                                                 style={{ backgroundColor: `hsl(${(c.charCodeAt(0) * 47) % 360}, 55%, 35%)` }}>
                                                 {c[0]?.toUpperCase()}
                                             </span>
@@ -355,14 +355,14 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                         </span>
                                     )}
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] font-bold text-white truncate">{d.name}</p>
-                                        <p className="text-[9px] text-zinc-500">
+                                        <p className="text-caption font-bold text-white truncate">{d.name}</p>
+                                        <p className="text-caption text-zinc-500">
                                             Lvl {d.level}
                                             {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
                                             {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
                                         </p>
                                     </div>
-                                    <span className="text-[9px] font-black text-indigo-400/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
+                                    <span className="text-caption font-black text-indigo-400/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
                                 </div>
                             ))}
                         </div>
@@ -373,7 +373,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.dungeon?.dofuspourlesnoobsUrl && (
                             <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
                                 <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
                                 Guide DPNL
                             </a>
@@ -381,7 +381,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.dungeon?.dofensiveUrl && (
                             <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:text-white bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-emerald-500 hover:border-emerald-400 hover:scale-[1.03] shadow-emerald-500/5 hover:shadow-emerald-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-emerald-400 hover:text-white bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-emerald-500 hover:border-emerald-400 hover:scale-[1.03] shadow-emerald-500/5 hover:shadow-emerald-500/20">
                                 <span className="text-xs">🛡️</span>
                                 Dofensive
                             </a>
@@ -392,7 +392,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
                                         className={cn(
-                                            "inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-all border shadow-lg hover:scale-[1.03]",
+                                            "inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-all border shadow-lg hover:scale-[1.03]",
                                             isDonjon
                                                 ? "text-cyan-400 hover:text-white bg-cyan-500/10 border-cyan-500/25 hover:bg-cyan-500 hover:border-cyan-400 shadow-cyan-500/5 hover:shadow-cyan-500/20"
                                                 : "text-zinc-400 hover:text-white bg-zinc-950 border-white/10 hover:bg-zinc-800"
@@ -403,7 +403,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 ) : post.questUrl && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                        className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
                                         DofusPourLesNoobs
                                     </a>
@@ -415,7 +415,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Message */}
                     {post.message && (
                         <div className={cn(
-                            "text-[11px] text-zinc-300 italic border-l-4 pl-4 py-2 line-clamp-2 leading-relaxed rounded-r-lg shadow-inner",
+                            "text-caption text-zinc-300 italic border-l-4 pl-4 py-2 line-clamp-2 leading-relaxed rounded-r-lg shadow-inner",
                             isOpen
                                 ? isDonjon
                                     ? "border-indigo-500/40 bg-indigo-500/[0.02]"
@@ -431,7 +431,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Target date */}
                     {post.targetDate && (
                         <div className={cn(
-                            "flex items-center justify-center gap-2.5 text-[11px] font-black w-full px-4 py-2.5 rounded-xl border shadow-inner mt-2 group/date transition-colors duration-300",
+                            "flex items-center justify-center gap-2.5 text-caption font-black w-full px-4 py-2.5 rounded-xl border shadow-inner mt-2 group/date transition-colors duration-300",
                             isOpen
                                 ? isDonjon
                                     ? "text-indigo-300 bg-indigo-500/5 border-indigo-500/20"
@@ -457,11 +457,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 <img src={post.profile.user.image} alt="" className="w-full h-full object-cover" />
                             )}
                         </div>
-                        <span className="text-[11px] font-black text-zinc-400 truncate flex-1 tracking-tight">
+                        <span className="text-caption font-black text-zinc-400 truncate flex-1 tracking-tight">
                             {isOwner && <Crown className="w-3 h-3 inline mr-1 text-amber-500 -mt-1" />}
                             {post.profile.pseudoDofus || post.profile.discordNickname || "Inconnu"}
                         </span>
-                        <span className="text-[10px] text-zinc-600 flex items-center gap-1 shrink-0 font-bold uppercase tracking-tighter">
+                        <span className="text-caption text-zinc-600 flex items-center gap-1 shrink-0 font-bold uppercase tracking-tighter">
                             <Clock className="w-2.5 h-2.5" />
                             {formatDistanceToNow(new Date(post.createdAt), { locale: fr, addSuffix: true })}
                         </span>
@@ -473,7 +473,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsDetailOpen(true)}
-                            className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest bg-zinc-950 border border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                            className="flex-1 h-10 text-caption font-black uppercase tracking-widest bg-zinc-950 border border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
                         >
                             Détails
                         </Button>
@@ -484,7 +484,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 onClick={handleQuickJoin}
                                 disabled={isPending}
                                 className={cn(
-                                    "flex-1 h-10 text-[11px] font-black uppercase tracking-widest text-white transition-colors",
+                                    "flex-1 h-10 text-caption font-black uppercase tracking-widest text-white transition-colors",
                                     isDonjon 
                                         ? "bg-indigo-600 hover:bg-indigo-500" 
                                         : "bg-cyan-600 hover:bg-cyan-500"
@@ -501,7 +501,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 variant="outline"
                                 onClick={handleLeave}
                                 disabled={isPending}
-                                className="flex-1 h-10 text-[11px] font-black uppercase tracking-widest border-rose-500/30 text-rose-400 hover:text-white hover:bg-rose-600 transition-colors"
+                                className="flex-1 h-10 text-caption font-black uppercase tracking-widest border-rose-500/30 text-rose-400 hover:text-white hover:bg-rose-600 transition-colors"
                             >
                                 <LogOut className="w-4 h-4 mr-2" />
                                 Annuler
@@ -509,13 +509,13 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         )}
 
                         {myParticipation?.status === "ACCEPTED" && (
-                            <div className="flex-1 flex items-center justify-center h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-black text-[10px] uppercase tracking-widest">
+                            <div className="flex-1 flex items-center justify-center h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-black text-caption uppercase tracking-widest">
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Accepté
                             </div>
                         )}
 
                         {myParticipation?.status === "REJECTED" && (
-                            <div className="flex-1 flex items-center justify-center h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 font-black text-[10px] uppercase tracking-widest">
+                            <div className="flex-1 flex items-center justify-center h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 font-black text-caption uppercase tracking-widest">
                                 <XCircle className="w-4 h-4 mr-2" /> Refusé
                             </div>
                         )}
@@ -539,7 +539,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     onClick={() => setIsCloseModalOpen(true)}
                                     disabled={isPending}
                                     title="Valider et donner des points"
-                                    className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 hover:border-emerald-400 transition-colors"
+                                    className="flex-1 h-10 text-caption font-black uppercase tracking-widest bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 hover:border-emerald-400 transition-colors"
                                 >
                                     <CheckCircle2 className="w-4 h-4 mr-2" />
                                     Terminer
@@ -562,7 +562,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 variant="outline"
                                 onClick={handleClose}
                                 disabled={isPending}
-                                className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest border-zinc-800 text-zinc-500 hover:text-white hover:bg-rose-600 hover:border-rose-500 transition-colors"
+                                className="flex-1 h-10 text-caption font-black uppercase tracking-widest border-zinc-800 text-zinc-500 hover:text-white hover:bg-rose-600 hover:border-rose-500 transition-colors"
                             >
                                 <XCircle className="w-4 h-4 mr-2" />
                                 Fermer

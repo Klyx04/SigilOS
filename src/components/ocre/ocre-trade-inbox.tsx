@@ -132,7 +132,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                 </div>
                 <div className="max-w-xs">
                     <h4 className="font-bold text-zinc-400 text-sm">Aucun échange en cours</h4>
-                    <p className="text-[11px] text-zinc-600 mt-1">
+                    <p className="text-caption text-zinc-600 mt-1">
                         Utilisez la recherche de doublons ci-dessous pour trouver des partenaires et proposer des échanges.
                     </p>
                 </div>
@@ -141,7 +141,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
             {/* Header premium */}
             <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-3">
@@ -153,11 +153,11 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                             Inbox des Échanges
                         </span>
                         <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-[10px] h-4 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 px-1.5 py-0">
+                            <Badge variant="outline" className="text-caption h-4 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 px-1.5 py-0">
                                 {incoming.length + outgoing.length} en attente
                             </Badge>
                             <span className={cn(
-                                "text-[9px] font-bold flex items-center gap-1.5 transition-colors duration-500",
+                                "text-caption font-bold flex items-center gap-1.5 transition-colors duration-300",
                                 isConnected ? "text-emerald-500" : "text-zinc-600"
                             )}>
                                 <span className="relative flex h-1.5 w-1.5">
@@ -176,13 +176,13 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                 </div>
                 <button
                     onClick={() => fetchData(false)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 text-[10px] text-zinc-400 hover:text-zinc-200 transition-all font-bold uppercase tracking-wider overflow-hidden group relative"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 text-caption text-zinc-400 hover:text-zinc-200 transition-all font-bold uppercase tracking-wider overflow-hidden group relative"
                 >
-                    <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-700 relative z-10" />
+                    <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-300 relative z-10" />
                     <span className="relative z-10">
                         {formatDistanceToNow(lastRefresh, { addSuffix: true, locale: fr })}
                     </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-emerald-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-emerald-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-300"></div>
                 </button>
             </div>
 
@@ -194,7 +194,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                         <span className="text-sm font-black text-emerald-100 uppercase tracking-tight">
                             Demandes Reçues <span className="text-emerald-400/60 font-bold ml-1">({incoming.length})</span>
                         </span>
-                        <span className="text-[10px] text-emerald-500/40 font-bold ml-auto uppercase tracking-widest hidden sm:inline">Action requise</span>
+                        <span className="text-caption text-emerald-500/40 font-bold ml-auto uppercase tracking-widest hidden sm:inline">Action requise</span>
                     </div>
                     <div className="divide-y divide-white/[0.04] bg-black/20">
                         {incoming.map((req) => (
@@ -221,10 +221,10 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                              <span className="font-black text-base text-white tracking-tight leading-none">
                                                  {getDisplayName(req.requester)}
                                              </span>
-                                             <Badge variant="outline" className="text-[9px] font-black uppercase text-zinc-500 border-white/5 bg-white/5 py-0 px-2 h-5">
+                                             <Badge variant="outline" className="text-caption font-black uppercase text-zinc-500 border-white/5 bg-white/5 py-0 px-2 h-5">
                                                  {req.requester.metamobPseudo}
                                              </Badge>
-                                             <span className="text-[10px] text-zinc-600 font-bold flex items-center gap-1.5 ml-auto lg:ml-0">
+                                             <span className="text-caption text-zinc-600 font-bold flex items-center gap-1.5 ml-auto lg:ml-0">
                                                  <Clock className="w-3 h-3" />
                                                  {formatDistanceToNow(new Date(req.createdAt), { addSuffix: true, locale: fr })}
                                              </span>
@@ -243,7 +243,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                                      </div>
                                                  )}
                                                  <div className="flex flex-col min-w-0">
-                                                     <span className="text-[9px] uppercase font-black text-emerald-500/40 leading-none mb-1 tracking-widest">Souhaité</span>
+                                                     <span className="text-caption uppercase font-black text-emerald-500/40 leading-none mb-1 tracking-widest">Souhaité</span>
                                                      <span className="text-xs font-black text-emerald-100 truncate tracking-tight">
                                                          {req.monsterName}
                                                      </span>
@@ -253,7 +253,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                              {req.message && (
                                                  <div className="flex-1 min-w-0 bg-zinc-900/50 border border-white/5 rounded-2xl px-4 py-2.5 flex items-start gap-2 italic relative group-hover/item:border-white/10 transition-colors">
                                                      <span className="text-emerald-500/40 font-serif text-xl leading-none shrink-0 mt-0.5">"</span>
-                                                     <p className="text-[11px] text-zinc-400 leading-relaxed truncate lg:whitespace-normal lg:line-clamp-2">
+                                                     <p className="text-caption text-zinc-400 leading-relaxed truncate lg:whitespace-normal lg:line-clamp-2">
                                                          {req.message}
                                                      </p>
                                                      <span className="text-emerald-500/40 font-serif text-xl leading-none self-end shrink-0 hidden lg:inline">"</span>
@@ -269,7 +269,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                          size="sm"
                                          onClick={() => handleAction(req.id, 'reject')}
                                          disabled={!!actionLoading}
-                                         className="flex-1 lg:flex-none border-zinc-700 bg-zinc-900/50 text-zinc-400 hover:border-red-500/40 hover:text-red-400 hover:bg-red-500/5 transition-all h-10 rounded-xl px-5 font-bold text-[11px] uppercase tracking-wider"
+                                         className="flex-1 lg:flex-none border-zinc-700 bg-zinc-900/50 text-zinc-400 hover:border-red-500/40 hover:text-red-400 hover:bg-red-500/5 transition-all h-10 rounded-xl px-5 font-bold text-caption uppercase tracking-wider"
                                      >
                                          {actionLoading === req.id ? (
                                              <Loader2 className="h-3 w-3 animate-spin mr-2" />
@@ -282,7 +282,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                          size="sm"
                                          onClick={() => handleAction(req.id, 'accept')}
                                          disabled={!!actionLoading}
-                                         className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/20 h-10 rounded-xl px-6 font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 border-b-2 border-emerald-700"
+                                         className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/20 h-10 rounded-xl px-6 font-black text-caption uppercase tracking-wider transition-all active:scale-95 border-b-2 border-emerald-700"
                                      >
                                          {actionLoading === req.id ? (
                                              <Loader2 className="h-3 w-3 animate-spin mr-2" />
@@ -306,7 +306,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                         <span className="text-sm font-black text-zinc-400 uppercase tracking-tight">
                             Demandes Envoyées <span className="text-zinc-600 font-bold ml-1">({outgoing.length})</span>
                         </span>
-                        <span className="text-[10px] text-zinc-600 font-bold ml-auto uppercase tracking-widest hidden sm:inline">En attente</span>
+                        <span className="text-caption text-zinc-600 font-bold ml-auto uppercase tracking-widest hidden sm:inline">En attente</span>
                     </div>
                     <div className="divide-y divide-white/[0.04] bg-black/20">
                         {outgoing.map((req) => (
@@ -323,11 +323,11 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                     </Avatar>
                                     <div className="space-y-2.5 min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-                                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Destinataire</span>
+                                            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">Destinataire</span>
                                             <span className="font-black text-sm text-zinc-200">
                                                 {getDisplayName(req.target)}
                                             </span>
-                                            <Badge variant="outline" className="text-[9px] font-black uppercase text-zinc-600 border-white/5 bg-white/5 py-0 px-2 h-4">
+                                            <Badge variant="outline" className="text-caption font-black uppercase text-zinc-600 border-white/5 bg-white/5 py-0 px-2 h-4">
                                                 {req.target.metamobPseudo}
                                             </Badge>
                                         </div>
@@ -341,13 +341,13 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                                         className="w-5 h-5 object-contain grayscale opacity-60 group-hover/item:grayscale-0 group-hover/item:opacity-100 transition-all"
                                                     />
                                                 )}
-                                                <span className="text-[11px] font-bold text-zinc-400 group-hover/item:text-zinc-200 truncate max-w-[150px]">
+                                                <span className="text-caption font-bold text-zinc-400 group-hover/item:text-zinc-200 truncate max-w-[150px]">
                                                     {req.monsterName}
                                                 </span>
                                             </div>
                                             
                                             {req.message && (
-                                                <p className="text-[10px] text-zinc-600 italic bg-zinc-900/40 px-3 py-1 rounded-lg border border-white/5 truncate max-w-[200px] lg:max-w-xs">
+                                                <p className="text-caption text-zinc-600 italic bg-zinc-900/40 px-3 py-1 rounded-lg border border-white/5 truncate max-w-[200px] lg:max-w-xs">
                                                     "{req.message}"
                                                 </p>
                                             )}
@@ -355,7 +355,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3 w-full sm:w-auto pt-2 sm:pt-0">
-                                    <span className="hidden lg:flex items-center gap-1 text-[10px] font-black uppercase text-amber-500/60 mr-2 tracking-widest">
+                                    <span className="hidden lg:flex items-center gap-1 text-caption font-black uppercase text-amber-500/60 mr-2 tracking-widest">
                                         <span className="relative flex h-1.5 w-1.5">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"></span>
                                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
@@ -367,7 +367,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                         size="sm"
                                         onClick={() => handleAction(req.id, 'cancel')}
                                         disabled={!!actionLoading}
-                                        className="shrink-0 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all h-9 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-white/5 sm:border-transparent hover:border-red-500/20 w-full sm:w-auto"
+                                        className="shrink-0 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all h-9 px-4 rounded-xl font-bold uppercase text-caption tracking-widest border border-white/5 sm:border-transparent hover:border-red-500/20 w-full sm:w-auto"
                                     >
                                         {actionLoading === req.id ? (
                                             <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />

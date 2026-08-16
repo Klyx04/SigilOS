@@ -89,7 +89,7 @@ export function QuestActionsBlock({
 
     return (
         <div className="pt-4 border-t border-white/5 space-y-4">
-            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] italic mb-1">
+            <div className="text-caption font-black text-zinc-500 uppercase tracking-[0.2em] italic mb-1">
                 Panneau Tactique & Synergies
             </div>
 
@@ -100,7 +100,7 @@ export function QuestActionsBlock({
                     href={entry.dofusdbUrl || `https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#0d0e15]/60 p-4 hover:border-indigo-500/40 hover:bg-[#10121d]/80 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px]"
+                    className="relative group overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#0d0e15]/60 p-4 hover:border-indigo-500/40 hover:bg-[#10121d]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
@@ -108,10 +108,10 @@ export function QuestActionsBlock({
                         <img 
                             src={dofusDbFavicon} 
                             alt="DofusDB" 
-                            className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(99,102,241,0.5)] group-hover:scale-110 transition-transform" 
+                            className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(99,102,241,0.5)] group- transition-transform" 
                             onError={(e) => { e.currentTarget.style.display = "none"; }} 
                         />
-                        <span className="text-[8px] font-black uppercase tracking-wider text-indigo-400/90 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                        <span className="text-caption font-black uppercase tracking-wider text-indigo-400/90 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
                             Base
                         </span>
                     </div>
@@ -119,7 +119,7 @@ export function QuestActionsBlock({
                         <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-indigo-400 transition-colors">
                             DofusDB
                         </h4>
-                        <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2 leading-tight">
+                        <p className="text-caption text-zinc-500 mt-1 line-clamp-2 leading-tight">
                             Fiche officielle, IDs & structure.
                         </p>
                     </div>
@@ -141,7 +141,7 @@ export function QuestActionsBlock({
                     })()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d0e15]/60 p-4 hover:border-amber-500/40 hover:bg-[#15120e]/80 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px]"
+                    className="relative group overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d0e15]/60 p-4 hover:border-amber-500/40 hover:bg-[#15120e]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
@@ -149,10 +149,10 @@ export function QuestActionsBlock({
                         <img 
                             src={noobsFavicon} 
                             alt="Noobs" 
-                            className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(245,158,11,0.5)] group-hover:scale-110 transition-transform" 
+                            className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(245,158,11,0.5)] group- transition-transform" 
                             onError={(e) => { e.currentTarget.style.display = "none"; }} 
                         />
-                        <span className="text-[8px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        <span className="text-caption font-black uppercase tracking-wider text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                             Tuto
                         </span>
                     </div>
@@ -160,7 +160,7 @@ export function QuestActionsBlock({
                         <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-amber-400 transition-colors">
                             Noobs
                         </h4>
-                        <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2 leading-tight">
+                        <p className="text-caption text-zinc-500 mt-1 line-clamp-2 leading-tight">
                             Tutoriel détaillé & images d'étapes.
                         </p>
                     </div>
@@ -170,11 +170,11 @@ export function QuestActionsBlock({
                 <button
                     onClick={copyTravelCoords}
                     disabled={!autopilotPos}
-                    className="relative group overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0d0e15]/60 p-4 hover:border-emerald-500/40 hover:bg-[#0e1512]/80 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
+                    className="relative group overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0d0e15]/60 p-4 hover:border-emerald-500/40 hover:bg-[#0e1512]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
                 >
                     <div className="flex justify-between items-start">
                         <Navigation className="w-5 h-5 text-emerald-400/80 group-hover:rotate-12 transition-transform shrink-0" />
-                        <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        <span className="text-caption font-black uppercase tracking-wider text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                             GPS
                         </span>
                     </div>
@@ -184,13 +184,13 @@ export function QuestActionsBlock({
                         </h4>
                         {autopilotPos ? (
                             <div className="flex items-center gap-1 mt-1">
-                                <span className="text-[8px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                <span className="text-caption font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.5 rounded">
                                     [{autopilotPos.x}, {autopilotPos.y}]
                                 </span>
                                 <Copy className="w-2.5 h-2.5 text-emerald-500/50" />
                             </div>
                         ) : (
-                            <p className="text-[9px] text-zinc-600 mt-1">
+                            <p className="text-caption text-zinc-600 mt-1">
                                 Aucune coordonnée
                             </p>
                         )}
@@ -200,11 +200,11 @@ export function QuestActionsBlock({
                 {/* 4. Guild Radar Card (La Tour de Contrôle avec vrai modal au clic) */}
                 <button
                     onClick={openGuildModal}
-                    className="relative group overflow-hidden rounded-2xl border border-rose-500/20 bg-[#0d0e15]/60 p-4 hover:border-rose-500/40 hover:bg-[#150d10]/80 hover:shadow-[0_0_20px_rgba(244,63,94,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"
+                    className="relative group overflow-hidden rounded-2xl border border-rose-500/20 bg-[#0d0e15]/60 p-4 hover:border-rose-500/40 hover:bg-[#150d10]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"
                 >
                     <div className="flex justify-between items-start">
-                        <Users className="w-5 h-5 text-rose-400/80 group-hover:scale-110 transition-transform shrink-0" />
-                        <span className="text-[8px] font-black uppercase tracking-wider text-rose-400/90 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                        <Users className="w-5 h-5 text-rose-400/80 group- transition-transform shrink-0" />
+                        <span className="text-caption font-black uppercase tracking-wider text-rose-400/90 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
                             Guilde
                         </span>
                     </div>
@@ -218,7 +218,7 @@ export function QuestActionsBlock({
                             {loadingMembers ? (
                                 <div className="w-3.5 h-3.5 rounded-full border border-white/10 border-t-rose-400 animate-spin" />
                             ) : members.length === 0 ? (
-                                <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
+                                <span className="text-caption text-zinc-600 font-bold uppercase tracking-wider">
                                     0 Membre
                                 </span>
                             ) : (
@@ -231,14 +231,14 @@ export function QuestActionsBlock({
                                             {m.image ? (
                                                 <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="text-[7px] flex items-center justify-center h-full font-black text-white/50 bg-zinc-700">
+                                                <span className="text-caption flex items-center justify-center h-full font-black text-white/50 bg-zinc-700">
                                                     {m.pseudo[0]}
                                                 </span>
                                             )}
                                         </div>
                                     ))}
                                     {members.length > 3 && (
-                                        <div className="w-5 h-5 rounded-full bg-zinc-900 border border-rose-500/20 flex items-center justify-center text-[7px] font-black text-rose-400">
+                                        <div className="w-5 h-5 rounded-full bg-zinc-900 border border-rose-500/20 flex items-center justify-center text-caption font-black text-rose-400">
                                             +{members.length - 3}
                                         </div>
                                     )}
@@ -257,12 +257,12 @@ export function QuestActionsBlock({
                     if (lock && !done) return;
                     onToggle();
                 }}
-                className={`w-full h-12 rounded-2xl font-black italic uppercase text-[13px] transition-all tracking-widest ${
+                className={`w-full h-12 rounded-2xl font-black italic uppercase text-body-sm transition-all tracking-widest ${
                     done
                         ? "bg-zinc-900 border border-white/10 text-zinc-400 hover:bg-zinc-950"
                         : lock
                         ? "bg-zinc-950 text-white/10 border border-white/5 cursor-not-allowed"
-                        : "bg-white text-black hover:bg-zinc-200 hover:scale-[1.01] active:scale-[0.99] shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+                        : "bg-white text-black hover:bg-zinc-200 hover:scale-[1.01] active:scale-[0.99] "
                 }`}
             >
                 {done ? (
@@ -287,7 +287,7 @@ export function QuestActionsBlock({
                                 <Users className="w-5 h-5" />
                             </div>
                             <div className="text-left">
-                                <div className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none mb-1">
+                                <div className="text-caption font-black text-rose-400 uppercase tracking-widest leading-none mb-1">
                                     Synergies de Guilde
                                 </div>
                                 <DialogTitle className="text-lg font-black text-white italic uppercase tracking-tight truncate max-w-[280px]">
@@ -302,7 +302,7 @@ export function QuestActionsBlock({
                             {loadingMembers ? (
                                 <div className="py-12 flex flex-col items-center justify-center gap-3">
                                     <div className="w-6 h-6 rounded-full border-2 border-rose-500/20 border-t-rose-400 animate-spin" />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase">Chargement de la tour de contrôle...</span>
+                                    <span className="text-caption text-zinc-500 font-bold uppercase">Chargement de la tour de contrôle...</span>
                                 </div>
                             ) : members.length === 0 ? (
                                 <div className="py-12 flex flex-col items-center justify-center text-center gap-2 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl">
@@ -310,7 +310,7 @@ export function QuestActionsBlock({
                                     <p className="text-xs text-zinc-500 font-black uppercase tracking-wider">
                                         Aucun membre n'a débuté
                                     </p>
-                                    <p className="text-[10px] text-zinc-600 max-w-[220px]">
+                                    <p className="text-caption text-zinc-600 max-w-[220px]">
                                         Soyez le premier de votre guilde à vous lancer et à guider les autres !
                                     </p>
                                 </div>
@@ -329,7 +329,7 @@ export function QuestActionsBlock({
                                                     {m.image ? (
                                                         <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <span className="text-[11px] flex items-center justify-center h-full font-black text-white/50 bg-zinc-700 uppercase">
+                                                        <span className="text-caption flex items-center justify-center h-full font-black text-white/50 bg-zinc-700 uppercase">
                                                             {m.pseudo[0]}
                                                         </span>
                                                     )}
@@ -345,7 +345,7 @@ export function QuestActionsBlock({
                                                             style={{ backgroundColor: isDone ? "#10b981" : "#f59e0b" }} 
                                                         />
                                                         <span 
-                                                            className="text-[9px] font-black uppercase tracking-widest"
+                                                            className="text-caption font-black uppercase tracking-widest"
                                                             style={{ color: isDone ? "#10b981" : "#f59e0b" }}
                                                         >
                                                             {isDone ? "Terminée" : "En cours"}
@@ -360,7 +360,7 @@ export function QuestActionsBlock({
                         </div>
                     </ScrollArea>
 
-                    <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[8px] font-black text-zinc-600 uppercase tracking-widest">
+                    <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-caption font-black text-zinc-600 uppercase tracking-widest">
                         <span>SigilOS Intelligence</span>
                         <span>{members.length} joueur{members.length > 1 ? "s" : ""}</span>
                     </div>

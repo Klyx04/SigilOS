@@ -203,12 +203,12 @@ export function GameDataMonsterManager() {
                                         </h3>
                                         <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
                                             {monster.level > 0 && (
-                                                <span className="px-1.5 py-0.5 rounded bg-purple-950/30 text-purple-400 border border-purple-900/30 text-[10px] font-bold">
+                                                <span className="px-1.5 py-0.5 rounded bg-purple-950/30 text-purple-400 border border-purple-900/30 text-caption font-bold">
                                                     Lvl {monster.level}
                                                 </span>
                                             )}
                                             {monster.zone && (
-                                                <span className="flex items-center gap-1 truncate text-[11px] text-slate-500">
+                                                <span className="flex items-center gap-1 truncate text-caption text-slate-500">
                                                     <MapPin className="w-3 h-3" />
                                                     {monster.zone}
                                                 </span>

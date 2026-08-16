@@ -540,7 +540,7 @@ export function PresentationForm({ guildId }: Props) {
                 </div>
 
                 {/* GENERAL TAB */}
-                <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
                     {/* Server Selection - Grid Style */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
                         <SectionHeader title="Serveur Dofus Unity" icon={Server} section="server" onSave={handleSaveSection} isPending={isPending} />
@@ -561,7 +561,7 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]"
+                                                    ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 "
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
@@ -586,7 +586,7 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-amber-500/10 border-amber-500 text-amber-400 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                                                    ? "bg-amber-500/10 border-amber-500 text-amber-400 "
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
@@ -611,7 +611,7 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-white/10 border-white text-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.2)]"
+                                                    ? "bg-white/10 border-white text-white "
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
@@ -636,7 +636,7 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]"
+                                                    ? "bg-indigo-500/10 border-indigo-500 text-indigo-400 "
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
@@ -661,7 +661,7 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-blue-500/10 border-blue-500 text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.2)]"
+                                                    ? "bg-blue-500/10 border-blue-500 text-blue-400 "
                                                     : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
                                             )}
                                         >
@@ -750,7 +750,7 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* TEAM TAB */}
-                <TabsContent value="team" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <TabsContent value="team" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
                     {/* Founder Section */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
                         <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-amber-400" onSave={handleSaveSection} isPending={isPending} />
@@ -884,7 +884,7 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* CONTENT TAB */}
-                <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
                     {/* History */}
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
                         <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
@@ -938,7 +938,7 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* IMAGES TAB */}
-                <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
                         <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-purple-400" onSave={handleSaveSection} isPending={isPending} />
 
@@ -1053,7 +1053,7 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* RECRUITMENT TAB */}
-                <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
                         <div className="flex items-center justify-between">
                             <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" onSave={handleSaveSection} isPending={isPending} />

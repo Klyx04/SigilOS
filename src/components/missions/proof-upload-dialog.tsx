@@ -291,7 +291,7 @@ export function ProofUploadDialog({
                     {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
                     {/* ═══════════════════════════════════════ */}
                     {(state === "idle") && (
-                        <div className="relative rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-amber-900/20 to-zinc-900/60 p-4 space-y-3 shadow-[0_0_20px_-5px_rgba(245,158,11,0.3)]">
+                        <div className="relative rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-amber-900/20 to-zinc-900/60 p-4 space-y-3 ">
                             {/* Glow accent */}
                             <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
 
@@ -302,7 +302,7 @@ export function ProofUploadDialog({
                                 <div className="flex-1 min-w-0 space-y-1">
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-sm font-black text-amber-300 uppercase tracking-wider">Contributeurs</h3>
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">OPTIONNEL</span>
+                                        <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">OPTIONNEL</span>
                                     </div>
                                     <p className="text-xs text-amber-200/80 leading-relaxed">
                                         Ils vous ont aidé ? Sélectionnez-les — ils recevront{" "}

@@ -118,21 +118,21 @@ export default function QuestSyncPanel() {
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-[10px] uppercase font-black tracking-widest text-slate-500">Quêtes Locales</div>
+                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">Quêtes Locales</div>
                         <div className="text-2xl font-black text-white">{stats.totalLocal}</div>
                     </div>
                     <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-[10px] uppercase font-black tracking-widest text-slate-500">DofusDB Remote</div>
+                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">DofusDB Remote</div>
                         <div className="text-2xl font-black text-indigo-400">{stats.totalRemote}</div>
                     </div>
                     <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-[10px] uppercase font-black tracking-widest text-slate-500">Nouveautés détectées</div>
+                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">Nouveautés détectées</div>
                         <div className="text-2xl font-black text-emerald-400">
                             {stats.deltas.filter(d => d.type === "NEW").length}
                         </div>
                     </div>
                     <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-[10px] uppercase font-black tracking-widest text-slate-500">Modifications</div>
+                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">Modifications</div>
                         <div className="text-2xl font-black text-amber-400">
                             {stats.deltas.filter(d => d.type === "MODIFIED").length}
                         </div>
@@ -214,11 +214,11 @@ export default function QuestSyncPanel() {
                                             <span className="font-bold text-slate-200 text-sm truncate">
                                                 {delta.name}
                                             </span>
-                                            <Badge className="bg-slate-800 text-[10px] text-slate-400 border border-slate-700">
+                                            <Badge className="bg-slate-800 text-caption text-slate-400 border border-slate-700">
                                                 ID: {delta.dofusDbId}
                                             </Badge>
                                             {delta.levelMin && (
-                                                <Badge variant="outline" className="text-[10px] border-slate-800 text-slate-400">
+                                                <Badge variant="outline" className="text-caption border-slate-800 text-slate-400">
                                                     Niv. {delta.levelMin}
                                                 </Badge>
                                             )}

@@ -100,7 +100,7 @@ export function RegistrationModal({
                                     >
                                         <ClassIcon classId={classe.id} size={28} />
                                         <span className={cn(
-                                            "text-[10px] font-medium leading-tight",
+                                            "text-caption font-medium leading-tight",
                                             isSelected ? "text-white" : "text-zinc-500"
                                         )}>
                                             {classe.name}

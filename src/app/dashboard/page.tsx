@@ -60,11 +60,11 @@ export default async function GuildSelectorPage() {
                 {isEmpty ? (
                     <NoGuildMessage rateLimited={rateLimited} />
                 ) : (
-                    <div className="relative z-10 max-w-5xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-700">
+                    <div className="relative z-10 max-w-5xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-300">
 
                         {/* Hero Section */}
                         <div className="text-center space-y-4">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-widest text-emerald-400 backdrop-blur-md">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-bold uppercase tracking-widest text-emerald-400 backdrop-blur-md">
                                 <LayoutDashboard className="w-3.5 h-3.5 text-emerald-400" />
                                 <span>Portail Unifié</span>
                             </div>
@@ -102,7 +102,7 @@ export default async function GuildSelectorPage() {
                                     <div className="grid gap-4">
                                         {active.map((guild) => (
                                             <Link key={guild.id} href={`/dashboard/${guild.id}`} className="group block">
-                                                <GlassPanel className="p-0 hover:border-indigo-500/50 transition-all duration-300 group-hover:shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)] group-hover:scale-[1.01]">
+                                                <GlassPanel className="p-0 hover:border-indigo-500/50 transition-all duration-300  group-hover:scale-[1.01]">
                                                     <div className="p-5 flex items-center gap-5">
                                                         <div className="relative">
                                                             <Avatar className="h-14 w-14 rounded-2xl border-2 border-white/10 group-hover:border-indigo-400/50 transition-colors shadow-lg">
@@ -112,7 +112,7 @@ export default async function GuildSelectorPage() {
                                                                 </AvatarFallback>
                                                             </Avatar>
                                                             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800">
-                                                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse "></div>
                                                             </div>
                                                         </div>
 

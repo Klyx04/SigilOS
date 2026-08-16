@@ -60,7 +60,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-8">
-            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 pl-1 flex items-center gap-2">
                     <Layout className="w-3.5 h-3.5" />
                     Configuration des Partages Discord
@@ -75,13 +75,13 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                                 <ImageIcon className="w-4 h-4 text-pink-400" />
                                 Galerie de Skins
                             </CardTitle>
-                            <CardDescription className="text-[10px] text-zinc-500">
+                            <CardDescription className="text-caption text-zinc-500">
                                 Salon où les membres peuvent partager leurs apparences.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black text-zinc-500 ml-1">ID du Salon Skins</Label>
+                                <Label className="text-caption uppercase font-black text-zinc-500 ml-1">ID du Salon Skins</Label>
                                 <div className="relative group/input">
                                     <Input
                                         placeholder="ID du salon (ex: 123...)"
@@ -95,7 +95,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                             </div>
                             <div className="p-3 rounded-xl bg-pink-500/5 border border-pink-500/10 flex items-start gap-3">
                                 <Info className="w-3 h-3 text-pink-400 mt-0.5 shrink-0" />
-                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                                <p className="text-caption text-zinc-400 leading-relaxed italic">
                                     Si l&apos;ID correspond à un <strong>Forum</strong>, SigilOS créera automatiquement un nouveau fil pour chaque partage.
                                 </p>
                             </div>
@@ -110,13 +110,13 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                                 <Sword className="w-4 h-4 text-emerald-400" />
                                 Galerie de Stuffs
                             </CardTitle>
-                            <CardDescription className="text-[10px] text-zinc-500">
+                            <CardDescription className="text-caption text-zinc-500">
                                 Salon où les membres peuvent partager leurs équipements.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black text-zinc-500 ml-1">ID du Salon Stuffs</Label>
+                                <Label className="text-caption uppercase font-black text-zinc-500 ml-1">ID du Salon Stuffs</Label>
                                 <div className="relative group/input">
                                     <Input
                                         placeholder="ID du salon (ex: 123...)"
@@ -130,7 +130,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                             </div>
                             <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-start gap-3">
                                 <Info className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />
-                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                                <p className="text-caption text-zinc-400 leading-relaxed italic">
                                     Compatible avec les salons textuels classiques et les forums Discord.
                                 </p>
                             </div>
@@ -145,7 +145,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                     <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
                         <Sparkles className="w-4 h-4" />
                     </div>
-                    <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">
+                    <p className="text-caption text-zinc-500 leading-relaxed font-medium">
                         Une fois configurés, un bouton de partage apparaîtra sur les profils des membres disposant de l&apos;accès à la galerie.
                     </p>
                 </div>

@@ -101,11 +101,11 @@ export const RushLivePopover = memo(function RushLivePopover({
       {/* Header with count */}
       <div className="flex items-center gap-1.5 px-1">
         <Activity className="w-3.5 h-3.5 text-emerald-400" />
-        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+        <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
           {totalCount > 0 ? `${totalCount} en ligne` : "En ligne"}
         </span>
         {activeCount > 0 && activeCount < totalCount && (
-          <span className="text-[8px] text-zinc-600">({activeCount} actif{activeCount > 1 ? "s" : ""})</span>
+          <span className="text-caption text-zinc-600">({activeCount} actif{activeCount > 1 ? "s" : ""})</span>
         )}
       </div>
 
@@ -119,7 +119,7 @@ export const RushLivePopover = memo(function RushLivePopover({
             return (
               <div
                 key={m.id}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800/50 border border-zinc-700/40 text-[8px] font-bold text-zinc-200"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800/50 border border-zinc-700/40 text-caption font-bold text-zinc-200"
                 title={`${m.pseudoDofus} • ${cls?.name || "?"}${!isActive ? " • AFK" : ""}${m.locationDesc ? ` • ${m.locationDesc}` : ""}`}
               >
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? "bg-emerald-400" : "bg-amber-400/60"}`} />
@@ -135,11 +135,11 @@ export const RushLivePopover = memo(function RushLivePopover({
             );
           })}
           {totalCount > 6 && (
-            <span className="text-[8px] font-black text-zinc-500">+{totalCount - 6}</span>
+            <span className="text-caption font-black text-zinc-500">+{totalCount - 6}</span>
           )}
         </div>
       ) : (
-        <p className="text-[9px] text-zinc-600 italic px-1">Aucun membre pour l'instant</p>
+        <p className="text-caption text-zinc-600 italic px-1">Aucun membre pour l'instant</p>
       )}
     </div>
   );

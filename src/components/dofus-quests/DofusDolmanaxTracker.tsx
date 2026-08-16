@@ -51,15 +51,15 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
                     <Info className="w-5 h-5 text-amber-400" />
                 </div>
                 <div className="space-y-1">
-                    <div className="text-[10px] font-black text-amber-400 uppercase tracking-[0.4em]">Comment obtenir le Dolmanax</div>
-                    <p className="text-[13px] text-zinc-400 leading-relaxed">
+                    <div className="text-caption font-black text-amber-400 uppercase tracking-widest">Comment obtenir le Dolmanax</div>
+                    <p className="text-body-sm text-zinc-400 leading-relaxed">
                         Le <span className="text-white font-bold italic">Dolmanax</span> s&apos;obtient après avoir récupéré{" "}
                         <span className="text-amber-400 font-black">365 pages d&apos;Almanax</span> via les quêtes journalières dans n&apos;importe quel temple.
                         Chaque jour, parle au PNJ Almanzor dans un temple de la classe pour recevoir ta page.
                     </p>
                     <Link
                         href={`/dashboard/${guildId}/almanax`}
-                        className="inline-flex items-center gap-1.5 text-[10px] font-black text-amber-500 hover:text-amber-300 mt-1 transition-colors"
+                        className="inline-flex items-center gap-1.5 text-caption font-black text-amber-500 hover:text-amber-300 mt-1 transition-colors"
                     >
                         <CalendarDays className="w-3.5 h-3.5" />
                         Voir le module Almanax →
@@ -70,8 +70,8 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
             {/* Progress bar */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Progression</span>
-                    <span className="text-[13px] font-black text-white tabular-nums">
+                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Progression</span>
+                    <span className="text-body-sm font-black text-white tabular-nums">
                         <span style={{ color: isDone ? "#10b981" : "#f59e0b" }}>{pages}</span>
                         <span className="text-zinc-600"> / {TOTAL_PAGES} pages</span>
                     </span>
@@ -90,7 +90,7 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
                         transition={{ duration: 0.5, ease: "easeOut" }}
                     />
                 </div>
-                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
+                <div className="flex items-center justify-between text-caption font-black uppercase tracking-widest">
                     <span className="text-zinc-700">0</span>
                     <span className={isDone ? "text-emerald-400 animate-pulse" : "text-zinc-600"}>
                         {isDone ? "✓ DOLMANAX OBTENU" : `${pct}% — ${TOTAL_PAGES - pages} jours restants`}
@@ -104,7 +104,7 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
                 <div className="flex items-center bg-zinc-950/80 border border-white/5 rounded-2xl overflow-hidden">
                     <button
                         onClick={() => adjust(-10)}
-                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 text-[10px] font-black"
+                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 text-caption font-black"
                     >
                         -10
                     </button>
@@ -135,7 +135,7 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
                     </button>
                     <button
                         onClick={() => adjust(+10)}
-                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-all border-l border-white/5 text-[10px] font-black"
+                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-all border-l border-white/5 text-caption font-black"
                     >
                         +10
                     </button>
@@ -145,10 +145,10 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
                     <Button
                         onClick={handleSave}
                         disabled={isSaving || saved}
-                        className={`h-10 px-4 rounded-2xl font-black text-[11px] uppercase italic tracking-widest transition-all ${
+                        className={`h-10 px-4 rounded-2xl font-black text-caption uppercase italic tracking-widest transition-all ${
                             saved
                                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                : "bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                                : "bg-white text-black hover:bg-zinc-200 "
                         }`}
                     >
                         {saved ? <><CheckCircle2 className="w-4 h-4 mr-1.5 inline" /> Sauvegardé</> : isSaving ? "..." : "Sauvegarder"}
@@ -170,8 +170,8 @@ export function DofusDolmanaxTracker({ guildId, initialPages = 0, onSave }: Dofu
                                 reached ? "bg-amber-500/10 border-amber-500/25" : "bg-white/[0.02] border-white/5"
                             }`}>
                             <div className="text-xl mb-1">{milestone.emoji}</div>
-                            <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{milestone.label}</div>
-                            <div className={`text-[12px] font-black ${reached ? "text-amber-400" : "text-zinc-700"}`}>
+                            <div className="text-caption font-black uppercase tracking-widest text-zinc-500">{milestone.label}</div>
+                            <div className={`text-label font-black ${reached ? "text-amber-400" : "text-zinc-700"}`}>
                                 {milestone.target} pages
                             </div>
                         </div>

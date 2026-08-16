@@ -334,7 +334,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                         <div className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
                             <Ticket className="w-5 h-5 text-indigo-400" />
                         </div>
-                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Console Support</span>
+                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Console Support</span>
                     </div>
                     <h2 className="text-3xl font-black text-white tracking-tight">Tickets</h2>
                 </div>
@@ -407,12 +407,12 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02]">
-                                <th className="text-left px-6 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] w-24">Ticket</th>
-                                <th className="text-left px-6 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Auteur</th>
-                                <th className="text-left px-6 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Objet</th>
-                                <th className="text-left px-6 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Catégorie</th>
-                                <th className="text-left px-6 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Statut</th>
-                                <th className="text-right px-6 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Ouvert</th>
+                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em] w-24">Ticket</th>
+                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Auteur</th>
+                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Objet</th>
+                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Catégorie</th>
+                                <th className="text-left px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Statut</th>
+                                <th className="text-right px-6 py-4 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">Ouvert</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -448,7 +448,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-white font-bold text-xs leading-tight">{ticket.creatorDiscordName}</span>
-                                                    <span className="text-[9px] text-zinc-600 font-mono">{ticket.creatorDiscordId}</span>
+                                                    <span className="text-caption text-zinc-600 font-mono">{ticket.creatorDiscordId}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -458,19 +458,19 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg border", cat.chip, cat.color)}>
+                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-black uppercase px-2.5 py-1 rounded-lg border", cat.chip, cat.color)}>
                                                 <span className={cn("w-1.5 h-1.5 rounded-full", cat.dot)} />
                                                 {cat.label}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase", status.chip, status.color)}>
+                                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-black px-2.5 py-1 rounded-lg border uppercase", status.chip, status.color)}>
                                                 <StatusIcon className="w-3.5 h-3.5" />
                                                 {status.label}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className="text-zinc-500 text-[11px] font-medium">
+                                            <span className="text-zinc-500 text-caption font-medium">
                                                 {new Date(ticket.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
                                             </span>
                                         </td>
@@ -492,7 +492,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                         </div>
                         <div>
                             <h3 className="text-xs font-black text-white uppercase tracking-widest">Panel de Tickets Discord</h3>
-                            <p className="text-[10px] text-zinc-600 font-medium mt-0.5">Publie le bouton « Ouvrir un ticket » dans un salon support.</p>
+                            <p className="text-caption text-zinc-600 font-medium mt-0.5">Publie le bouton « Ouvrir un ticket » dans un salon support.</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -585,7 +585,7 @@ function StatCard({ icon: Icon, label, value, tone }: {
             </div>
             <div className="min-w-0">
                 <div className={cn("text-2xl font-black tracking-tighter leading-none", t.text)}>{value}</div>
-                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 mt-1 truncate">{label}</div>
+                <div className="text-caption font-black uppercase tracking-[0.2em] text-zinc-600 mt-1 truncate">{label}</div>
             </div>
         </div>
     );
@@ -653,7 +653,7 @@ function TicketDetailModal({
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-amber-500 font-mono font-black text-sm">#{ticket.ticketNumber}</span>
-                                <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full border", cat.chip, cat.color)}>
+                                <span className={cn("inline-flex items-center gap-1.5 text-caption font-black uppercase px-2.5 py-1 rounded-full border", cat.chip, cat.color)}>
                                     {cat.emoji} {cat.label}
                                 </span>
                             </div>
@@ -667,7 +667,7 @@ function TicketDetailModal({
                             {/* Statut : CLOSED exclu — la fermeture passe par le bouton "Fermer"
                                 (→ closeSupportTicket qui archive le fil Discord). */}
                             <Select value={ticket.status} onValueChange={(val) => onStatusChange(ticket.id, val)}>
-                                <SelectTrigger className={cn("h-9 text-[10px] font-black uppercase px-3 py-1 rounded-full border bg-zinc-950 outline-none w-fit gap-2", status.color, status.chip)}>
+                                <SelectTrigger className={cn("h-9 text-caption font-black uppercase px-3 py-1 rounded-full border bg-zinc-950 outline-none w-fit gap-2", status.color, status.chip)}>
                                     <StatusIcon className="w-3.5 h-3.5" />
                                     <SelectValue />
                                 </SelectTrigger>
@@ -680,7 +680,7 @@ function TicketDetailModal({
                             <button
                                 onClick={() => onCloseTicket(ticket.id)}
                                 disabled={isPending}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-[10px] font-black text-red-500 uppercase tracking-widest transition-all disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-caption font-black text-red-500 uppercase tracking-widest transition-all disabled:opacity-50"
                             >
                                 <Lock className="w-3.5 h-3.5" />
                                 Fermer
@@ -688,7 +688,7 @@ function TicketDetailModal({
                         </div>
                     ) : (
                         <div className="flex items-center gap-3 shrink-0">
-                            <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-1.5 rounded-full border", status.chip, status.color)}>
+                            <span className={cn("inline-flex items-center gap-1.5 text-caption font-black uppercase px-3 py-1.5 rounded-full border", status.chip, status.color)}>
                                 <StatusIcon className="w-3.5 h-3.5" />
                                 {status.label}
                             </span>
@@ -702,7 +702,7 @@ function TicketDetailModal({
                     <div className="lg:col-span-2 border-r border-white/5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 p-6 sm:p-8 space-y-8">
                         {/* Auteur */}
                         <section>
-                            <h4 className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">
+                            <h4 className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest mb-3">
                                 <User className="w-3.5 h-3.5" /> Auteur
                             </h4>
                             <div className="flex items-center gap-3 bg-zinc-950/50 border border-white/5 rounded-2xl p-4">
@@ -711,14 +711,14 @@ function TicketDetailModal({
                                 </div>
                                 <div className="min-w-0">
                                     <div className="text-white font-bold text-sm truncate">{ticket.creatorDiscordName}</div>
-                                    <div className="text-[10px] text-zinc-600 font-mono truncate">{ticket.creatorDiscordId}</div>
+                                    <div className="text-caption text-zinc-600 font-mono truncate">{ticket.creatorDiscordId}</div>
                                 </div>
                             </div>
                         </section>
 
                         {/* Métadonnées */}
                         <section>
-                            <h4 className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">
+                            <h4 className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest mb-3">
                                 <Tag className="w-3.5 h-3.5" /> Détails
                             </h4>
                             <div className="bg-zinc-950/50 border border-white/5 rounded-2xl p-4 space-y-3">
@@ -735,7 +735,7 @@ function TicketDetailModal({
                                             href={`https://discord.com/channels/${ticket.discordGuildId}/${ticket.discordThreadId}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all"
+                                            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl text-caption font-black text-indigo-400 uppercase tracking-widest transition-all"
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />
                                             Ouvrir le fil
@@ -747,7 +747,7 @@ function TicketDetailModal({
                                         <MetaRow icon={CheckCircle2} label="Fermé le" value={ticket.closedAt ? new Date(ticket.closedAt).toLocaleString("fr-FR") : "—"} />
                                         <MetaRow icon={Lock} label="Fermé par" value={ticket.closedBy || "Anonyme"} />
                                         {ticket.closedReason && (
-                                            <div className="pt-1 text-[11px] text-zinc-500 italic">{ticket.closedReason}</div>
+                                            <div className="pt-1 text-caption text-zinc-500 italic">{ticket.closedReason}</div>
                                         )}
                                     </div>
                                 )}
@@ -756,7 +756,7 @@ function TicketDetailModal({
 
                         {/* Description */}
                         <section>
-                            <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">Demande</h4>
+                            <h4 className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-3">Demande</h4>
                             <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap bg-zinc-950/50 p-5 rounded-2xl border border-white/5 font-medium">
                                 {ticket.description}
                             </div>
@@ -771,7 +771,7 @@ function TicketDetailModal({
                                     </div>
                                     <div>
                                         <h4 className="text-xs font-black text-white uppercase tracking-widest">Décision d'accès</h4>
-                                        <p className="text-[10px] text-zinc-600 font-medium mt-0.5">
+                                        <p className="text-caption text-zinc-600 font-medium mt-0.5">
                                             Whitelist la guilde <span className="text-emerald-400/80 font-bold">{ticket.targetGuildName || ticket.targetGuildId || "cible"}</span> et notifie le client.
                                         </p>
                                     </div>
@@ -780,9 +780,9 @@ function TicketDetailModal({
                                 {!rejectionMode ? (
                                     <div className="space-y-4 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-2xl p-4">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Rôle sur le serveur cible</label>
+                                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">Rôle sur le serveur cible</label>
                                             <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                                                <SelectTrigger className="w-full h-12 bg-zinc-950 border-white/5 rounded-xl text-[11px] font-black uppercase text-zinc-300 focus:ring-1 focus:ring-emerald-500/30">
+                                                <SelectTrigger className="w-full h-12 bg-zinc-950 border-white/5 rounded-xl text-caption font-black uppercase text-zinc-300 focus:ring-1 focus:ring-emerald-500/30">
                                                     <SelectValue placeholder="Aucun rôle sélectionné" />
                                                 </SelectTrigger>
                                                 <SelectContent className="bg-zinc-900 border-white/10 text-white z-[200]">
@@ -797,7 +797,7 @@ function TicketDetailModal({
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Message additionnel (optionnel)</label>
+                                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">Message additionnel (optionnel)</label>
                                             <input
                                                 type="text"
                                                 value={validationNotes}
@@ -818,7 +818,7 @@ function TicketDetailModal({
                                             </button>
                                             <button
                                                 onClick={() => setRejectionMode(true)}
-                                                className="w-full py-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-2xl text-[10px] font-black text-red-500 uppercase tracking-widest transition-all"
+                                                className="w-full py-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-2xl text-caption font-black text-red-500 uppercase tracking-widest transition-all"
                                             >
                                                 Refuser la demande
                                             </button>
@@ -827,7 +827,7 @@ function TicketDetailModal({
                                 ) : (
                                     <div className="bg-rose-500/5 p-4 rounded-[2rem] border border-rose-500/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Motif du refus (envoyé au client)</label>
+                                            <label className="text-caption font-black text-rose-500 uppercase tracking-widest ml-1">Motif du refus (envoyé au client)</label>
                                             <textarea
                                                 value={rejectionReason}
                                                 onChange={(e) => setRejectionReason(e.target.value)}
@@ -862,7 +862,7 @@ function TicketDetailModal({
                         <div className="flex-1 p-6 sm:p-8">
                             {/* Fil de discussion (placeholder structuré) */}
                             <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                                <h4 className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest">
                                     <MessageSquare className="w-3.5 h-3.5" /> Fil de discussion
                                 </h4>
                                 <div className="bg-amber-500/[0.04] border border-amber-500/10 rounded-2xl p-4">
@@ -877,10 +877,10 @@ function TicketDetailModal({
                                 {/* Archive info si fermé */}
                                 {isClosed && (
                                     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                                        <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <h4 className="text-caption font-black text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                             <Hash className="w-3.5 h-3.5" /> Métadonnées de fermeture
                                         </h4>
-                                        <div className="grid grid-cols-2 gap-3 text-[11px] font-medium text-zinc-500">
+                                        <div className="grid grid-cols-2 gap-3 text-caption font-medium text-zinc-500">
                                             <div>📅 Fermé le : <span className="text-zinc-300 font-mono">{ticket.closedAt ? new Date(ticket.closedAt).toLocaleString() : "N/A"}</span></div>
                                             <div>👤 Par : <span className="text-zinc-300">{ticket.closedBy || "Anonyme"}</span></div>
                                             <div className="col-span-2 mt-1">💬 Raison : <span className="text-zinc-300 italic">"{ticket.closedReason || "Aucune"}"</span></div>
@@ -897,9 +897,9 @@ function TicketDetailModal({
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <Pencil className="w-3.5 h-3.5 text-indigo-400" />
-                                            <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Réponse directe</h4>
+                                            <h4 className="text-caption font-black text-zinc-500 uppercase tracking-widest">Réponse directe</h4>
                                         </div>
-                                        <span className="text-[9px] text-zinc-600 font-bold uppercase">Le bot répondra en ton nom</span>
+                                        <span className="text-caption text-zinc-600 font-bold uppercase">Le bot répondra en ton nom</span>
                                     </div>
                                     <textarea
                                         value={replyText}
@@ -925,11 +925,11 @@ function TicketDetailModal({
                         {/* Footer d'action si non fermé */}
                         {!isClosed && (
                             <div className="border-t border-white/5 bg-zinc-950/40 px-4 sm:px-6 py-3 flex items-center justify-between group/footer">
-                                <span className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">SigilOS Support Engine v2.7</span>
+                                <span className="text-caption text-zinc-600 font-black uppercase tracking-widest">SigilOS Support Engine v2.7</span>
                                 <button
                                     onClick={() => onDeleteTicket(ticket.id)}
                                     disabled={isPending}
-                                    className="opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[9px] font-black text-red-500/60 hover:text-red-500 uppercase tracking-widest"
+                                    className="opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-caption font-black text-red-500/60 hover:text-red-500 uppercase tracking-widest"
                                 >
                                     <Trash2 className="w-3 h-3" />
                                     Supprimer définitivement
@@ -952,8 +952,8 @@ function MetaRow({ icon: Icon, label, value, mono }: { icon: any; label: string;
         <div className="flex items-start gap-3">
             <Icon className="w-3.5 h-3.5 text-zinc-600 mt-0.5 shrink-0" />
             <div className="min-w-0">
-                <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{label}</div>
-                <div className={cn("text-[11px] text-zinc-300 font-medium mt-0.5 break-words", mono && "font-mono text-[10px]")}>{value}</div>
+                <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">{label}</div>
+                <div className={cn("text-caption text-zinc-300 font-medium mt-0.5 break-words", mono && "font-mono text-caption")}>{value}</div>
             </div>
         </div>
     );

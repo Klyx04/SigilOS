@@ -294,14 +294,14 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     <TabsList className="w-full bg-white/5 border border-white/8 p-1 rounded-lg mb-4">
                         <TabsTrigger
                             value="standard"
-                            className="flex-1 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(79,70,229,0.4)] text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]: text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Swords className="w-3.5 h-3.5" />
                             Run Standard
                         </TabsTrigger>
                         <TabsTrigger
                             value="epreuve"
-                            className="flex-1 gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(217,119,6,0.4)] text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]: text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Trophy className="w-3.5 h-3.5" />
                             Épreuve de Songe
@@ -357,7 +357,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             <div className="text-lg">{value.icon}</div>
                                             <div className="text-sm font-medium">{value.label}</div>
                                             {isSelected && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-indigo-400 " />
                                             )}
                                         </div>
                                     );
@@ -382,7 +382,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         className={cn(
                                             "relative flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group",
                                             isSelected
-                                                ? "border-amber-500/50 bg-amber-900/15 shadow-[0_0_20px_rgba(217,119,6,0.1)]"
+                                                ? "border-amber-500/50 bg-amber-900/15 "
                                                 : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"
                                         )}
                                     >
@@ -409,17 +409,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                 <span className={cn("text-sm font-bold", isSelected ? "text-amber-200" : "text-white/80")}>
                                                     {epreuve.label}
                                                 </span>
-                                                <span className={cn("text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border", badgeColor)}>
+                                                <span className={cn("text-caption font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border", badgeColor)}>
                                                     {epreuve.difficultyLabel}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-white/35 leading-relaxed mt-0.5 line-clamp-2">
+                                            <p className="text-caption text-white/35 leading-relaxed mt-0.5 line-clamp-2">
                                                 {epreuve.description}
                                             </p>
                                             {/* Succès associé */}
                                             <div className="flex items-center gap-1.5 mt-1.5">
                                                 <Trophy className="w-3 h-3 text-amber-500/60" />
-                                                <span className="text-[10px] text-amber-500/50 font-semibold">
+                                                <span className="text-caption text-amber-500/50 font-semibold">
                                                     Succès : Épreuve {epreuve.code}
                                                 </span>
                                             </div>
@@ -427,7 +427,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                                         {/* Selected indicator */}
                                         {isSelected && (
-                                            <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] shrink-0 mt-1" />
+                                            <div className="w-2 h-2 rounded-full bg-amber-400  shrink-0 mt-1" />
                                         )}
                                     </div>
                                 );
@@ -457,7 +457,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         {isScheduled && (
                             <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Date</Label>
+                                    <Label className="text-caption text-white/40 uppercase font-bold ml-1">Date</Label>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <Button
@@ -485,7 +485,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Heure</Label>
+                                    <Label className="text-caption text-white/40 uppercase font-bold ml-1">Heure</Label>
                                     <div className="relative">
                                         <Clock className="absolute left-3 top-3 h-4 w-4 text-purple-400" />
                                         <Input
@@ -502,7 +502,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                     {/* Note épreuve */}
                     {mode === "epreuve" && selectedEpreuve && (
-                        <p className="text-[10px] text-white/25 flex items-center gap-1.5">
+                        <p className="text-caption text-white/25 flex items-center gap-1.5">
                             <Trophy className="w-3 h-3 text-amber-500/40" />
                             Pas de butin ni d&apos;expérience pour les Épreuves.
                         </p>
@@ -517,7 +517,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         {/* Mes Personnages (main + mules) */}
                         {(userMainClass || userMules.length > 0) && (
                             <div className="space-y-1.5">
-                                <p className="text-[10px] text-white/35 uppercase font-bold tracking-widest flex items-center gap-1.5">
+                                <p className="text-caption text-white/35 uppercase font-bold tracking-widest flex items-center gap-1.5">
                                     <User className="w-3 h-3" /> Mes Personnages
                                 </p>
                                 <div className="flex flex-wrap gap-2">
@@ -534,7 +534,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                 className={cn(
                                                     "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
                                                     isSelected
-                                                        ? "border-purple-500/60 bg-purple-500/15 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.2)]"
+                                                        ? "border-purple-500/60 bg-purple-500/15 text-purple-200 "
                                                         : "border-white/8 bg-white/3 text-white/50 hover:border-white/20 hover:text-white/80"
                                                 )}
                                             >
@@ -542,7 +542,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                     <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
                                                 </div>
                                                 <span>{cls.name}</span>
-                                                <span className="text-[9px] text-white/25 uppercase">Main</span>
+                                                <span className="text-caption text-white/25 uppercase">Main</span>
                                                 {isSelected && <Check className="w-3 h-3 text-purple-400" />}
                                             </button>
                                         );
@@ -560,7 +560,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                 className={cn(
                                                     "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
                                                     isSelected
-                                                        ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                                                        ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200 "
                                                         : "border-white/8 bg-white/3 text-white/50 hover:border-white/20 hover:text-white/80"
                                                 )}
                                             >
@@ -578,7 +578,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                         {/* Toutes les classes */}
                         <div className="space-y-1.5">
-                            <p className="text-[10px] text-white/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
+                            <p className="text-caption text-white/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
                             <div className="flex flex-wrap gap-1.5 bg-white/3 rounded-xl p-2 border border-white/5">
                                 {DOFUS_CLASSES.map((cls) => {
                                     const isSelected = leaderClass === cls.id;
@@ -607,7 +607,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             {leaderClass && (() => {
                                 const cls = getClass(leaderClass);
                                 return cls ? (
-                                    <p className="text-[10px] text-center font-bold" style={{ color: cls.color }}>
+                                    <p className="text-caption text-center font-bold" style={{ color: cls.color }}>
                                         {cls.name} sélectionné(e)
                                     </p>
                                 ) : null;
@@ -626,7 +626,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         <Button
                             variant="ghost"
                             onClick={() => setOpen(false)}
-                            className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                            className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
                         >
                             Annuler
                         </Button>
@@ -644,7 +644,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 setStep(2);
                             }}
                             className={cn(
-                                "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
+                                "flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
                                 mode === "epreuve"
                                     ? "bg-amber-600 hover:bg-amber-500 text-zinc-950"
                                     : "bg-purple-600 hover:bg-purple-500 text-white"
@@ -663,24 +663,24 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 {step === 2 && (
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                     <div className="text-center space-y-3 mb-8 pt-4">
-                        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]">
+                        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto ">
                             <Hash className="w-8 h-8 text-indigo-400" />
                         </div>
                         <h3 className="text-xl font-black uppercase tracking-tight text-white">Configuration Discord</h3>
                         <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">Notifier la guilde de votre run Songes ?</p>
                     </div>
 
-                    <div className={`p-6 rounded-3xl border transition-all duration-500 ${publishToDiscord ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
+                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col">
                                 <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-indigo-400' : 'text-zinc-300'}`}>Synchro Automatique</span>
                                 {publishToDiscord ? (
                                     <div className="flex items-center gap-1 mt-1 animate-in fade-in">
                                         <Hash className="w-3 h-3 text-indigo-400/70" />
-                                        <span className="text-[10px] text-indigo-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                        <span className="text-caption text-indigo-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
+                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
                                 )}
                             </div>
                             <Switch
@@ -694,7 +694,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         {!isDiscordConfigured && (
                             <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
                                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                                <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
                                     Discord non configuré pour ce module. Contactez un admin.
                                 </p>
                             </div>
@@ -704,11 +704,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-indigo-500/20 space-y-3">
                                 <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
                                     <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                    <p className="text-[10px] text-amber-300/80 font-medium leading-relaxed">
+                                    <p className="text-caption text-amber-300/80 font-medium leading-relaxed">
                                         <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un rôle pour que ta run ait de la visibilité.
                                     </p>
                                 </div>
-                                <span className="text-[10px] font-black text-indigo-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
+                                <span className="text-caption font-black text-indigo-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -735,10 +735,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                     }}
                                                                 >
                                                                     <div 
-                                                                        className="w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_5px_currentColor]" 
+                                                                        className="w-1.5 h-1.5 rounded-full shrink-0 " 
                                                                         style={{ backgroundColor: roleColor }} 
                                                                     />
-                                                                    <span className="text-[10px] font-bold uppercase truncate max-w-[80px]">{role.name}</span>
+                                                                    <span className="text-caption font-bold uppercase truncate max-w-[80px]">{role.name}</span>
                                                                     <button
                                                                         type="button"
                                                                         onClick={(e) => {
@@ -753,7 +753,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                             );
                                                         })}
                                                         {mentionRoleIds.length > 3 && (
-                                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                            <span className="text-caption font-bold text-zinc-400 uppercase tracking-wide px-1.5">
                                                                 +{mentionRoleIds.length - 3} rôles
                                                             </span>
                                                         )}
@@ -794,7 +794,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                         >
                                                             <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
                                                                 <div 
-                                                                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_8px_-2px_currentColor]" 
+                                                                    className="w-2.5 h-2.5 rounded-full shrink-0 " 
                                                                     style={{ 
                                                                         backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color,
                                                                         color: role.color === "#000000" ? "#9ca3af" : role.color
@@ -820,13 +820,13 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             <Button
                                 variant="ghost"
                                 onClick={() => setStep(1)}
-                                className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
                             >
                                 Retour
                             </Button>
                             <Button
                                 className={cn(
-                                    "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
+                                    "flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
                                     mode === "epreuve" 
                                         ? "bg-amber-500 hover:bg-amber-400 text-zinc-950" 
                                         : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950"

@@ -26,7 +26,7 @@ export function ProblemSolution() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
                         <thead>
-                            <tr className="text-left text-[11px] font-semibold uppercase tracking-widest text-zinc-500 border-b border-white/10">
+                            <tr className="text-left text-caption font-semibold uppercase tracking-widest text-zinc-500 border-b border-white/10">
                                 <th scope="col" className="py-3 pr-4 font-semibold">
                                     Situation
                                 </th>

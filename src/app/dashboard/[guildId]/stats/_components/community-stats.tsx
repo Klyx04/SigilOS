@@ -65,7 +65,7 @@ export default function CommunityStats({ community }: CommunityStatsProps) {
                     <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Bonus par type</h4>
                     <div className="h-36">
                         {!mounted ? (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-[10px] italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-caption italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
                                 Chargement du graphique...
                             </div>
                         ) : (

@@ -28,7 +28,7 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
             onClick={handleSendReport}
             disabled={isPending}
             className={`
-                h-12 w-full rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] transition-all
+                h-12 w-full rounded-2xl font-black uppercase tracking-[0.2em] text-caption transition-all
                 ${isSuccess 
                     ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" 
                     : "bg-zinc-800/50 hover:bg-zinc-700/50 border-white/5 text-zinc-400"}

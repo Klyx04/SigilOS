@@ -132,7 +132,7 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
             {/* Selected state */}
             {selected && (
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className={selected.isManual ? "border-amber-500/30 text-amber-400 text-[10px]" : "border-violet-500/30 text-violet-400 text-[10px]"}>
+                    <Badge variant="outline" className={selected.isManual ? "border-amber-500/30 text-amber-400 text-caption" : "border-violet-500/30 text-violet-400 text-caption"}>
                         {selected.isManual ? "Saisie libre" : "DofusDB ✓"}
                     </Badge>
                     {selected.dofusdbUrl && (
@@ -152,7 +152,7 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
             {/* Sous-catégorie combat */}
             {showSubCategory && (
                 <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Type de combat (optionnel)</p>
+                    <p className="text-caption font-bold uppercase tracking-wider text-zinc-500">Type de combat (optionnel)</p>
                     <div className="flex gap-2">
                         {([["COMBAT", "⚔️ Combat de quête"], ["TACTIQUE", "🧩 Combat tactique"]] as const).map(([val, label]) => (
                             <button
@@ -184,7 +184,7 @@ export function QuestPicker({ onSelect, value, disabled = false, showSubCategory
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-white truncate">{quest.name}</p>
                                         {quest.isDungeonQuest && (
-                                            <p className="text-[10px] text-cyan-400">Quête de donjon</p>
+                                            <p className="text-caption text-cyan-400">Quête de donjon</p>
                                         )}
                                     </div>
                                     {quest.levelMin && (

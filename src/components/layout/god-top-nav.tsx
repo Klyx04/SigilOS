@@ -105,10 +105,10 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                             "h-3.5 w-3.5 transition-colors duration-150",
                             activeSection === tab.id ? "text-emerald-400" : "text-zinc-700 group-hover:text-zinc-500"
                         )} />
-                        <span className="text-[11px] font-semibold uppercase tracking-wider">{tab.name}</span>
+                        <span className="text-caption font-semibold uppercase tracking-wider">{tab.name}</span>
 
                         {tab.badge && tab.badge > 0 && (
-                            <span className="flex items-center justify-center bg-rose-500 text-white text-[10px] font-semibold h-4 px-1.5 rounded-full ml-1">
+                            <span className="flex items-center justify-center bg-rose-500 text-white text-caption font-semibold h-4 px-1.5 rounded-full ml-1">
                                 {tab.badge}
                             </span>
                         )}
@@ -141,7 +141,7 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                                         ? (tab.color || "text-white")
                                         : "text-zinc-600"
                                 )} />
-                                <span className="text-[11px] font-semibold uppercase tracking-wider">{tab.name}</span>
+                                <span className="text-caption font-semibold uppercase tracking-wider">{tab.name}</span>
                             </button>
                         ))}
                     </div>
@@ -153,7 +153,7 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                 {rightContent ?? (
                     <div className="flex flex-col items-end">
                         <span className={cn(
-                            "text-[11px] font-semibold uppercase tracking-wider",
+                            "text-caption font-semibold uppercase tracking-wider",
                             unreadCount > 0 ? "text-rose-500 animate-pulse" : "text-amber-500"
                         )}>
                             {unreadCount > 0 ? "System Alert" : "Live Monitoring"}
@@ -163,7 +163,7 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
                                 "w-1.5 h-1.5 rounded-full",
                                 unreadCount > 0 ? "bg-rose-500" : "bg-emerald-500 animate-pulse"
                             )} />
-                            <span className="text-[11px] font-medium text-zinc-600 uppercase">
+                            <span className="text-caption font-medium text-zinc-600 uppercase">
                                 {unreadCount > 0 ? `${unreadCount} Unread Alerts` : "All Systems OK"}
                             </span>
                         </div>

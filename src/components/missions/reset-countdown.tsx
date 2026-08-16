@@ -51,7 +51,7 @@ export function ResetCountdown() {
 
     return (
         <div className="flex items-center gap-4 bg-indigo-950/20 px-3 py-1.5 rounded-full border border-indigo-500/10 group hover:bg-indigo-950/40 transition-colors">
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-indigo-300 uppercase tracking-widest">
+            <div className="flex items-center gap-2 text-caption font-semibold text-indigo-300 uppercase tracking-widest">
                 <Timer className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Prochain Reset</span>
             </div>

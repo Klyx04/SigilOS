@@ -137,14 +137,14 @@ export function HeroHeader({
                             size="sm"
                             onClick={handleShare}
                             className={cn(
-                                "gap-2 transition-all duration-500 group overflow-hidden relative border shadow-lg",
+                                "gap-2 transition-all duration-300 group overflow-hidden relative border shadow-lg",
                                 copied 
-                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.2)] hover:bg-emerald-500/30"
-                                    : "bg-indigo-600/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/40 hover:border-indigo-400/50 hover:text-indigo-200 shadow-[0_0_20px_rgba(79,70,229,0.15)] hover:shadow-[0_0_30px_rgba(79,70,229,0.3)]"
+                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400  hover:bg-emerald-500/30"
+                                    : "bg-indigo-600/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/40 hover:border-indigo-400/50 hover:text-indigo-200  "
                             )}
                         >
                             {/* Hover Glow Effect inside button */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-1000 -skew-x-12" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-300 -skew-x-12" />
 
                             {copied ? (
                                 <>
@@ -153,7 +153,7 @@ export function HeroHeader({
                                 </>
                             ) : (
                                 <>
-                                    <Link2 className="w-4 h-4 group-hover:scale-110 transition-transform relative z-10" />
+                                    <Link2 className="w-4 h-4 group- transition-transform relative z-10" />
                                     <span className="text-sm font-black tracking-widest uppercase relative z-10">Partager</span>
                                 </>
                             )}
@@ -187,7 +187,7 @@ export function HeroHeader({
                             </div>
                         )}
                         {isAdmin && (
-                            <div className="absolute -top-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)] shadow-lg" title="Administration">
+                            <div className="absolute -top-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-purple-500/40  shadow-lg" title="Administration">
                                 <ShieldCheck className="w-5 h-5 text-purple-400 fill-purple-500/10" />
                             </div>
                         )}
@@ -197,7 +197,7 @@ export function HeroHeader({
                             </div>
                         )}
                         {welcomeBadgeName && sigilRoles.some(g => g.role?.slug === "probation") && (
-                            <div className="absolute -bottom-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] shadow-lg animate-pulse" title={welcomeBadgeName}>
+                            <div className="absolute -bottom-2 -left-2 p-1.5 bg-zinc-900 rounded-full border border-indigo-500/40  shadow-lg animate-pulse" title={welcomeBadgeName}>
                                 <Sparkles className="w-5 h-5 text-indigo-400 fill-indigo-500/10" />
                             </div>
                         )}
@@ -218,7 +218,7 @@ export function HeroHeader({
                         {/* Status Badges */}
                         <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-4">
                             {isAdmin && (
-                                <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/20 font-black uppercase tracking-[0.1em] text-[10px] py-1">
+                                <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/20 font-black uppercase tracking-[0.1em] text-caption py-1">
                                     <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
                                     Administration
                                 </Badge>
@@ -251,12 +251,12 @@ export function HeroHeader({
                             {sigilRoles.filter(g => g.role?.slug !== "probation").map((grant: any) => (
                                 <Badge
                                     key={grant.id}
-                                    className="bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/20 font-black uppercase tracking-[0.1em] text-[10px] py-1 gap-1.5"
+                                    className="bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/20 font-black uppercase tracking-[0.1em] text-caption py-1 gap-1.5"
                                 >
                                     <Sparkles className="w-3 h-3" />
                                     {grant.label}
                                     {grant.expiresAt && (
-                                        <span className="opacity-50 text-[9px] font-medium lowercase italic">
+                                        <span className="opacity-50 text-caption font-medium lowercase italic">
                                             expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
                                         </span>
                                     )}
@@ -267,12 +267,12 @@ export function HeroHeader({
                             {welcomeBadgeName && sigilRoles.filter(g => g.role?.slug === "probation").map((grant: any) => (
                                 <Badge
                                     key={grant.id}
-                                    className="bg-indigo-500/30 text-indigo-300 border-indigo-500/40 hover:bg-indigo-500/40 font-black uppercase tracking-[0.1em] text-[11px] py-1 gap-2 shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+                                    className="bg-indigo-500/30 text-indigo-300 border-indigo-500/40 hover:bg-indigo-500/40 font-black uppercase tracking-[0.1em] text-caption py-1 gap-2 "
                                 >
                                     <Sparkles className="w-3.5 h-3.5 fill-indigo-400/20" />
                                     {welcomeBadgeName}
                                     {grant.expiresAt && (
-                                        <span className="opacity-60 text-[9px] font-medium lowercase italic border-l border-indigo-500/30 pl-2">
+                                        <span className="opacity-60 text-caption font-medium lowercase italic border-l border-indigo-500/30 pl-2">
                                             expire {formatDistanceToNow(new Date(grant.expiresAt), { addSuffix: true, locale: fr })}
                                         </span>
                                     )}
@@ -282,7 +282,7 @@ export function HeroHeader({
                             {discordRoleName && (
                                 <Badge
                                     variant="outline"
-                                    className="font-bold uppercase tracking-[0.1em] text-[10px] py-1 border-white/10 bg-white/5"
+                                    className="font-bold uppercase tracking-[0.1em] text-caption py-1 border-white/10 bg-white/5"
                                     style={{
                                         color: discordRoleColor && discordRoleColor > 0
                                             ? `#${discordRoleColor.toString(16).padStart(6, "0")}`

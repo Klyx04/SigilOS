@@ -204,11 +204,11 @@ export default function DreamBonusManager() {
                                                 </div>
                                                 <h4 className="font-semibold text-slate-200 text-sm leading-tight">{bonus.name}</h4>
                                                 {(bonus.costMin != null || bonus.costMax != null) && (
-                                                    <span className="text-[10px] text-slate-500">
+                                                    <span className="text-caption text-slate-500">
                                                         {bonus.costMin ?? "?"}{bonus.costMax && bonus.costMax !== bonus.costMin ? `–${bonus.costMax}` : ""} PR
                                                     </span>
                                                 )}
-                                                <Badge className={`text-[10px] border ${TYPE_COLORS[bonus.type]}`}>{bonus.type}</Badge>
+                                                <Badge className={`text-caption border ${TYPE_COLORS[bonus.type]}`}>{bonus.type}</Badge>
                                             </div>
                                         </div>
                                     ))}

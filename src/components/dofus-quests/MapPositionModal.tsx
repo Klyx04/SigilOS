@@ -106,7 +106,7 @@ export default function MapPositionModal({ posX, posY, label, guildId, onClose }
           <div className="p-4 flex gap-3">
             <button onClick={handleOpenMap}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 font-black text-sm transition-all hover:border-cyan-500/40 group">
-              <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <ExternalLink className="w-4 h-4 group- transition-transform" />
               Voir sur la carte SigilOS
             </button>
             <button onClick={handleCopy}
@@ -117,12 +117,12 @@ export default function MapPositionModal({ posX, posY, label, guildId, onClose }
                 }`}>
               {copied
                 ? <><Check className="w-4 h-4" /> Copié !</>
-                : <><Copy className="w-4 h-4 group-hover:scale-110 transition-transform" /> Copier /travel</>
+                : <><Copy className="w-4 h-4 group- transition-transform" /> Copier /travel</>
               }
             </button>
           </div>
 
-          <p className="px-4 pb-4 text-center text-[10px] text-zinc-700">
+          <p className="px-4 pb-4 text-center text-caption text-zinc-700">
             Commande autopilote : <span className="font-mono text-zinc-500">/travel {posX} {posY}</span>
           </p>
         </motion.div>

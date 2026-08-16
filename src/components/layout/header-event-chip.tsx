@@ -61,7 +61,7 @@ function EventsPopover({
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                <span className="text-caption font-bold text-zinc-400 uppercase tracking-wider">
                     {events.length} événement{events.length > 1 ? "s" : ""} à venir
                 </span>
             </div>
@@ -98,18 +98,18 @@ function EventsPopover({
                                     {ev.title}
                                 </p>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                    <span className={cn("text-[10px] font-bold uppercase tracking-wider", cfg.badge)}>
+                                    <span className={cn("text-caption font-bold uppercase tracking-wider", cfg.badge)}>
                                         {cfg.label}
                                     </span>
-                                    <span className="text-[10px] text-zinc-600">·</span>
-                                    <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                                    <span className="text-caption text-zinc-600">·</span>
+                                    <span className="text-caption text-zinc-500 flex items-center gap-1">
                                         <Clock className="w-2.5 h-2.5" />
                                         {relativeTime(ev.startDate)}
                                     </span>
                                     {ev.participantsCount > 0 && (
                                         <>
-                                            <span className="text-[10px] text-zinc-600">·</span>
-                                            <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                                            <span className="text-caption text-zinc-600">·</span>
+                                            <span className="text-caption text-zinc-500 flex items-center gap-1">
                                                 <Users className="w-2.5 h-2.5" />
                                                 {ev.participantsCount}
                                             </span>
@@ -140,7 +140,15 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [modalEvent, setModalEvent] = useState<any | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
+    // Chantier #87/#88 : le libellé « dans Xmin » dépend de l'heure locale (UTC serveur
+    // vs Europe/Paris client) → rendu uniquement après montage pour éviter le mismatch
+    // d'hydration React #418 sur TOUTES les pages du layout.
+    const [mounted, setMounted] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Close popover on outside click
     useEffect(() => {
@@ -221,14 +229,14 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
                         {multi ? `${events.length} événements` : first.title}
                     </span>
 
-                    {/* Relative time badge (single event only) */}
+                    {/* Relative time badge (single event only) — monté après hydration (#87/#88) */}
                     {!multi && (
                         <span className={cn(
-                            "hidden xl:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                            "hidden xl:inline-flex items-center text-caption font-bold px-1.5 py-0.5 rounded-md",
                             "bg-white/5 border border-white/10",
                             cfg.badge
                         )}>
-                            {relativeTime(first.startDate)}
+                            {mounted ? relativeTime(first.startDate) : "…"}
                         </span>
                     )}
                 </button>

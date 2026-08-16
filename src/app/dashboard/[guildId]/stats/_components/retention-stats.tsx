@@ -20,7 +20,7 @@ export default function RetentionStats({ retention, totalMembers }: RetentionSta
                         <TrendingUp className="w-5 h-5" />
                         Croissance
                     </div>
-                    <span className="px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] uppercase font-black tracking-widest border border-emerald-500/20">
+                    <span className="px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-caption uppercase font-black tracking-widest border border-emerald-500/20">
                         {totalMembers} Membres
                     </span>
                 </div>

@@ -73,7 +73,7 @@ export default function DofusQuestGodManager() {
 
             <Tabs defaultValue="editor" className="w-full">
                 <TabsList className="bg-zinc-950/50 border border-white/5 p-1 rounded-2xl mb-8">
-                    <TabsTrigger value="editor" className="data-[state=active]:bg-white data-[state=active]:text-black rounded-xl px-6 font-black uppercase text-[10px] tracking-widest">
+                    <TabsTrigger value="editor" className="data-[state=active]:bg-white data-[state=active]:text-black rounded-xl px-6 font-black uppercase text-caption tracking-widest">
                         Éditeur de Matrice
                     </TabsTrigger>
                 </TabsList>
@@ -106,7 +106,7 @@ export default function DofusQuestGodManager() {
                                 </div>
                                 <div className="flex-1 text-left min-w-0">
                                     <div className={`text-sm font-black truncate ${selectedDofusId === dofus.id ? "text-indigo-400" : "text-zinc-300"}`}>{dofus.name}</div>
-                                    <div className="text-[10px] text-zinc-600 uppercase font-bold tracking-widest truncate">{dofus.slug}</div>
+                                    <div className="text-caption text-zinc-600 uppercase font-bold tracking-widest truncate">{dofus.slug}</div>
                                 </div>
                             </button>
                         ))
@@ -130,12 +130,12 @@ export default function DofusQuestGodManager() {
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-3">
                                             <h2 className="text-3xl font-black text-white italic tracking-tighter">{selectedDofus.name}</h2>
-                                            <Badge className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] uppercase font-black px-2 py-1">{selectedDofus.rarity}</Badge>
+                                            <Badge className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-caption uppercase font-black px-2 py-1">{selectedDofus.rarity}</Badge>
                                         </div>
                                         <p className="text-zinc-500 text-sm max-w-xl leading-relaxed">{selectedDofus.description || "Aucune description renseignée pour ce Dofus."}</p>
                                     </div>
                                 </div>
-                                <Button variant="outline" onClick={() => { setEditingDofus(selectedDofus); setIsDofusDialogOpen(true); }} className="border-white/10 bg-black/40 hover:bg-white/5 text-zinc-400 hover:text-white font-black uppercase text-[10px] tracking-widest rounded-xl shrink-0"><Edit2 className="w-3 h-3 mr-2" /> Éditer Dofus</Button>
+                                <Button variant="outline" onClick={() => { setEditingDofus(selectedDofus); setIsDofusDialogOpen(true); }} className="border-white/10 bg-black/40 hover:bg-white/5 text-zinc-400 hover:text-white font-black uppercase text-caption tracking-widest rounded-xl shrink-0"><Edit2 className="w-3 h-3 mr-2" /> Éditer Dofus</Button>
                             </div>
                         </div>
                         <div className="p-8 space-y-12">
@@ -163,7 +163,7 @@ export default function DofusQuestGodManager() {
                                                         <h3 className="text-xl font-black text-white tracking-tight uppercase">{chain.sectionName}</h3>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <div className="w-2 h-2 rounded-full bg-zinc-600" />
-                                                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{chain.sectionType === "PREREQUISITE" ? "Conditions Initiales" : "Trame Narrative"}</p>
+                                                            <p className="text-caption text-zinc-500 font-bold uppercase tracking-widest">{chain.sectionType === "PREREQUISITE" ? "Conditions Initiales" : "Trame Narrative"}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -176,7 +176,7 @@ export default function DofusQuestGodManager() {
                                             </div>
                                             <div className="mt-4 md:ml-32 space-y-3">
                                                 {chain.entries.length === 0 ? (
-                                                    <div className="p-6 border border-dashed border-white/5 rounded-2xl bg-black/20 text-center"><p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">Vierge</p></div>
+                                                    <div className="p-6 border border-dashed border-white/5 rounded-2xl bg-black/20 text-center"><p className="text-caption font-black uppercase tracking-widest text-zinc-600 italic">Vierge</p></div>
                                                 ) : (
                                                     chain.entries.map((entry: any) => (
                                                         <div key={entry.id} className="group p-4 bg-zinc-950/50 backdrop-blur-md border border-white/5 rounded-2xl flex items-center justify-between hover:border-white/20 transition-all shadow-md">
@@ -187,13 +187,13 @@ export default function DofusQuestGodManager() {
                                                                 <div className="space-y-1.5 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2">
                                                                         <h4 className="text-base font-black text-white italic tracking-tighter truncate">{entry.name}</h4>
-                                                                        {entry.isLast && <Badge className="bg-emerald-500/20 text-emerald-400 border-none uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md">Final</Badge>}
-                                                                        {entry.isOptional && <Badge className="bg-zinc-500/20 text-zinc-400 border-none uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md">Optionnel</Badge>}
-                                                                        {entry.isDungeon && <Badge className="bg-rose-500/20 text-rose-400 border-none uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md">Donjon</Badge>}
-                                                                        {entry.level && <Badge className="bg-amber-500/20 text-amber-400 border-none uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md">N{entry.level}</Badge>}
-                                                                        {entry.externalRef && <Badge className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md flex items-center gap-1"><BookOpen className="w-2.5 h-2.5" /> DPLN</Badge>}
+                                                                        {entry.isLast && <Badge className="bg-emerald-500/20 text-emerald-400 border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Final</Badge>}
+                                                                        {entry.isOptional && <Badge className="bg-zinc-500/20 text-zinc-400 border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Optionnel</Badge>}
+                                                                        {entry.isDungeon && <Badge className="bg-rose-500/20 text-rose-400 border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Donjon</Badge>}
+                                                                        {entry.level && <Badge className="bg-amber-500/20 text-amber-400 border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">N{entry.level}</Badge>}
+                                                                        {entry.externalRef && <Badge className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase font-black text-caption px-1.5 py-0.5 rounded-md flex items-center gap-1"><BookOpen className="w-2.5 h-2.5" /> DPLN</Badge>}
                                                                     </div>
-                                                                    <div className="flex flex-wrap items-center gap-3 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                                                                    <div className="flex flex-wrap items-center gap-3 text-caption text-zinc-500 font-bold uppercase tracking-widest">
                                                                         <div className="flex items-center gap-1.5 text-zinc-400">
                                                                             <MapPin className="w-3 h-3 text-emerald-400/70" />
                                                                             <span className="truncate max-w-[150px]">{entry.zone || "Zone inconnue"}</span>
@@ -215,14 +215,14 @@ export default function DofusQuestGodManager() {
                                         </div>
                                     ))}
                                     <div className="pt-8 flex justify-center border-t border-white/5 mt-8 border-dashed">
-                                        <Button onClick={() => { setEditingChain({ dofusId: selectedDofus.id }); setIsChainDialogOpen(true); }} className="bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white font-black uppercase text-[10px] tracking-widest rounded-xl h-10 px-6"><Plus className="w-3 h-3 mr-2" /> Nouvelle Section</Button>
+                                        <Button onClick={() => { setEditingChain({ dofusId: selectedDofus.id }); setIsChainDialogOpen(true); }} className="bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white font-black uppercase text-caption tracking-widest rounded-xl h-10 px-6"><Plus className="w-3 h-3 mr-2" /> Nouvelle Section</Button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
                 ) : (
-                    <div className="h-[500px] flex flex-col items-center justify-center p-12 text-center gap-6 animate-in fade-in duration-500">
+                    <div className="h-[500px] flex flex-col items-center justify-center p-12 text-center gap-6 animate-in fade-in duration-300">
                         <div className="relative">
                             <div className="w-24 h-24 rounded-[2rem] bg-zinc-950 border border-white/5 flex items-center justify-center text-zinc-800 relative">
                                 <Gem className="w-12 h-12" />
@@ -261,16 +261,16 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
                 <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{dofus ? "Modifier le Dofus" : "Créer un Dofus"}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nom</label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl font-mono" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-zinc-500">Nom</label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-zinc-500">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-zinc-500">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-zinc-500">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl font-mono" /></div>
                     </div>
                     <div className="flex justify-between pt-8 border-t border-white/5 mt-8">
                         {dofus ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-rose-500 hover:bg-rose-500/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div />}
                         <div className="flex gap-3 ml-auto">
                             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-zinc-400 hover:text-white">Annuler</Button>
-                            <Button type="submit" disabled={loading} className="bg-white text-black hover:bg-zinc-200 font-black italic text-[10px] uppercase tracking-widest rounded-xl px-8">{loading ? "..." : "Enregistrer"}</Button>
+                            <Button type="submit" disabled={loading} className="bg-white text-black hover:bg-zinc-200 font-black italic text-caption uppercase tracking-widest rounded-xl px-8">{loading ? "..." : "Enregistrer"}</Button>
                         </div>
                     </div>
                 </form>
@@ -295,7 +295,7 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                 <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{chain?.id ? "Éditer la Section" : "Nouvelle Section"}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nature</label>
+                        <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Nature</label>
                         <select value={formData.sectionType} onChange={e => setFormData({...formData, sectionType: e.target.value})} className="w-full h-11 bg-black/40 border border-white/5 rounded-xl text-sm px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
                             <option value="PREREQUISITE">🔑 Prérequis</option>
                             <option value="MAIN_CHAIN">📜 Quête Principale</option>
@@ -303,16 +303,16 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                             <option value="OPTIONAL">✨ Optionnel</option>
                         </select>
                     </div>
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Titre</label><Input value={formData.sectionName} onChange={e => setFormData({...formData, sectionName: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
+                    <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-zinc-500">Titre</label><Input value={formData.sectionName} onChange={e => setFormData({...formData, sectionName: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" /></div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Icône du bloc</label>
+                        <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Icône du bloc</label>
                         <div className="grid grid-cols-2 gap-2">
                             {[["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
                                 <button key={val} type="button" onClick={() => setFormData({ ...formData, sectionIcon: val })}
                                     className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${formData.sectionIcon === val ? "border-indigo-500/60 bg-indigo-500/15" : "border-white/10 bg-black/40 hover:border-white/20"}`}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={`/assets/icons/${val}.png`} alt={label} className="w-8 h-8 object-contain" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-300">{label}</span>
+                                    <span className="text-caption font-black uppercase tracking-wider text-zinc-300">{label}</span>
                                 </button>
                             ))}
                         </div>
@@ -321,7 +321,7 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                         {chain?.id ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-rose-500 hover:bg-rose-500/10 rounded-xl"><Trash2 className="w-4 h-4" /></Button> : <div />}
                         <div className="flex gap-3 ml-auto">
                             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-zinc-400 hover:text-white">Annuler</Button>
-                            <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black italic text-[10px] uppercase tracking-widest rounded-xl px-8">{loading ? "..." : "Valider"}</Button>
+                            <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black italic text-caption uppercase tracking-widest rounded-xl px-8">{loading ? "..." : "Valider"}</Button>
                         </div>
                     </div>
                 </form>
@@ -464,26 +464,26 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                         {/* Core info row */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1 md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nom</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Nom</label>
                                 <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl text-base font-bold" placeholder="La Vengeance du Bouftou" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Niveau</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Niveau</label>
                                 <Input type="number" value={formData.level} onChange={e => setFormData({...formData, level: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl text-center font-mono" placeholder="120" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Zone</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Zone</label>
                                 <Input value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" placeholder="Astrub" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">PNJ</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">PNJ</label>
                                 <Input value={formData.npcName || ""} onChange={e => setFormData({...formData, npcName: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" placeholder="Mage Xelor" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sous-zone</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Sous-zone</label>
                                 <Input value={formData.npcSubArea || ""} onChange={e => setFormData({...formData, npcSubArea: e.target.value})} className="bg-black/40 border-white/5 h-11 rounded-xl" placeholder="Cité d'Astrub" />
                             </div>
                         </div>
@@ -491,24 +491,24 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                         <div className="flex flex-wrap gap-3">
                             <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-900/30 border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
                                 <input type="checkbox" checked={formData.isDungeon} onChange={e => setFormData({...formData, isDungeon: e.target.checked})} className="w-4 h-4 accent-rose-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">Donjon</span>
+                                <span className="text-caption font-black uppercase tracking-widest text-rose-400">Donjon</span>
                             </label>
                             <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-900/30 border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
                                 <input type="checkbox" checked={formData.isLast} onChange={e => setFormData({...formData, isLast: e.target.checked})} className="w-4 h-4 accent-emerald-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Finale</span>
+                                <span className="text-caption font-black uppercase tracking-widest text-zinc-300">Finale</span>
                             </label>
                             <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-900/30 border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
                                 <input type="checkbox" checked={formData.isOptional} onChange={e => setFormData({...formData, isOptional: e.target.checked})} className="w-4 h-4 accent-zinc-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Optionnelle</span>
+                                <span className="text-caption font-black uppercase tracking-widest text-zinc-300">Optionnelle</span>
                             </label>
                         </div>
                         {/* Positions GPS (façon Rush Sylvestre) */}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-zinc-600 font-normal normal-case tracking-normal">(ex: -2, 0 ; 10, -22)</span></label>
+                            <label className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-zinc-600 font-normal normal-case tracking-normal">(ex: -2, 0 ; 10, -22)</span></label>
                             {formData.positions.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {formData.positions.map((p: any, idx: number) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold font-mono">
+                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-bold font-mono">
                                             {p.x}, {p.y}
                                             <button type="button" onClick={() => removePosition(idx)} className="text-emerald-400/50 hover:text-rose-400"><Trash2 className="w-2.5 h-2.5" /></button>
                                         </span>
@@ -517,22 +517,22 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             )}
                             <div className="flex gap-2">
                                 <Input value={positionsInput} onChange={e => setPositionsInput(e.target.value)} placeholder="10, -22" className="bg-black/40 border-emerald-500/20 h-9 rounded-xl text-xs font-mono flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
-                                <button type="button" onClick={addPositionFromInput} className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-wider shrink-0">📍 Ajouter</button>
+                                <button type="button" onClick={addPositionFromInput} className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 text-caption font-black uppercase tracking-wider shrink-0">📍 Ajouter</button>
                             </div>
                         </div>
 
                         {/* Liens DofusDB / DofusNoobs + Notes */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><ExternalLink className="w-3 h-3 text-sky-400" /> URL DofusDB</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><ExternalLink className="w-3 h-3 text-sky-400" /> URL DofusDB</label>
                                 <Input value={formData.dofusdbUrl || ""} onChange={e => setFormData({...formData, dofusdbUrl: e.target.value})} className="bg-sky-500/10 border-sky-500/20 h-11 rounded-xl text-xs" placeholder="https://dofusdb.fr/fr/database/quest/..." />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2"><BookOpen className="w-3 h-3" /> URL DofusNoobs</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2"><BookOpen className="w-3 h-3" /> URL DofusNoobs</label>
                                 <Input value={formData.dofuspourlesnoobsUrl || ""} onChange={e => setFormData({...formData, dofuspourlesnoobsUrl: e.target.value})} className="bg-indigo-500/10 border-indigo-500/20 h-11 rounded-xl text-xs" placeholder="https://www.dofuspourlesnoobs.com/..." />
                             </div>
                             <div className="space-y-1 md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><Info className="w-3 h-3" /> Notes</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><Info className="w-3 h-3" /> Notes</label>
                                 <textarea value={formData.notes || ""} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full h-20 bg-black/40 border border-white/5 rounded-xl text-xs p-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/50 resize-none" placeholder="Infos complémentaires..." />
                             </div>
                         </div>
@@ -541,13 +541,13 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                         {entry?.id && (
                             <div className="border-t border-white/5 pt-4">
                                 <div className="flex items-center justify-between mb-3">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><span>🔗</span> PRÉREQUIS</h4>
-                                    <span className="text-[10px] text-zinc-600 font-bold">{prerequisites.length} lié{prerequisites.length > 1 ? "s" : ""}</span>
+                                    <h4 className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2"><span>🔗</span> PRÉREQUIS</h4>
+                                    <span className="text-caption text-zinc-600 font-bold">{prerequisites.length} lié{prerequisites.length > 1 ? "s" : ""}</span>
                                 </div>
-                                {loadingPrereqs ? <div className="text-[10px] text-zinc-500 italic py-2">Chargement...</div> : prerequisites.length > 0 ? (
+                                {loadingPrereqs ? <div className="text-caption text-zinc-500 italic py-2">Chargement...</div> : prerequisites.length > 0 ? (
                                     <div className="flex flex-wrap gap-1.5 mb-3">
                                         {prerequisites.map((p: any) => (
-                                            <div key={p.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                                            <div key={p.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-caption font-bold">
                                                 <span className="truncate max-w-[120px]">{p.name}</span>
                                                 <button onClick={async () => {
                                                     const { getQuestPrerequisites, removeQuestPrerequisite } = await import("@/server/actions/dofus-quest-admin-actions");
@@ -564,7 +564,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-[10px] text-zinc-600 italic mb-3">Aucun prérequis défini</p>}
+                                ) : <p className="text-caption text-zinc-600 italic mb-3">Aucun prérequis défini</p>}
                                 {siblingEntries.length > 0 && (
                                     <div className="space-y-2">
                                         <input value={prereqSearch} onChange={e => setPrereqSearch(e.target.value)} placeholder="Rechercher une quête comme prérequis..." className="w-full h-9 bg-black/40 border border-white/5 rounded-xl text-xs px-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/50" />
@@ -575,7 +575,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                                     const res = await addQuestPrerequisite(s.id, entry.id);
                                                     if (res.success) { toast.success(`Prérequis "${s.name}" ajouté`); setPrerequisites(prev => [...prev, s]); }
                                                     else toast.error(res.error || "Erreur");
-                                                }} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10 text-left transition-all text-[10px] text-zinc-400 hover:text-indigo-300 font-medium">
+                                                }} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10 text-left transition-all text-caption text-zinc-400 hover:text-indigo-300 font-medium">
                                                     <Plus className="w-2.5 h-2.5 shrink-0" />
                                                     <span className="truncate">{s.name}</span>
                                                     <span className="text-zinc-600 shrink-0 ml-auto">{s.chain?.sectionName}</span>
@@ -592,7 +592,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                     {entry?.id ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div/>}
                     <div className="flex gap-3 ml-auto">
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-zinc-400 hover:text-white">Fermer</Button>
-                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl px-8">Sauvegarder</Button>
+                        <Button type="button" onClick={handleSubmit} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-caption uppercase tracking-widest rounded-xl px-8">Sauvegarder</Button>
                     </div>
                 </div>
             </DialogContent>

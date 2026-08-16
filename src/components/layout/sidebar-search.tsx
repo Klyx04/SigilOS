@@ -15,8 +15,8 @@ export function SidebarSearch({ guildId }: { guildId: string }) {
                     <span className="truncate text-xs font-medium">Rechercher...</span>
                 </div>
                 
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 shrink-0 px-2 py-0.5 rounded-md bg-zinc-950/80 border border-white/10 text-[10px] font-mono font-medium text-zinc-500 group-hover/searchbtn:text-zinc-300 transition-colors">
-                    <span className="text-[10px]">⌘</span>K
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 shrink-0 px-2 py-0.5 rounded-md bg-zinc-950/80 border border-white/10 text-caption font-mono font-medium text-zinc-500 group-hover/searchbtn:text-zinc-300 transition-colors">
+                    <span className="text-caption">⌘</span>K
                 </kbd>
             </button>
         </div>

@@ -146,7 +146,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
             open={open}
             onOpenChange={setOpen}
             shouldFilter={false}
-            className="bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] sm:max-w-[550px] rounded-2xl overflow-hidden p-0 gap-0"
+            className="bg-zinc-950 border border-white/10  sm:max-w-[550px] rounded-2xl overflow-hidden p-0 gap-0"
         >
             <div className="relative">
                 <div className="flex items-center border-b border-white/5 px-4 bg-white/[0.02]">
@@ -171,7 +171,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                     {results.length > 0 && (
                         <>
                             {memberResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Membres</span>}>
+                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Membres</span>}>
                                     {memberResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -183,7 +183,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-600 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-600 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -191,7 +191,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {missionResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Missions</span>}>
+                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Missions</span>}>
                                     {missionResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -203,7 +203,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-600 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-600 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -211,7 +211,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {pageResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Pages</span>}>
+                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Pages</span>}>
                                     {pageResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -230,7 +230,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {gameDataResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-emerald-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Monde des Douze</span>}>
+                                <CommandGroup heading={<span className="text-emerald-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Monde des Douze</span>}>
                                     {gameDataResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -242,7 +242,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-emerald-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -250,7 +250,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {serviceResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-amber-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Services & Artisans</span>}>
+                                <CommandGroup heading={<span className="text-amber-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Services & Artisans</span>}>
                                     {serviceResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -262,7 +262,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-amber-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -270,7 +270,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {(vaultResults.length > 0 || loanResults.length > 0) && (
-                                <CommandGroup heading={<span className="text-indigo-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Coffre & Prêts</span>}>
+                                <CommandGroup heading={<span className="text-indigo-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Coffre & Prêts</span>}>
                                     {vaultResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -282,7 +282,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-indigo-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -297,7 +297,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-indigo-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -305,7 +305,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {skinResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-pink-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Galerie de Skins</span>}>
+                                <CommandGroup heading={<span className="text-pink-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Galerie de Skins</span>}>
                                     {skinResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -317,7 +317,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-pink-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -325,7 +325,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {eventResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-purple-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Événements</span>}>
+                                <CommandGroup heading={<span className="text-purple-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Événements</span>}>
                                     {eventResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -337,7 +337,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-purple-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -345,7 +345,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                             )}
 
                             {actionResults.length > 0 && (
-                                <CommandGroup heading={<span className="text-cyan-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Actions Rapides</span>}>
+                                <CommandGroup heading={<span className="text-cyan-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Actions Rapides</span>}>
                                     {actionResults.map((r) => (
                                         <CommandItem 
                                             key={r.id} 
@@ -357,7 +357,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                             </div>
                                             <div className="flex flex-col min-w-0">
                                                 <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-cyan-400 transition-colors">{r.title}</span>
-                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                                {r.subtitle && <span className="text-caption text-zinc-500 truncate">{r.subtitle}</span>}
                                             </div>
                                         </CommandItem>
                                     ))}
@@ -369,7 +369,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
 
                     {/* --- DEFAULT SUGGESTIONS --- */}
                     {debouncedQuery.length < 2 && (
-                        <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Suggestions</span>}>
+                        <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Suggestions</span>}>
                             {filteredSearchItems.map((item) => (
                                 <CommandItem
                                     key={item.href + item.title}
@@ -382,7 +382,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{item.title}</span>
-                                        <span className={`text-[9px] font-black uppercase tracking-widest ${item.color} opacity-70`}>{item.category}</span>
+                                        <span className={`text-caption font-black uppercase tracking-widest ${item.color} opacity-70`}>{item.category}</span>
                                     </div>
                                 </CommandItem>
                             ))}
@@ -391,7 +391,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
 
                     {debouncedQuery.length < 2 && (
                         <>
-                            <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Navigation</span>}>
+                            <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Navigation</span>}>
                                 <CommandItem 
                                     onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}
                                     className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
@@ -430,9 +430,9 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                     )}
                 </CommandList>
 
-                <div className="p-3 bg-zinc-950 border-t border-white/5 flex items-center justify-between text-[10px] font-medium text-zinc-500 px-5">
+                <div className="p-3 bg-zinc-950 border-t border-white/5 flex items-center justify-between text-caption font-medium text-zinc-500 px-5">
                     <span>Recherche globale</span>
-                    <span>Taper <kbd className="font-mono bg-white/5 px-1 py-0.5 rounded text-[9px] text-zinc-400">Esc</kbd> pour fermer</span>
+                    <span>Taper <kbd className="font-mono bg-white/5 px-1 py-0.5 rounded text-caption text-zinc-400">Esc</kbd> pour fermer</span>
                 </div>
             </div>
         </CommandDialog>

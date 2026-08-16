@@ -47,7 +47,7 @@ export function ResidencyCountdown({ availableAt, className }: ResidencyCountdow
             {/* Background Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[80px] rounded-full -mr-20 -mt-20 pointer-events-none" />
             
-            <div className="relative shrink-0 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 group-hover:scale-110 transition-transform duration-500">
+            <div className="relative shrink-0 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 group- transition-transform duration-300">
                 <Timer className="w-8 h-8 text-amber-500 animate-pulse" />
             </div>
 
@@ -66,21 +66,21 @@ export function ResidencyCountdown({ availableAt, className }: ResidencyCountdow
                     <span className="text-2xl md:text-3xl font-black text-white tabular-nums tracking-tighter">
                         {String(timeLeft.hours).padStart(2, '0')}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-500/60 uppercase tracking-tighter">Heures</span>
+                    <span className="text-caption font-bold text-amber-500/60 uppercase tracking-tighter">Heures</span>
                 </div>
                 <span className="text-xl md:text-2xl font-black text-zinc-700 animate-pulse">:</span>
                 <div className="flex flex-col items-center">
                     <span className="text-2xl md:text-3xl font-black text-white tabular-nums tracking-tighter">
                         {String(timeLeft.minutes).padStart(2, '0')}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-500/60 uppercase tracking-tighter">Minutes</span>
+                    <span className="text-caption font-bold text-amber-500/60 uppercase tracking-tighter">Minutes</span>
                 </div>
                 <span className="text-xl md:text-2xl font-black text-zinc-700 animate-pulse">:</span>
                 <div className="flex flex-col items-center">
                     <span className="text-2xl md:text-3xl font-black text-white tabular-nums tracking-tighter">
                         {String(timeLeft.seconds).padStart(2, '0')}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-500/60 uppercase tracking-tighter">Secondes</span>
+                    <span className="text-caption font-bold text-amber-500/60 uppercase tracking-tighter">Secondes</span>
                 </div>
             </div>
         </div>

@@ -40,7 +40,7 @@ export default async function SignOutPage({
 
             <main className="flex-1 flex items-center justify-center p-4 relative z-10 pt-20">
                 <div className="max-w-md w-full relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-emerald-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-emerald-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-300" />
 
                     <div className="relative bg-zinc-950/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-10 text-center shadow-2xl overflow-hidden min-h-[300px] flex flex-col items-center justify-center">
                         {isAutoSignOut ? (

@@ -107,7 +107,7 @@ export function ClassFilter({
                 </button>
             </PopoverTrigger>
             <PopoverContent className="w-64 bg-zinc-950 border-white/10 rounded-2xl p-2 shadow-lg" align="start" side="bottom">
-                <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest px-2 pt-1 pb-2">Filtrer par {label.toLowerCase()}</p>
+                <p className="text-caption font-black text-zinc-600 uppercase tracking-widest px-2 pt-1 pb-2">Filtrer par {label.toLowerCase()}</p>
                 <div className="grid grid-cols-3 gap-1">
                     {DOFUS_CLASSES.map(cls => {
                         const numId = getNumericClassId(cls);
@@ -118,7 +118,7 @@ export function ClassFilter({
                                 key={cls.id}
                                 onClick={() => onSelectClass(String(selectedClass) === idStr ? null : idStr)}
                                 className={cn(
-                                    "flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-semibold transition-all",
+                                    "flex flex-col items-center gap-1 p-2 rounded-xl text-caption font-semibold transition-all",
                                     String(selectedClass) === idStr
                                         ? "bg-white/10 text-white ring-1 ring-white/20"
                                         : "text-zinc-500 hover:text-white hover:bg-white/5"

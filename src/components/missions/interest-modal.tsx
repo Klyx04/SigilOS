@@ -106,7 +106,7 @@ export function InterestModal({
                                                     {interest.profile.discordNickname || interest.profile.user?.name || interest.profile.pseudoDofus || "Agent Anonyme"}
                                                 </span>
                                                 {interest.profile.userId === currentUserId && (
-                                                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">
+                                                    <span className="text-caption bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">
                                                         Toi
                                                     </span>
                                                 )}

@@ -222,7 +222,7 @@ export function AccessDenied({
                                             onChange={(e) => setReason(e.target.value)}
                                             className="min-h-[120px] bg-black/40 border-white/10 rounded-xl focus:ring-emerald-500/50 resize-none"
                                         />
-                                        <p className="text-[10px] text-right text-zinc-600 font-medium">
+                                        <p className="text-caption text-right text-zinc-600 font-medium">
                                             {reason.length} / 1000 caractères
                                         </p>
                                     </div>

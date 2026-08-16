@@ -234,7 +234,7 @@ export default function GODChangelogPage() {
                             Changelog Engine
                             <Badge variant="outline" className="bg-amber-500/5 text-amber-500 border-amber-500/20 ml-1">{entries.length} logs</Badge>
                         </h1>
-                        <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter mt-1">Versions publiques & diffusion Discord</p>
+                        <p className="text-caption font-bold text-zinc-500 uppercase tracking-tighter mt-1">Versions publiques & diffusion Discord</p>
                     </div>
                 </div>
 
@@ -254,24 +254,24 @@ export default function GODChangelogPage() {
                             </DialogHeader>
                             <div className="space-y-6 pt-4">
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Salon Discord (Hub)</Label>
+                                    <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">ID Salon Discord (Hub)</Label>
                                     <Input
                                         value={hubChannelId}
                                         onChange={e => setHubChannelId(e.target.value)}
                                         placeholder="Ex: 123456789012345678"
                                         className="h-12 bg-zinc-900/50 border-white/10 rounded-xl font-mono text-amber-500 px-4"
                                     />
-                                    <p className="text-[10px] text-zinc-500 mt-2 ml-1">Ce salon recevra les annonces du changelog via le bouton de publication (Hub).</p>
+                                    <p className="text-caption text-zinc-500 mt-2 ml-1">Ce salon recevra les annonces du changelog via le bouton de publication (Hub).</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Salon État des Services</Label>
+                                    <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">ID Salon État des Services</Label>
                                     <Input
                                         value={serviceStatusChannelId}
                                         onChange={e => setServiceStatusChannelId(e.target.value)}
                                         placeholder="Ex: 123456789012345678"
                                         className="h-12 bg-zinc-900/50 border-white/10 rounded-xl font-mono text-amber-500 px-4"
                                     />
-                                    <p className="text-[10px] text-zinc-500 mt-2 ml-1">Salon où pinguer automatiquement les maintenances et uptime.</p>
+                                    <p className="text-caption text-zinc-500 mt-2 ml-1">Salon où pinguer automatiquement les maintenances et uptime.</p>
                                 </div>
                                 <div className="flex gap-2 pt-2">
                                     <Button
@@ -294,7 +294,7 @@ export default function GODChangelogPage() {
 
                     <Button
                         onClick={() => { resetForm(); setIsCreating(true); }}
-                        className="bg-amber-500 hover:bg-amber-400 text-black font-black h-10 px-5 rounded-xl uppercase tracking-widest text-[10px]"
+                        className="bg-amber-500 hover:bg-amber-400 text-black font-black h-10 px-5 rounded-xl uppercase tracking-widest text-caption"
                     >
                         <Plus className="w-4 h-4 mr-2" /> Nouvelle Release
                     </Button>
@@ -304,7 +304,7 @@ export default function GODChangelogPage() {
             {/* MAIN : FILTRE + LISTE */}
             <div className="flex-1 flex min-h-0">
                 <div className="w-48 shrink-0 border-r border-white/5 p-3 space-y-1 overflow-y-auto">
-                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest px-2 pb-2">Catégories</p>
+                    <p className="text-caption font-black text-zinc-600 uppercase tracking-widest px-2 pb-2">Catégories</p>
                     <button
                         onClick={() => setFilterCategory(undefined)}
                         className={cn("w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors", !filterCategory ? "bg-amber-500/10 text-amber-400" : "text-zinc-500 hover:bg-white/5 hover:text-white")}
@@ -320,7 +320,7 @@ export default function GODChangelogPage() {
                                 className={cn("w-full text-left px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-between", filterCategory === cat ? "bg-amber-500/10 text-amber-400" : "text-zinc-500 hover:bg-white/5 hover:text-white")}
                             >
                                 <span>{categoryLabels[cat]}</span>
-                                <span className="text-[9px] text-zinc-600">{count}</span>
+                                <span className="text-caption text-zinc-600">{count}</span>
                             </button>
                         );
                     })}
@@ -339,7 +339,7 @@ export default function GODChangelogPage() {
                                 <div key={month}>
                                     <div className="flex items-center gap-4 mb-4">
                                         <div className="h-px flex-1 bg-white/5" />
-                                        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.4em] bg-zinc-950 px-3 py-1 rounded-full border border-white/5">
+                                        <span className="text-caption font-black text-zinc-600 uppercase tracking-widest bg-zinc-950 px-3 py-1 rounded-full border border-white/5">
                                             {month}
                                         </span>
                                         <div className="h-px flex-1 bg-white/5" />
@@ -361,16 +361,16 @@ export default function GODChangelogPage() {
                                                     <div className="flex items-start gap-4 p-4 rounded-2xl border border-white/5 bg-zinc-900/30 hover:bg-zinc-900/60 hover:border-amber-500/20 transition-all duration-200">
                                                         <div className="flex-1 min-w-0 space-y-2">
                                                             <div className="flex items-center gap-2 flex-wrap">
-                                                                <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest shrink-0", catColor)}>
+                                                                <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-widest shrink-0", catColor)}>
                                                                     {categoryLabels[entry.category as ChangelogCategory]}
                                                                 </Badge>
-                                                                <span className="font-mono text-amber-500 text-[10px] font-black tracking-widest">{entry.version}</span>
+                                                                <span className="font-mono text-amber-500 text-caption font-black tracking-widest">{entry.version}</span>
                                                                 {entry.isInternal && (
-                                                                    <Badge variant="outline" className="text-zinc-500 border-white/10 text-[8px] font-black uppercase tracking-widest">
+                                                                    <Badge variant="outline" className="text-zinc-500 border-white/10 text-caption font-black uppercase tracking-widest">
                                                                         Interne
                                                                     </Badge>
                                                                 )}
-                                                                <span className="text-[9px] text-zinc-600 font-bold ml-auto shrink-0">
+                                                                <span className="text-caption text-zinc-600 font-bold ml-auto shrink-0">
                                                                     {formatDistanceToNow(new Date(entry.publishedAt), { addSuffix: true, locale: fr })}
                                                                 </span>
                                                             </div>
@@ -423,13 +423,13 @@ export default function GODChangelogPage() {
                     <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
                         {previewMode ? (
                             <div>
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Aperçu — rendu utilisateur</p>
+                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-2">Aperçu — rendu utilisateur</p>
                                 <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/30">
                                     <div className="flex items-center gap-2 flex-wrap mb-3">
-                                        <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest", categoryColors[form.category])}>
+                                        <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-widest", categoryColors[form.category])}>
                                             {categoryLabels[form.category]}
                                         </Badge>
-                                        <span className="font-mono text-amber-500 text-[10px] font-black">{form.version || 'vX.X.X'}</span>
+                                        <span className="font-mono text-amber-500 text-caption font-black">{form.version || 'vX.X.X'}</span>
                                         {form.isInternal && <Badge variant="outline" className="text-zinc-500 border-white/10">Interne</Badge>}
                                     </div>
                                     <h2 className="text-xl font-black text-white mb-4">{form.title || 'Titre de la release'}</h2>
@@ -442,11 +442,11 @@ export default function GODChangelogPage() {
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Version</Label>
+                                        <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Version</Label>
                                         <Input value={form.version} onChange={e => handleChange('version', e.target.value)} placeholder="v2.4.0" className="h-11 bg-zinc-900/50 border-white/10 rounded-xl font-mono" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Catégorie</Label>
+                                        <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Catégorie</Label>
                                         <Select value={form.category} onValueChange={(v) => handleChange('category', v as ChangelogCategory)}>
                                             <SelectTrigger className="h-11 bg-zinc-900/50 border-white/10 rounded-xl">
                                                 <SelectValue placeholder="Catégorie" />
@@ -471,15 +471,15 @@ export default function GODChangelogPage() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Titre</Label>
+                                    <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Titre</Label>
                                     <Input value={form.title} onChange={e => handleChange('title', e.target.value)} placeholder="Ex: Refonte du Guide Ganymède" className="h-11 bg-zinc-900/50 border-white/10 rounded-xl" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Résumé (annonce Discord / aperçu)</Label>
+                                    <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Résumé (annonce Discord / aperçu)</Label>
                                     <AdvancedEditor key={`summary-${editingId ?? 'new'}`} initialContent={form.summary} onChange={(c) => handleChange('summary', c)} contentClassName="min-h-[80px]" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Contenu complet (modale utilisateur)</Label>
+                                    <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Contenu complet (modale utilisateur)</Label>
                                     <AdvancedEditor key={`content-${editingId ?? 'new'}`} initialContent={form.content} onChange={(c) => handleChange('content', c)} contentClassName="min-h-[220px]" />
                                 </div>
                             </>
@@ -495,7 +495,7 @@ export default function GODChangelogPage() {
                                 <X className="w-4 h-4" /> Annuler
                             </Button>
                         </div>
-                        <Button type="button" onClick={handleSubmit} disabled={loading} className="h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] px-8 rounded-xl">
+                        <Button type="button" onClick={handleSubmit} disabled={loading} className="h-11 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-caption px-8 rounded-xl">
                             {loading ? <Activity className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             {editingId ? 'Envoyer Mise à Jour' : 'Déployer Version'}
                         </Button>

@@ -94,12 +94,12 @@ export function ArchiveDurationDialog({
                                         <p className={`font-bold text-sm ${isSelected ? "text-amber-400" : "text-zinc-300"}`}>
                                             {duration.label}
                                         </p>
-                                        <p className="text-[10px] text-zinc-500 font-medium leading-tight">
+                                        <p className="text-caption text-zinc-500 font-medium leading-tight">
                                             {duration.description}
                                         </p>
                                     </div>
                                     {isSelected && (
-                                        <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                                        <div className="w-2 h-2 rounded-full bg-amber-500 " />
                                     )}
                                 </button>
                             );
@@ -108,7 +108,7 @@ export function ArchiveDurationDialog({
 
                     <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 flex items-start gap-3">
                         <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-zinc-500 italic leading-snug">
+                        <p className="text-caption text-zinc-500 italic leading-snug">
                             Attention : À l'issue de cette période, toutes les données du membre (missions, succès, progression) seront **définitivement supprimées** du système pour respecter le RGPD.
                         </p>
                     </div>
@@ -118,14 +118,14 @@ export function ArchiveDurationDialog({
                     <Button 
                         variant="ghost" 
                         onClick={() => onOpenChange(false)}
-                        className="text-zinc-500 hover:text-white font-bold uppercase tracking-widest text-[10px]"
+                        className="text-zinc-500 hover:text-white font-bold uppercase tracking-widest text-caption"
                     >
                         Annuler
                     </Button>
                     <Button 
                         disabled={isSubmitting}
                         onClick={handleConfirm}
-                        className="bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest text-[10px] px-8 rounded-xl shadow-lg shadow-amber-600/20"
+                        className="bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest text-caption px-8 rounded-xl shadow-lg shadow-amber-600/20"
                     >
                         {isSubmitting ? "Archivage..." : "Confirmer l'archivage"}
                     </Button>

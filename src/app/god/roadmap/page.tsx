@@ -19,7 +19,7 @@ export default async function RoadmapGodPage() {
 
     return (
         <ScrollArea className="h-full">
-            <div className="p-8 max-w-5xl mx-auto space-y-12 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-8 max-w-5xl mx-auto space-y-12 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <header className="space-y-4">
                     <h1 className="text-4xl font-black text-white flex items-center gap-3 tracking-tight">
                         <Rocket className="h-10 w-10 text-amber-500" />

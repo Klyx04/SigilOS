@@ -313,7 +313,7 @@ export default function DungeonManager() {
                                             </div>
                                         )}
                                         {dungeon.isExpedition && (
-                                            <div className="absolute bottom-0 inset-x-0 bg-indigo-600/90 text-[9px] text-center text-white py-0.5 font-bold uppercase tracking-wider">
+                                            <div className="absolute bottom-0 inset-x-0 bg-indigo-600/90 text-caption text-center text-white py-0.5 font-bold uppercase tracking-wider">
                                                 Expé
                                             </div>
                                         )}
@@ -325,7 +325,7 @@ export default function DungeonManager() {
                                                 {dungeon.name}
                                             </h3>
                                             {dungeon.isOcreQuest && (
-                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-[10px] h-5 gap-1 shrink-0" title="Donjon de la Quête Ocre">
+                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-caption h-5 gap-1 shrink-0" title="Donjon de la Quête Ocre">
                                                     <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
                                                     Quête Ocre
                                                 </Badge>
@@ -336,11 +336,11 @@ export default function DungeonManager() {
                                             <span className="truncate">{dungeon.bossName}</span>
                                         </div>
                                         <div className="mt-2 flex items-center gap-2">
-                                            <Badge variant="outline" className="bg-slate-950/50 border-slate-700 text-slate-400 text-[10px] h-5">
+                                            <Badge variant="outline" className="bg-slate-950/50 border-slate-700 text-slate-400 text-caption h-5">
                                                 Lvl {dungeon.level}
                                             </Badge>
                                             {dungeon.achievements.length > 0 && (
-                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-[10px] h-5 gap-1">
+                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-caption h-5 gap-1">
                                                     <Trophy className="w-3 h-3" />
                                                     {dungeon.achievements.length}
                                                 </Badge>
@@ -353,7 +353,7 @@ export default function DungeonManager() {
                                 {dungeon.isExpedition && dungeon.expeditionModes && dungeon.expeditionModes.length > 0 && (
                                     <div className="flex flex-wrap gap-1 pt-2 border-t border-slate-800/50">
                                         {dungeon.expeditionModes.map(mode => (
-                                            <span key={mode} className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-indigo-950/30 text-indigo-400 border border-indigo-900/30">
+                                            <span key={mode} className="text-caption uppercase font-bold px-1.5 py-0.5 rounded bg-indigo-950/30 text-indigo-400 border border-indigo-900/30">
                                                 {mode}
                                             </span>
                                         ))}
@@ -371,7 +371,7 @@ export default function DungeonManager() {
                                             </div>
                                         ))}
                                         {dungeon.achievements.length > 5 && (
-                                            <div className="w-6 h-6 rounded bg-slate-800 text-[9px] flex items-center justify-center text-slate-500 border border-slate-700">
+                                            <div className="w-6 h-6 rounded bg-slate-800 text-caption flex items-center justify-center text-slate-500 border border-slate-700">
                                                 +{dungeon.achievements.length - 5}
                                             </div>
                                         )}
@@ -486,7 +486,7 @@ export default function DungeonManager() {
                                         {/* Map ID — sélecteur cliquable pour placer l'icône Ocre sur la carte */}
                                         {formData.isOcreQuest && (
                                             <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-3">
-                                                <p className="text-[10px] text-amber-400/90 pl-1">
+                                                <p className="text-caption text-amber-400/90 pl-1">
                                                     Sélectionne le donjon correspondant sur la carte du monde pour y afficher l'icône Ocre.
                                                 </p>
                                                 <DungeonMapPicker
@@ -592,7 +592,7 @@ export default function DungeonManager() {
                                                             className={`
                                                                 relative aspect-square rounded-xl p-2 border-2 transition-all group flex flex-col items-center justify-center gap-1
                                                                 ${isSelected
-                                                                    ? "border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                                                    ? "border-indigo-500 bg-indigo-500/10 "
                                                                     : "border-slate-800 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800"
                                                                 }
                                                             `}
@@ -602,12 +602,12 @@ export default function DungeonManager() {
                                                                 <img
                                                                     src={challenge.iconUrl}
                                                                     alt={challenge.name}
-                                                                    className={`w-8 h-8 object-contain transition-transform ${isSelected ? "scale-110" : "group-hover:scale-110"}`}
+                                                                    className={`w-8 h-8 object-contain transition-transform ${isSelected ? "scale-110" : "group-"}`}
                                                                 />
                                                             ) : (
                                                                 <Trophy className={`w-6 h-6 ${isSelected ? "text-indigo-400" : "text-slate-600"}`} />
                                                             )}
-                                                            <span className="text-[9px] font-bold text-slate-400 text-center leading-tight line-clamp-2 w-full mt-1">
+                                                            <span className="text-caption font-bold text-slate-400 text-center leading-tight line-clamp-2 w-full mt-1">
                                                                 {challenge.name}
                                                             </span>
 

@@ -306,7 +306,7 @@ export function PollCreator({
                         <Button
                             disabled={microStatus?.holder && !microStatus?.isMicroHolder}
                             className={cn(
-                                "gap-2 transition-all font-bold uppercase tracking-wider text-[10px] h-11 px-6 rounded-xl",
+                                "gap-2 transition-all font-bold uppercase tracking-wider text-caption h-11 px-6 rounded-xl",
                                 microStatus?.holder && !microStatus?.isMicroHolder
                                     ? "bg-zinc-800 text-zinc-600 border border-white/5 cursor-not-allowed"
                                     : "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-900/20"
@@ -338,7 +338,7 @@ export function PollCreator({
                                 <span className="text-xl tracking-tight text-white leading-none">
                                     {isEdit ? "Modifier un sondage" : "Lancer un sondage"}
                                 </span>
-                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                                <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">
                                     Consultation de la guilde
                                 </span>
                             </div>
@@ -355,7 +355,7 @@ export function PollCreator({
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h4 className="text-sm font-bold text-white tracking-tight">Droit de Parole requis</h4>
-                                        <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5">
+                                        <p className="text-caption text-zinc-500 leading-relaxed mt-0.5">
                                             {microStatus?.holder
                                                 ? <><span className="text-cyan-400 font-bold">{microStatus.holder.name}</span> a actuellement le micro. Attendez qu'il se libère !</>
                                                 : <>Un membre à la fois gère l'attention de la guilde. Prenez le micro pour lancer une consultation.</>}
@@ -374,7 +374,7 @@ export function PollCreator({
                                                 </div>
                                             )}
                                             <div className="min-w-0">
-                                                <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-500 mb-0.5">Occupé par</p>
+                                                <p className="text-caption font-bold uppercase tracking-tight text-zinc-500 mb-0.5">Occupé par</p>
                                                 <p className="text-sm font-bold text-white truncate">{microStatus.holder.name}</p>
                                             </div>
                                         </div>
@@ -383,7 +383,7 @@ export function PollCreator({
                                                 onClick={handleReleaseMicro}
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 w-full rounded-lg bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 text-[10px] font-bold uppercase transition-all"
+                                                className="h-8 w-full rounded-lg bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 text-caption font-bold uppercase transition-all"
                                             >
                                                 Relâcher le micro
                                             </Button>
@@ -395,12 +395,12 @@ export function PollCreator({
                                     <Button
                                         onClick={handleAcquireMicroStatus}
                                         disabled={isAcquiring || (!!microStatus?.holder && !microStatus?.isSuperAdmin)}
-                                        className="w-full h-11 rounded-xl font-bold uppercase tracking-wide text-[10px] shadow-lg bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/10 disabled:opacity-50"
+                                        className="w-full h-11 rounded-xl font-bold uppercase tracking-wide text-caption shadow-lg bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/10 disabled:opacity-50"
                                     >
                                         {microStatus?.holder && !microStatus?.isSuperAdmin ? "Micro occupé" : "Prendre le Micro"}
                                     </Button>
                                 )}
-                                <p className="text-[10px] text-center text-zinc-600 font-bold italic uppercase tracking-tight">
+                                <p className="text-caption text-center text-zinc-600 font-bold italic uppercase tracking-tight">
                                     Libre après 1h ou publication.
                                 </p>
                             </div>
@@ -412,7 +412,7 @@ export function PollCreator({
                                     {/* Title + Category */}
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Question de la consultation</label>
+                                            <label className="text-caption font-bold uppercase tracking-widest text-zinc-500 ml-1">Question de la consultation</label>
                                             <Input
                                                 value={title}
                                                 onChange={(e) => setTitle(e.target.value)}
@@ -422,7 +422,7 @@ export function PollCreator({
                                             />
                                         </div>
                                         <div className="space-y-3">
-                                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Thématique</label>
+                                            <label className="text-caption font-bold uppercase tracking-widest text-zinc-500 ml-1">Thématique</label>
                                             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                                 {CATEGORIES.map((c) => {
                                                     const isSelected = category === c.value;
@@ -440,7 +440,7 @@ export function PollCreator({
                                                         >
                                                             <span className="text-xl mb-1">{c.label.split(" ")[0]}</span>
                                                             <span className={cn(
-                                                                "text-[9px] font-bold uppercase tracking-tight text-center",
+                                                                "text-caption font-bold uppercase tracking-tight text-center",
                                                                 isSelected ? c.color : "text-zinc-500"
                                                             )}>
                                                                 {c.label.split(" ").slice(1).join(" ")}
@@ -454,7 +454,7 @@ export function PollCreator({
 
                                     {/* Options */}
                                     <div className="space-y-4">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Options ({options.length}/10)</label>
+                                        <label className="text-caption font-bold uppercase tracking-widest text-zinc-500 ml-1">Options ({options.length}/10)</label>
                                         <div className="space-y-3">
                                             <AnimatePresence mode="popLayout">
                                                 {options.map((opt, i) => (
@@ -506,7 +506,7 @@ export function PollCreator({
                                                 )}
                                             >
                                                 <Plus className="w-4 h-4" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest">
+                                                <span className="text-caption font-bold uppercase tracking-widest">
                                                     {options.length >= 10 ? "Maximum 10 options" : "Ajouter un choix"}
                                                 </span>
                                             </button>
@@ -522,8 +522,8 @@ export function PollCreator({
                                                         <Users className="w-4 h-4 text-purple-400" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-[11px] font-bold text-white uppercase tracking-tight">Votes multiples</p>
-                                                        <p className="text-[9px] text-zinc-500 font-medium tracking-tight">Plusieurs choix possibles</p>
+                                                        <p className="text-caption font-bold text-white uppercase tracking-tight">Votes multiples</p>
+                                                        <p className="text-caption text-zinc-500 font-medium tracking-tight">Plusieurs choix possibles</p>
                                                     </div>
                                                 </div>
                                                 <Switch checked={allowMultipleVotes} onCheckedChange={setAllowMultipleVotes} className="scale-90" />
@@ -535,8 +535,8 @@ export function PollCreator({
                                                         <Clock className="w-4 h-4 text-amber-400" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-[11px] font-bold text-white uppercase tracking-tight">Expiration</p>
-                                                        <p className="text-[9px] text-zinc-500 font-medium tracking-tight">Fin automatique</p>
+                                                        <p className="text-caption font-bold text-white uppercase tracking-tight">Expiration</p>
+                                                        <p className="text-caption text-zinc-500 font-medium tracking-tight">Fin automatique</p>
                                                     </div>
                                                 </div>
                                                 <Switch checked={hasExpiry} onCheckedChange={setHasExpiry} className="scale-90" />
@@ -561,7 +561,7 @@ export function PollCreator({
                                                                     type="button"
                                                                     onClick={() => setExpiryHours(opt.value)}
                                                                     className={cn(
-                                                                        "relative py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                                                                        "relative py-3 rounded-lg text-caption font-bold uppercase tracking-widest transition-all",
                                                                         expiryHours === opt.value
                                                                             ? "text-cyan-400"
                                                                             : "text-zinc-600 hover:text-zinc-400 hover:bg-white/5"
@@ -592,8 +592,8 @@ export function PollCreator({
                                                     <Info className="w-4 h-4 text-cyan-400" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[11px] font-bold text-white uppercase tracking-tight">Lien externe (Optionnel)</p>
-                                                    <p className="text-[9px] text-zinc-500 font-medium tracking-tight">URL associée au sondage</p>
+                                                    <p className="text-caption font-bold text-white uppercase tracking-tight">Lien externe (Optionnel)</p>
+                                                    <p className="text-caption text-zinc-500 font-medium tracking-tight">URL associée au sondage</p>
                                                 </div>
                                             </div>
                                             <Input
@@ -608,7 +608,7 @@ export function PollCreator({
 
                                     {/* Description */}
                                     <div className="space-y-3">
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Description (Optionnel)</p>
+                                        <p className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">Description (Optionnel)</p>
                                         <textarea
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
@@ -625,12 +625,12 @@ export function PollCreator({
                                             <Button
                                                 variant="ghost"
                                                 onClick={() => setOpen(false)}
-                                                className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                                className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
                                             >
                                                 Annuler
                                             </Button>
                                             <Button
-                                                className="flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20"
+                                                className="flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20"
                                                 onClick={() => setStep(2)}
                                                 disabled={!isValid}
                                             >
@@ -648,24 +648,24 @@ export function PollCreator({
                             {step === 2 && (
                                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                     <div className="text-center space-y-3 mb-8">
-                                        <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-5px_rgba(6,182,212,0.3)]">
+                                        <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto ">
                                             <Hash className="w-8 h-8 text-cyan-400" />
                                         </div>
                                         <h3 className="text-xl font-black uppercase tracking-tight text-white">Configuration Discord</h3>
                                         <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">Voulez-vous notifier la guilde de ce sondage sur Discord ?</p>
                                     </div>
 
-                                    <div className={`p-6 rounded-3xl border transition-all duration-500 ${publishToDiscord ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
+                                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
                                         <div className="flex items-center justify-between">
                                             <div className="flex flex-col">
                                                 <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-cyan-400' : 'text-zinc-300'}`}>Synchro Automatique</span>
                                                 {publishToDiscord ? (
                                                     <div className="flex items-center gap-1 mt-1 animate-in fade-in">
                                                         <Hash className="w-3 h-3 text-cyan-400/70" />
-                                                        <span className="text-[10px] text-cyan-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                                        <span className="text-caption text-cyan-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
+                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
                                                 )}
                                             </div>
                                             <Switch
@@ -679,7 +679,7 @@ export function PollCreator({
                                         {!discordSetup?.channelId && (
                                             <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
                                                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                                                <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                                <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
                                                     Discord non configuré pour ce module. Contactez un admin.
                                                 </p>
                                             </div>
@@ -689,11 +689,11 @@ export function PollCreator({
                                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-cyan-500/20 space-y-3">
                                                 <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
                                                     <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                                    <p className="text-[10px] text-amber-300/80 font-medium leading-relaxed">
+                                                    <p className="text-caption text-amber-300/80 font-medium leading-relaxed">
                                                         <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour donner de la visibilité à votre sondage.
                                                     </p>
                                                 </div>
-                                                <span className="text-[10px] font-black text-cyan-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
+                                                <span className="text-caption font-black text-cyan-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
                                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                                     <PopoverTrigger asChild>
                                                         <Button
@@ -720,10 +720,10 @@ export function PollCreator({
                                                                                     }}
                                                                                 >
                                                                                     <div
-                                                                                        className="w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_5px_currentColor]"
+                                                                                        className="w-1.5 h-1.5 rounded-full shrink-0 "
                                                                                         style={{ backgroundColor: roleColor }}
                                                                                     />
-                                                                                    <span className="text-[10px] font-bold uppercase truncate max-w-[80px]">{role.name}</span>
+                                                                                    <span className="text-caption font-bold uppercase truncate max-w-[80px]">{role.name}</span>
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={(e) => {
@@ -738,7 +738,7 @@ export function PollCreator({
                                                                             );
                                                                         })}
                                                                         {mentionRoleIds.length > 3 && (
-                                                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                            <span className="text-caption font-bold text-zinc-400 uppercase tracking-wide px-1.5">
                                                                                 +{mentionRoleIds.length - 3} rôles
                                                                             </span>
                                                                         )}
@@ -779,7 +779,7 @@ export function PollCreator({
                                                                         >
                                                                             <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
                                                                                 <div
-                                                                                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_8px_-2px_currentColor]"
+                                                                                    className="w-2.5 h-2.5 rounded-full shrink-0 "
                                                                                     style={{
                                                                                         backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color,
                                                                                         color: role.color === "#000000" ? "#9ca3af" : role.color
@@ -805,12 +805,12 @@ export function PollCreator({
                                             <Button
                                                 variant="ghost"
                                                 onClick={() => setStep(1)}
-                                                className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                                className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
                                             >
                                                 Retour
                                             </Button>
                                             <Button
-                                                className="flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20"
+                                                className="flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20"
                                                 onClick={() => executeSubmit()}
                                                 disabled={isPending}
                                             >

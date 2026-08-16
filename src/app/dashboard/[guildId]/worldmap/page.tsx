@@ -31,7 +31,7 @@ export default async function WorldMapPage({ params, searchParams }: Props) {
     const worldIdNum = world ? parseInt(world) : undefined;
 
     return (
-        <div id="worldmap-page" className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 rounded-b-3xl border-b border-white/5 mx-2">
+        <div id="worldmap-page" className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-300 rounded-b-3xl border-b border-white/5 mx-2">
             <div className="worldmap-header flex-shrink-0 px-3 md:px-5 py-2 border-b border-white/5 bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Carte du Monde"

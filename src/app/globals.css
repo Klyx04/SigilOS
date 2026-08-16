@@ -110,6 +110,11 @@ html {
 
   --accent-gold: var(--sigil-gold);
   --accent-teal: var(--sigil-teal);
+  /* #5 V1 — Couleur de guilde : token sémantique pour les éléments visibles
+     (titres de bloc, liens, hovers). Par défaut = teal/émeraude ; le layout
+     dashboard le surcharge avec la teinte de la guilde quand elle est définie.
+     V2 : généraliser le remplacement des couleurs en dur par ce token. */
+  --color-guild: var(--sigil-teal);
   --bg-primary: var(--sigil-bg);
   --bg-secondary: var(--sigil-card);
   --bg-tertiary: var(--sigil-muted);

@@ -29,11 +29,11 @@ export function RecentDjPosts({
         <Card className="glass-premium border-white/5 h-full flex flex-col overflow-hidden group">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Sword className="w-3 h-3" />
                         Groupes & Activités
                     </CardTitle>
-                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all">
+                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-zinc-600 hover:text-guild uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all">
                         Voir tout
                     </Link>
                 </div>

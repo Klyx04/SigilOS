@@ -71,11 +71,11 @@ export function UpcomingEventsWidget({
         <Card className="glass-premium border-white/5 flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5" />
                         Agenda de Guilde
                         {events.length > 0 && (
-                            <span className="ml-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-black tabular-nums">
+                            <span className="ml-1 px-1.5 py-0.5 rounded-md bg-guild/10 border border-guild/20 text-guild text-caption font-black tabular-nums">
                                 {events.length}
                             </span>
                         )}
@@ -84,14 +84,14 @@ export function UpcomingEventsWidget({
                         {/* #2 — Lien vers le planning perso du profil */}
                         <Link
                             href={`/dashboard/${guildId}/profile?tab=planning`}
-                            className="text-caption font-semibold text-zinc-500 hover:text-emerald-400 transition-colors"
+                            className="text-caption font-semibold text-zinc-500 hover:text-guild transition-colors"
                             title="Mon planning perso"
                         >
                             Mon planning
                         </Link>
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-colors hover:border-emerald-500/20"
+                            className="text-caption font-black text-zinc-600 hover:text-guild uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-colors hover:border-guild/20"
                         >
                             Calendrier →
                         </Link>
@@ -114,7 +114,7 @@ export function UpcomingEventsWidget({
                                 className={cn(
                                     "flex flex-col items-center gap-0.5 rounded-lg py-2 border transition-colors",
                                     isCurrentDay
-                                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                                        ? "bg-guild/15 border-guild/40 text-guild"
                                         : "bg-zinc-950/40 border-white/5 text-zinc-500 hover:bg-zinc-900/60 hover:text-white hover:border-white/10"
                                 )}
                             >
@@ -175,7 +175,7 @@ export function UpcomingEventsWidget({
                                             )}
                                         </div>
 
-                                        <p className="text-caption font-black text-white/90 group-hover:text-emerald-400 transition-colors uppercase italic truncate">
+                                        <p className="text-caption font-black text-white/90 group-hover:text-guild transition-colors uppercase italic truncate">
                                             {event.title}
                                         </p>
 
@@ -214,14 +214,14 @@ export function UpcomingEventsWidget({
                                         )}
                                     </div>
 
-                                    <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-emerald-400 transition-colors shrink-0 mt-2" />
+                                    <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-guild transition-colors shrink-0 mt-2" />
                                 </Link>
                             );
                         })}
 
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="flex items-center justify-center gap-2 text-caption font-black text-zinc-700 hover:text-emerald-400 uppercase tracking-widest pt-2 transition-colors border-t border-white/5 mt-auto"
+                            className="flex items-center justify-center gap-2 text-caption font-black text-zinc-700 hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-white/5 mt-auto"
                         >
                             Voir tout le calendrier
                         </Link>
@@ -241,7 +241,7 @@ export function UpcomingEventsWidget({
                         </div>
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="text-caption font-black text-emerald-500/70 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                            className="text-caption font-black text-guild/70 hover:text-guild uppercase tracking-widest transition-colors"
                         >
                             Ouvrir le calendrier →
                         </Link>

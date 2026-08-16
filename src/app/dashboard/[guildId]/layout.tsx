@@ -184,11 +184,13 @@ export default async function DashboardLayout({
                         --accent: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
                         --ring: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
                         --accent-foreground: oklch(0.16 0.02 ${Math.max(0, Math.min(360, accentHue))});
+                        --color-guild: oklch(0.72 0.15 ${Math.max(0, Math.min(360, accentHue))});
                     }
                     .light {
                         --accent: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
                         --ring: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
                         --accent-foreground: oklch(0.98 0.005 ${Math.max(0, Math.min(360, accentHue))});
+                        --color-guild: oklch(0.52 0.17 ${Math.max(0, Math.min(360, accentHue))});
                     }
                 `}</style>
             )}

@@ -211,125 +211,131 @@ export function DofusQuestHub({
                                 {/* CARD 1 : Rush Sylvestre — toujours visible, hard-codé */}
                                 <Link
                                     href={`/dashboard/${guildId}/quetes-dofus/guide/rush-sylvestre`}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-emerald-950/15 to-zinc-950 border border-emerald-500/25 hover:border-emerald-500/50 rounded-3xl shadow-2xl transition-all duration-300 no-underline"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-emerald-500/40 transition-colors duration-200 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                                     style={{ textDecoration: 'none' }}
                                 >
                                     {/* Dofus Sylvestre watermark */}
-                                    <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none opacity-[0.08] group-hover:opacity-[0.14] transition-opacity">
+                                    <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none opacity-[0.06] group-hover:opacity-[0.1] transition-opacity">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-full h-full object-contain" />
                                     </div>
                                     {rushSylvestreGuide?.isUnderConstruction && (
-                                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-black text-amber-400 uppercase tracking-widest z-10">
+                                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-semibold text-amber-400 z-10">
                                             <Construction className="w-2.5 h-2.5" /> En construction
                                         </div>
                                     )}
                                     <div className="space-y-4">
-                                        <div className="p-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 w-fit group- transition-transform duration-300">
+                                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 w-fit">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-10 h-10 object-contain" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="text-lg font-black text-white italic uppercase tracking-wider">
+                                                <h3 className="text-title font-bold text-white">
                                                     Rush Sylvestre
                                                 </h3>
-                                                <span className="text-caption font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest">NEW</span>
+                                                <span className="text-caption font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">NEW</span>
                                             </div>
-                                            <p className="text-xs font-semibold text-zinc-400 leading-relaxed">
+                                            <p className="text-body-sm text-zinc-400 leading-relaxed">
                                                 Rush Sylvestre communautaire — suis ta progression étape par étape et coordonne-toi avec ta guilde.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="space-y-3 pt-6 border-t border-white/5">
-                                        <div className="flex items-center justify-between text-xs font-bold">
+                                    <div className="space-y-3 pt-6 border-t border-white/10">
+                                        <div className="flex items-center justify-between text-body-sm font-semibold">
                                             <span className="text-zinc-500">Mode :</span>
-                                            <span className="text-emerald-400 font-black italic">Collaboratif</span>
+                                            <span className="text-emerald-400 font-semibold">Collaboratif</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-emerald-400 pt-2">
-                                            Démarrer le Rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                                        <div className="flex items-center gap-1 text-caption font-semibold text-emerald-400 pt-2">
+                                            Démarrer le Rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
                                 </Link>
 
                                 {/* CARD 2 : Guides Optimisés */}
-                                <motion.div
-                                    whileHover={{ scale: 1.02, translateY: -4 }}
+                                <div
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => handleTabChange("guide")}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-indigo-950/15 to-zinc-950 border border-indigo-500/20 hover:border-indigo-500/40 rounded-3xl cursor-pointer shadow-md transition-all duration-300"
+                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("guide"); } }}
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-emerald-500/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                                 >
                                     {/* Ganymède watermark */}
-                                    <div className="absolute bottom-4 right-4 w-24 h-24 pointer-events-none opacity-[0.07] group-hover:opacity-[0.12] transition-opacity">
+                                    <div className="absolute bottom-4 right-4 w-24 h-24 pointer-events-none opacity-[0.06] group-hover:opacity-[0.1] transition-opacity">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src="/assets/icons/ganymede.webp" alt="" className="w-full h-full object-contain" />
                                     </div>
                                     <div className="space-y-4">
-                                        <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 w-fit group- transition-transform duration-300">
+                                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 w-fit">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src="/assets/icons/ganymede.webp" alt="Ganymède" className="w-10 h-10 object-contain" />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-black text-white italic uppercase tracking-wider mb-1">
+                                            <h3 className="text-title font-bold text-white mb-1">
                                                 Guides Optimisés
                                             </h3>
-                                            <p className="text-xs font-semibold text-zinc-400 leading-relaxed">
+                                            <p className="text-body-sm text-zinc-400 leading-relaxed">
                                                 Suis le chemin le plus rapide rédigé par ganymède pour obtenir tes Dofus.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="space-y-3 pt-6 border-t border-white/5">
-                                        <div className="flex items-center justify-between text-xs font-bold">
+                                    <div className="space-y-3 pt-6 border-t border-white/10">
+                                        <div className="flex items-center justify-between text-body-sm font-semibold">
                                             <span className="text-zinc-500">Guides disponibles :</span>
-                                            <span className="text-indigo-400 font-black italic">{guides.length}</span>
+                                            <span className="text-emerald-400 font-semibold">{guides.length}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-indigo-400 pt-2">
-                                            Consulter les Guides <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                                        <div className="flex items-center gap-1 text-caption font-semibold text-emerald-400 pt-2">
+                                            Consulter les Guides <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
                                 {/* CARD 3 : Suivi des Dofus */}
-                                <motion.div
-                                    whileHover={{ scale: 1.02, translateY: -4 }}
+                                <div
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => handleTabChange("dofus")}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-violet-950/15 to-zinc-950 border border-violet-500/20 hover:border-violet-500/40 rounded-3xl cursor-pointer shadow-md transition-all duration-300"
+                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("dofus"); } }}
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-emerald-500/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                                 >
                                     <div className="space-y-4">
                                         {/* Dofus icon cluster */}
                                         <div className="flex items-center gap-1.5">
                                             {["/assets/icons/ocre.png", "/module-dofus/Dofus_Turquoise.png", "/module-dofus/Dofus_Emeraude.png", "/module-dofus/Dofus_Pourpre.png", "/module-dofus/Dofus_Ebene.png"].map((url, i) => (
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                <img key={i} src={url} alt="" className="w-8 h-8 object-contain drop-shadow-md group- transition-transform" style={{ transitionDelay: `${i * 40}ms` }} />
+                                                <img key={i} src={url} alt="" className="w-8 h-8 object-contain" />
                                             ))}
-                                            <span className="text-zinc-600 text-xs font-black ml-1">+{Math.max(0, totalNormalDofus - 5)}</span>
+                                            <span className="text-zinc-500 text-caption font-semibold ml-1">+{Math.max(0, totalNormalDofus - 5)}</span>
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-black text-white italic uppercase tracking-wider mb-1">
+                                            <h3 className="text-title font-bold text-white mb-1">
                                                 Suivi des Dofus
                                             </h3>
-                                            <p className="text-xs font-semibold text-zinc-400 leading-relaxed">
+                                            <p className="text-body-sm text-zinc-400 leading-relaxed">
                                                 Suis ta progression sur chaque Dofus primordial et majeur, quête par quête.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="space-y-3 pt-6 border-t border-white/5">
-                                        <div className="flex items-center justify-between text-xs font-bold">
+                                    <div className="space-y-3 pt-6 border-t border-white/10">
+                                        <div className="flex items-center justify-between text-body-sm font-semibold">
                                             <span className="text-zinc-500">Obtenus :</span>
-                                            <span className="text-violet-400 font-black italic">{obtainedNormalDofus} / {totalNormalDofus} Dofus</span>
+                                            <span className="text-emerald-400 font-semibold">{obtainedNormalDofus} / {totalNormalDofus} Dofus</span>
                                         </div>
                                         <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
-                                            <div className="bg-violet-500 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (obtainedNormalDofus / Math.max(1, totalNormalDofus)) * 100)}%` }} />
+                                            <div className="bg-emerald-500 h-full rounded-full transition-colors duration-200" style={{ width: `${Math.min(100, (obtainedNormalDofus / Math.max(1, totalNormalDofus)) * 100)}%` }} />
                                         </div>
-                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-violet-400 pt-2">
-                                            Accéder au Suivi <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                                        <div className="flex items-center gap-1 text-caption font-semibold text-emerald-400 pt-2">
+                                            Accéder au Suivi <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
 
                                 {/* CARD 4 : Progression Guildienne */}
-                                <motion.div
-                                    whileHover={{ scale: 1.02, translateY: -4 }}
+                                <div
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => handleTabChange("guilde")}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] bg-gradient-to-br from-zinc-950 via-rose-950/15 to-zinc-950 border border-rose-500/20 hover:border-rose-500/40 rounded-3xl cursor-pointer shadow-md transition-all duration-300"
+                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("guilde"); } }}
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-emerald-500/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                                 >
                                     <div className="space-y-4">
                                         {/* Member avatars cluster */}
@@ -339,21 +345,21 @@ export function DofusQuestHub({
                                                     {guildStats.topMembers.slice(0, 6).map((m: any, i: number) => (
                                                         <div
                                                             key={m.profileId || i}
-                                                            className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-rose-900/60 flex items-center justify-center overflow-hidden ring-1 ring-rose-500/20 group- transition-transform"
-                                                            style={{ transitionDelay: `${i * 30}ms`, zIndex: 10 - i }}
+                                                            className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-zinc-800 flex items-center justify-center overflow-hidden ring-1 ring-emerald-500/20"
+                                                            style={{ zIndex: 10 - i }}
                                                             title={m.pseudo || m.userName}
                                                         >
                                                             {m.avatarUrl ? (
                                                                 // eslint-disable-next-line @next/next/no-img-element
                                                                 <img src={m.avatarUrl} alt={m.pseudo} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <span className="text-caption font-black text-rose-300">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
+                                                                <span className="text-caption font-semibold text-emerald-300">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
                                                             )}
                                                         </div>
                                                     ))}
                                                     {guildStats.totalMembers > 6 && (
                                                         <div className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-zinc-800 flex items-center justify-center ring-1 ring-white/10">
-                                                            <span className="text-caption font-black text-zinc-400">+{guildStats.totalMembers - 6}</span>
+                                                            <span className="text-caption font-semibold text-zinc-400">+{guildStats.totalMembers - 6}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -361,36 +367,36 @@ export function DofusQuestHub({
                                                 {guildStats.topMembers[0] && (
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, ((guildStats.topMembers[0] as any).dofusObtained || 0) / Math.max(1, totalNormalDofus) * 100)}%` }} />
+                                                            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(100, ((guildStats.topMembers[0] as any).dofusObtained || 0) / Math.max(1, totalNormalDofus) * 100)}%` }} />
                                                         </div>
-                                                        <span className="text-caption font-black text-rose-400/70">{(guildStats.topMembers[0] as any).pseudo || "Leader"}</span>
+                                                        <span className="text-caption font-semibold text-emerald-400/80">{(guildStats.topMembers[0] as any).pseudo || "Leader"}</span>
                                                     </div>
                                                 )}
                                             </div>
                                         ) : (
-                                            <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 w-fit group- transition-transform duration-300">
-                                                <Users className="w-6 h-6 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                                            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 w-fit">
+                                                <Users className="w-6 h-6" />
                                             </div>
                                         )}
                                         <div>
-                                            <h3 className="text-lg font-black text-white italic uppercase tracking-wider mb-1">
+                                            <h3 className="text-title font-bold text-white mb-1">
                                                 Progression Guilde
                                             </h3>
-                                            <p className="text-xs font-semibold text-zinc-400 leading-relaxed">
+                                            <p className="text-body-sm text-zinc-400 leading-relaxed">
                                                 Visualise la progression globale de ta guilde et compare avec tes alliés.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="space-y-3 pt-6 border-t border-white/5">
-                                        <div className="flex items-center justify-between text-xs font-bold">
+                                    <div className="space-y-3 pt-6 border-t border-white/10">
+                                        <div className="flex items-center justify-between text-body-sm font-semibold">
                                             <span className="text-zinc-500">Membres actifs :</span>
-                                            <span className="text-rose-400 font-black italic">{guildStats?.totalMembers || 0}</span>
+                                            <span className="text-emerald-400 font-semibold">{guildStats?.totalMembers || 0}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-rose-400 pt-2">
-                                            Voir la Guilde <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                                        <div className="flex items-center gap-1 text-caption font-semibold text-emerald-400 pt-2">
+                                            Voir la Guilde <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
 
                             </div>
                         )}

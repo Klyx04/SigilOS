@@ -106,7 +106,9 @@ export function UpcomingEventsWidget({
                                     {/* Content */}
                                     <div className="flex-1 min-w-0 space-y-1">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className={cn(
+                                            <span
+                                                suppressHydrationWarning
+                                                className={cn(
                                                 "text-caption font-black uppercase px-1.5 py-0.5 rounded shrink-0",
                                                 when.urgent
                                                     ? "bg-emerald-500 text-black"
@@ -131,7 +133,7 @@ export function UpcomingEventsWidget({
                                         <div className="flex items-center gap-3 text-caption text-zinc-500 font-bold uppercase tracking-tighter">
                                             <span className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3" />
-                                                {format(new Date(event.startDate), "HH:mm")}
+                                                <span suppressHydrationWarning>{format(new Date(event.startDate), "HH:mm")}</span>
                                             </span>
                                             {event.location && (
                                                 <span className="flex items-center gap-1 truncate max-w-[100px]">

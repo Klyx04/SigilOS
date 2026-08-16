@@ -140,7 +140,15 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [modalEvent, setModalEvent] = useState<any | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
+    // Chantier #87/#88 : le libellé « dans Xmin » dépend de l'heure locale (UTC serveur
+    // vs Europe/Paris client) → rendu uniquement après montage pour éviter le mismatch
+    // d'hydration React #418 sur TOUTES les pages du layout.
+    const [mounted, setMounted] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Close popover on outside click
     useEffect(() => {
@@ -221,14 +229,14 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
                         {multi ? `${events.length} événements` : first.title}
                     </span>
 
-                    {/* Relative time badge (single event only) */}
+                    {/* Relative time badge (single event only) — monté après hydration (#87/#88) */}
                     {!multi && (
                         <span className={cn(
                             "hidden xl:inline-flex items-center text-caption font-bold px-1.5 py-0.5 rounded-md",
                             "bg-white/5 border border-white/10",
                             cfg.badge
                         )}>
-                            {relativeTime(first.startDate)}
+                            {mounted ? relativeTime(first.startDate) : "…"}
                         </span>
                     )}
                 </button>

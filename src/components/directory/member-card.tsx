@@ -214,49 +214,47 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Name & Role */}
                     <div className="text-center space-y-2 w-full mt-2">
-                        <div className="flex flex-col items-center justify-center gap-1.5">
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-black text-xl truncate text-white italic uppercase tracking-tighter">
-                                    {displayName}
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={handleCopyPseudo}
-                                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors shrink-0"
-                                    title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
-                                    aria-label="Copier le pseudo"
-                                >
-                                    <Copy className="w-3.5 h-3.5" />
-                                    <span className="text-caption font-black uppercase tracking-wider hidden sm:inline">Copier</span>
-                                </button>
-                                {profile.isAdmin && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <ShieldCheck className="w-4 h-4 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] shrink-0" />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="glass-premium border-amber-500/30 text-amber-500 text-caption font-black uppercase tracking-widest">
-                                                Administration SigilOS
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                                {profile.legendaryCrafts && profile.legendaryCrafts.length > 0 && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Sparkles className="w-4 h-4 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)] shrink-0 animate-pulse" />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-400 text-caption font-black uppercase tracking-widest">
-                                                Artisan Légendaire Spécialisé
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                            </div>
+                        <div className="flex items-center justify-center gap-2 w-full min-w-0">
+                            <h3 className="font-bold text-lg text-white truncate min-w-0">
+                                {displayName}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={handleCopyPseudo}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors shrink-0"
+                                title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
+                                aria-label="Copier le pseudo"
+                            >
+                                <Copy className="w-3 h-3" />
+                                <span className="text-caption font-semibold hidden sm:inline">Copier</span>
+                            </button>
+                            {profile.isAdmin && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="glass-premium border-amber-500/30 text-amber-500 text-caption font-semibold">
+                                            Administration SigilOS
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                            {profile.legendaryCrafts && profile.legendaryCrafts.length > 0 && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-400 text-caption font-semibold">
+                                            Artisan Légendaire Spécialisé
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
                             
 
-                        </div>
                         
                         <div className="flex items-center justify-center gap-1.5 pt-1">
                             {classData && <ClassIcon classId={classData.id} size={18} className="opacity-80" />}

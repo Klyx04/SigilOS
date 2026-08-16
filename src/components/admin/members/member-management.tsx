@@ -416,14 +416,13 @@ export default function MemberManagement({
                     ].map((stat, i) => {
                         const colors = STAT_COLORS[i];
                         return (
-                            <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
-                                <div className={`absolute top-0 right-0 w-24 h-24 ${colors.glow} blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
+                            <Card key={i} className="bg-zinc-900/30 border-white/5 rounded-xl relative overflow-hidden">
                                 <CardHeader className="pb-3">
-                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-bold uppercase text-caption tracking-[0.2em]`}>
+                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-semibold uppercase text-caption tracking-wide`}>
                                         <stat.icon className="w-3 h-3" />
                                         {stat.label}
                                     </CardDescription>
-                                    <CardTitle className="text-4xl font-black text-white">{stat.value}</CardTitle>
+                                    <CardTitle className="text-3xl font-bold text-white">{stat.value}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     {stat.progress ? (
@@ -433,10 +432,10 @@ export default function MemberManagement({
                                                 className="h-1.5 bg-white/5"
                                                 indicatorClassName={colors.indicator}
                                             />
-                                            <p className={`text-caption ${colors.sublabel} font-black uppercase tracking-widest`}>{stat.sub}</p>
+                                            <p className={`text-caption ${colors.sublabel} font-medium uppercase tracking-wide`}>{stat.sub}</p>
                                         </div>
                                     ) : (
-                                        <p className="text-caption text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
+                                        <p className="text-caption text-zinc-500 font-medium uppercase tracking-wide">{stat.sub}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -448,7 +447,7 @@ export default function MemberManagement({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 {/* Tabs with scroll on mobile */}
                 <div className="overflow-x-auto no-scrollbar -mx-2 px-2 pb-2">
-                    <TabsList className="bg-zinc-950/80 p-2 rounded-2xl border border-white/10 backdrop-blur-xl w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-3">
+                    <TabsList className="bg-zinc-950/80 p-1.5 rounded-xl border border-white/10 w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-1.5">
                     {[
                         { id: "audit", label: "📊 Audit Discord vs Dashboard", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "👥 Liste Roster & Membres", icon: UserCircle, requiresFull: true },
@@ -464,7 +463,7 @@ export default function MemberManagement({
                                             <TabsTrigger 
                                                 value={tab.id} 
                                                 disabled={isDisabled}
-                                                className={`w-full rounded-xl px-5 py-3 data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/30 transition-all text-xs font-black uppercase tracking-wider gap-2.5 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
+                                                className={`w-full rounded-lg px-4 py-2.5 text-xs font-semibold text-zinc-400 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 transition-colors gap-2 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
                                             >
                                                 {isDisabled ? <ShieldAlert className="w-4 h-4 text-zinc-500" /> : <tab.icon className="w-4 h-4" />}
                                                 {tab.label}
@@ -484,19 +483,21 @@ export default function MemberManagement({
                 </div>
 
                 {/* --- TAB 1: AUDIT --- */}
-                <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-[600px]">
+                <TabsContent value="audit" className="space-y-8 animate-in fade-in duration-150 min-h-[600px]">
+                    <p className="text-sm text-zinc-500 -mt-4">
+                        Compare les membres présents sur Discord avec les profils enregistrés sur le Dashboard : couverture, rôles mappés et profils manquants.
+                    </p>
                     <div className="space-y-8">
                         {/* Bottom Utility Cards */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Embedded Sync Card */}
-                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-indigo-500/20 rounded-[32px] overflow-hidden shadow-2xl relative group">
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <CardHeader className="bg-white/[0.03] py-5 border-b border-indigo-500/10 px-6 relative z-10">
+                            <Card className="bg-zinc-900/40 border-white/5 rounded-2xl overflow-hidden">
+                                <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-xl bg-indigo-600/20 flex items-center justify-center">
                                             <RefreshCw className="w-4 h-4 text-indigo-400" />
                                         </div>
-                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Outils & Sync</CardTitle>
+                                        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-white">Outils & Sync</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-4 relative z-10">
@@ -511,13 +512,13 @@ export default function MemberManagement({
                                 </CardContent>
                             </Card>
 
-                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
+                            <Card className="bg-zinc-900/40 border-white/5 rounded-2xl overflow-hidden">
                                 <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-xl bg-emerald-600/20 flex items-center justify-center">
                                             <ShieldCheck className="w-4 h-4 text-emerald-400" />
                                         </div>
-                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Audit & Rôles</CardTitle>
+                                        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-white">Audit & Rôles</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
@@ -535,7 +536,7 @@ export default function MemberManagement({
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-2 max-w-[200px]">
                                                             <div 
-                                                                className="w-1.5 h-1.5 rounded-full shrink-0 shadow-lg"
+                                                                className="w-1.5 h-1.5 rounded-full shrink-0"
                                                                 style={{ backgroundColor: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : '#71717a' }}
                                                             />
                                                             <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
@@ -570,26 +571,26 @@ export default function MemberManagement({
 
                         <div className="space-y-4">
                             {/* Filter Bar */}
-                            <div className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-xl">
+                            <div className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-900/40 border border-white/5 rounded-2xl">
                                 <div className="relative flex-1 group">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-violet-400 transition-colors" />
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors" />
                                     <Input 
                                         placeholder="Rechercher par pseudo ou ID..." 
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
-                                        className="pl-12 h-12 bg-black/40 border-white/5 text-white rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 font-medium"
+                                        className="pl-12 h-12 bg-black/40 border-white/5 text-white rounded-xl focus:ring-white/10 focus:border-white/20 transition-colors placeholder:text-zinc-600 font-medium"
                                     />
                                 </div>
                                 <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
                                     <div className="flex gap-2 min-w-max pb-2">
                                     <Select value={roleFilter} onValueChange={setRoleFilter}>
-                                        <SelectTrigger className="w-[200px] h-12 bg-black/40 border-white/5 rounded-2xl text-xs font-black text-zinc-300 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[200px] h-12 bg-black/40 border-white/5 rounded-xl text-xs font-semibold text-zinc-300 uppercase tracking-wide">
                                             <SelectValue placeholder="Tous les rôles" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest">Tous les rôles</SelectItem>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                            <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide">Tous les rôles</SelectItem>
                                             {data?.stats.map(s => (
-                                                <SelectItem key={s.roleId} value={s.roleId} className="text-caption font-black uppercase tracking-widest">
+                                                <SelectItem key={s.roleId} value={s.roleId} className="text-caption font-medium uppercase tracking-wide">
                                                     {s.roleName}
                                                 </SelectItem>
                                             ))}
@@ -597,39 +598,39 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-2xl text-caption font-black text-zinc-300 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-xl text-caption font-semibold text-zinc-300 uppercase tracking-wide">
                                             <SelectValue placeholder="Dashboard" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest text">Tous</SelectItem>
-                                            <SelectItem value="dashboard" className="uppercase text-caption font-black tracking-widest">Inscrits</SelectItem>
-                                            <SelectItem value="missing" className="uppercase text-caption font-black tracking-widest">Absents</SelectItem>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                            <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide text">Tous</SelectItem>
+                                            <SelectItem value="dashboard" className="uppercase text-caption font-medium tracking-wide">Inscrits</SelectItem>
+                                            <SelectItem value="missing" className="uppercase text-caption font-medium tracking-wide">Absents</SelectItem>
                                         </SelectContent>
                                     </Select>
 
                                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-white/5 rounded-2xl text-caption font-black text-zinc-400 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-white/5 rounded-xl text-caption font-semibold text-zinc-400 uppercase tracking-wide">
                                             <div className="flex items-center gap-2">
-                                                <Calendar className="w-3.5 h-3.5 text-violet-400" />
+                                                <Calendar className="w-3.5 h-3.5 text-zinc-500" />
                                                 <SelectValue placeholder="Rejoint le" />
                                             </div>
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest">Tout temps</SelectItem>
-                                            <SelectItem value="week" className="uppercase text-caption font-black tracking-widest">{"< 1 semaine"}</SelectItem>
-                                            <SelectItem value="month" className="uppercase text-caption font-black tracking-widest">{"< 1 mois"}</SelectItem>
-                                            <SelectItem value="old" className="uppercase text-caption font-black tracking-widest">{"> 6 mois"}</SelectItem>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                            <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide">Tout temps</SelectItem>
+                                            <SelectItem value="week" className="uppercase text-caption font-medium tracking-wide">{"< 1 semaine"}</SelectItem>
+                                            <SelectItem value="month" className="uppercase text-caption font-medium tracking-wide">{"< 1 mois"}</SelectItem>
+                                            <SelectItem value="old" className="uppercase text-caption font-medium tracking-wide">{"> 6 mois"}</SelectItem>
                                         </SelectContent>
                                     </Select>
 
                                     <Select value={actionFilter} onValueChange={setActionFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-2xl text-caption font-black text-zinc-400 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-xl text-caption font-semibold text-zinc-400 uppercase tracking-wide">
                                             <SelectValue placeholder="Actions" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest">Toutes</SelectItem>
-                                            <SelectItem value="relancer" className="uppercase text-caption font-black tracking-widest text">À relancer</SelectItem>
-                                            <SelectItem value="voir" className="uppercase text-caption font-black tracking-widest text">À voir</SelectItem>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                            <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide">Toutes</SelectItem>
+                                            <SelectItem value="relancer" className="uppercase text-caption font-medium tracking-wide text">À relancer</SelectItem>
+                                            <SelectItem value="voir" className="uppercase text-caption font-medium tracking-wide text">À voir</SelectItem>
                                         </SelectContent>
                                     </Select>
 
@@ -639,7 +640,7 @@ export default function MemberManagement({
                                         onClick={() => setRelanceTargets(
                                             filteredAuditMembers.map(m => ({ id: m.discordId, name: m.displayName }))
                                         )}
-                                        className="h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 text-caption font-black uppercase tracking-widest px-4 gap-2"
+                                        className="h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 text-caption font-semibold uppercase tracking-wide px-4 gap-2"
                                     >
                                         <Bell className="w-3.5 h-3.5" />
                                         Relance groupée
@@ -652,30 +653,30 @@ export default function MemberManagement({
                             </div>
 
                             {/* Table */}
-                            <div className="rounded-[32px] border border-white/10 bg-zinc-900/40 backdrop-blur-2xl overflow-x-auto no-scrollbar shadow-2xl relative group">
+                            <div className="rounded-2xl border border-white/10 bg-zinc-900/40 overflow-x-auto no-scrollbar">
                                 <Table className="min-w-[800px] lg:min-w-0">
                                     <TableHeader className="bg-white/[0.02] border-b border-white/5">
                                         <TableRow className="hover:bg-transparent border-none">
-                                            <TableHead className="pl-8 py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">
+                                            <TableHead className="pl-8 py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">
                                                 <button onClick={() => toggleSort('displayName')} className="flex items-center gap-2 hover:text-white transition-colors">
                                                     Membre Discord
-                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'displayName' ? 'text-violet-400' : ''}`} />
+                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'displayName' ? 'text-emerald-400' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] py-6">Rôles Discord</TableHead>
-                                            <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">
+                                            <TableHead className="text-caption font-semibold uppercase text-zinc-500 tracking-wide py-6">Rôles Discord</TableHead>
+                                            <TableHead className="py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">
                                                 <button onClick={() => toggleSort('joinedAt')} className="flex items-center gap-2 hover:text-white transition-colors">
                                                     Arrivée
-                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'joinedAt' ? 'text-violet-400' : ''}`} />
+                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'joinedAt' ? 'text-emerald-400' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">
+                                            <TableHead className="py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">
                                                 <button onClick={() => toggleSort('hasDashboardProfile')} className="flex items-center gap-2 hover:text-white transition-colors">
                                                     Status
-                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'hasDashboardProfile' ? 'text-violet-400' : ''}`} />
+                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'hasDashboardProfile' ? 'text-emerald-400' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6">Actions</TableHead>
+                                            <TableHead className="text-caption font-semibold uppercase text-zinc-500 tracking-wide pr-8 text-right py-6">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -683,12 +684,9 @@ export default function MemberManagement({
                                             <TableRow>
                                                 <TableCell colSpan={5} className="h-96 text-center">
                                                     <div className="flex flex-col items-center gap-6">
-                                                        <div className="relative">
-                                                            <RefreshCw className="w-12 h-12 text-violet-500 animate-spin" />
-                                                            <div className="absolute inset-0 blur-xl bg-violet-500/20 animate-pulse" />
-                                                        </div>
+                                                        <RefreshCw className="w-10 h-10 text-zinc-500 animate-spin" />
                                                         <div className="space-y-2">
-                                                            <span className="text-sm font-black uppercase tracking-widest text-white">Calcul du différentiel</span>
+                                                            <span className="text-sm font-semibold uppercase tracking-wide text-white">Calcul du différentiel</span>
                                                             <p className="text-xs text-zinc-500">Récupération des profils Discord autorisés...</p>
                                                         </div>
                                                     </div>
@@ -699,7 +697,7 @@ export default function MemberManagement({
                                                 <TableCell colSpan={5} className="h-48 text-center">
                                                     <div className="flex flex-col items-center gap-2 opacity-40">
                                                         <Search className="w-8 h-8 text-zinc-500 mb-2" />
-                                                        <p className="text-sm font-bold text-zinc-400 uppercase italic">Aucun membre autorisé trouvé</p>
+                                                        <p className="text-sm font-medium text-zinc-400 uppercase">Aucun membre autorisé trouvé</p>
                                                         <p className="text-xs text-zinc-600">Vérifiez vos filtres ou la configuration des rôles.</p>
                                                     </div>
                                                 </TableCell>
@@ -710,17 +708,17 @@ export default function MemberManagement({
                                                     <TableCell className="pl-8 py-5">
                                                         <div className="flex items-center gap-4">
                                                             <div className="relative">
-                                                                <Avatar className="w-12 h-12 rounded-2xl border border-white/5 group-hover:border-violet-500/40 transition-all shadow-lg">
+                                                                <Avatar className="w-12 h-12 rounded-xl border border-white/5 transition-colors">
                                                                     <AvatarImage
                                                                         src={getDiscordAvatarUrl(member.discordId, member.avatar)}
                                                                         alt={member.displayName}
-                                                                        className="object-cover rounded-2xl"
+                                                                        className="object-cover rounded-xl"
                                                                     />
-                                                                    <AvatarFallback className={`rounded-2xl text-white font-black text-lg uppercase ${getDiscordFallbackColor(member.discordId)}`}>
+                                                                    <AvatarFallback className={`rounded-xl text-white font-semibold text-lg uppercase ${getDiscordFallbackColor(member.discordId)}`}>
                                                                         {member.displayName.charAt(0)}
                                                                     </AvatarFallback>
                                                                 </Avatar>
-                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center shadow-lg ${member.hasDashboardProfile ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}>
+                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center ${member.hasDashboardProfile ? 'bg-emerald-500' : 'bg-amber-500'}`}>
                                                                     {member.hasDashboardProfile ? <CheckCircle2 className="w-3 h-3 text-white" /> : <ShieldAlert className="w-3 h-3 text-white" />}
                                                                 </div>
                                                             </div>
@@ -754,7 +752,7 @@ export default function MemberManagement({
                                                                     <Badge 
                                                                         key={rId} 
                                                                         variant="outline" 
-                                                                        className="text-caption h-5 font-black border-white/10 uppercase tracking-[0.1em] rounded-md px-1.5 backdrop-blur-md"
+                                                                        className="text-caption h-5 font-semibold border-white/10 uppercase tracking-wide rounded-md px-1.5"
                                                                         style={{ 
                                                                             color: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}` : undefined,
                                                                             backgroundColor: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}20` : undefined
@@ -765,7 +763,7 @@ export default function MemberManagement({
                                                                 );
                                                             })}
                                                             {member.roles.length > 2 && (
-                                                                <Badge variant="outline" className="text-caption h-5 font-black border-white/5 text-zinc-400 bg-white/5 uppercase tracking-tighter">
+                                                                <Badge variant="outline" className="text-caption h-5 font-semibold border-white/5 text-zinc-400 bg-white/5 uppercase tracking-wide">
                                                                     +{member.roles.length - 2}
                                                                 </Badge>
                                                             )}
@@ -776,12 +774,12 @@ export default function MemberManagement({
                                                     </TableCell>
                                                     <TableCell>
                                                         {member.hasDashboardProfile ? (
-                                                            <div className="flex items-center gap-1.5 text-emerald-400 font-black text-caption uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                            <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-caption uppercase tracking-wide bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                                                                 Inscrit
                              </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-1.5 text-amber-500 font-black text-caption uppercase tracking-widest bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
+                                                            <div className="flex items-center gap-1.5 text-amber-500 font-semibold text-caption uppercase tracking-wide bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                                                 Absent
                                                             </div>
@@ -789,7 +787,7 @@ export default function MemberManagement({
                                                     </TableCell>
                                                     <TableCell className="pr-8 text-right">
                                                          {member.hasDashboardProfile ? (
-                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-caption font-black uppercase tracking-widest p-0 w-9" asChild>
+                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
                                                                  <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
                                                                      <ArrowUpRight className="w-4 h-4" />
                                                                  </a>
@@ -798,7 +796,7 @@ export default function MemberManagement({
                                                              <Button 
                                                                  variant="outline" 
                                                                  size="sm" 
-                                                                 className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-all text-caption font-black uppercase tracking-widest px-3 gap-1.5"
+                                                                 className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-colors text-caption font-semibold uppercase tracking-wide px-3 gap-1.5"
                                                                  onClick={() => setRelanceTargets([{ id: member.discordId, name: member.displayName }])}
                                                              >
                                                                  <Bell className="w-3.5 h-3.5" />
@@ -815,8 +813,8 @@ export default function MemberManagement({
 
                             {/* Pagination UI */}
                             {totalPages > 1 && (
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-xl animate-in fade-in duration-150">
+                                    <div className="text-caption font-medium uppercase tracking-wide text-zinc-500">
                                         Affichage de {Math.min(filteredAuditMembers.length, (currentPage - 1) * pageSize + 1)} à {Math.min(filteredAuditMembers.length, currentPage * pageSize)} sur {filteredAuditMembers.length} membres
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -855,7 +853,10 @@ export default function MemberManagement({
                 </TabsContent>
 
                 {/* --- TAB 2: MANAGEMENT --- */}
-                <TabsContent value="management" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-[600px]">
+                <TabsContent value="management" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
+                    <p className="text-sm text-zinc-500 -mt-4">
+                        Liste des membres de la guilde : statut, arrivée, présence sur le Dashboard, archivage et relances Discord.
+                    </p>
                     <MemberStatsOverview stats={initialStats} />
                     <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <MemberManagementTable 
@@ -871,7 +872,10 @@ export default function MemberManagement({
                 </TabsContent>
 
                 {/* --- TAB 3: BLACKLIST --- */}
-                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-[600px]">
+                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
+                    <p className="text-sm text-zinc-500 -mt-4">
+                        Membres exclus de la guilde : blocage Dashboard et Discord, géré depuis les deux côtés.
+                    </p>
                     <MemberBlacklist guildId={guildId} />
                 </TabsContent>
             </Tabs>

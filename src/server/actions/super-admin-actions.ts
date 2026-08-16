@@ -696,11 +696,27 @@ export async function invalidateAllowedGuildCache(discordGuildId: string) {
 /**
  * Tentatives de connexion REFUSÉES (observabilité God, fail-closed).
  * Super-admin uniquement. Retourne les N plus récentes + le total.
+ * Enrichissement #84 : pour chaque candidat, on indique s'il est désormais
+ * membre d'une guilde SigilOS (et lesquelles) — utile pour décider d'un suivi.
  * PII minimale : discordId + reason + createdAt (rétention > 90 j par le janitor).
  */
 export async function getRecentAccessAttempts(
     limit = 50
-): Promise<{ success: boolean; data?: { attempts: Array<{ id: string; discordId: string; reason: string; createdAt: Date }>; total: number }; error?: string }> {
+): Promise<{
+    success: boolean;
+    data?: {
+        attempts: Array<{
+            id: string;
+            discordId: string;
+            reason: string;
+            createdAt: Date;
+            nowMember: boolean;
+            guilds: Array<{ name: string; status: string }>;
+        }>;
+        total: number;
+    };
+    error?: string;
+}> {
     try {
         if (!(await isSuperAdmin())) return { success: false, error: "Unauthorized" };
 
@@ -712,7 +728,40 @@ export async function getRecentAccessAttempts(
             db.accessAttempt.count()
         ]);
 
-        return { success: true, data: { attempts, total } };
+        // #84 — Résolution batch : le candidat a-t-il (aujourd'hui) un compte Discord
+        // lié à SigilOS, et est-il membre d'une guilde gérée ?
+        const discordIds = attempts.map((a) => a.discordId);
+        const accounts = await db.account.findMany({
+            where: { provider: "discord", providerAccountId: { in: discordIds } },
+            select: { providerAccountId: true, userId: true }
+        });
+        const userIds = accounts.map((a) => a.userId);
+        const profiles = userIds.length > 0
+            ? await db.userProfile.findMany({
+                where: { userId: { in: userIds } },
+                select: { userId: true, status: true, guild: { select: { name: true } } }
+            })
+            : [];
+
+        const membershipByDiscord = new Map<string, { nowMember: boolean; guilds: Array<{ name: string; status: string }> }>();
+        for (const acc of accounts) {
+            const memberProfiles = profiles.filter((p) => p.userId === acc.userId);
+            membershipByDiscord.set(acc.providerAccountId, {
+                nowMember: memberProfiles.length > 0,
+                guilds: memberProfiles.map((p) => ({ name: p.guild.name, status: p.status }))
+            });
+        }
+
+        const enrichedAttempts = attempts.map((a) => {
+            const membership = membershipByDiscord.get(a.discordId);
+            return {
+                ...a,
+                nowMember: membership?.nowMember ?? false,
+                guilds: membership?.guilds ?? []
+            };
+        });
+
+        return { success: true, data: { attempts: enrichedAttempts, total } };
     } catch (e) {
         logger.error("[getRecentAccessAttempts] Error:", e);
         return { success: false, error: "Erreur" };

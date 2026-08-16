@@ -362,7 +362,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     {/* Sub-Atmosphere Glow */}
                     <div className={cn(
                         "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-300 group-hover:scale-150",
-                        config.bgColor.replace('bg-', 'bg-')
+                        config.bgColor
                     )} />
 
                     {/* Left Column: Image Cutout */}

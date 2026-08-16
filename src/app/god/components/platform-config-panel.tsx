@@ -58,6 +58,7 @@ interface PlatformConfigPanelProps {
         ladderManualFallback: boolean;
         dofusQuestHeaderIcon: string;
         rbacUsersMappingEnabled: boolean;
+        forceDarkMode: boolean;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -85,7 +86,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         maintenanceMessage: config?.maintenanceMessage || "",
         ladderManualFallback: config?.ladderManualFallback || false,
         dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete",
-        rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true
+        rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true,
+        forceDarkMode: config?.forceDarkMode ?? false
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -356,7 +358,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             { key: "godNotifyWebEnabled", label: "Notifications Web Admin", desc: "Affichage des bannières d'alerte en temps réel sur l'interface." },
                             { key: "donationsEnabled", label: "Module Dons Orbes", desc: "Activation du widget de contribution financière sur les guildes." },
                             { key: "ladderManualFallback", label: "Fallback Pseudo Manuel", desc: "Autorise la saisie manuelle du pseudo Dofus si la liaison Ankama est KO (évite de bloquer les nouveaux membres)." },
-                            { key: "rbacUsersMappingEnabled", label: "RBAC Membres Spécifiques", desc: "Autorise les permissions individuelles par membre (usersMapping). Désactiver en cas de bug = kill-switch global fail-closed (aucune permission individuelle appliquée)." }
+                            { key: "rbacUsersMappingEnabled", label: "RBAC Membres Spécifiques", desc: "Autorise les permissions individuelles par membre (usersMapping). Désactiver en cas de bug = kill-switch global fail-closed (aucune permission individuelle appliquée)." },
+                            { key: "forceDarkMode", label: "Forcer le Mode Sombre", desc: "Chantier #16 — Kill-switch thème : verrouille le site en sombre pour tout le monde (bascule auto même si des users avaient laissé le clair) et masque les boutons clair/sombre. À activer en cas de bug du mode clair." }
                         ].map((opt) => {
                             const active = (formData as any)[opt.key];
                             return (

@@ -97,17 +97,20 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
-  const platformConfig = await db.platformConfig.findFirst({ select: { donationsEnabled: true } }).catch(() => null);
+  // #16 — kill-switch God « Forcer le mode sombre » : verrouille le thème en dark
+  // pour TOUT le monde (fail-closed, bascule auto si un user était resté en clair).
+  const platformConfig = await db.platformConfig.findFirst({ select: { donationsEnabled: true, forceDarkMode: true } }).catch(() => null);
   const donationsEnabled = platformConfig?.donationsEnabled ?? true; // default true si pas de config
+  const forcedTheme = platformConfig?.forceDarkMode ? "dark" : undefined;
 
   // [AUDIT 2026] Retrieve nonce from middleware for CSP-compliant script injection
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') ?? '';
 
   return (
-    <html lang="fr" className="dark" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} antialiased`}>
-        <ThemeProvider>
+        <ThemeProvider forcedTheme={forcedTheme} nonce={nonce}>
           <AuthProvider session={session}>
             <TooltipProvider>
               <GodBypassCookie />
@@ -118,16 +121,15 @@ export default async function RootLayout({
                 richColors
                 expand={false}
                 closeButton
-                theme="dark"
                 toastOptions={{
-                  className: "group font-sans border-white/5 bg-[#0d0f11]/90 backdrop-blur-2xl text-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-4 border border-zinc-500/10",
-                  descriptionClassName: "text-zinc-400 font-medium text-body-sm",
+                  className: "group font-sans border border-border/50 bg-card/90 backdrop-blur-xl text-card-foreground rounded-2xl p-4 shadow-lg",
+                  descriptionClassName: "text-muted-foreground font-medium text-body-sm",
                   style: {
-                    borderLeft: '3px solid rgba(255,255,255,0.1)',
+                    borderLeft: '3px solid var(--border-strong, rgba(255,255,255,0.1))',
                   },
                   actionButtonStyle: {
-                    background: "white",
-                    color: "black",
+                    background: "var(--foreground)",
+                    color: "var(--background)",
                     fontWeight: "bold",
                     borderRadius: "0.5rem",
                   },

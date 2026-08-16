@@ -176,6 +176,13 @@ model PlatformConfig {
   rbacUsersMappingEnabled Boolean @default(true)
   rbacUsersMappingUpdatedAt DateTime?
   rbacUsersMappingUpdatedBy String?
+  // Chantier #16 — Toggle God « Forcer le mode sombre » (kill-switch fail-closed) :
+  // quand il est actif, le thème est verrouillé en DARK pour tout le monde (bascule
+  // auto même si un user avait laissé le mode clair) et les boutons clair/sombre
+  // deviennent inopérants.
+  forceDarkMode Boolean @default(false)
+  forceDarkModeUpdatedAt DateTime?
+  forceDarkModeUpdatedBy String?
 }
 
 /// Délégation d'accès au dashboard God (sub-gods) avec scopes granulaires.
@@ -358,6 +365,10 @@ model GuildConfig {
   firstAdminViewAt                 DateTime?
   welcomeEnabled                   Boolean                 @default(false)
   welcomeNotifyChannelId           String?
+  // Chantier #5 — Couleur de guilde (teinte OKLCH 0-360°). Nullable = fallback or.
+  // Le dashboard dérive `--accent` / `--ring` / `--accent-foreground` depuis cette
+  // teinte (le système impose luminosité + chroma, contraste garanti dans les deux thèmes).
+  accentHue                        Int?
   welcomeDashboardEnabled          Boolean                 @default(true)
   welcomeDiscordEnabled            Boolean                 @default(false)
   welcomeMessageTemplate           String?

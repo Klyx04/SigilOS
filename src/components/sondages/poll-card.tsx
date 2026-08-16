@@ -160,15 +160,15 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                 const isWinning = option._count.votes === maxVotes && totalVotes > 0;
                                 return (
                                     <div key={option.id} className="relative group/option">
-                                        <div className="flex items-center justify-between text-caption uppercase tracking-[0.2em] font-black mb-2.5 px-0.5">
+                                        <div className="flex items-center justify-between text-caption uppercase tracking-[0.2em] font-black mb-2.5 px-0.5 gap-3">
                                             <span className={cn(
-                                                "truncate max-w-[80%] transition-all",
+                                                "break-words whitespace-normal min-w-0 flex-1 transition-all",
                                                 isWinning ? "text-white scale-105 origin-left" : "text-zinc-600 group-hover/option:text-zinc-400"
                                             )}>
                                                 {option.emoji && <span className="mr-2 text-sm opacity-80">{option.emoji}</span>}
                                                 {option.label}
                                             </span>
-                                            <span className={cn("tabular-nums font-black", isWinning ? cat.color : "text-zinc-700")}>
+                                            <span className={cn("tabular-nums font-black shrink-0", isWinning ? cat.color : "text-zinc-700")}>
                                                 {Math.round(percent)}%
                                             </span>
                                         </div>

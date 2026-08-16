@@ -23,11 +23,11 @@ export function AlmanaxWidget({
 
     return (
         <Card className="glass-premium relative overflow-hidden group border-white/5 hover:border-amber-500/20 transition-all min-h-[380px] flex flex-col">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500/40 via-orange-500/40 to-amber-500/40 opacity-50" />
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-guild/40 via-guild/40 to-guild/40 opacity-50" />
             
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-amber-500 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Calendar className="w-3 h-3" />
                         Almanax du Jour
                     </CardTitle>

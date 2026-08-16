@@ -301,7 +301,9 @@ export async function updatePlatformConfig(data: {
     // Chantier #68 — choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus
     dofusQuestHeaderIcon?: string,
     // Chantier #72 — toggle God « Membres Spécifiques » (permissions RBAC individuelles)
-    rbacUsersMappingEnabled?: boolean
+    rbacUsersMappingEnabled?: boolean,
+    // Chantier #16 — toggle God « Forcer le mode sombre » (kill-switch fail-closed)
+    forceDarkMode?: boolean
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -321,6 +323,11 @@ export async function updatePlatformConfig(data: {
     // Chantier #72 — le toggle « Membres Spécifiques » est un booléen strict (fail-closed).
     if (data.rbacUsersMappingEnabled !== undefined && typeof data.rbacUsersMappingEnabled !== "boolean") {
         return { success: false, error: "Valeur invalide pour rbacUsersMappingEnabled (booléen requis)" };
+    }
+
+    // Chantier #16 — le kill-switch « Forcer le mode sombre » est un booléen strict (fail-closed).
+    if (data.forceDarkMode !== undefined && typeof data.forceDarkMode !== "boolean") {
+        return { success: false, error: "Valeur invalide pour forceDarkMode (booléen requis)" };
     }
 
     try {
@@ -358,6 +365,12 @@ export async function updatePlatformConfig(data: {
                     rbacUsersMappingEnabled: data.rbacUsersMappingEnabled,
                     rbacUsersMappingUpdatedAt: new Date(),
                     rbacUsersMappingUpdatedBy: actorId,
+                }),
+                // Chantier #16 — toggle God « Forcer le mode sombre » (kill-switch fail-closed)
+                ...(data.forceDarkMode !== undefined && {
+                    forceDarkMode: data.forceDarkMode,
+                    forceDarkModeUpdatedAt: new Date(),
+                    forceDarkModeUpdatedBy: actorId,
                 })
             },
             create: { 
@@ -378,7 +391,8 @@ export async function updatePlatformConfig(data: {
                 questFeedbackChannelId: data.questFeedbackChannelId || null,
                 ladderManualFallback: data.ladderManualFallback ?? false,
                 dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete",
-                rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true
+                rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true,
+                forceDarkMode: data.forceDarkMode ?? false
             }
         });
 

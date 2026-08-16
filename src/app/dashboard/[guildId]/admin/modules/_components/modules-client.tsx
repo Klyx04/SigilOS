@@ -73,7 +73,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
     docs: [{ label: "Documentation (Wiki)", href: "/docs" }],
     polls: [{ label: "Sondages", href: "/dashboard/{guildId}/sondages" }],
     availability: [
-        { label: "Annuaire (Disponibilités)", href: "/dashboard/{guildId}/members" },
+        { label: "Planning de Guilde", href: "/dashboard/{guildId}/planning" },
         { label: "Profil (Planning)", href: "/dashboard/{guildId}/profile?tab=planning" },
     ],
     minigames: [{ label: "Mini-Jeux", href: "/dashboard/{guildId}/mini-jeux" }],

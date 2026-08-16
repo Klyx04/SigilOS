@@ -178,7 +178,7 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                             </Avatar>
 
                                             {/* Status Indicator Light: Yellow/Amber if AFK > 15min, Green if Active <= 15min */}
-                                            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-[#09090b] rounded-full transition-all ${
+                                            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-background rounded-full transition-all ${
                                                 isAfk 
                                                     ? 'bg-warning ' 
                                                     : 'bg-success '

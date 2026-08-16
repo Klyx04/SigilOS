@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -143,7 +144,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                 onClick={() => setSelectedDungeonIndex(idx)}
                                 className={`px-4 py-2 rounded-xl text-caption font-black uppercase italic transition-all whitespace-nowrap ${
                                     selectedDungeonIndex === idx 
-                                        ? "bg-amber-600 text-foreground shadow-lg shadow-amber-600/20" 
+                                        ? "bg-amber-600 text-warning-foreground shadow-lg shadow-amber-600/20" 
                                         : "bg-surface text-foreground/30 hover:bg-surface hover:text-foreground/50 border border-border"
                                 }`}
                             >
@@ -286,7 +287,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                     </div>
                     <a 
                         href={`/dashboard/${guildId}/donjons-et-quetes`}
-                        className="px-6 py-3 rounded-2xl bg-amber-600 text-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
                     >
                         Créer un groupe <ChevronRight size={14} />
                     </a>

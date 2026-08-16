@@ -101,8 +101,8 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                     <CardContent className="space-y-6">
                         {/* Step 1 */}
                         <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                             </div>
                             <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
                             <p className="text-xs text-muted-foreground mb-3">
@@ -112,7 +112,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
 
                         {/* Step 2 */}
                         <div className="relative pl-6 border-l-2 border-primary/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-2 border-zinc-950 " />
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-2 border-border " />
                             <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
 
                             <div className="space-y-4">

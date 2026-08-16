@@ -403,7 +403,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Select value={roleFilter} onValueChange={setRoleFilter}>
-                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-border rounded-xl text-caption font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden pr-8 focus:ring-white/10">
+                        <SelectTrigger className="w-[170px] h-11 bg-muted/40 border-border rounded-xl text-caption font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden pr-8 focus:ring-white/10">
                             <SelectValue placeholder="Rôle" />
                         </SelectTrigger>
                         <SelectContent className="bg-background border-border rounded-xl">
@@ -417,7 +417,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </Select>
 
                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-border rounded-xl text-caption font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden pr-8 focus:ring-white/10">
+                        <SelectTrigger className="w-[170px] h-11 bg-muted/40 border-border rounded-xl text-caption font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden pr-8 focus:ring-white/10">
                             <SelectValue placeholder="Arrivée" />
                         </SelectTrigger>
                         <SelectContent className="bg-background border-border rounded-xl">
@@ -434,7 +434,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                             placeholder="Rechercher..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-12 bg-black/40 border-border h-11 text-sm rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all placeholder:text-muted-foreground font-medium"
+                            className="pl-12 bg-muted/40 border-border h-11 text-sm rounded-2xl focus:ring-violet-500/20 focus:border-violet-500/50 transition-all placeholder:text-muted-foreground font-medium"
                         />
                     </div>
                 </div>
@@ -527,7 +527,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10 border border-border group-hover:border-violet-500/40 transition-all rounded-2xl shadow-lg">
                                             <DiscordAvatarImage src={member.user.image || ""} className="object-cover rounded-2xl" />
-                                            <AvatarFallback className="bg-zinc-850 text-muted-foreground text-xs font-black uppercase rounded-2xl">
+                                            <AvatarFallback className="bg-elevated text-muted-foreground text-xs font-black uppercase rounded-2xl">
                                                 {getDisplayName(member)?.[0] || "?"}
                                             </AvatarFallback>
                                         </Avatar>
@@ -586,10 +586,10 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
                                         className="flex items-center gap-2 group/copy cursor-pointer w-fit"
                                     >
-                                        <code className="text-caption px-2 py-1 rounded bg-elevated text-zinc-350 font-mono border border-border group-hover/copy:border-border-strong transition-all">
+                                        <code className="text-caption px-2 py-1 rounded bg-elevated text-muted-foreground font-mono border border-border group-hover/copy:border-border-strong transition-all">
                                             {member.user.accounts[0]?.providerAccountId || "Unknown"}
                                         </code>
-                                        <Copy className="w-3 h-3 text-zinc-650 group-hover/copy:text-zinc-450 opacity-0 group-hover/copy:opacity-100 transition-all" />
+                                        <Copy className="w-3 h-3 text-muted-foreground group-hover/copy:text-muted-foreground opacity-0 group-hover/copy:opacity-100 transition-all" />
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -606,7 +606,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                     ) : (
                                         <button 
                                             onClick={() => openIdDialog(member)}
-                                            className="text-caption font-black uppercase text-zinc-650 hover:text-muted-foreground transition-colors italic flex items-center gap-1"
+                                            className="text-caption font-black uppercase text-muted-foreground hover:text-muted-foreground transition-colors italic flex items-center gap-1"
                                         >
                                             <Edit className="w-3 h-3" />
                                             Ajouter ID
@@ -629,13 +629,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                     <Clock className="w-3 h-3" />
                                                     {diffDays <= 0 ? "Imminent" : `J-${diffDays}`}
                                                 </div>
-                                                <span className="text-caption text-zinc-650 font-medium italic pl-1">
+                                                <span className="text-caption text-muted-foreground font-medium italic pl-1">
                                                     {format(deletionDate, "dd/MM HH:mm")}
                                                 </span>
                                             </div>
                                         );
                                     })() : (
-                                        <span className="text-caption text-zinc-750 font-bold uppercase tracking-widest pl-2">
+                                        <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest pl-2">
                                             -
                                         </span>
                                     )}

@@ -338,8 +338,8 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                     className={cn(
                                                         "px-4 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95",
                                                         isComplete
-                                                            ? "bg-danger/10 text-danger border-danger/20 hover:bg-danger hover:text-foreground hover:border-danger"
-                                                            : "bg-success/10 text-success border-success/20 hover:bg-success hover:text-foreground hover:border-success"
+                                                            ? "bg-danger/10 text-danger border-danger/20 hover:bg-danger hover:text-danger-foreground hover:border-danger"
+                                                            : "bg-success/10 text-success border-success/20 hover:bg-success hover:text-success-foreground hover:border-success"
                                                     )}
                                                 >
                                                     {isComplete ? "Décocher tout" : "Tout cocher"}

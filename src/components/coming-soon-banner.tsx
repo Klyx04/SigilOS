@@ -48,7 +48,7 @@ export function ComingSoonBanner({
             {/* Main Card */}
             <div className={cn(
                 "relative w-full max-w-4xl rounded-2xl border overflow-hidden",
-                "bg-gradient-to-br from-zinc-900/80 via-zinc-950/90 to-black",
+                "bg-gradient-to-br from-surface/80 via-background/90 to-black",
                 colors.border,
                 "shadow-2xl",
                 colors.glow

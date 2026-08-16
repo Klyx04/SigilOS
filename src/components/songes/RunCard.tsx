@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState, useEffect, useTransition } from "react";
 import Image from "next/image";
@@ -476,7 +477,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             Modifier
                         </Button>
                         <Button 
-                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-foreground font-black uppercase tracking-widest text-caption rounded-xl transition-colors"
+                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-warning-foreground font-black uppercase tracking-widest text-caption rounded-xl transition-colors"
                             onClick={() => setCloseModalOpen(true)}
                         >
                             <Check className="w-4 h-4 mr-2" />

@@ -22,14 +22,14 @@ export function GodHeader() {
                     {/* Left: Branding */}
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Crown className="w-6 h-6 text-yellow-500" />
+                            <Crown className="w-6 h-6 text-warning" />
                             <h1 className="text-xl font-bold text-foreground">
-                                SigilOS <span className="text-yellow-500">GOD</span>
+                                SigilOS <span className="text-warning">GOD</span>
                             </h1>
                         </div>
-                        <div className="hidden md:flex items-center gap-1 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                            <span className="text-xs font-medium text-yellow-400 uppercase tracking-wider">
+                        <div className="hidden md:flex items-center gap-1 px-3 py-1 bg-warning/10 border border-warning/30 rounded-full">
+                            <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                            <span className="text-xs font-medium text-warning uppercase tracking-wider">
                                 Super Admin
                             </span>
                         </div>

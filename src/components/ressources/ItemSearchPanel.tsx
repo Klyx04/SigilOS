@@ -132,7 +132,7 @@ const STAT_ICONS: Record<string | number, any> = {
     12: { icon: Brain, color: "text-violet-400" },    // Sagesse
     13: { icon: Droplet, color: "text-info" },    // Chance
     14: { icon: Wind, color: "text-success" },   // Agilité
-    15: { icon: Flame, color: "text-orange-500" },    // Intelligence
+    15: { icon: Flame, color: "text-warning" },    // Intelligence
     16: { icon: Sword, color: "text-warning" },     // Force
     1: { icon: Zap, color: "text-warning" },        // PA
     23: { icon: Footprints, color: "text-success" }, // PM
@@ -151,12 +151,12 @@ const STAT_ICONS: Record<string | number, any> = {
     "fo": { icon: Sword, color: "text-warning" },     // Force
     "sa": { icon: Brain, color: "text-violet-400" },    // Sagesse
     "ag": { icon: Wind, color: "text-success" },   // Agilité
-    "in": { icon: Flame, color: "text-orange-500" },    // Intelligence
+    "in": { icon: Flame, color: "text-warning" },    // Intelligence
     "ch": { icon: Droplet, color: "text-info" },    // Chance
     "pu": { icon: Star, color: "text-fuchsia-400" },    // Puissance
     "cc": { icon: Target, color: "text-info" },     // Critique
     "dmg": { icon: Plus, color: "text-danger" },       // Dommages
-    "ii": { icon: Zap, color: "text-yellow-400" },      // Initiative
+    "ii": { icon: Zap, color: "text-warning" },      // Initiative
     "pi": { icon: Sparkles, color: "text-info" }, // Prospection (Solomonk case)
     "pp": { icon: Eye, color: "text-info" },        // Prospection
     "po": { icon: Eye, color: "text-info" },      // Portée
@@ -164,27 +164,27 @@ const STAT_ICONS: Record<string | number, any> = {
     "pa": { icon: Zap, color: "text-warning" },
     "pm": { icon: Footprints, color: "text-success" },
     "ta": { icon: Plus, color: "text-green-500" },      // Tacle
-    "fu": { icon: Star, color: "text-orange-400" },     // Fuite
+    "fu": { icon: Star, color: "text-warning" },     // Fuite
     "so": { icon: Heart, color: "text-danger" },      // Soins
 
     // Dommages Elémentaires
     "dnf": { icon: Sword, color: "text-muted-foreground" },     // Dmg Neutre
     "dtf": { icon: Sword, color: "text-warning" },    // Dmg Terre
-    "dff": { icon: Flame, color: "text-orange-600" },   // Dmg Feu
+    "dff": { icon: Flame, color: "text-warning" },   // Dmg Feu
     "def": { icon: Droplet, color: "text-info" },   // Dmg Eau
     "daf": { icon: Wind, color: "text-success" },   // Dmg Air
 
     // Résistances %
     "rnp": { icon: Shield, color: "text-muted-foreground" },    // % Neutre
     "rtp": { icon: Shield, color: "text-warning" },   // % Terre
-    "rfp": { icon: Shield, color: "text-orange-600" },  // % Feu
+    "rfp": { icon: Shield, color: "text-warning" },  // % Feu
     "rep": { icon: Shield, color: "text-info" },    // % Eau
     "rap": { icon: Shield, color: "text-success" }, // % Air
 
     // Résistances Fixes
     "rn": { icon: ShieldCheck, color: "text-muted-foreground" },
     "rt": { icon: ShieldCheck, color: "text-warning" },
-    "rf": { icon: ShieldCheck, color: "text-orange-700" },
+    "rf": { icon: ShieldCheck, color: "text-warning" },
     "re": { icon: ShieldCheck, color: "text-info" },
     "ra": { icon: ShieldCheck, color: "text-success" },
 
@@ -480,7 +480,7 @@ export function ItemSearchPanel() {
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={cn(
                                     "p-2.5 rounded-xl border transition-all flex items-center gap-2 text-caption font-black uppercase tracking-widest",
-                                    showFilters ? "bg-success/20 border-success/40 text-success" : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                                    showFilters ? "bg-success/20 border-success/40 text-success" : "bg-surface border-border text-muted-foreground hover:text-success-foreground"
                                 )}
                             >
                                 <Zap className="w-4 h-4" /> Filters
@@ -687,7 +687,7 @@ export function ItemSearchPanel() {
                                                 rel="noopener noreferrer"
                                                 className={cn(
                                                     "px-6 py-3 rounded-2xl text-caption font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg",
-                                                    source === "dofusbook" ? "bg-success hover:bg-success text-success-foreground" : "bg-violet-600 hover:bg-violet-500 text-foreground"
+                                                    source === "dofusbook" ? "bg-success hover:bg-success text-success-foreground" : "bg-violet-600 hover:bg-violet-500 text-success-foreground"
                                                 )}
                                             >
                                                 Wiki Officiel <ExternalLink className="h-3 w-3" />

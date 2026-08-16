@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useEffect, useRef, useState } from "react";
 import { updateCurrentFloor } from "@/server/actions/songes/dream-run-actions";
@@ -233,7 +234,7 @@ function BossNode({ isCurrent, isCompleted, isLeader, onClick }: {
                 {/* Checkmark */}
                 {isCompleted && (
                     <div className="absolute bottom-6 right-6 z-10" style={{ transform: "translateZ(50px)" }}>
-                        <div className="bg-amber-500 text-foreground rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
+                        <div className="bg-amber-500 text-warning-foreground rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
                             <CheckCircle2 className="w-6 h-6" />
                         </div>
                     </div>
@@ -509,7 +510,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                                     <button
                                         onClick={handleCloseRun}
                                         disabled={updating}
-                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest text-sm hover:bg-amber-500 hover:text-foreground transition-all duration-300   disabled:opacity-50"
+                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest text-sm hover:bg-amber-500 hover:text-warning-foreground transition-all duration-300   disabled:opacity-50"
                                     >
                                         {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                         Clôturer la run

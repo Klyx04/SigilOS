@@ -32,7 +32,7 @@ export function PresenceFacepile({ users }: { users: PresenceUser[] }) {
         return (
             <div className="flex -space-x-3 overflow-hidden py-1 px-1">
                 {users.slice(0, 10).map((user) => (
-                    <div key={user.id} className="relative ring-2 ring-zinc-950 rounded-full">
+                    <div key={user.id} className="relative ring-2 ring-border rounded-full">
                         <Avatar className="h-9 w-9 border border-border grayscale-[0.3]">
                             <AvatarImage src={user.image || ""} alt={user.name} />
                             <AvatarFallback className="bg-elevated text-caption font-black text-foreground">
@@ -64,7 +64,7 @@ export function PresenceFacepile({ users }: { users: PresenceUser[] }) {
                                     damping: 20,
                                     delay: i * 0.05
                                 }}
-                                className="relative ring-2 ring-zinc-950 rounded-full group/avatar"
+                                className="relative ring-2 ring-border rounded-full group/avatar"
                             >
                                 <Avatar className={`h-9 w-9 border transition-all group-hover/avatar:scale-110 active:scale-90 cursor-none ${
                                     isAfk ? 'border-warning/50 grayscale-[0.2]' : 'border-border grayscale-[0.3] group-hover/avatar:grayscale-0'
@@ -76,7 +76,7 @@ export function PresenceFacepile({ users }: { users: PresenceUser[] }) {
                                 </Avatar>
 
                                 {/* Status Indicator Light */}
-                                <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-zinc-950 ${
+                                <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-border ${
                                     isAfk ? 'bg-warning ' : 'bg-success '
                                 }`} />
                             </motion.div>

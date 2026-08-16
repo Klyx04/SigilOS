@@ -35,7 +35,7 @@ function ClothBadge({ cloth }: { cloth: ClothData }) {
             <PopoverTrigger asChild>
                 <button className="px-3 py-2 bg-surface border border-border rounded-xl flex items-center gap-3 group/cloth hover:border-success/30 hover:bg-elevated/50 transition-all cursor-pointer text-left">
                     <span className="text-caption font-bold text-foreground group-hover/cloth:text-success transition-colors uppercase">{cloth.name}</span>
-                    <div className="px-1.5 py-0.5 bg-black/40 rounded text-caption font-black text-muted-foreground">
+                    <div className="px-1.5 py-0.5 bg-muted/40 rounded text-caption font-black text-muted-foreground">
                         {cloth.count}<span className="text-muted-foreground">/{cloth.total}</span>
                     </div>
                 </button>

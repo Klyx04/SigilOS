@@ -339,13 +339,13 @@ export function DungeonDirectory({
                 <ChevronLeft className="w-4 h-4" /> Retour à l'annuaire
               </button>
             </div>
-            <div className="relative rounded-3xl overflow-hidden border border-border bg-gradient-to-b from-zinc-900 to-zinc-950 shadow-2xl">
+            <div className="relative rounded-3xl overflow-hidden border border-border bg-gradient-to-b from-surface to-background shadow-2xl">
               <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row items-start gap-6 lg:gap-8">
                 {/* Left Column: Info, Loot, Spells */}
                 <div className="flex-1 space-y-6 min-w-0">
                   <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
                     {(bossStats?.imageUrl || selectedDungeon.imageUrl) && (
-                      <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl bg-gradient-to-tr from-slate-950 to-slate-900 border border-border flex items-center justify-center p-2 shadow-inner">
+                      <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl bg-gradient-to-tr from-background to-surface border border-border flex items-center justify-center p-2 shadow-inner">
                         <img
                           src={bossStats?.imageUrl || selectedDungeon.imageUrl}
                           alt={bossStats?.name || "Boss"}
@@ -392,7 +392,7 @@ export function DungeonDirectory({
                               href={selectedDungeon.dofuspourlesnoobsUrl || selectedDungeon.dpnlUrl || "#"} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="group/link flex items-center gap-2 px-3 py-2 bg-info/10 hover:bg-info text-info hover:text-foreground border border-info/20 hover:border-info rounded-xl transition-all shadow-lg active:scale-95"
+                              className="group/link flex items-center gap-2 px-3 py-2 bg-info/10 hover:bg-info text-info hover:text-info-foreground border border-info/20 hover:border-info rounded-xl transition-all shadow-lg active:scale-95"
                             >
                               <div className="w-5 h-5 rounded-lg bg-info/20 group-hover/link:bg-elevated flex items-center justify-center transition-colors">
                                 <Globe className="w-3 h-3" />
@@ -406,7 +406,7 @@ export function DungeonDirectory({
                               href={selectedDungeon.dofensiveUrl} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="group/link flex items-center gap-2 px-3 py-2 bg-success/10 hover:bg-success text-success hover:text-foreground border border-success/20 hover:border-success rounded-xl transition-all shadow-lg active:scale-95"
+                              className="group/link flex items-center gap-2 px-3 py-2 bg-success/10 hover:bg-success text-success hover:text-success-foreground border border-success/20 hover:border-success rounded-xl transition-all shadow-lg active:scale-95"
                             >
                               <div className="w-5 h-5 rounded-lg bg-success/20 group-hover/link:bg-elevated flex items-center justify-center transition-colors">
                                 <Sword className="w-3 h-3" />
@@ -517,7 +517,7 @@ export function DungeonDirectory({
                                           </div>
                                         </div>
                                       </div>
-                                      <div className="text-caption text-muted-foreground leading-snug bg-black/20 rounded-lg p-2 border border-border font-medium">
+                                      <div className="text-caption text-muted-foreground leading-snug bg-muted/20 rounded-lg p-2 border border-border font-medium">
                                         {spell.description}
                                       </div>
                                     </>
@@ -548,7 +548,7 @@ export function DungeonDirectory({
                             navigator.clipboard.writeText(cmd);
                             toast.success("Command copiée !", { description: cmd });
                           }}
-                          className="pointer-events-auto w-7 h-7 rounded-lg bg-success/20 hover:bg-success text-success hover:text-foreground border border-success/30 flex items-center justify-center transition-all shadow-lg active:scale-95 group/copy"
+                          className="pointer-events-auto w-7 h-7 rounded-lg bg-success/20 hover:bg-success text-success hover:text-success-foreground border border-success/30 flex items-center justify-center transition-all shadow-lg active:scale-95 group/copy"
                           title="Copier /travel"
                         >
                           <Copy className="w-3.5 h-3.5 group-hover/copy:scale-110 transition-transform" />
@@ -578,7 +578,7 @@ export function DungeonDirectory({
                             onClick={() => setSelectedGrade(i)}
                             className={`w-3.5 h-3.5 rounded text-caption font-black flex items-center justify-center transition-all border ${
                               selectedGrade === i
-                                ? "bg-info border-info text-foreground"
+                                ? "bg-info border-info text-info-foreground"
                                 : "bg-surface border-border text-muted-foreground hover:text-foreground"
                             }`}
                           >
@@ -600,7 +600,7 @@ export function DungeonDirectory({
                       <div className="bg-black/30 p-2 rounded-lg border border-border col-span-2">
                         <div className="flex justify-between items-center gap-1">
                           <StatResist label="N" value={bossStats?.grades[selectedGrade]?.resists.neutral} color="bg-muted/20" border="border-border/20" text="text-muted-foreground" />
-                          <StatResist label="T" value={bossStats?.grades[selectedGrade]?.resists.earth} color="bg-orange-500/20" border="border-orange-500/20" text="text-orange-400" />
+                          <StatResist label="T" value={bossStats?.grades[selectedGrade]?.resists.earth} color="bg-warning/20" border="border-warning/20" text="text-warning" />
                           <StatResist label="F" value={bossStats?.grades[selectedGrade]?.resists.fire} color="bg-danger/20" border="border-danger/20" text="text-danger" />
                           <StatResist label="E" value={bossStats?.grades[selectedGrade]?.resists.water} color="bg-info/20" border="border-info/20" text="text-info" />
                           <StatResist label="A" value={bossStats?.grades[selectedGrade]?.resists.air} color="bg-success/20" border="border-success/20" text="text-success" />
@@ -743,7 +743,7 @@ export function DungeonDirectory({
                                   ? "bg-gradient-to-r from-success to-teal-500 "
                                   : completionRate > 0
                                   ? "bg-gradient-to-r from-info to-violet-500 "
-                                  : "bg-slate-850"
+                                  : "bg-elevated"
                               }`}
                               style={{ width: `${completionRate}%` }}
                             />
@@ -757,7 +757,7 @@ export function DungeonDirectory({
                               {achv.missing.slice(0, 4).map((m, i) => (
                                 <div
                                   key={i}
-                                  className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-850 overflow-hidden relative shadow-md"
+                                  className="w-7 h-7 rounded-full border-2 border-border bg-elevated overflow-hidden relative shadow-md"
                                   title={`${m.name} cherche encore`}
                                 >
                                   {m.imageUrl ? (
@@ -772,7 +772,7 @@ export function DungeonDirectory({
                                 </div>
                               ))}
                               {achv.missing.length > 4 && (
-                                <div className="w-7 h-7 rounded-full border-2 border-slate-900 bg-elevated flex items-center justify-center text-caption font-bold text-muted-foreground z-10 shadow-md">
+                                <div className="w-7 h-7 rounded-full border-2 border-border bg-elevated flex items-center justify-center text-caption font-bold text-muted-foreground z-10 shadow-md">
                                   +{achv.missing.length - 4}
                                 </div>
                               )}

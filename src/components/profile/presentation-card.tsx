@@ -189,7 +189,7 @@ export function PresentationCard({
                             value={objectifsText}
                             onChange={(e) => setObjectifsText(e.target.value)}
                             placeholder="Ex : Monter un groupe Songes 400, rush le Dofus Sylvestre, optimiser mon stuff..."
-                            className="bg-black/40 border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-xl focus-visible:ring-success/30"
+                            className="bg-muted/40 border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-xl focus-visible:ring-success/30"
                         />
                     </div>
 
@@ -203,7 +203,7 @@ export function PresentationCard({
                             value={contactText}
                             onChange={(e) => setContactText(e.target.value)}
                             placeholder="Ex : Dispo en MP le soir à partir de 20h / @MonPseudoDiscord"
-                            className="bg-black/40 border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-xl focus-visible:ring-success/30"
+                            className="bg-muted/40 border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-xl focus-visible:ring-success/30"
                         />
                     </div>
 

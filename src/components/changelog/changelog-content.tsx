@@ -42,7 +42,7 @@ export function ChangelogContent({ content, className }: ChangelogContentProps) 
                 "prose-a:text-teal-400 prose-a:font-semibold hover:prose-a:underline",
                 // Code
                 "prose-code:text-success prose-code:bg-success/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs",
-                "prose-pre:bg-[#050505] prose-pre:border prose-pre:border-border prose-pre:rounded-xl prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:text-xs",
+                "prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-xl prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:text-xs",
                 // Citations / séparateurs
                 "prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-blockquote:italic",
                 "prose-hr:border-border prose-hr:my-4",

@@ -20,10 +20,10 @@ const typeConfig = {
     },
     maintenance: {
         icon: Wrench,
-        bg: "bg-orange-500/10",
-        border: "border-orange-500/20",
-        text: "text-orange-200",
-        iconColor: "text-orange-400",
+        bg: "bg-warning/10",
+        border: "border-warning/20",
+        text: "text-warning",
+        iconColor: "text-warning",
         glow: "",
     },
 };

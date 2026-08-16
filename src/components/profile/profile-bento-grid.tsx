@@ -410,7 +410,7 @@ export function ProfileBentoGrid({
             )}
 
             {/* Hero Header (Glass) */}
-            <div data-tour="profile-header" className="rounded-3xl overflow-hidden border border-border shadow-2xl bg-black/40 backdrop-blur-md">
+            <div data-tour="profile-header" className="rounded-3xl overflow-hidden border border-border shadow-2xl bg-muted/40 backdrop-blur-md">
                 <HeroHeader
                     avatarUrl={user.image}
                     displayName={displayName}
@@ -449,11 +449,11 @@ export function ProfileBentoGrid({
                                 { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 " },
                                 { id: "mules", label: "Mules", icon: Users, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
                                 { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " },
+                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
                                 { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 " },
                                 { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
                                 ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " }] : []),
-                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " }] : []),
+                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " }] : []),
                                 ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground" }] : []),
                             ].filter(t => !isEmpty[t.id]);
 
@@ -468,7 +468,7 @@ export function ProfileBentoGrid({
                                             "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer shrink-0",
                                             isActive
                                                 ? cn("scale-[1.02]", tab.bgActive)
-                                                : "bg-black/40 border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
+                                                : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
                                         )}
                                     >
                                         <tab.icon className={cn("w-3.5 h-3.5", isActive ? tab.activeColor : "text-muted-foreground")} />

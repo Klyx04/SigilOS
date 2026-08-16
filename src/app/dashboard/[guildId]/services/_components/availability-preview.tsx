@@ -15,7 +15,7 @@ const JOUR_COURTS: Record<string, string> = {
 
 type SlotColors = { pill: string };
 const SLOT_STYLE: Record<string, SlotColors & { emoji: string; label: string }> = {
-    matin: { pill: "bg-orange-500/20 text-orange-300 border-orange-500/30", emoji: "🌅", label: "Matin" },
+    matin: { pill: "bg-warning/20 text-warning border-warning/30", emoji: "🌅", label: "Matin" },
     midi: { pill: "bg-warning/20 text-warning border-warning/30", emoji: "☀️", label: "Aprèm" },
     soir: { pill: "bg-violet-500/20 text-violet-300 border-violet-500/30", emoji: "🌙", label: "Soir" },
     nuit: { pill: "bg-info/20 text-info border-info/30", emoji: "🌃", label: "Nuit" },

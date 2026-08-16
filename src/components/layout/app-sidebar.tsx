@@ -871,7 +871,7 @@ function NavItem({
         indigo: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
         rose: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
         cyan: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
-        zinc: { text: "text-foreground", bg: "bg-surface", border: "border-border", glow: "", muted: "text-muted-foreground", accent: "bg-zinc-400" },
+        zinc: { text: "text-foreground", bg: "bg-surface", border: "border-border", glow: "", muted: "text-muted-foreground", accent: "bg-muted" },
     };
 
     const scheme = colorMap[item.color || "emerald"];

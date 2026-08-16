@@ -83,9 +83,9 @@ export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
 
                 {/* Archived Members */}
                 <div className="p-6 rounded-2xl bg-surface/40 border border-border backdrop-blur-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-zinc-400/5 blur-[40px] -translate-y-1/2 translate-x-1/2" />
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-muted/5 blur-[40px] -translate-y-1/2 translate-x-1/2" />
                     <div className="flex items-center justify-between mb-4">
-                        <div className="p-2.5 rounded-xl bg-zinc-400/10 text-muted-foreground">
+                        <div className="p-2.5 rounded-xl bg-muted/10 text-muted-foreground">
                             <Ghost className="w-5 h-5" />
                         </div>
                     </div>

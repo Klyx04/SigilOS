@@ -157,7 +157,7 @@ export default function DataExportImport() {
                         </Button>
                     </label>
 
-                    <div className="text-xs text-orange-400/80 space-y-1">
+                    <div className="text-xs text-warning/80 space-y-1">
                         <p>⚠️ Les données existantes seront mises à jour (upsert)</p>
                         <p>⚠️ Pas de suppression, seulement ajout/modification</p>
                     </div>

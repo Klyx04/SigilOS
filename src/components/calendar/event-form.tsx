@@ -137,7 +137,7 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         label: "Missions Guilde",
         shortLabel: "Missions Guilde",
         icon: Target,
-        gradient: "from-warning to-orange-600",
+        gradient: "from-warning to-warning",
         bg: "bg-warning/10",
         border: "border-warning/30",
         text: "text-warning",
@@ -157,7 +157,7 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         label: "Autres activités",
         shortLabel: "Autres",
         icon: Diamond,
-        gradient: "from-slate-600 to-zinc-600",
+        gradient: "from-muted to-muted",
         bg: "bg-muted/10",
         border: "border-border/30",
         text: "text-muted-foreground",
@@ -650,7 +650,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                     />
                                                     {/* Color Overlay for contrast */}
                                                     <div className={cn(
-                                                        "absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-950/60 to-transparent transition-opacity",
+                                                        "absolute inset-0 bg-gradient-to-br from-background via-background/60 to-transparent transition-opacity",
                                                         raidType === rt.id ? "opacity-40" : "opacity-80"
                                                     )} />
                                                     
@@ -682,7 +682,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             {/* Captain */}
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                    <Crown className="h-3.5 w-3.5 text-yellow-500" />
+                                    <Crown className="h-3.5 w-3.5 text-warning" />
                                     Capitaine du Raid
                                 </label>
                                 <input
@@ -1017,7 +1017,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         "w-full h-12 font-bold text-base transition-all mt-4",
                         isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
                             ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed shadow-inner"
-                            : "bg-gradient-to-r from-warning to-orange-500 hover:from-warning hover:to-orange-400 shadow-lg shadow-amber-500/20 text-foreground"
+                            : "bg-gradient-to-r from-warning to-warning hover:from-warning hover:to-warning shadow-lg shadow-amber-500/20 text-foreground"
                     )}
                 >
                     {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
@@ -1236,7 +1236,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             "w-full h-12 font-bold text-base transition-all",
                             isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
                                 ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed shadow-inner"
-                                : "bg-gradient-to-r from-warning to-orange-500 hover:from-warning hover:to-orange-400 shadow-lg shadow-amber-500/20 text-foreground"
+                                : "bg-gradient-to-r from-warning to-warning hover:from-warning hover:to-warning shadow-lg shadow-amber-500/20 text-foreground"
                         )}
                     >
                         {submitting ? (

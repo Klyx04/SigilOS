@@ -904,7 +904,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="rounded-xl border-success/20 bg-success/5 text-success hover:bg-success hover:text-foreground hover:border-success h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
+                                    className="rounded-xl border-success/20 bg-success/5 text-success hover:bg-success hover:text-success-foreground hover:border-success h-12 text-xs font-black uppercase tracking-widest transition-all gap-2"
                                     onClick={() => handleCopyLink(selectedSkin.url)}
                                 >
                                     <Copy className="w-4 h-4" />

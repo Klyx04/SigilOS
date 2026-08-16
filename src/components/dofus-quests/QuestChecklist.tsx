@@ -116,7 +116,7 @@ function QuestEntryRow({
     return (
         <div
             className={`group flex flex-col rounded-2xl transition-all duration-300 border ${
-                isCompleted ? "bg-[#10b98108] border-[#10b98125]" : "bg-[#ffffff03] border-border hover:border-border"
+                isCompleted ? "bg-success/10 border-success/25" : "bg-muted/50 border-border hover:border-border"
             } ${entry.isOptional ? "opacity-60" : ""} ${isPending ? "opacity-50 pointer-events-none" : ""}`}
         >
             {/* ── Header row ── */}

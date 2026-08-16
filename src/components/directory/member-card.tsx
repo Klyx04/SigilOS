@@ -135,12 +135,12 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 gap-1.5 hover:bg-orange-500/20 transition-colors cursor-help">
+                                        <Badge variant="outline" className="bg-warning/10 border-warning/30 text-warning gap-1.5 hover:bg-warning/20 transition-colors cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
                                             <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">Bientôt</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="glass-premium border-orange-500/30 text-orange-600 dark:text-orange-300">
+                                    <TooltipContent side="bottom" className="glass-premium border-warning/30 text-warning dark:text-warning">
                                         <p className="font-bold">⏳ {vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -168,7 +168,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div className={cn(
-                                        "absolute bottom-1 right-1 w-5 h-5 rounded-full border-[3px] border-zinc-950 transition-all duration-300",
+                                        "absolute bottom-1 right-1 w-5 h-5 rounded-full border-[3px] border-border transition-all duration-300",
                                         isOnline ? "bg-success " : "bg-muted"
                                     )} />
                                 </TooltipTrigger>

@@ -111,7 +111,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                                 {formatQty(item.totalDeposited)} déposés
                                             </span>
                                             <span className="flex items-center gap-1">
-                                                <TrendingUp className="h-3 w-3 text-orange-400" />
+                                                <TrendingUp className="h-3 w-3 text-warning" />
                                                 {formatQty(item.totalWithdrawn)} retirés
                                             </span>
                                         </div>
@@ -139,7 +139,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                         ? "border-border/60 bg-muted/20 text-foreground"
                                         : f === "DEPOSIT"
                                             ? "border-success/50 bg-success/20 text-success"
-                                            : "border-orange-500/50 bg-orange-500/20 text-orange-400"
+                                            : "border-warning/50 bg-warning/20 text-warning"
                                     : "border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-surface"
                                     }`}
                             >
@@ -182,7 +182,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                     {/* Indicateur action */}
                                     <div className={`shrink-0 p-2.5 rounded-xl border shadow-inner ${isDeposit
                                         ? "border-success/30 bg-success/20 text-success"
-                                        : "border-orange-500/30 bg-orange-500/20 text-orange-400"
+                                        : "border-warning/30 bg-warning/20 text-warning"
                                         }`}>
                                         {isDeposit
                                             ? <ArrowDownCircle className="h-5 w-5 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
@@ -217,7 +217,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                                 variant="outline"
                                                 className={`text-caption px-1.5 py-0 border font-black ${isDeposit
                                                     ? "border-success/30 text-success bg-success/5"
-                                                    : "border-orange-500/30 text-orange-400 bg-orange-500/5"
+                                                    : "border-warning/30 text-warning bg-warning/5"
                                                     }`}
                                             >
                                                 {isDeposit ? "Dépôt" : "Retrait"}
@@ -257,7 +257,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                         >
                                             <img src={entry.proofUrl} alt="Preuve" className="absolute inset-0 w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-end justify-center pb-1">
-                                                <span className="text-caption text-foreground/0 hover:text-foreground/80 font-bold bg-black/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-caption text-foreground/0 hover:text-foreground/80 font-bold bg-muted/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                                                     ↗ Ouvrir
                                                 </span>
                                             </div>

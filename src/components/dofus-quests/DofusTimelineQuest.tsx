@@ -46,7 +46,7 @@ function ScrollToTopButton() {
     <AnimatePresence>
       {v && <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="fixed bottom-8 right-8 z-50 w-12 h-12 rounded-2xl bg-success/90 backdrop-blur-xl border border-success/30 flex items-center justify-center text-foreground hover:bg-success transition-all "><ArrowUp className="w-5 h-5" /></motion.button>}
+        className="fixed bottom-8 right-8 z-50 w-12 h-12 rounded-2xl bg-success/90 backdrop-blur-xl border border-success/30 flex items-center justify-center text-success-foreground hover:bg-success transition-all "><ArrowUp className="w-5 h-5" /></motion.button>}
     </AnimatePresence>
   );
 }
@@ -96,14 +96,14 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
         <div className="flex items-center gap-3">
           <button onClick={() => onToggle(isCompleted ? "NOT_STARTED" : "COMPLETED")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-              isCompleted ? "bg-success/10 border-success/30 text-success" : "bg-surface border-border text-muted-foreground hover:border-border hover:text-foreground"
+              isCompleted ? "bg-success/10 border-success/30 text-success" : "bg-surface border-border text-muted-foreground hover:border-border hover:text-success-foreground"
             }`}>
             {isCompleted ? <><CheckCircle2 className="w-4 h-4" /> Complétée <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onToggle("NOT_STARTED"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle("NOT_STARTED"); } }} className="ml-2 px-2 py-0.5 rounded bg-elevated text-muted-foreground hover:text-danger text-caption cursor-pointer" title="Réinitialiser">↺</span></> : <><Circle className="w-4 h-4" /> Valider</>}
           </button>
           {members.length > 0 && (
             <div className="flex flex-wrap gap-1 ml-auto justify-end">
               {members.map((m: any) => (
-                <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-muted shrink-0" title={`${m.pseudo}${m.status === "COMPLETED" ? " — quête complétée" : " — je suis ici"}`}>
+                <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0" title={`${m.pseudo}${m.status === "COMPLETED" ? " — quête complétée" : " — je suis ici"}`}>
                   {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-muted-foreground flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
               ))}
@@ -274,7 +274,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
               >
                 <div className="flex -space-x-1.5">
                   {renduMembers.slice(0, 4).map((m: any) => (
-                    <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-muted shrink-0">
+                    <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0">
                       {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-muted-foreground flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                     </div>
                   ))}
@@ -557,7 +557,7 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
                 <div
                   key={m.profileId}
                   title={m.questId ? `${m.userName} — ${questNameById.get(m.questId) || "parcourt la page"}` : m.userName}
-                  className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-muted shrink-0"
+                  className="w-6 h-6 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0"
                 >
                   {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-muted-foreground flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
@@ -572,7 +572,7 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Rechercher une quête..."
-              className="w-full h-9 bg-black/40 border border-border rounded-xl text-xs pl-9 pr-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-success/50" />
+              className="w-full h-9 bg-muted/40 border border-border rounded-xl text-xs pl-9 pr-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-success/50" />
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl shrink-0 border border-success/20" style={{ background: `${dofusColor}10` }}>

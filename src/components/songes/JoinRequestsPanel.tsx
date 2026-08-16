@@ -1,4 +1,5 @@
 "use client";
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -133,7 +134,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className="h-8 w-8 bg-danger/30 hover:bg-danger text-danger hover:text-foreground"
+                                            className="h-8 w-8 bg-danger/30 hover:bg-danger text-danger hover:text-danger-foreground"
                                             onClick={() => handleRespond(request.id, false)}
                                             disabled={actionLoading === request.id || isPending}
                                         >

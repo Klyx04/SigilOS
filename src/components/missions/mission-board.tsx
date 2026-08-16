@@ -99,7 +99,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
         ANOMALIE: { bg: "bg-fuchsia-500/10", border: "border-fuchsia-500/20", text: "text-fuchsia-400", icon: "text-fuchsia-400", shadow: "shadow-fuchsia-500/10" },
         SONGES: { bg: "bg-info/10", border: "border-info/20", text: "text-info", icon: "text-info", shadow: "shadow-cyan-500/10" },
         EXPEDITION: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: "text-warning", shadow: "shadow-amber-500/10" },
-        EVENT: { bg: "bg-yellow-500/10", border: "border-yellow-500/20", text: "text-yellow-400", icon: "text-yellow-400", shadow: "shadow-yellow-500/10" },
+        EVENT: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: "text-warning", shadow: "shadow-yellow-500/10" },
     };
 
     return (
@@ -128,7 +128,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                             isActive
                                                 ? pool === 'CLASSIQUES'
                                                     ? "bg-info text-info-foreground shadow-lg"
-                                                    : "bg-yellow-500 text-foreground shadow-lg"
+                                                    : "bg-warning text-warning-foreground shadow-lg"
                                                 : "text-muted-foreground hover:text-foreground"
                                         )}
                                     >

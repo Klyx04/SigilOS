@@ -97,7 +97,7 @@ export function DreamRunHistory({ guildId, userId }: { guildId: string, userId?:
                                         return (
                                             <div
                                                 key={member.id}
-                                                className="relative inline-block h-8 w-8 rounded-full ring-2 ring-zinc-900 bg-elevated flex items-center justify-center overflow-hidden hover:z-10 transition-all border border-border"
+                                                className="relative inline-block h-8 w-8 rounded-full ring-2 ring-border bg-elevated flex items-center justify-center overflow-hidden hover:z-10 transition-all border border-border"
                                                 title={`${pseudo} (${classe || "Inconnue"})`}
                                             >
                                                 {member.user?.image ? (

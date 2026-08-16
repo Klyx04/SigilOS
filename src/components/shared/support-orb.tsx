@@ -19,7 +19,7 @@ export function SupportOrb() {
                 rel="noopener noreferrer"
                 className={cn(
                     "group flex items-center gap-3 px-3.5 py-2 rounded-xl",
-                    "bg-[#0a0d14]/95 backdrop-blur-xl border border-border hover:border-success/40 shadow-xl shadow-black/50",
+                    "bg-background/95 backdrop-blur-xl border border-border hover:border-success/40 shadow-xl shadow-black/50",
                     "transition-all duration-200 ease-out cursor-pointer hover:bg-surface/90 active:scale-[0.98]"
                 )}
             >

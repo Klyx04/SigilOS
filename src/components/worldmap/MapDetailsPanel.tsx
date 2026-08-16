@@ -1,4 +1,5 @@
 'use client';
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -163,7 +164,7 @@ export default function MapDetailsPanel({
                                                 className={cn(
                                                     "h-8 px-4 rounded-xl flex items-center justify-center transition-all border text-caption font-black uppercase italic cursor-pointer whitespace-nowrap",
                                                     isActive 
-                                                        ? 'bg-success border-success text-foreground shadow-lg' 
+                                                        ? 'bg-success border-success text-success-foreground shadow-lg' 
                                                         : 'bg-transparent text-foreground/40 border-transparent hover:bg-surface hover:text-foreground'
                                                 )}
                                             >
@@ -211,7 +212,7 @@ export default function MapDetailsPanel({
                                             className={cn(
                                                 "h-7 px-3 rounded-lg flex items-center justify-center transition-all border text-caption font-black uppercase italic cursor-pointer whitespace-nowrap",
                                                 isActive 
-                                                    ? 'bg-success border-success text-foreground shadow-lg' 
+                                                    ? 'bg-success border-success text-success-foreground shadow-lg' 
                                                     : 'bg-transparent text-foreground/40 border-transparent hover:bg-surface hover:text-foreground'
                                             )}
                                         >

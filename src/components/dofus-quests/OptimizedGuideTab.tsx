@@ -151,13 +151,13 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                                                     {membersHere.length > 0 && (
                                                         <div className="flex -space-x-2 ml-2">
                                                             {membersHere.slice(0, 3).map((mp, i) => (
-                                                                <Avatar key={mp.profile.id} className="w-5 h-5 border border-zinc-900 shadow-md">
+                                                                <Avatar key={mp.profile.id} className="w-5 h-5 border border-border shadow-md">
                                                                     <AvatarImage src={mp.profile.user?.image} />
                                                                     <AvatarFallback>{mp.profile.user?.name?.[0]}</AvatarFallback>
                                                                 </Avatar>
                                                             ))}
                                                             {membersHere.length > 3 && (
-                                                                <div className="w-5 h-5 rounded-full bg-elevated text-caption font-bold flex items-center justify-center border border-zinc-900 text-foreground">+{membersHere.length - 3}</div>
+                                                                <div className="w-5 h-5 rounded-full bg-elevated text-caption font-bold flex items-center justify-center border border-border text-foreground">+{membersHere.length - 3}</div>
                                                             )}
                                                         </div>
                                                     )}
@@ -179,7 +179,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="bg-gradient-to-br from-zinc-900 to-black border border-border rounded-[2rem] p-8 shadow-2xl relative overflow-hidden min-h-[500px]"
+                                className="bg-gradient-to-br from-surface to-black border border-border rounded-[2rem] p-8 shadow-2xl relative overflow-hidden min-h-[500px]"
                             >
                                 <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                                     <Sparkles className="w-64 h-64 text-success" />

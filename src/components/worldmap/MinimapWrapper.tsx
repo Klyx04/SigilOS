@@ -119,7 +119,7 @@ export default function MinimapWrapper({
                         {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                     </button>
 
-                    <button onClick={() => setIsHidden(true)} className="p-2 bg-surface/80 backdrop-blur-md border border-danger/30 rounded-xl text-danger hover:bg-danger hover:text-foreground transition-all flex items-center justify-center">
+                    <button onClick={() => setIsHidden(true)} className="p-2 bg-surface/80 backdrop-blur-md border border-danger/30 rounded-xl text-danger hover:bg-danger hover:text-danger-foreground transition-all flex items-center justify-center">
                         <EyeOff size={16} />
                     </button>
                 </div>
@@ -135,7 +135,7 @@ export default function MinimapWrapper({
                 <button
                     disabled={!canValidate}
                     onClick={onValidate}
-                    className={`w-full h-full font-black uppercase italic text-xs tracking-[0.2em] transition-all active:scale-95 ${canValidate ? 'bg-success hover:bg-success text-success-foreground shadow-lg shadow-emerald-500/20' : 'bg-surface text-foreground/10 cursor-not-allowed'}`}
+                    className={`w-full h-full font-black uppercase italic text-xs tracking-[0.2em] transition-all active:scale-95 ${canValidate ? 'bg-success hover:bg-success text-success-foreground shadow-lg shadow-emerald-500/20' : 'bg-surface text-success-foreground/10 cursor-not-allowed'}`}
                 >
                     {validateLabel}
                 </button>

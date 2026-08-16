@@ -213,7 +213,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                     style={{ backgroundColor: cat.glowColor }}
                 />
 
-                <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-[#030303]/60 backdrop-blur-md shadow-2xl">
+                <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-background/60 backdrop-blur-md shadow-2xl">
                     <div className="p-8 md:p-12 space-y-10">
                         {/* Status + Category Row */}
                         <div className="flex items-center justify-between flex-wrap gap-4">

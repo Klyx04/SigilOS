@@ -16,7 +16,7 @@ const categoryConfig: Record<ChangelogCategory, { label: string; color: string }
     BUGFIX: { label: 'Correction', color: 'bg-green-500/20 text-green-400 border-green-500/50' },
     SECURITY: { label: 'Sécurité', color: 'bg-danger/20 text-danger border-danger/50' },
     PERFORMANCE: { label: 'Performance', color: 'bg-info/20 text-info border-info/50' },
-    DOCUMENTATION: { label: 'Docs', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
+    DOCUMENTATION: { label: 'Docs', color: 'bg-warning/20 text-warning border-warning/50' },
 };
 
 export function ChangelogWidget() {

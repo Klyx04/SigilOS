@@ -182,7 +182,7 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                                             key={entry.profileId}
                                             className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${entry.isCurrentUser ? "bg-warning/5 border border-warning/20" : "hover:bg-surface border border-transparent"}`}
                                         >
-                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${entry.rank === 1 ? "bg-warning text-warning-foreground" : entry.rank === 2 ? "bg-zinc-400 text-foreground" : entry.rank === 3 ? "bg-warning text-foreground" : "bg-elevated text-muted-foreground"}`}>
+                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${entry.rank === 1 ? "bg-warning text-warning-foreground" : entry.rank === 2 ? "bg-muted text-warning-foreground" : entry.rank === 3 ? "bg-warning text-warning-foreground" : "bg-elevated text-muted-foreground"}`}>
                                                 {entry.rank <= 3 ? ["🥇", "🥈", "🥉"][entry.rank - 1] : entry.rank}
                                             </div>
                                             <div className="w-8 h-8 rounded-full bg-elevated border border-border overflow-hidden shrink-0 flex items-center justify-center">

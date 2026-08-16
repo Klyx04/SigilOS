@@ -100,7 +100,7 @@ export function QuestActionsBlock({
                     href={entry.dofusdbUrl || `https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-info/20 bg-[#0d0e15]/60 p-4 hover:border-info/40 hover:bg-[#10121d]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
+                    className="relative group overflow-hidden rounded-2xl border border-info/20 bg-surface/60 p-4 hover:border-info/40 hover:bg-elevated/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
@@ -141,7 +141,7 @@ export function QuestActionsBlock({
                     })()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-warning/20 bg-[#0d0e15]/60 p-4 hover:border-warning/40 hover:bg-[#15120e]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
+                    className="relative group overflow-hidden rounded-2xl border border-warning/20 bg-surface/60 p-4 hover:border-warning/40 hover:bg-elevated/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
@@ -170,7 +170,7 @@ export function QuestActionsBlock({
                 <button
                     onClick={copyTravelCoords}
                     disabled={!autopilotPos}
-                    className="relative group overflow-hidden rounded-2xl border border-success/20 bg-[#0d0e15]/60 p-4 hover:border-success/40 hover:bg-[#0e1512]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
+                    className="relative group overflow-hidden rounded-2xl border border-success/20 bg-surface/60 p-4 hover:border-success/40 hover:bg-elevated/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
                 >
                     <div className="flex justify-between items-start">
                         <Navigation className="w-5 h-5 text-success/80 group-hover:rotate-12 transition-transform shrink-0" />
@@ -200,7 +200,7 @@ export function QuestActionsBlock({
                 {/* 4. Guild Radar Card (La Tour de Contrôle avec vrai modal au clic) */}
                 <button
                     onClick={openGuildModal}
-                    className="relative group overflow-hidden rounded-2xl border border-danger/20 bg-[#0d0e15]/60 p-4 hover:border-danger/40 hover:bg-[#150d10]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"
+                    className="relative group overflow-hidden rounded-2xl border border-danger/20 bg-surface/60 p-4 hover:border-danger/40 hover:bg-elevated/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"
                 >
                     <div className="flex justify-between items-start">
                         <Users className="w-5 h-5 text-danger/80 group- transition-transform shrink-0" />
@@ -226,7 +226,7 @@ export function QuestActionsBlock({
                                     {members.slice(0, 3).map((m) => (
                                         <div
                                             key={m.profileId}
-                                            className="w-5 h-5 rounded-full overflow-hidden border border-zinc-950 bg-elevated flex-shrink-0"
+                                            className="w-5 h-5 rounded-full overflow-hidden border border-border bg-elevated flex-shrink-0"
                                         >
                                             {m.image ? (
                                                 <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" />
@@ -280,7 +280,7 @@ export function QuestActionsBlock({
 
             {/* Beautiful Interactive Guild Progress Dialog Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-md bg-[#090a0f] border border-border rounded-[2rem] p-6 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                <DialogContent className="max-w-md bg-popover border border-border rounded-[2rem] p-6 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                     <DialogHeader className="border-b border-border pb-4 mb-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center text-danger shrink-0">
@@ -342,11 +342,11 @@ export function QuestActionsBlock({
                                                     <div className="flex items-center gap-1.5">
                                                         <span 
                                                             className="w-1.5 h-1.5 rounded-full" 
-                                                            style={{ backgroundColor: isDone ? "#10b981" : "#f59e0b" }} 
+                                                            style={{ backgroundColor: isDone ? "var(--success)" : "var(--warning)" }} 
                                                         />
                                                         <span 
                                                             className="text-caption font-black uppercase tracking-widest"
-                                                            style={{ color: isDone ? "#10b981" : "#f59e0b" }}
+                                                            style={{ color: isDone ? "var(--success)" : "var(--warning)" }}
                                                         >
                                                             {isDone ? "Terminée" : "En cours"}
                                                         </span>

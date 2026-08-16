@@ -69,7 +69,7 @@ export function WelcomeModal({ guildId, show }: WelcomeModalProps) {
                                 <div className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-success flex items-center justify-center shadow-lg">
                                     <Rocket className="w-7 h-7 sm:w-10 sm:h-10 text-foreground" />
                                 </div>
-                                <div className="absolute -top-2 -right-2 p-1.5 rounded-full bg-success shadow-xl border-2 border-zinc-950">
+                                <div className="absolute -top-2 -right-2 p-1.5 rounded-full bg-success shadow-xl border-2 border-border">
                                     <Sparkles className="w-3 h-3 text-foreground" />
                                 </div>
                             </div>

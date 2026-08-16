@@ -136,8 +136,8 @@ function MemberRow({
 
     const rankStyle =
         rank === 1 ? "bg-warning/20 text-warning border border-warning/30 shadow-amber-500/20 shadow-sm" :
-        rank === 2 ? "bg-zinc-400/10 text-muted-foreground border border-border/30" :
-        rank === 3 ? "bg-orange-700/15 text-orange-500 border border-orange-700/25" :
+        rank === 2 ? "bg-muted/10 text-muted-foreground border border-border/30" :
+        rank === 3 ? "bg-warning/15 text-warning border border-warning/25" :
         "bg-elevated/60 text-muted-foreground border border-border/40";
 
     return (
@@ -189,7 +189,7 @@ function MemberRow({
                     )}
                     {/* Status dot */}
                     <div className={cn(
-                        "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-zinc-900",
+                        "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-border",
                         statusCfg.dot
                     )} />
                 </div>
@@ -223,7 +223,7 @@ function MemberRow({
                                         "h-full rounded-full transition-all duration-300",
                                         isEligible
                                             ? "bg-gradient-to-r from-violet-600 via-fuchsia-500 to-danger"
-                                            : "bg-gradient-to-r from-zinc-700 to-zinc-500"
+                                            : "bg-gradient-to-r from-muted to-muted"
                                     )}
                                     style={{ width: `${Math.min(100, (purpleBalance / requiredPurpleKamas) * 100)}%` }}
                                 />
@@ -309,7 +309,7 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
         <div className="space-y-6">
 
                 {/* ── Raid eligibility highlight banner ── */}
-                <div className="relative overflow-hidden rounded-2xl border border-violet-500/15 bg-gradient-to-r from-violet-950/30 via-zinc-950/60 to-zinc-950/30 p-5 shadow-lg shadow-violet-950/20">
+                <div className="relative overflow-hidden rounded-2xl border border-violet-500/15 bg-gradient-to-r from-violet-950/30 via-background/60 to-background/30 p-5 shadow-lg shadow-violet-950/20">
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.06),transparent_60%)] pointer-events-none" />
                     <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex items-center gap-3.5 flex-1 min-w-0">

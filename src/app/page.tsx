@@ -82,7 +82,7 @@ export default async function Home({
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-emerald-500/30 font-sans flex flex-col overflow-x-hidden">
+      <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-success/30 font-sans flex flex-col overflow-x-hidden">
 
         <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />
 

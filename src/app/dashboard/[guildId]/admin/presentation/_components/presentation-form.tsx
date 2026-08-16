@@ -786,8 +786,8 @@ export function PresentationForm({ guildId }: Props) {
                         {/* Co-Leaders Section */}
                         <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-4">
                             <div className="flex items-center justify-between">
-                                <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-yellow-400" onSave={handleSaveSection} isPending={isPending} />
-                                <span className="bg-yellow-500/10 text-yellow-400 text-xs px-2 py-1 rounded-full font-mono">
+                                <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
+                                <span className="bg-warning/10 text-warning text-xs px-2 py-1 rounded-full font-mono">
                                     {coLeaders.filter(c => c.trim()).length}/3
                                 </span>
                             </div>

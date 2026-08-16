@@ -139,7 +139,7 @@ export function MetamobUnlocker({ guildId }: { guildId: string }) {
                                                 setTargetPseudo(s);
                                                 setShowSuggestions(false);
                                             }}
-                                            className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-warning/10 hover:text-foreground flex items-center justify-between group/item transition-colors"
+                                            className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-warning/10 hover:text-warning-foreground flex items-center justify-between group/item transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-6 h-6 rounded-lg bg-elevated flex items-center justify-center text-muted-foreground group-hover/item:text-warning">
@@ -160,7 +160,7 @@ export function MetamobUnlocker({ guildId }: { guildId: string }) {
                             <Button
                                 variant="destructive"
                                 disabled={!targetPseudo.trim() || isLoading}
-                                className="h-12 px-6 bg-danger/10 hover:bg-danger text-danger-foreground0 hover:text-foreground border border-danger/20 transition-all font-black uppercase tracking-widest text-caption"
+                                className="h-12 px-6 bg-danger/10 hover:bg-danger text-danger-foreground0 hover:text-danger-foreground border border-danger/20 transition-all font-black uppercase tracking-widest text-caption"
                             >
                                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4 mr-2" />}
                                 Libérer le compte

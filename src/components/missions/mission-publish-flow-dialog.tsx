@@ -179,7 +179,7 @@ export function MissionPublishFlowDialog({
                                     <span className="text-muted-foreground font-bold">Pool de missions</span>
                                     <span className={cn(
                                         "font-black uppercase tracking-widest px-2 py-1 rounded text-caption",
-                                        missionPool === 'CLASSIQUES' ? "bg-info/20 text-info" : "bg-yellow-500/20 text-yellow-500"
+                                        missionPool === 'CLASSIQUES' ? "bg-info/20 text-info" : "bg-warning/20 text-warning"
                                     )}>
                                         {missionPool}
                                     </span>

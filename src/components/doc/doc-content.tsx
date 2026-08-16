@@ -154,7 +154,7 @@ export function DocContent({ content, className }: DocContentProps) {
 
                 // Code Blocks
                 "prose-code:text-success prose-code:bg-success/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
-                "prose-pre:bg-[#050505] prose-pre:border prose-pre:border-border prose-pre:rounded-2xl prose-pre:p-6 prose-pre:shadow-2xl",
+                "prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-2xl prose-pre:p-6 prose-pre:shadow-2xl",
 
                 // Callouts / Alerts - Elite Standard (GitHub Flavor)
                 "[&_.callout]:my-10 [&_.callout]:p-6 [&_.callout]:rounded-2xl [&_.callout]:border-l-[6px] [&_.callout]:bg-surface [&_.callout]:backdrop-blur-xl [&_.callout]:shadow-2xl [&_.callout]:transition-all [&_.callout]:relative [&_.callout]:overflow-hidden",
@@ -179,7 +179,7 @@ export function DocContent({ content, className }: DocContentProps) {
                 // Steps Component (Auto-styling for tutorials)
                 "[&_.steps]:relative [&_.steps]:ml-4 [&_.steps]:pl-8 [&_.steps]:border-l-2 [&_.steps]:border-border [&_.steps]:space-y-12 [&_.steps]:py-4",
                 "[&_.step-item]:relative",
-                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-foreground [&_.step-number]:",
+                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-background [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-foreground [&_.step-number]:",
 
                 // Accordions / Details
                 "prose-details:bg-surface prose-details:border prose-details:border-border prose-details:rounded-2xl prose-details:overflow-hidden prose-details:my-6 prose-details:transition-all",

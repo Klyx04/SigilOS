@@ -82,7 +82,7 @@ export function AlignmentSection({
                     )}
                 </div>
 
-                <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-zinc-900 to-black p-4 mb-1 transition-colors group-hover:border-border">
+                <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-surface to-black p-4 mb-1 transition-colors group-hover:border-border">
                     <div className="flex items-center gap-4">
                         <div className={cn(
                             "relative flex items-center justify-center w-16 h-16 rounded-xl border shadow-lg shrink-0 overflow-hidden",

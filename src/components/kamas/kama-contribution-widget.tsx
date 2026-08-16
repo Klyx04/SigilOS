@@ -150,7 +150,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                     "rounded-xl border overflow-hidden transition-all duration-300 shadow-lg",
                     shouldPulse 
                         ? "border-warning  scale-[1.01] ring-1 ring-warning/50" 
-                        : "border-warning/30 bg-gradient-to-b from-warning/[0.04] to-zinc-950/80 shadow-[0_4px_20px_rgba(245,158,11,0.05)] hover:border-warning/50"
+                        : "border-warning/30 bg-gradient-to-b from-warning/[0.04] to-background/80 shadow-[0_4px_20px_rgba(245,158,11,0.05)] hover:border-warning/50"
                 )}
             >
 
@@ -364,7 +364,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                     <Button
                                         onClick={handleSubmit}
                                         disabled={submitting || !file}
-                                        className="w-full bg-warning hover:bg-warning disabled:opacity-50 text-foreground font-bold gap-2 h-9 text-sm"
+                                        className="w-full bg-warning hover:bg-warning disabled:opacity-50 text-warning-foreground font-bold gap-2 h-9 text-sm"
                                     >
                                         {submitting
                                             ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi...</>
@@ -431,7 +431,7 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                                 alt="Interface don de kamas Dofus"
                                 className="w-full object-contain max-h-52"
                             />
-                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-zinc-950/90 to-transparent p-3">
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-background/90 to-transparent p-3">
                                 <p className="text-caption text-warning font-bold">
                                     📍 Interface du comptoir d&apos;inventaire en jeu
                                 </p>

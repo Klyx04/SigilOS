@@ -49,7 +49,7 @@ class BombErrorBoundary extends React.Component<{children: React.ReactNode}, {ha
     render() {
         if (this.state.hasError) {
             return (
-                <div className="fixed inset-0 z-[1000] bg-danger/90 text-foreground flex flex-col items-center justify-center p-8">
+                <div className="fixed inset-0 z-[1000] bg-danger/90 text-danger-foreground flex flex-col items-center justify-center p-8">
                     <h2 className="text-3xl font-black mb-4">Erreur Fatale (Frontend)</h2>
                     <pre className="text-xs bg-black/50 p-4 rounded-xl whitespace-pre-wrap max-w-2xl overflow-auto border border-border-strong shadow-2xl">
                         {this.state.error?.message}
@@ -264,7 +264,7 @@ export default function BombGame({
         s.on("bomb:word-error", (data) => toast.error(data.message));
         s.on("bomb:bonus-life", (data) => {
             if (data.playerId === s.id) {
-                toast("🔥 ALPHABET COMPLÉTÉ ! +1 VIE", { icon: <Sparkles className="text-yellow-500" /> });
+                toast("🔥 ALPHABET COMPLÉTÉ ! +1 VIE", { icon: <Sparkles className="text-warning" /> });
             }
         });
 
@@ -497,7 +497,7 @@ export default function BombGame({
     // --- Session still loading ---
     if (sessionStatus === 'loading') {
         return (
-            <div className="h-full w-full bg-[#0a0d14] flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="h-full w-full bg-background flex flex-col items-center justify-center relative overflow-hidden">
                 <AtmosphericParticles />
                 <div className="z-10 flex flex-col items-center gap-6">
                     <Loader2 className="w-12 h-12 animate-spin text-info" />
@@ -511,7 +511,7 @@ export default function BombGame({
     if (!gameState) {
         if (initialRoomId) {
             return (
-                <div className="h-full w-full bg-[#0a0d14] flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="h-full w-full bg-background flex flex-col items-center justify-center relative overflow-hidden">
                     <AtmosphericParticles />
                     <div className="z-10 flex flex-col items-center gap-6">
                         <Loader2 className="w-12 h-12 animate-spin text-info" />
@@ -532,7 +532,7 @@ export default function BombGame({
 
         // ── ROOM LIST / CREATE SCREEN ────────────────────────────────
         return (
-            <div className="h-full w-full bg-[#0a0614] flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="h-full w-full bg-background flex flex-col items-center justify-center relative overflow-hidden">
                 <AtmosphericParticles />
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-info/10 rounded-full blur-[120px]" />
@@ -597,7 +597,7 @@ export default function BombGame({
                    (socket?.id === gameState.hostId) || 
                    (gameState.players?.filter((p: any) => !p.isBot).length === 1 && !myPlayer?.isSpectator);
                    
-    if (!gameState || !gameState.players || !gameState.config) return <div className="h-full w-full bg-[#0a0d14] flex items-center justify-center"><Loader2 className="animate-spin text-info" /></div>;
+    if (!gameState || !gameState.players || !gameState.config) return <div className="h-full w-full bg-background flex items-center justify-center"><Loader2 className="animate-spin text-info" /></div>;
 
     const isMyTurn = currentPlayer?.id === socket?.id;
     const bombTargetPos = playerPositions[gameState.currentTurnIndex] || { x: 0, y: 0 };
@@ -617,7 +617,7 @@ export default function BombGame({
     return (
         <BombErrorBoundary>
         <div ref={containerRef} className={cn(
-            "bg-[#0a0614] flex flex-col relative overflow-hidden transition-all duration-300",
+            "bg-background flex flex-col relative overflow-hidden transition-all duration-300",
             isImmersive ? "fixed inset-0 z-[100]" : "h-full w-full",
             shakeCount > 0 && "animate-shake"
         )}>
@@ -625,7 +625,7 @@ export default function BombGame({
             {isFullscreen && (
                 <button
                     onClick={() => applyFullscreen(false)}
-                    className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-border-strong text-foreground flex items-center justify-center hover:bg-danger/90 hover:border-danger shadow-2xl transition-colors"
+                    className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-border-strong text-danger-foreground flex items-center justify-center hover:bg-danger/90 hover:border-danger shadow-2xl transition-colors"
                     title="Quitter le plein écran"
                 >
                     <XCircle size={22} />
@@ -808,7 +808,7 @@ export default function BombGame({
                                 <motion.div key="end" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-4 w-full px-4">
                                     {/* Trophy + Winner */}
                                     <motion.div className="flex flex-col items-center gap-1" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', bounce: 0.5 }}>
-                                        <Trophy size={36} className="text-yellow-500 drop-shadow-[0_0_25px_rgba(250,204,21,0.5)]" />
+                                        <Trophy size={36} className="text-warning drop-shadow-[0_0_25px_rgba(250,204,21,0.5)]" />
                                         <p className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">Gagnant</p>
                                         <h2 className="text-lg font-black text-foreground italic uppercase tracking-tighter">{winnerName || 'Personne'}</h2>
                                     </motion.div>
@@ -824,8 +824,8 @@ export default function BombGame({
                                                     transition={{ delay: i * 0.08 }}
                                                     className={cn(
                                                         "flex items-center gap-2 px-2 py-1.5 rounded-xl border text-xs transition-colors",
-                                                        i === 0 ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" :
-                                                        i === 1 ? "bg-slate-400/10 border-slate-400/20 text-muted-foreground text-muted-foreground" :
+                                                        i === 0 ? "bg-warning/10 border-warning/30 text-warning dark:text-warning" :
+                                                        i === 1 ? "bg-muted/10 border-border/20 text-muted-foreground text-muted-foreground" :
                                                         i === 2 ? "bg-warning/10 border-warning/20 text-warning text-warning" :
                                                         "bg-muted border-border text-foreground/70"
                                                     )}
@@ -1019,7 +1019,7 @@ export default function BombGame({
                                                 <motion.div 
                                                     animate={{ scale: [1, 2, 1], opacity: [0.5, 1, 0.5], x: [0, 2, -2, 0], y: [0, -2, 2, 0] }} 
                                                     transition={{ repeat: Infinity, duration: 0.1 }} 
-                                                    className="w-3 h-3 bg-orange-500 rounded-full blur-[2px] " 
+                                                    className="w-3 h-3 bg-warning rounded-full blur-[2px] " 
                                                 />
                                             </div>
                                         </div>
@@ -1205,14 +1205,14 @@ export default function BombGame({
                             >
                                 <div className="mb-8 relative flex flex-col items-center">
                                     <div className="absolute -inset-4 bg-info/20 blur-3xl rounded-full animate-pulse" />
-                                    <Trophy size={64} className="text-yellow-500 mb-4 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]" />
+                                    <Trophy size={64} className="text-warning mb-4 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]" />
                                     <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2">Victoire !</h2>
                                     
                                     <div className="relative mt-4">
-                                        <div className="w-24 h-24 rounded-[2rem] border-4 border-yellow-500 overflow-hidden ">
+                                        <div className="w-24 h-24 rounded-[2rem] border-4 border-warning overflow-hidden ">
                                             <img src={winnerData?.winnerAvatar || `https://ui-avatars.com/api/?name=${winnerData?.winnerName}`} className="w-full h-full object-cover" alt="" />
                                         </div>
-                                        <div className="absolute -bottom-2 -right-2 bg-yellow-500 text-foreground p-1.5 rounded-xl shadow-lg">
+                                        <div className="absolute -bottom-2 -right-2 bg-warning text-warning-foreground p-1.5 rounded-xl shadow-lg">
                                             <Sparkles size={16} />
                                         </div>
                                     </div>
@@ -1228,7 +1228,7 @@ export default function BombGame({
                                         {leaderboard.map((entry, i) => (
                                             <div key={entry?.id || `leaderboard-${i}`} className="flex items-center justify-between p-3 border-b border-border last:border-0 hover:bg-surface transition-colors">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={cn("text-xs font-black italic", i === 0 ? "text-yellow-500" : "text-foreground/20")}>#{i + 1}</span>
+                                                    <span className={cn("text-xs font-black italic", i === 0 ? "text-warning" : "text-foreground/20")}>#{i + 1}</span>
                                                     <div className="w-8 h-8 rounded-lg overflow-hidden border border-border bg-surface">
                                                         <img src={entry?.avatar || `https://ui-avatars.com/api/?name=${entry?.name || 'Player'}`} className="w-full h-full object-cover" alt="" />
                                                     </div>
@@ -1394,7 +1394,7 @@ export default function BombGame({
                                                 className={cn(
                                                     "w-full py-3 rounded-xl text-xs font-black uppercase italic transition-all border cursor-pointer",
                                                     gameState.config?.dictionaryMode === mode.id 
-                                                        ? "bg-info border-info text-foreground shadow-lg shadow-indigo-500/20" 
+                                                        ? "bg-info border-info text-info-foreground shadow-lg shadow-indigo-500/20" 
                                                         : "bg-surface border-border text-foreground/40 hover:bg-surface"
                                                 )}
                                             >
@@ -1668,7 +1668,7 @@ export default function BombGame({
                         <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-caption font-black uppercase tracking-widest text-foreground/30 italic px-1">
                                 <span className="flex items-center gap-1.5">
-                                    <Sparkles size={10} className="text-yellow-500/60" />
+                                    <Sparkles size={10} className="text-warning/60" />
                                     Bonus Vie
                                 </span>
                                 <span className="tabular-nums">

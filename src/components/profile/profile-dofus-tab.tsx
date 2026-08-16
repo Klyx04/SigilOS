@@ -90,7 +90,7 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                             onClick={() => setSelectedChar("PRINCIPAL")}
                             className={cn(
                                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                selectedChar === "PRINCIPAL" ? "bg-warning/20 border border-warning/30 text-warning" : "text-muted-foreground hover:text-foreground"
+                                selectedChar === "PRINCIPAL" ? "bg-warning/20 border border-warning/30 text-warning" : "text-muted-foreground hover:text-warning-foreground"
                             )}
                         >
                             Principal ({mainChar?.pseudo || "Main"})
@@ -101,7 +101,7 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                                 onClick={() => setSelectedChar(m.pseudo)}
                                 className={cn(
                                     "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                    selectedChar === m.pseudo ? "bg-warning/20 border border-warning/30 text-warning" : "text-muted-foreground hover:text-foreground"
+                                    selectedChar === m.pseudo ? "bg-warning/20 border border-warning/30 text-warning" : "text-muted-foreground hover:text-warning-foreground"
                                 )}
                             >
                                 Mule : {m.pseudo}

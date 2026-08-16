@@ -338,7 +338,7 @@ export function GalleryClient({
                                 <TabsList className="bg-black/60 border border-border h-14 p-1.5 rounded-xl">
                                     <TabsTrigger 
                                         value="STUFF" 
-                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-success data-[state=active]:text-foreground transition-colors duration-200"
+                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-success data-[state=active]:text-success-foreground transition-colors duration-200"
                                     >
                                         <Sword className={cn("w-4 h-4 transition-transform", activeTab === "STUFF" ? "scale-110" : "opacity-40")} />
                                         Équipements
@@ -475,7 +475,7 @@ export function GalleryClient({
                                 onClick={() => handleSortChange("votes")}
                                 className={cn(
                                     "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
-                                    sortBy === "votes" ? "bg-yellow-500 text-foreground" : "text-muted-foreground hover:text-yellow-400 hover:bg-surface"
+                                    sortBy === "votes" ? "bg-warning text-warning-foreground" : "text-muted-foreground hover:text-warning hover:bg-surface"
                                 )}
                             >
                                 <Star className={cn("w-3.5 h-3.5", sortBy === "votes" && "fill-black")} /> Favoris
@@ -534,8 +534,8 @@ export function GalleryClient({
                                                 className={cn(
                                                     "p-1.5 rounded-lg transition-colors pointer-events-auto disabled:opacity-50 flex items-center justify-center gap-1.5",
                                                     build.hasVoted 
-                                                        ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30" 
-                                                        : "bg-elevated/90 text-muted-foreground hover:text-yellow-400 hover:bg-muted"
+                                                        ? "bg-warning/20 text-warning border border-warning/30 hover:bg-warning/30" 
+                                                        : "bg-elevated/90 text-muted-foreground hover:text-warning hover:bg-muted"
                                                 )}
                                                 title={build.hasVoted ? "Retirer mon vote" : "Voter pour ce stuff !"}
                                             >
@@ -571,7 +571,7 @@ export function GalleryClient({
                                                 href={build.url} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
-                                                className="p-1.5 bg-success rounded-lg text-foreground hover:bg-success transition-colors pointer-events-auto"
+                                                className="p-1.5 bg-success rounded-lg text-success-foreground hover:bg-success transition-colors pointer-events-auto"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
                                             </a>
@@ -673,8 +673,8 @@ export function GalleryClient({
                                                     className={cn(
                                                         "p-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5",
                                                         skin.hasVoted 
-                                                            ? "bg-yellow-500 text-foreground" 
-                                                            : "bg-elevated/90 text-muted-foreground hover:text-yellow-400 hover:bg-muted"
+                                                            ? "bg-warning text-warning-foreground" 
+                                                            : "bg-elevated/90 text-muted-foreground hover:text-warning hover:bg-muted"
                                                     )}
                                                 >
                                                     <Star className={cn("w-3.5 h-3.5", skin.hasVoted && "fill-current")} />
@@ -940,7 +940,7 @@ export function GalleryClient({
                                 {currentProfileId === selectedSkin.author.id && (
                                     <Button 
                                         variant="outline" 
-                                        className="rounded-xl border-info/30 bg-info/10 text-info hover:bg-info hover:text-foreground hover:border-info h-12 text-xs font-black uppercase tracking-widest transition-all gap-2 col-span-2"
+                                        className="rounded-xl border-info/30 bg-info/10 text-info hover:bg-info hover:text-info-foreground hover:border-info h-12 text-xs font-black uppercase tracking-widest transition-all gap-2 col-span-2"
                                         onClick={() => handleShare(selectedSkin.id, "SKIN", selectedSkin.author.id)}
                                         disabled={sharingIds.has(selectedSkin.id) || !skinShareConfigured}
                                     >
@@ -985,7 +985,7 @@ function EmptyState({ guildId, tab, searchQuery, onReset }: { guildId: string, t
                     </Button>
                 )}
                 <a href={`/dashboard/${guildId}/profile?tab=${tab === "STUFF" ? "combat" : "skins"}`}>
-                    <Button size="sm" className={cn("font-bold text-foreground", tab === "STUFF" ? "bg-success hover:bg-success" : "bg-sky-600 hover:bg-sky-500")}>
+                    <Button size="sm" className={cn("font-bold text-success-foreground", tab === "STUFF" ? "bg-success hover:bg-success" : "bg-sky-600 hover:bg-sky-500")}>
                         Mon Profil
                         <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>

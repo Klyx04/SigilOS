@@ -202,7 +202,7 @@ function ManualAuditButton({ guildId, roleId }: { guildId: string, roleId: strin
                         {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : isSuccess ? <Check className="w-3 h-3" /> : <Send className="w-3 h-3" />}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-black border-border text-caption font-black uppercase tracking-widest">
+                <TooltipContent className="bg-background border-border text-caption font-black uppercase tracking-widest">
                     {isPending ? "Envoi..." : isSuccess ? "Envoyé !" : "Envoyer Audit sur Discord"}
                 </TooltipContent>
             </Tooltip>
@@ -368,7 +368,7 @@ export default function MemberManagement({
     return (
         <div className="relative min-h-[800px] space-y-8 pb-20">
             {/* Background Decorative Elements */}
-            <div className="absolute inset-0 -z-10 bg-[#030303] overflow-hidden pointer-events-none rounded-3xl">
+            <div className="absolute inset-0 -z-10 bg-background overflow-hidden pointer-events-none rounded-3xl">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-info/10 blur-[100px] rounded-full" />
                 <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-success/5 blur-[80px] rounded-full" />
@@ -578,13 +578,13 @@ export default function MemberManagement({
                                         placeholder="Rechercher par pseudo ou ID..." 
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
-                                        className="pl-12 h-12 bg-black/40 border-border text-foreground rounded-xl focus:ring-white/10 focus:border-border-strong transition-colors placeholder:text-muted-foreground font-medium"
+                                        className="pl-12 h-12 bg-muted/40 border-border text-foreground rounded-xl focus:ring-white/10 focus:border-border-strong transition-colors placeholder:text-muted-foreground font-medium"
                                     />
                                 </div>
                                 <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
                                     <div className="flex gap-2 min-w-max pb-2">
                                     <Select value={roleFilter} onValueChange={setRoleFilter}>
-                                        <SelectTrigger className="w-[200px] h-12 bg-black/40 border-border rounded-xl text-xs font-semibold text-foreground uppercase tracking-wide">
+                                        <SelectTrigger className="w-[200px] h-12 bg-muted/40 border-border rounded-xl text-xs font-semibold text-foreground uppercase tracking-wide">
                                             <SelectValue placeholder="Tous les rôles" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-background border-border rounded-xl">
@@ -598,7 +598,7 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-border rounded-xl text-caption font-semibold text-foreground uppercase tracking-wide">
+                                        <SelectTrigger className="w-[140px] h-12 bg-muted/40 border-border rounded-xl text-caption font-semibold text-foreground uppercase tracking-wide">
                                             <SelectValue placeholder="Dashboard" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-background border-border rounded-xl">
@@ -609,7 +609,7 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-border rounded-xl text-caption font-semibold text-muted-foreground uppercase tracking-wide">
+                                        <SelectTrigger className="w-[150px] h-12 bg-muted/40 border-border rounded-xl text-caption font-semibold text-muted-foreground uppercase tracking-wide">
                                             <div className="flex items-center gap-2">
                                                 <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                                                 <SelectValue placeholder="Rejoint le" />
@@ -624,7 +624,7 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={actionFilter} onValueChange={setActionFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-border rounded-xl text-caption font-semibold text-muted-foreground uppercase tracking-wide">
+                                        <SelectTrigger className="w-[140px] h-12 bg-muted/40 border-border rounded-xl text-caption font-semibold text-muted-foreground uppercase tracking-wide">
                                             <SelectValue placeholder="Actions" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-background border-border rounded-xl">
@@ -640,7 +640,7 @@ export default function MemberManagement({
                                         onClick={() => setRelanceTargets(
                                             filteredAuditMembers.map(m => ({ id: m.discordId, name: m.displayName }))
                                         )}
-                                        className="h-12 rounded-xl bg-warning/10 border border-warning/30 text-warning hover:bg-warning hover:text-foreground hover:border-warning text-caption font-semibold uppercase tracking-wide px-4 gap-2"
+                                        className="h-12 rounded-xl bg-warning/10 border border-warning/30 text-warning hover:bg-warning hover:text-warning-foreground hover:border-warning text-caption font-semibold uppercase tracking-wide px-4 gap-2"
                                     >
                                         <Bell className="w-3.5 h-3.5" />
                                         Relance groupée
@@ -718,7 +718,7 @@ export default function MemberManagement({
                                                                         {member.displayName.charAt(0)}
                                                                     </AvatarFallback>
                                                                 </Avatar>
-                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center ${member.hasDashboardProfile ? 'bg-success' : 'bg-warning'}`}>
+                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-background flex items-center justify-center ${member.hasDashboardProfile ? 'bg-success' : 'bg-warning'}`}>
                                                                     {member.hasDashboardProfile ? <CheckCircle2 className="w-3 h-3 text-foreground" /> : <ShieldAlert className="w-3 h-3 text-foreground" />}
                                                                 </div>
                                                             </div>
@@ -787,7 +787,7 @@ export default function MemberManagement({
                                                     </TableCell>
                                                     <TableCell className="pr-8 text-right">
                                                          {member.hasDashboardProfile ? (
-                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-border bg-surface hover:bg-success hover:text-foreground hover:border-success transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
+                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-border bg-surface hover:bg-success hover:text-success-foreground hover:border-success transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
                                                                  <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
                                                                      <ArrowUpRight className="w-4 h-4" />
                                                                  </a>
@@ -796,7 +796,7 @@ export default function MemberManagement({
                                                              <Button 
                                                                  variant="outline" 
                                                                  size="sm" 
-                                                                 className="h-9 rounded-xl border-warning/30 bg-warning/10 hover:bg-warning hover:text-foreground hover:border-warning transition-colors text-caption font-semibold uppercase tracking-wide px-3 gap-1.5"
+                                                                 className="h-9 rounded-xl border-warning/30 bg-warning/10 hover:bg-warning hover:text-warning-foreground hover:border-warning transition-colors text-caption font-semibold uppercase tracking-wide px-3 gap-1.5"
                                                                  onClick={() => setRelanceTargets([{ id: member.discordId, name: member.displayName }])}
                                                              >
                                                                  <Bell className="w-3.5 h-3.5" />

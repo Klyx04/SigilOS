@@ -201,7 +201,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400",
                                     selectedClass && "text-indigo-400 opacity-100"
                                 )} />
-                                {selectedClass ? getSelectedClassName() : "Classe"}
+                                {selectedClass ? <span className="truncate min-w-0 max-w-[160px]">{getSelectedClassName()}</span> : "Classe"}
                                 {selectedClass && (
                                     <span
                                         role="button"
@@ -220,7 +220,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-white/10 shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher une classe..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -267,7 +267,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500",
                                     selectedJob && "text-amber-500 opacity-100"
                                 )} />
-                                {selectedJob ? getSelectedJobName() : "Métier (200)"}
+                                {selectedJob ? <span className="truncate min-w-0 max-w-[160px]">{getSelectedJobName()}</span> : "Métier (200)"}
                                 {selectedJob && (
                                     <span
                                         role="button"
@@ -286,7 +286,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-white/10 shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un métier..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -352,7 +352,9 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400",
                                     selectedAlignment && "text-indigo-400 opacity-100"
                                 )} />
-                                {selectedAlignment ? selectedAlignment : "Alignement"}
+                                <span className="truncate min-w-0 max-w-[160px]">
+                                    {selectedAlignment ? (ALIGNMENTS as any).find((a: any) => a.id === selectedAlignment)?.name || selectedAlignment : "Alignement"}
+                                </span>
                                 {selectedAlignment && (
                                     <span
                                         role="button"
@@ -372,7 +374,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] p-4 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[320px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-white/10 shadow-xl" align="end">
                             <div className="space-y-3">
                                 <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
                                     <Shield className="w-3 h-3" /> Factions
@@ -404,7 +406,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     />
                                                 </div>
                                                 <span className={cn(
-                                                    "text-caption font-semibold",
+                                                    "text-caption font-semibold truncate w-full text-center px-1 min-w-0",
                                                     isSelected ? "text-indigo-400" : "text-zinc-400"
                                                 )}>
                                                     {a.name}
@@ -432,7 +434,9 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                         "w-4 h-4 transition-colors text-amber-500/50 group-hover/btn:text-amber-500",
                                         selectedOrder && "text-amber-500 opacity-100"
                                     )} />
+                                    <span className="truncate min-w-0 max-w-[200px]">
                                     {selectedOrder ? (ORDERS as any)[selectedAlignment].find((o: any) => o.id === selectedOrder)?.name || "Ordre" : "Ordre"}
+                                </span>
                                     {selectedOrder && (
                                         <span
                                             role="button"
@@ -451,7 +455,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     )}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[360px] p-4 glass-premium border-white/10 shadow-xl" align="end">
+                            <PopoverContent className="w-[360px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-white/10 shadow-xl" align="end">
                                 <div className="space-y-3">
                                     <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
                                         <Sparkles className="w-3 h-3" /> Ordres ({selectedAlignment})
@@ -482,7 +486,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                         />
                                                     </div>
                                                     <span className={cn(
-                                                        "text-caption font-black uppercase leading-tight line-clamp-2 px-1",
+                                                        "text-caption font-black uppercase leading-tight line-clamp-2 px-1 w-full min-w-0 break-words",
                                                         isSelected ? "text-amber-400" : "text-zinc-400"
                                                     )}>
                                                         {o.name}
@@ -512,7 +516,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     "w-4 h-4 transition-all duration-300 text-purple-400/50 group-hover/btn:text-purple-400",
                                     selectedLegendary && "scale-110 -rotate-6 text-purple-400 opacity-100"
                                 )} />
-                                {selectedLegendary ? getSelectedLegendaryName() : "Légendaire"}
+                                {selectedLegendary ? <span className="truncate min-w-0 max-w-[160px]">{getSelectedLegendaryName()}</span> : "Légendaire"}
                                 {selectedLegendary && (
                                     <span
                                         role="button"
@@ -531,7 +535,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[300px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-white/10 shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un objet..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[300px]">

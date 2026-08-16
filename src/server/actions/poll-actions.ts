@@ -41,7 +41,6 @@ export type ActionResponse<T = unknown> = {
 
 export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     pollsNotifyChannelId: string | null;
-    pollsNotifyRoleId: string | null;
     pollsPingRoleIds?: string[];
 }>> {
     const session = await auth();
@@ -54,7 +53,7 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     try {
         const config = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
-            select: { pollsNotifyChannelId: true, pollsNotifyRoleId: true, pollsPingRoleIds: true }
+            select: { pollsNotifyChannelId: true, pollsPingRoleIds: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -63,7 +62,6 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
             success: true,
             data: {
                 pollsNotifyChannelId: config.pollsNotifyChannelId,
-                pollsNotifyRoleId: config.pollsNotifyRoleId,
                 pollsPingRoleIds: config.pollsPingRoleIds || []
             }
         };
@@ -113,7 +111,7 @@ export async function getPollPublicConfig(guildId: string): Promise<ActionRespon
 
 export async function updatePollSettings(
     guildId: string,
-    data: { pollsNotifyChannelId: string | null; pollsNotifyRoleId: string | null }
+    data: { pollsNotifyChannelId: string | null }
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -135,8 +133,7 @@ export async function updatePollSettings(
         await (db as any).guildConfig.update({
             where: { discordGuildId: guildId },
             data: {
-                pollsNotifyChannelId: data.pollsNotifyChannelId,
-                pollsNotifyRoleId: data.pollsNotifyRoleId
+                pollsNotifyChannelId: data.pollsNotifyChannelId
             }
         });
 
@@ -521,11 +518,9 @@ export async function createPoll(
 
         // Publish to Discord if requested
         const channelToUse = data.discordChannelId || adminChannelId;
-        const roleToUse = safeMentionEveryone
-            ? undefined
-            : (safeMentionRoleId !== undefined
-                ? (safeMentionRoleId || undefined)
-                : ((guildConfig as any).pollsNotifyRoleId || undefined));
+        // #102 — le « rôle à mentionner par défaut » est supprimé : seuls les rôles
+        // explicitement choisis (et whitelistés) sont mentionnés à la publication.
+        const roleToUse = safeMentionEveryone ? undefined : (safeMentionRoleId || undefined);
 
         if (data.publishToDiscord && !channelToUse) {
             return {

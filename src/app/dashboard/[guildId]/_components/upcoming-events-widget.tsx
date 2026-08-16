@@ -1,9 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Users, MapPin, Clock, ChevronRight, Swords, Infinity, Flame, Target, Star, Coffee, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { format, formatDistanceToNow, isToday, isTomorrow, isThisWeek } from "date-fns";
+import { format, formatDistanceToNow, isToday, isTomorrow, isThisWeek, startOfWeek, addDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,24 @@ export function UpcomingEventsWidget({
     guildId: string;
     events: UpcomingEvent[];
 }) {
+    // #100 — Semaine en cours : les 7 jours (LUN→DIM) affichés en tête du widget,
+    // avec un point sur les jours où la guilde a des événements à venir.
+    const weekDays = useMemo(() => {
+        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+        return eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
+    }, []);
+
+    const eventsByDay = useMemo(() => {
+        const map = new Map<string, number>();
+        events.forEach((e) => {
+            const d = new Date(e.startDate);
+            if (isNaN(d.getTime())) return;
+            const key = format(d, "yyyy-MM-dd");
+            map.set(key, (map.get(key) || 0) + 1);
+        });
+        return map;
+    }, [events]);
+
     return (
         <Card className="glass-premium border-white/5 flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
@@ -81,6 +100,36 @@ export function UpcomingEventsWidget({
             </CardHeader>
 
             <CardContent className="px-4 pb-4 flex-1 flex flex-col gap-2">
+                {/* #100 — Semaine en cours (bandeau LUN→DIM, jour du jour surligné) */}
+                <div className="grid grid-cols-7 gap-1.5">
+                    {weekDays.map((day) => {
+                        const isCurrentDay = isSameDay(day, new Date());
+                        const dayKey = format(day, "yyyy-MM-dd");
+                        const dayCount = eventsByDay.get(dayKey) || 0;
+                        return (
+                            <Link
+                                key={dayKey}
+                                href={`/dashboard/${guildId}/calendar`}
+                                title={dayCount > 0 ? `${dayCount} événement${dayCount > 1 ? "s" : ""} ce jour` : "Voir le calendrier"}
+                                className={cn(
+                                    "flex flex-col items-center gap-0.5 rounded-lg py-2 border transition-colors",
+                                    isCurrentDay
+                                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                                        : "bg-zinc-950/40 border-white/5 text-zinc-500 hover:bg-zinc-900/60 hover:text-white hover:border-white/10"
+                                )}
+                            >
+                                <span className="text-label font-semibold uppercase">
+                                    {format(day, "EEE", { locale: fr }).slice(0, 3)}
+                                </span>
+                                <span className="text-sm font-bold tabular-nums leading-none">
+                                    {format(day, "d")}
+                                </span>
+                                <span className={cn("h-1 w-1 rounded-full", dayCount > 0 ? "bg-emerald-400" : "bg-transparent")} />
+                            </Link>
+                        );
+                    })}
+                </div>
+
                 {events.length > 0 ? (
                     <>
                         {events.map((event) => {

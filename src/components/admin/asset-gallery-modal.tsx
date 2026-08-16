@@ -85,7 +85,7 @@ export function AssetGalleryModal({
                                 {type === "portraits" ? <ImageIconLucide className="text-amber-500" /> : <MapIcon className="text-amber-500" />}
                                 {title}
                             </DialogTitle>
-                            <DialogDescription className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] mt-1">
+                            <DialogDescription className="text-zinc-500 text-caption sm:text-caption font-black uppercase tracking-widest mt-1">
                                 {assets.length} fichiers détectés dans /assets/avis/{type}
                             </DialogDescription>
                         </div>
@@ -94,7 +94,7 @@ export function AssetGalleryModal({
                             <button
                                 onClick={() => setType("portraits")}
                                 className={cn(
-                                    "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase italic transition-all flex items-center gap-2",
+                                    "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-caption sm:text-caption font-black uppercase italic transition-all flex items-center gap-2",
                                     type === "portraits" ? "bg-amber-500 text-black shadow-lg" : "text-zinc-500 hover:text-white"
                                 )}
                             >
@@ -104,7 +104,7 @@ export function AssetGalleryModal({
                             <button
                                 onClick={() => setType("maps")}
                                 className={cn(
-                                    "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase italic transition-all flex items-center gap-2",
+                                    "px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-caption sm:text-caption font-black uppercase italic transition-all flex items-center gap-2",
                                     type === "maps" ? "bg-amber-500 text-black shadow-lg" : "text-zinc-500 hover:text-white"
                                 )}
                             >
@@ -129,7 +129,7 @@ export function AssetGalleryModal({
                     {loading ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4">
                             <Loader2 className="animate-spin text-amber-500" size={40} />
-                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Indexation des fichiers...</span>
+                            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">Indexation des fichiers...</span>
                         </div>
                     ) : filteredAssets.length > 0 ? (
                         <ScrollArea className="h-full pr-4">
@@ -145,7 +145,7 @@ export function AssetGalleryModal({
                                         className={cn(
                                             "group relative aspect-square rounded-2xl border-2 overflow-hidden transition-all duration-300",
                                             selectedUrl === asset.url
-                                                ? "border-amber-500 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                                                ? "border-amber-500 bg-amber-500/10 "
                                                 : "border-white/5 bg-zinc-900 hover:border-white/20"
                                         )}
                                     >
@@ -154,9 +154,9 @@ export function AssetGalleryModal({
                                                 src={asset.url}
                                                 alt={asset.name}
                                                 className={cn(
-                                                    "w-full h-full transition-transform duration-500",
+                                                    "w-full h-full transition-transform duration-300",
                                                     type === "portraits" ? "object-contain" : "object-cover",
-                                                    selectedUrl === asset.url ? "scale-110" : "group-hover:scale-105"
+                                                    selectedUrl === asset.url ? "scale-110" : "group-"
                                                 )}
                                             />
                                         </div>
@@ -165,7 +165,7 @@ export function AssetGalleryModal({
                                             "absolute inset-x-0 bottom-0 p-2 bg-black/80 backdrop-blur-sm border-t border-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300",
                                             selectedUrl === asset.url && "translate-y-0"
                                         )}>
-                                            <p className="text-[9px] font-bold text-zinc-300 truncate text-center">
+                                            <p className="text-caption font-bold text-zinc-300 truncate text-center">
                                                 {asset.name}
                                             </p>
                                         </div>
@@ -188,21 +188,21 @@ export function AssetGalleryModal({
                 </div>
 
                 <div className="p-4 sm:p-6 border-t border-white/5 bg-black/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-[9px] sm:text-[10px] font-bold text-zinc-500 text-center sm:text-left">
+                    <p className="text-caption sm:text-caption font-bold text-zinc-500 text-center sm:text-left">
                         Double-cliquez pour sélectionner instantanément
                     </p>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         <Button
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
-                            className="flex-1 sm:flex-none text-zinc-500 hover:text-white text-[10px] sm:text-sm"
+                            className="flex-1 sm:flex-none text-zinc-500 hover:text-white text-caption sm:text-sm"
                         >
                             Annuler
                         </Button>
                         <Button
                             disabled={!selectedUrl}
                             onClick={handleConfirm}
-                            className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-black font-black uppercase italic px-4 sm:px-8 text-[10px] sm:text-sm"
+                            className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-black font-black uppercase italic px-4 sm:px-8 text-caption sm:text-sm"
                         >
                             Confirmer
                         </Button>

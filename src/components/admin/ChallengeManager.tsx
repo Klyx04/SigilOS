@@ -176,7 +176,7 @@ export default function ChallengeManager() {
 
                                 <div className="space-y-1 w-full">
                                     <h4 className="font-semibold text-slate-200 text-sm truncate" title={challenge.name}>{challenge.name}</h4>
-                                    <div className="text-[10px] text-slate-500 font-mono truncate bg-slate-950/50 rounded px-1.5 py-0.5 mx-auto w-max max-w-full">
+                                    <div className="text-caption text-slate-500 font-mono truncate bg-slate-950/50 rounded px-1.5 py-0.5 mx-auto w-max max-w-full">
                                         {challenge.slug}
                                     </div>
                                 </div>

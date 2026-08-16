@@ -1161,17 +1161,17 @@ export default function InteractiveMapV2({
                         <div className="flex items-center bg-white/5 p-1 rounded-2xl border border-white/10 h-10">
                             <button
                                 onClick={() => setActiveTab('map')}
-                                className={`h-full px-6 text-[10px] font-black uppercase tracking-widest italic transition-all relative flex items-center gap-2 rounded-xl ${activeTab === 'map' ? 'text-emerald-950' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+                                className={`h-full px-6 text-caption font-black uppercase tracking-widest italic transition-all relative flex items-center gap-2 rounded-xl ${activeTab === 'map' ? 'text-emerald-950' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
                             >
-                                {activeTab === 'map' && <motion.div layoutId="tab-pill" className="absolute inset-0 bg-emerald-500 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)]" />}
+                                {activeTab === 'map' && <motion.div layoutId="tab-pill" className="absolute inset-0 bg-emerald-500 rounded-xl " />}
                                 <MapIcon size={12} className={`relative z-10 ${activeTab === 'map' ? 'text-emerald-950' : 'text-white/20'}`} />
                                 <span className="relative z-10">Exploration</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('games')}
-                                className={`h-full px-6 text-[10px] font-black uppercase tracking-widest italic transition-all relative flex items-center gap-2 rounded-xl ${activeTab === 'games' ? 'text-emerald-950' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+                                className={`h-full px-6 text-caption font-black uppercase tracking-widest italic transition-all relative flex items-center gap-2 rounded-xl ${activeTab === 'games' ? 'text-emerald-950' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
                             >
-                                {activeTab === 'games' && <motion.div layoutId="tab-pill" className="absolute inset-0 bg-emerald-500 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)]" />}
+                                {activeTab === 'games' && <motion.div layoutId="tab-pill" className="absolute inset-0 bg-emerald-500 rounded-xl " />}
                                 <Trophy size={12} className={`relative z-10 ${activeTab === 'games' ? 'text-emerald-950' : 'text-white/20'}`} />
                                 <span className="relative z-10">Mini-Jeux</span>
                             </button>
@@ -1179,7 +1179,7 @@ export default function InteractiveMapV2({
                     ) : showGameEntry ? (
                         <button 
                             onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
-                            className="group flex items-center gap-4 bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-2xl border border-white/5 transition-all hover:scale-105 active:scale-95"
+                            className="group flex items-center gap-4 bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-2xl border border-white/5 transition-all  active:scale-95"
                         >
                             <div className="text-emerald-500 transition-transform group-hover:rotate-12">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
@@ -1189,7 +1189,7 @@ export default function InteractiveMapV2({
                                     <rect x="3" y="14" width="7" height="7" />
                                 </svg>
                             </div>
-                            <span className="text-[10px] font-black uppercase text-white/60 tracking-widest italic">Choix du Jeu</span>
+                            <span className="text-caption font-black uppercase text-white/60 tracking-widest italic">Choix du Jeu</span>
                         </button>
                     ) : null}
 
@@ -1213,7 +1213,7 @@ export default function InteractiveMapV2({
                                             className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-white hover:bg-emerald-500/20 transition-colors"
                                         >
                                             <MapIcon size={12} className="text-emerald-500" />
-                                            <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
+                                            <span className="text-caption sm:text-caption font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
                                             <ChevronDown size={12} className={`text-white/20 transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
                                     </div>
@@ -1230,7 +1230,7 @@ export default function InteractiveMapV2({
                                             title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
                                         >
                                             {showDebugGrid ? <Eye size={14} /> : <EyeOff size={14} />}
-                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Grille</span>
+                                            <span className="hidden xl:inline text-caption font-black uppercase tracking-widest italic">Grille</span>
                                         </button>
 
                                         {/* Zone Highlight Toggle */}
@@ -1243,7 +1243,7 @@ export default function InteractiveMapV2({
                                             title={zoneHighlight ? "Masquer le surlignage de zone" : "Afficher le surlignage de zone"}
                                         >
                                             <MapPin size={14} />
-                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Zone</span>
+                                            <span className="hidden xl:inline text-caption font-black uppercase tracking-widest italic">Zone</span>
                                         </button>
 
                                         {/* Fullscreen Toggle */}
@@ -1256,7 +1256,7 @@ export default function InteractiveMapV2({
                                             title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
                                         >
                                             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">{isFullscreen ? 'Réduire' : 'Écran'}</span>
+                                            <span className="hidden xl:inline text-caption font-black uppercase tracking-widest italic">{isFullscreen ? 'Réduire' : 'Écran'}</span>
                                         </button>
 
                                         {/* Help Toggle */}
@@ -1293,7 +1293,7 @@ export default function InteractiveMapV2({
                                                     icon: <Rocket className="w-4 h-4 text-emerald-400" />
                                                 });
                                             }}
-                                            className="px-3 sm:px-5 py-2 rounded-xl bg-emerald-500 text-emerald-950 font-black text-[9px] sm:text-[10px] uppercase italic flex items-center gap-2 sm:gap-2.5 shadow-[0_15px_30px_rgba(16,185,129,0.3)] border-b-2 border-emerald-700 transition-all origin-right"
+                                            className="px-3 sm:px-5 py-2 rounded-xl bg-emerald-500 text-emerald-950 font-black text-caption sm:text-caption uppercase italic flex items-center gap-2 sm:gap-2.5 shadow-[0_15px_30px_rgba(16,185,129,0.3)] border-b-2 border-emerald-700 transition-all origin-right"
                                         >
                                             <Rocket size={12} className="fill-emerald-950" />
                                             <span className="hidden sm:inline">Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
@@ -1313,7 +1313,7 @@ export default function InteractiveMapV2({
                                         value={search}
                                         onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
                                         placeholder="Zone, monstre, boss, archimonstre..."
-                                        className="w-40 lg:w-60 rounded-xl bg-white/10 py-2 pl-9 pr-4 text-white text-[11px] uppercase font-bold border border-white/20 focus:border-emerald-500/60 outline-none transition-all focus:bg-white/15 placeholder:text-white/40"
+                                        className="w-40 lg:w-60 rounded-xl bg-white/10 py-2 pl-9 pr-4 text-white text-caption uppercase font-bold border border-white/20 focus:border-emerald-500/60 outline-none transition-all focus:bg-white/15 placeholder:text-white/40"
                                     />
 
                                     {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
@@ -1331,7 +1331,7 @@ export default function InteractiveMapV2({
                                                             if (!search || search.trim().length < 2) loadFilterResults(f);
                                                         }}
                                                         className={cn(
-                                                            "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
+                                                            "px-2.5 py-1 rounded-lg text-caption font-black uppercase tracking-widest transition-all",
                                                             searchFilter === f
                                                                 ? f === 'ocre'
                                                                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
@@ -1355,15 +1355,15 @@ export default function InteractiveMapV2({
                                                 <>
                                                     {searchFilter === 'all' && archiResults.length > 0 && (
                                                         <div className="px-3 py-1.5 bg-white/3 border-b border-white/5">
-                                                            <span className="text-white/20 text-[8px] font-black uppercase tracking-widest">🗺 Zones</span>
+                                                            <span className="text-white/20 text-caption font-black uppercase tracking-widest">🗺 Zones</span>
                                                         </div>
                                                     )}
                                                     {searchResults.slice(0, searchFilter === 'zones' ? 10 : 4).map((s: any) => (
                                                         <button key={s.id === -999 ? `coord-${s.x}-${s.y}` : s.id} onClick={() => handleSearchResultClick(s)} className="w-full text-left px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
                                                             <div className="flex justify-between items-center">
-                                                                <span className="text-white text-[10px] font-black uppercase italic">{typeof s.name === 'string' ? s.name : s.name?.fr || 'Inconnu'}</span>
+                                                                <span className="text-white text-caption font-black uppercase italic">{typeof s.name === 'string' ? s.name : s.name?.fr || 'Inconnu'}</span>
                                                                 {!s.isCoord && (
-                                                                    <span className="text-emerald-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-500/5">Lvl {s.level || '?'}</span>
+                                                                    <span className="text-emerald-500/50 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-500/5">Lvl {s.level || '?'}</span>
                                                                 )}
                                                             </div>
                                                         </button>
@@ -1375,7 +1375,7 @@ export default function InteractiveMapV2({
                                             {pendingFilter && pendingFilter !== 'all' && pendingFilter !== 'zones' && preloadedFilterResults.length > 0 && (
                                                 <>
                                                     <div className="px-3 py-1.5 bg-amber-500/5 border-b border-amber-500/10">
-                                                        <span className="text-amber-400/70 text-[8px] font-black uppercase tracking-widest">
+                                                        <span className="text-amber-400/70 text-caption font-black uppercase tracking-widest">
                                                             {pendingFilter === 'ocre' ? '🟡 Quête Ocre' : pendingFilter === 'archis' ? '🎯 Archimonstres' : pendingFilter === 'boss' ? '👑 Boss' : '👹 Monstres'}
                                                         </span>
                                                     </div>
@@ -1394,20 +1394,20 @@ export default function InteractiveMapV2({
                                                                         <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
                                                                     ) : (
                                                                         <div className="w-7 h-7 rounded bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                                                                            <span className="text-[10px]">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
+                                                                            <span className="text-caption">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
                                                                         </div>
                                                                     )}
                                                                     <div className="min-w-0">
-                                                                        <div className="text-amber-200 text-[10px] font-black uppercase italic truncate">{a.name}</div>
-                                                                        <div className="text-white/25 text-[8px] uppercase truncate">{a.zoneName || 'Zone inconnue'}</div>
+                                                                        <div className="text-amber-200 text-caption font-black uppercase italic truncate">{a.name}</div>
+                                                                        <div className="text-white/25 text-caption uppercase truncate">{a.zoneName || 'Zone inconnue'}</div>
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                                                     {a.level > 0 && (
-                                                                        <span className="text-amber-500/60 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-500/5">Lvl {a.level}</span>
+                                                                        <span className="text-amber-500/60 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-500/5">Lvl {a.level}</span>
                                                                     )}
                                                                     {a.worldMapId > 1 && (
-                                                                        <span className="text-sky-400/50 text-[7px] font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
+                                                                        <span className="text-sky-400/50 text-caption font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -1421,7 +1421,7 @@ export default function InteractiveMapV2({
                                                 <>
                                                     {searchFilter === 'all' && searchResults.length > 0 && (
                                                         <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-500/10 border-t border-t-white/5">
-                                                            <span className="text-orange-400/60 text-[8px] font-black uppercase tracking-widest">🎯 Avis & Archimonstres</span>
+                                                            <span className="text-orange-400/60 text-caption font-black uppercase tracking-widest">🎯 Avis & Archimonstres</span>
                                                         </div>
                                                     )}
                                                     {archiResults.slice(0, searchFilter !== 'all' ? 10 : 5).map((a: any) => (
@@ -1439,21 +1439,21 @@ export default function InteractiveMapV2({
                                                                         <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
                                                                     ) : (
                                                                         <div className="w-7 h-7 rounded bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                                                                            <span className="text-[10px]">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
+                                                                            <span className="text-caption">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
                                                                         </div>
                                                                     )}
                                                                     <div className="min-w-0">
                                                                         <div className="flex items-center gap-1.5">
                                                                             <span className={cn(
-                                                                                "text-[10px] font-black uppercase italic truncate",
+                                                                                "text-caption font-black uppercase italic truncate",
                                                                                 a.isOcre ? "text-amber-300" : a.type === 'monstre' ? "text-white/70" : "text-orange-300"
                                                                             )}>{a.name}</span>
                                                                             {a.isOcre && (
                                                                                 <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3.5 h-3.5 shrink-0" title="Quête Ocre" />
                                                                             )}
-                                                                            {a.type === 'boss' && <span className="text-[7px] text-amber-400/70 font-black uppercase px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/10">Boss</span>}
+                                                                            {a.type === 'boss' && <span className="text-caption text-amber-400/70 font-black uppercase px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/10">Boss</span>}
                                                                         </div>
-                                                                        <div className="text-white/25 text-[8px] uppercase truncate">
+                                                                        <div className="text-white/25 text-caption uppercase truncate">
                                                                             {a.zoneName
                                                                                 ? a.subAreaIds?.length > 0
                                                                                     ? a.zoneName
@@ -1465,10 +1465,10 @@ export default function InteractiveMapV2({
                                                                 </div>
                                                                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                                                     {a.level > 0 && (
-                                                                        <span className="text-orange-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-orange-500/5">Lvl {a.level}</span>
+                                                                        <span className="text-orange-500/50 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-orange-500/5">Lvl {a.level}</span>
                                                                     )}
                                                                     {a.worldMapId > 1 && (
-                                                                        <span className="text-sky-400/50 text-[7px] font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
+                                                                        <span className="text-sky-400/50 text-caption font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -1478,7 +1478,7 @@ export default function InteractiveMapV2({
                                             )}
 
                                             {isSearchingArchi && archiResults.length === 0 && searchResults.length === 0 && (
-                                                <div className="px-4 py-3 text-white/20 text-[10px] italic text-center flex items-center justify-center gap-2">
+                                                <div className="px-4 py-3 text-white/20 text-caption italic text-center flex items-center justify-center gap-2">
                                                     <Loader2 size={10} className="animate-spin" />
                                                     Recherche...
                                                 </div>
@@ -1495,15 +1495,15 @@ export default function InteractiveMapV2({
                                     </button>
                                     <div className="absolute top-full right-0 pt-2 w-48 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
                                         <div className="bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-2 space-y-1">
-                                            <button onClick={() => setShowDebugGrid(!showDebugGrid)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-white/50 hover:bg-white/5">
+                                            <button onClick={() => setShowDebugGrid(!showDebugGrid)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-white/50 hover:bg-white/5">
                                                 {showDebugGrid ? <Eye size={14} className="text-emerald-500" /> : <EyeOff size={14} />}
                                                 Grille
                                             </button>
-                                            <button onClick={() => setAutoCopyTravel(!autoCopyTravel)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-white/50 hover:bg-white/5">
+                                            <button onClick={() => setAutoCopyTravel(!autoCopyTravel)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-white/50 hover:bg-white/5">
                                                 <Zap size={14} className={autoCopyTravel ? "text-amber-500 fill-amber-500" : ""} />
                                                 Copie Auto
                                             </button>
-                                            <button onClick={() => setShowMapHelp(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-white/50 hover:bg-white/5">
+                                            <button onClick={() => setShowMapHelp(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-white/50 hover:bg-white/5">
                                                 <HelpCircle size={14} />
                                                 Aide
                                             </button>
@@ -1515,7 +1515,7 @@ export default function InteractiveMapV2({
                                                         value={search}
                                                         onChange={e => setSearch(e.target.value)}
                                                         placeholder="Zone..."
-                                                        className="w-full rounded-lg bg-black/40 py-1.5 pl-7 pr-3 text-white text-[9px] uppercase font-bold border border-white/5 outline-none"
+                                                        className="w-full rounded-lg bg-black/40 py-1.5 pl-7 pr-3 text-white text-caption uppercase font-bold border border-white/5 outline-none"
                                                     />
                                                 </div>
                                             </div>
@@ -1525,7 +1525,7 @@ export default function InteractiveMapV2({
 
                                 {/* 🏷️ DofusDB Attribution — tout à droite */}
                                 {!hideUI && (
-                                    <div className="hidden lg:flex items-center gap-2 ml-2 pl-2 border-l border-white/10 text-[10px] font-medium text-zinc-300">
+                                    <div className="hidden lg:flex items-center gap-2 ml-2 pl-2 border-l border-white/10 text-caption font-medium text-zinc-300">
                                         <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
                                         <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-400 hidden 2xl:inline">(LPNC-IA 1.0)</span></span>
                                     </div>
@@ -1587,7 +1587,7 @@ export default function InteractiveMapV2({
                                     >
                                         <img
                                             src={`/game-data/hd_maps/${targetMapId}.webp`}
-                                            className="w-full h-full object-cover opacity-90 transition-all duration-1000 ease-out"
+                                            className="w-full h-full object-cover opacity-90 transition-all duration-300 ease-out"
                                             alt="Target"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
@@ -1603,12 +1603,12 @@ export default function InteractiveMapV2({
 
                                         {/* Hint Overlay (Floating in image) */}
                                         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 flex items-center gap-2 md:gap-5">
-                                            <div className="w-8 h-8 md:w-16 md:h-16 rounded-xl md:rounded-[2rem] bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-2xl flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+                                            <div className="w-8 h-8 md:w-16 md:h-16 rounded-xl md:rounded-[2rem] bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-2xl flex items-center justify-center ">
                                                 <Target className="w-4 h-4 md:w-8 md:h-8 text-emerald-500" />
                                             </div>
                                             <div className="space-y-0 md:space-y-1">
                                                 <h2 className="text-white font-black text-sm md:text-4xl uppercase italic tracking-tighter drop-shadow-2xl">Où est-ce ?</h2>
-                                                <p className="text-emerald-400/60 text-[6px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.4em]">Analyse le décor</p>
+                                                <p className="text-emerald-400/60 text-caption md:text-xs font-black uppercase tracking-[0.2em] md:tracking-widest">Analyse le décor</p>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -1625,7 +1625,7 @@ export default function InteractiveMapV2({
                                         </div>
                                         <button
                                             onClick={() => setShowHDMap(true)}
-                                            className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold uppercase tracking-wider text-[10px] hover:bg-indigo-500/20 hover:border-indigo-500/30 active:scale-95 transition-all"
+                                            className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold uppercase tracking-wider text-caption hover:bg-indigo-500/20 hover:border-indigo-500/30 active:scale-95 transition-all"
                                         >
                                             Revoir l'image HD
                                         </button>
@@ -1634,7 +1634,7 @@ export default function InteractiveMapV2({
                             ) : (
                                 <div className="flex flex-col items-center gap-4 text-white/10 uppercase font-black italic">
                                     <Loader2 className="animate-spin" size={32} />
-                                    <p className="tracking-widest text-[10px]">Initialisation...</p>
+                                    <p className="tracking-widest text-caption">Initialisation...</p>
                                 </div>
                             )}
 
@@ -1646,15 +1646,15 @@ export default function InteractiveMapV2({
                             {/* Integrated Multi-Leaderboard */}
                             {!isSoloMode && (
                                 <div className={cn(
-                                    "flex flex-col shrink-0 bg-black/40 border-b border-white/5 transition-all duration-500",
+                                    "flex flex-col shrink-0 bg-black/40 border-b border-white/5 transition-all duration-300",
                                     "lg:h-[280px] lg:flex", // Desktop fixed height
                                     activePanelTab === 'scores' ? "flex-1 h-full" : "hidden lg:flex" // Mobile toggle
                                 )}>
                                     <div className="flex items-center justify-between p-4 md:p-6 pb-2 md:pb-4">
-                                        <h4 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-2 italic">
+                                        <h4 className="text-white/20 text-caption font-black uppercase tracking-widest flex items-center gap-2 italic">
                                             <Users size={14} /> Joueurs du Salon
                                         </h4>
-                                        <span className="text-emerald-500/40 text-[9px] font-black uppercase tracking-widest italic">{activeSession?.participants?.length || 1} Connectés</span>
+                                        <span className="text-emerald-500/40 text-caption font-black uppercase tracking-widest italic">{activeSession?.participants?.length || 1} Connectés</span>
                                     </div>
                                     <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-4 md:pb-6 space-y-2 custom-scrollbar list-none">
                                         {[...(activeSession?.participants || [])].sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).map((p: any, i: number) => {
@@ -1666,22 +1666,22 @@ export default function InteractiveMapV2({
                                                             {p.userAvatar ? (
                                                                 <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <div className={`w-full h-full flex items-center justify-center text-[10px] font-black italic ${i === 0 && p.score > 0 ? 'bg-amber-500 text-black' : 'bg-white/10 text-white/40'}`}>
+                                                                <div className={`w-full h-full flex items-center justify-center text-caption font-black italic ${i === 0 && p.score > 0 ? 'bg-amber-500 text-black' : 'bg-white/10 text-white/40'}`}>
                                                                     {i === 0 && p.score > 0 ? '👑' : i + 1}
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-white text-[11px] font-black uppercase italic tracking-wider">{p.userName}</span>
-                                                                {isMe && <span className="px-1 py-0.5 rounded bg-emerald-500 text-[7px] text-black font-black uppercase italic">Toi</span>}
+                                                                <span className="text-white text-caption font-black uppercase italic tracking-wider">{p.userName}</span>
+                                                                {isMe && <span className="px-1 py-0.5 rounded bg-emerald-500 text-caption text-black font-black uppercase italic">Toi</span>}
                                                             </div>
                                                             {!p.hasGuessed ? (
-                                                                <span className="text-[8px] text-white/20 font-bold uppercase italic flex items-center gap-1">
+                                                                <span className="text-caption text-white/20 font-bold uppercase italic flex items-center gap-1">
                                                                     <Clock size={8} className="animate-spin-slow" /> Réfléchit...
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-[8px] text-emerald-500 font-bold uppercase italic flex items-center gap-1">
+                                                                <span className="text-caption text-emerald-500 font-bold uppercase italic flex items-center gap-1">
                                                                     <CheckCircle2 size={8} /> Prêt !
                                                                 </span>
                                                             )}
@@ -1720,8 +1720,8 @@ export default function InteractiveMapV2({
                                             <Trophy size={12} />
                                         </button>
                                     </div>
-                                    <div className="hidden md:block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
-                                    <h3 className="hidden sm:block text-white font-black text-[10px] uppercase tracking-widest italic">Carte Tactique</h3>
+                                    <div className="hidden md:block w-2 h-2 rounded-full bg-emerald-500 " />
+                                    <h3 className="hidden sm:block text-white font-black text-caption uppercase tracking-widest italic">Carte Tactique</h3>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="flex items-center gap-1 mr-2 border-r border-white/10 pr-3">
@@ -1745,7 +1745,7 @@ export default function InteractiveMapV2({
                                         className="px-3 md:px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all flex items-center gap-2 active:scale-95"
                                     >
                                         <Compass size={12} />
-                                        <span className="hidden sm:inline text-[9px] font-black uppercase italic">Recentrer</span>
+                                        <span className="hidden sm:inline text-caption font-black uppercase italic">Recentrer</span>
                                     </button>
 
                                     {/* Minimize / Toggle UI button - user request */}
@@ -1794,7 +1794,7 @@ export default function InteractiveMapV2({
 
                                 {/* Floating Validation Overlay inside panel */}
                                 {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && (
-                                    <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-500">
+                                    <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-300">
                                         <button
                                             onClick={handleSubmitGuess}
                                             className="w-full py-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase text-xs italic tracking-widest shadow-[0_20px_40px_rgba(16,185,129,0.3)] border border-emerald-400/50 transition-all active:scale-95 flex items-center justify-center gap-4"
@@ -1805,10 +1805,10 @@ export default function InteractiveMapV2({
                                 )}
 
                                 {isCurrentUserSpectator && gamePhase === 'playing' && (
-                                    <div className="absolute top-6 inset-x-6 z-[1000] animate-in slide-in-from-top-6 duration-500">
+                                    <div className="absolute top-6 inset-x-6 z-[1000] animate-in slide-in-from-top-6 duration-300">
                                         <div className="w-full py-4 rounded-2xl bg-[#a78bfa]/10 backdrop-blur-xl border border-[#a78bfa]/20 flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(167,139,250,0.1)]">
                                             <div className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />
-                                            <span className="text-[#a78bfa] font-black uppercase text-[10px] tracking-[0.2em] italic drop-shadow-sm">Mode Spectateur — Observation seule</span>
+                                            <span className="text-[#a78bfa] font-black uppercase text-caption tracking-[0.2em] italic drop-shadow-sm">Mode Spectateur — Observation seule</span>
                                         </div>
                                     </div>
                                 )}
@@ -1898,7 +1898,7 @@ export default function InteractiveMapV2({
                             createPortal(
                                 <button
                                     onClick={handleLeaveSession}
-                                    className="px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-[10px] sm:text-xs italic border-b-[4px] border-black/20 transition-all flex items-center gap-2 shadow-[0_10px_20px_rgba(255,71,87,0.2)] active:translate-y-1 active:border-b-0 hover:scale-105"
+                                    className="px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-caption sm:text-xs italic border-b-[4px] border-black/20 transition-all flex items-center gap-2 shadow-[0_10px_20px_rgba(255,71,87,0.2)] active:translate-y-1 active:border-b-0 "
                                 >
                                     <LogOut size={16} />
                                     <span>Quitter la partie</span>
@@ -1909,7 +1909,7 @@ export default function InteractiveMapV2({
                             <div className="absolute top-4 left-4 sm:top-6 sm:left-8 pointer-events-auto z-[800] flex flex-col gap-2">
                                 <button
                                     onClick={handleLeaveSession}
-                                    className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-[10px] sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 hover:scale-105"
+                                    className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-caption sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 "
                                 >
                                     <LogOut size={18} className="sm:w-5 sm:h-5" />
                                     <span>Quitter la partie</span>
@@ -1938,23 +1938,23 @@ export default function InteractiveMapV2({
                                 {/* Header: More compact for horizontal layout */}
                                 <div className="flex items-center justify-between mb-8 gap-6 border-b border-white/5 pb-8 relative z-10">
                                     <div className="flex items-center gap-5">
-                                        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.1)]">
+                                        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 ">
                                             <Trophy size={28} />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-3 mb-1">
                                                 <h3 className="text-white font-black text-3xl uppercase italic leading-none tracking-tighter">Round {activeSession.currentRound}</h3>
-                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${activeSession.state === 'IN_PROGRESS' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                                <span className={`px-3 py-1 rounded-full text-caption font-black uppercase tracking-wider ${activeSession.state === 'IN_PROGRESS' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                                     {activeSession.state === 'IN_PROGRESS' ? 'En attente des joueurs' : 'Terminé'}
                                                 </span>
                                             </div>
-                                            <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Analyse des Précisions Géographiques</p>
+                                            <p className="text-white/20 text-caption font-black uppercase tracking-widest italic">Analyse des Précisions Géographiques</p>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-6 flex-wrap">
                                         <div className="px-5 py-3 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center min-w-[100px]">
-                                            <span className="text-white/20 text-[8px] font-black uppercase tracking-[0.2em] mb-1 italic">Prochain Round dans</span>
+                                            <span className="text-white/20 text-caption font-black uppercase tracking-[0.2em] mb-1 italic">Prochain Round dans</span>
                                             <span className="text-white font-black text-2xl italic tracking-tighter leading-none">{timeLeft}s</span>
                                         </div>
                                         <motion.button
@@ -1980,10 +1980,10 @@ export default function InteractiveMapV2({
                                                             <Target className="text-emerald-400 w-6 h-6 sm:w-8 sm:h-8" />
                                                         </div>
                                                         <div>
-                                                            <div className="text-emerald-400/80 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
+                                                            <div className="text-emerald-400/80 text-caption sm:text-caption font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
                                                             <div className="text-white font-black text-3xl sm:text-4xl italic flex items-baseline gap-2 sm:gap-3">
                                                                 {Math.round(guessResult.distance)} Maps
-                                                                <span className="text-emerald-500/40 text-[10px] sm:text-[14px] font-bold uppercase tracking-widest break-words leading-tight">de distance</span>
+                                                                <span className="text-emerald-500/40 text-caption sm:text-body font-bold uppercase tracking-widest break-words leading-tight">de distance</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1994,12 +1994,12 @@ export default function InteractiveMapV2({
                                                             <motion.div
                                                                 initial={{ width: "100%" }}
                                                                 animate={{ width: `${Math.max(0, Math.min(100, 100 - (Math.min(guessResult.distance || 0, 50) / 50) * 100))}%` }}
-                                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-600 to-emerald-400 "
                                                             />
                                                         </div>
                                                         <div className="flex justify-between mt-1 px-1">
-                                                            <span className="text-[7px] sm:text-[8px] font-black text-emerald-500 uppercase italic opacity-80">Précision Max</span>
-                                                            <span className="text-[7px] sm:text-[8px] font-black text-white/40 uppercase italic">{worldMap.maps?.length || 100}+ Cartes</span>
+                                                            <span className="text-caption sm:text-caption font-black text-emerald-500 uppercase italic opacity-80">Précision Max</span>
+                                                            <span className="text-caption sm:text-caption font-black text-white/40 uppercase italic">{worldMap.maps?.length || 100}+ Cartes</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2008,7 +2008,7 @@ export default function InteractiveMapV2({
                                                     {/* Your Choice */}
                                                     <div className="flex flex-col gap-2 sm:gap-3 h-full">
                                                         <div className="flex items-center justify-between px-2">
-                                                            <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] italic flex items-center gap-2">
+                                                            <div className="text-caption font-black text-white/30 uppercase tracking-[0.2em] italic flex items-center gap-2">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                                                 Ton Choix
                                                             </div>
@@ -2024,7 +2024,7 @@ export default function InteractiveMapV2({
                                                                     const sa = subAreasById.get(mObj?.subAreaId);
                                                                     const saName = sa ? (typeof sa.name === 'string' ? sa.name : sa.name?.fr || sa.name?.en || "") : "";
                                                                     return (
-                                                                        <span className="text-[8px] font-black text-emerald-500/70 uppercase tracking-widest italic truncate max-w-[150px]">
+                                                                        <span className="text-caption font-black text-emerald-500/70 uppercase tracking-widest italic truncate max-w-[150px]">
                                                                             {saName ? `${saName} · ` : ""} [{mObj?.x || 0}, {mObj?.y || 0}]
                                                                         </span>
                                                                     );
@@ -2044,7 +2044,7 @@ export default function InteractiveMapV2({
                                                                 if (mId) {
                                                                     return <img
                                                                         src={`/game-data/hd_maps/${mId}.webp`}
-                                                                        className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-700"
+                                                                        className="w-full h-full object-cover transition-transform group- duration-300"
                                                                         alt="Ton choix"
                                                                     />;
                                                                 } else if (bestGuess) {
@@ -2054,8 +2054,8 @@ export default function InteractiveMapV2({
                                                                                 <MapIcon className="text-emerald-500/50" size={24} />
                                                                             </div>
                                                                             <div className="text-center">
-                                                                                <span className="text-[10px] uppercase font-black italic tracking-widest text-emerald-500/50">Position Validée</span>
-                                                                                <p className="text-[8px] font-mono text-white/20 mt-1">[{bestGuess.x}, {bestGuess.y}]</p>
+                                                                                <span className="text-caption uppercase font-black italic tracking-widest text-emerald-500/50">Position Validée</span>
+                                                                                <p className="text-caption font-mono text-white/20 mt-1">[{bestGuess.x}, {bestGuess.y}]</p>
                                                                             </div>
                                                                         </div>
                                                                     );
@@ -2065,7 +2065,7 @@ export default function InteractiveMapV2({
                                                                             <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center">
                                                                                 <div className="w-2 h-2 rounded-full bg-white/5" />
                                                                             </div>
-                                                                            <span className="text-[10px] uppercase font-black italic tracking-widest">Aucune décision prise</span>
+                                                                            <span className="text-caption uppercase font-black italic tracking-widest">Aucune décision prise</span>
                                                                         </div>
                                                                     );
                                                                 }
@@ -2077,8 +2077,8 @@ export default function InteractiveMapV2({
                                                     {/* Solution */}
                                                     <div className="flex flex-col gap-3 h-full">
                                                         <div className="flex items-center justify-between px-2">
-                                                            <div className="text-[10px] font-black text-rose-500/60 uppercase tracking-[0.2em] italic flex items-center gap-2">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]" />
+                                                            <div className="text-caption font-black text-rose-500/60 uppercase tracking-[0.2em] italic flex items-center gap-2">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 " />
                                                                 La Solution
                                                             </div>
                                                             <div className="flex items-center gap-2">
@@ -2091,10 +2091,10 @@ export default function InteractiveMapV2({
                                                                     
                                                                     return (
                                                                         <>
-                                                                            <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest italic bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                                                                            <span className="text-caption font-black text-rose-500 uppercase tracking-widest italic bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
                                                                                 [{targetMapObj?.x || 0}, {targetMapObj?.y || 0}]
                                                                             </span>
-                                                                            <span className="text-[8px] font-black text-rose-500/60 uppercase tracking-widest italic">
+                                                                            <span className="text-caption font-black text-rose-500/60 uppercase tracking-widest italic">
                                                                                 {subAreaName}
                                                                             </span>
                                                                         </>
@@ -2120,14 +2120,14 @@ export default function InteractiveMapV2({
                                                                                 toast.success("Carte signalée !");
                                                                             }
                                                                         }}
-                                                                        className="absolute top-4 right-4 z-[500] flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black uppercase tracking-widest italic text-[9px] border border-rose-400/50 shadow-[0_10px_30px_rgba(244,63,94,0.3)] transition-all active:scale-95 group"
+                                                                        className="absolute top-4 right-4 z-[500] flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black uppercase tracking-widest italic text-caption border border-rose-400/50 shadow-[0_10px_30px_rgba(244,63,94,0.3)] transition-all active:scale-95 group"
                                                                     >
                                                                         <Flag size={12} className="group-hover:rotate-12 transition-transform" />
                                                                         Signaler cette Map
                                                                     </button>
                                                                     <img
                                                                         src={`/game-data/hd_maps/${targetMapId}.webp`}
-                                                                        className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-700"
+                                                                        className="w-full h-full object-cover transition-transform group- duration-300"
                                                                         alt="Solution"
                                                                     />
                                                                     <div className="absolute inset-0 bg-rose-500/5 pointer-events-none" />
@@ -2136,7 +2136,7 @@ export default function InteractiveMapV2({
                                                             ) : (
                                                                 <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-slate-950/50 backdrop-blur-sm px-6">
                                                                     <div className="w-12 h-12 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin" />
-                                                                    <p className="text-rose-500/50 text-[10px] font-black uppercase italic tracking-widest text-center">
+                                                                    <p className="text-rose-500/50 text-caption font-black uppercase italic tracking-widest text-center">
                                                                         Analyse en cours...<br />
                                                                         La solution sera révélée dès que tout le monde aura joué.
                                                                     </p>
@@ -2195,17 +2195,17 @@ export default function InteractiveMapV2({
                                                     <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                                                     <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                        <span className="text-[10px] font-black text-white/50 uppercase italic tracking-widest">Analyse Géographique</span>
+                                                        <span className="text-caption font-black text-white/50 uppercase italic tracking-widest">Analyse Géographique</span>
                                                     </div>
                                                     
                                                     <div className="absolute bottom-4 left-4 z-[1000] flex items-center gap-3">
                                                         <div className="flex items-center gap-1.5">
                                                             <div className="w-2 h-2 rounded-full bg-rose-500" />
-                                                            <span className="text-[8px] font-black text-white/40 uppercase italic">Solution</span>
+                                                            <span className="text-caption font-black text-white/40 uppercase italic">Solution</span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
                                                             <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                                            <span className="text-[8px] font-black text-white/40 uppercase italic">Ton Choix</span>
+                                                            <span className="text-caption font-black text-white/40 uppercase italic">Ton Choix</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2214,8 +2214,8 @@ export default function InteractiveMapV2({
 
                                         <div className="flex flex-col flex-1 min-h-0 bg-white/[0.03] border border-white/10 rounded-3xl p-4">
                                             <div className="flex items-center justify-between mb-5 px-4 shrink-0">
-                                                <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Classement Round</div>
-                                                <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-[9px] font-black italic tracking-widest">
+                                                <div className="text-white/20 text-caption font-black uppercase tracking-widest italic">Classement Round</div>
+                                                <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-caption font-black italic tracking-widest">
                                                     {activeSession.participants?.filter((p: any) => !p.isSpectator).length} / 8 JOUEURS
                                                 </div>
                                             </div>
@@ -2238,12 +2238,12 @@ export default function InteractiveMapV2({
                                                                     {p.userAvatar ? (
                                                                         <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                                     ) : (
-                                                                        <div className="w-full h-full bg-slate-800 flex items-center justify-center text-white/10 font-black text-[10px] uppercase">
+                                                                        <div className="w-full h-full bg-slate-800 flex items-center justify-center text-white/10 font-black text-caption uppercase">
                                                                             {p.userName?.charAt(0)}
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-amber-500 text-black shadow-amber-500/30' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-white/10 text-white/40'}`}>
+                                                                <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-caption font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-amber-500 text-black shadow-amber-500/30' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-white/10 text-white/40'}`}>
                                                                     {i + 1}
                                                                 </div>
                                                             </div>
@@ -2254,9 +2254,9 @@ export default function InteractiveMapV2({
                                                                 </span>
                                                                 <div className="flex items-center gap-2">
                                                                     {dist !== null ? (
-                                                                        <span className="text-[10px] font-black text-amber-500 italic leading-none">{dist} <span className="text-[8px] opacity-40 uppercase">Maps</span></span>
+                                                                        <span className="text-caption font-black text-amber-500 italic leading-none">{dist} <span className="text-caption opacity-40 uppercase">Maps</span></span>
                                                                     ) : (
-                                                                        <span className="text-[8px] font-black text-white/10 uppercase tracking-widest italic">Absent</span>
+                                                                        <span className="text-caption font-black text-white/10 uppercase tracking-widest italic">Absent</span>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -2270,7 +2270,7 @@ export default function InteractiveMapV2({
                                                                 {i === 0 && <Crown size={14} className="text-amber-500" strokeWidth={2.5} />}
                                                             </div>
                                                             {p.lastGuess?.mapId && (
-                                                                <span className="text-[7px] font-black text-white/20 uppercase tracking-[0.1em] italic truncate max-w-[90px]">
+                                                                <span className="text-caption font-black text-white/20 uppercase tracking-[0.1em] italic truncate max-w-[90px]">
                                                                     {subAreasById.get(allMapsById.get(p.lastGuess.mapId)?.subAreaId)?.name?.fr || "Zone Cache"}
                                                                 </span>
                                                             )}
@@ -2306,15 +2306,15 @@ export default function InteractiveMapV2({
                                 </div>
 
                                 <h2 className="text-white font-black text-2xl md:text-5xl uppercase italic tracking-tighter mb-2 text-center">Partie Terminée</h2>
-                                <p className="text-white/20 font-black uppercase tracking-[0.4em] text-[8px] md:text-[10px] mb-6 md:mb-12 italic">Stats Globales SigilGuesser</p>
+                                <p className="text-white/20 font-black uppercase tracking-widest text-caption md:text-caption mb-6 md:mb-12 italic">Stats Globales SigilGuesser</p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full mb-6 md:mb-12">
                                     <div className="p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10 flex flex-col items-center">
-                                        <span className="text-indigo-400 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1 md:mb-2">Score Total</span>
+                                        <span className="text-indigo-400 text-caption md:text-caption font-black uppercase tracking-widest mb-1 md:mb-2">Score Total</span>
                                         <span className="text-white font-black text-2xl md:text-4xl italic tracking-tight">{score}</span>
                                     </div>
                                     <div className="p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-emerald-500/5 border border-emerald-500/10 flex flex-col items-center">
-                                        <span className="text-emerald-400 text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1 md:mb-2">Résultat</span>
+                                        <span className="text-emerald-400 text-caption md:text-caption font-black uppercase tracking-widest mb-1 md:mb-2">Résultat</span>
                                         <span className="text-white font-black text-2xl md:text-4xl italic tracking-tight">Fin</span>
                                     </div>
                                 </div>
@@ -2335,7 +2335,7 @@ export default function InteractiveMapV2({
                                             <div className="flex flex-col">
                                                 <span className="text-white font-black text-xs uppercase italic">{p.userName}</span>
                                             </div>
-                                            <div className="ml-auto text-white font-black italic">{p.score} <span className="text-[10px] text-white/30 font-normal">pts</span> </div>
+                                            <div className="ml-auto text-white font-black italic">{p.score} <span className="text-caption text-white/30 font-normal">pts</span> </div>
                                         </div>
                                     ))}
                                 </div>
@@ -2410,7 +2410,7 @@ export default function InteractiveMapV2({
                                         <div className="w-6 lg:w-8 h-1 bg-gradient-to-r from-purple-500 to-transparent rounded-full shrink-0" />
                                         L'Arène des Sigils
                                     </h2>
-                                    <p className="text-white/30 text-[9px] md:text-xs font-medium uppercase tracking-widest leading-relaxed max-w-2xl">
+                                    <p className="text-white/30 text-caption md:text-xs font-medium uppercase tracking-widest leading-relaxed max-w-2xl">
                                         Défiez vos alliés dans des épreuves légendaires.
                                     </p>
                                 </div>
@@ -2420,7 +2420,7 @@ export default function InteractiveMapV2({
                                     <button
                                         onClick={() => setGamesSubTab('arena')}
                                         className={cn(
-                                            "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
+                                            "flex-1 px-6 py-3 rounded-xl text-caption font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'arena' 
                                                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
                                                 : "text-white/70 hover:text-white hover:bg-white/10"
@@ -2432,7 +2432,7 @@ export default function InteractiveMapV2({
                                     <button
                                         onClick={() => setGamesSubTab('ladder')}
                                         className={cn(
-                                            "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
+                                            "flex-1 px-6 py-3 rounded-xl text-caption font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'ladder' 
                                                 ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
                                                 : "text-white/70 hover:text-white hover:bg-white/10"
@@ -2456,7 +2456,7 @@ export default function InteractiveMapV2({
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                     {(availableSessions.length === 0 && bombRooms.length === 0) ? (
-                                        <div className="col-span-full h-16 lg:h-20 flex items-center justify-center border border-dashed border-white/5 rounded-2xl bg-white/[0.02] text-white/10 italic font-black uppercase text-[10px] tracking-[0.2em] text-center px-4">
+                                        <div className="col-span-full h-16 lg:h-20 flex items-center justify-center border border-dashed border-white/5 rounded-2xl bg-white/[0.02] text-white/10 italic font-black uppercase text-caption tracking-[0.2em] text-center px-4">
                                             Aucun salon actif • Créez le vôtre pour commencer
                                         </div>
                                     ) : (
@@ -2465,22 +2465,22 @@ export default function InteractiveMapV2({
                                                 <div key={room.id} className="p-4 bg-white/5 border border-emerald-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-emerald-500/5 transition-all">
                                                     <div className="flex flex-col min-w-0 pr-2">
                                                         <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
-                                                        <span className="text-emerald-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Guesser • {room.playerCount}/8</span>
+                                                        <span className="text-emerald-500/40 text-caption font-black uppercase mt-0.5 whitespace-nowrap">Guesser • {room.playerCount}/8</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         {room.state === 'IN_PROGRESS' || room.state === 'COUNTDOWN' ? (
-                                                             <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                             <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-caption cursor-not-allowed italic">
                                                                  En cours
                                                              </div>
                                                          ) : room.state === 'RESULT' || room.state === 'FINISHED' ? (
-                                                             <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                             <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500/50 font-black uppercase text-caption cursor-not-allowed italic">
                                                                  Fini
                                                              </div>
                                                          ) : (
                                                             <button 
                                                                 onClick={() => handleJoinRoom(room)} 
                                                                 disabled={joiningId === room.id}
-                                                                className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
+                                                                className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-caption shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
                                                             >
                                                                 {joiningId === room.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Rejoindre"}
                                                             </button>
@@ -2488,7 +2488,7 @@ export default function InteractiveMapV2({
                                                         <button 
                                                             onClick={() => handleJoinRoom(room, true)} 
                                                             disabled={joiningId === room.id}
-                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
+                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-caption transition-all disabled:opacity-50"
                                                         >
                                                             Regarder
                                                         </button>
@@ -2499,17 +2499,17 @@ export default function InteractiveMapV2({
                                                 <div key={room.roomId} className="p-4 bg-white/5 border border-red-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-red-500/5 transition-all">
                                                     <div className="flex flex-col min-w-0 pr-2">
                                                         <span className="text-white font-bold text-xs uppercase italic truncate">{room.roomId}</span>
-                                                        <span className="text-red-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Bomb • {room.playerCount}/8</span>
+                                                        <span className="text-red-500/40 text-caption font-black uppercase mt-0.5 whitespace-nowrap">Bomb • {room.playerCount}/8</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         {room.state !== 'LOBBY' ? (
-                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500/50 font-black uppercase text-caption cursor-not-allowed italic">
                                                                 Lancé
                                                             </div>
                                                         ) : (
-                                                            <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-[10px] shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                            <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-caption shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
                                                         )}
-                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-caption transition-all text-center">Regarder</a>
                                                     </div>
                                                 </div>
                                             ))}
@@ -2530,15 +2530,15 @@ export default function InteractiveMapV2({
                                                 : "border-red-500/20 grayscale opacity-70"
                                         )}
                                     >
-                                        <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-[60px] group-hover:bg-emerald-500/10 transition-all duration-500" />
+                                        <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-[60px] group-hover:bg-emerald-500/10 transition-all duration-300" />
 
                                         <div className="relative z-10 flex flex-col h-full justify-between">
                                             <div>
                                                 <div className="flex items-start justify-between mb-6">
-                                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-105 transition-all duration-300">
+                                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group- transition-all duration-300">
                                                         <Target className="text-emerald-400 w-7 h-7 md:w-8 md:h-8" strokeWidth={2.2} />
                                                     </div>
-                                                    <div className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider">
+                                                    <div className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-extrabold uppercase tracking-wider">
                                                         {getGameStatus('guesser').isEnabled ? 'EXPLORATION' : 'MAINTENANCE'}
                                                     </div>
                                                 </div>
@@ -2590,15 +2590,15 @@ export default function InteractiveMapV2({
                                                 : "border-red-500/20 grayscale opacity-70"
                                         )}
                                     >
-                                        <div className="absolute top-0 right-0 w-36 h-36 bg-red-500/5 rounded-full blur-[60px] group-hover:bg-red-500/10 transition-all duration-500" />
+                                        <div className="absolute top-0 right-0 w-36 h-36 bg-red-500/5 rounded-full blur-[60px] group-hover:bg-red-500/10 transition-all duration-300" />
                                         
                                         <div className="relative z-10 flex flex-col h-full justify-between">
                                             <div>
                                                 <div className="flex items-start justify-between mb-6">
-                                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 group-hover:scale-105 transition-all duration-300">
+                                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 group- transition-all duration-300">
                                                         <Bomb className="text-red-400 w-7 h-7 md:w-8 md:h-8" />
                                                     </div>
-                                                    <div className="px-3 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-extrabold uppercase tracking-wider">
+                                                    <div className="px-3 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-caption font-extrabold uppercase tracking-wider">
                                                         {getGameStatus('bomb').isEnabled ? 'ACTION' : 'MAINTENANCE'}
                                                     </div>
                                                 </div>
@@ -2646,7 +2646,7 @@ export default function InteractiveMapV2({
                                             <h3 className="text-white font-black text-3xl md:text-4xl uppercase italic tracking-tighter mb-2">L'Élite des Sigils</h3>
                                             <div className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center gap-2 self-start">
                                                 <Trophy size={14} className="text-amber-400" />
-                                                <span className="text-amber-400 text-[10px] font-black uppercase tracking-widest">Hall of Fame</span>
+                                                <span className="text-amber-400 text-caption font-black uppercase tracking-widest">Hall of Fame</span>
                                             </div>
                                         </div>
 
@@ -2681,7 +2681,7 @@ export default function InteractiveMapV2({
                                             <button
                                                 onClick={() => setLadderType('all_time')}
                                                 className={cn(
-                                                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all",
+                                                    "px-6 py-2.5 rounded-xl text-caption font-black uppercase transition-all",
                                                     ladderType === 'all_time' ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'
                                                 )}
                                             >
@@ -2690,7 +2690,7 @@ export default function InteractiveMapV2({
                                             <button
                                                 onClick={() => setLadderType('month')}
                                                 className={cn(
-                                                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all",
+                                                    "px-6 py-2.5 rounded-xl text-caption font-black uppercase transition-all",
                                                     ladderType === 'month' ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'
                                                 )}
                                             >
@@ -2734,7 +2734,7 @@ export default function InteractiveMapV2({
                                                                 <span className="text-white font-black text-sm uppercase italic truncate">{entry.userName}</span>
                                                                 {index < 3 && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />}
                                                             </div>
-                                                            <span className="text-white/20 text-[10px] font-black uppercase tracking-[0.2em]">{ladderGame === 'guesser' ? 'Explorateur' : 'Artificier'}</span>
+                                                            <span className="text-white/20 text-caption font-black uppercase tracking-[0.2em]">{ladderGame === 'guesser' ? 'Explorateur' : 'Artificier'}</span>
                                                         </div>
                                                     </div>
                                                     <div className="text-right shrink-0">
@@ -2743,7 +2743,7 @@ export default function InteractiveMapV2({
                                                             index === 0 ? "text-amber-500" : "text-white/60"
                                                         )}>
                                                             {entry.bestScore || 0} 
-                                                            <span className="text-[10px] ml-1.5 opacity-40 not-italic">pts</span>
+                                                            <span className="text-caption ml-1.5 opacity-40 not-italic">pts</span>
                                                         </div>
                                                     </div>
                                                 </motion.div>
@@ -2775,13 +2775,13 @@ export default function InteractiveMapV2({
                                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
+                                        <div className="w-3 h-3 rounded-full bg-emerald-500 " />
                                         <h2 className="text-white font-black text-3xl uppercase italic leading-none tracking-tight">Salon</h2>
                                     </div>
 
                                     {!isSoloMode && (
                                         <div className="mb-8">
-                                            <span className="text-white/20 text-[9px] font-black uppercase tracking-[0.2em] block mb-3 pl-1">Invitation</span>
+                                            <span className="text-white/20 text-caption font-black uppercase tracking-[0.2em] block mb-3 pl-1">Invitation</span>
                                             <button
                                                 onClick={() => {
                                                     const url = `${window.location.origin}${window.location.pathname}#mini-jeux`;
@@ -2791,17 +2791,17 @@ export default function InteractiveMapV2({
                                                 className="group flex items-center gap-3 px-5 py-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-emerald-500/30 transition-all w-full"
                                             >
                                                 <Copy size={14} className="text-emerald-500" />
-                                                <span className="text-white/40 font-bold text-[10px] uppercase truncate">Copié le lien</span>
+                                                <span className="text-white/40 font-bold text-caption uppercase truncate">Copié le lien</span>
                                             </button>
                                         </div>
                                     )}
 
                                     <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                         <div className="flex flex-wrap gap-2">
-                                            <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-[10px] font-black uppercase italic">
+                                            <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-caption font-black uppercase italic">
                                                 {isSoloMode ? "Mode Solo" : `${activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0} / 8 Joueurs`}
                                             </div>
-                                            <div className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-500 text-[10px] font-black uppercase italic flex items-center gap-2">
+                                            <div className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-500 text-caption font-black uppercase italic flex items-center gap-2">
                                                 {(activeSession.gameMode === 'SPECIAL') ? 'Mode Spécial' : 'Mode Normal'}
                                                 {(activeSession.gameMode === 'SPECIAL') && <Clock size={10} className="text-indigo-400" />}
                                             </div>
@@ -2809,7 +2809,7 @@ export default function InteractiveMapV2({
                                         {activeSession.hostId === currentUserId && (
                                             <div className="space-y-6">
                                                 <div className="pt-6 border-t border-white/5">
-                                                    <span className="text-white/20 text-[9px] font-black uppercase tracking-[0.2em] block mb-4 pl-1">Rounds</span>
+                                                    <span className="text-white/20 text-caption font-black uppercase tracking-[0.2em] block mb-4 pl-1">Rounds</span>
                                                     <div className="grid grid-cols-4 gap-2">
                                                         {[3, 5, 10, 20].map(r => (
                                                             <button
@@ -2819,7 +2819,7 @@ export default function InteractiveMapV2({
                                                                     socket?.emit("geoguesser:room:settings", { maxRounds: r });
                                                                     setActiveSession({ ...activeSession, maxRounds: r });
                                                                 }}
-                                                                className={`py-2 rounded-xl text-[10px] font-black transition-all ${activeSession.maxRounds === r ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                                                                className={`py-2 rounded-xl text-caption font-black transition-all ${activeSession.maxRounds === r ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
                                                             >
                                                                 {r}
                                                             </button>
@@ -2827,7 +2827,7 @@ export default function InteractiveMapV2({
                                                     </div>
                                                 </div>
                                                 <div className="pt-6 border-t border-white/5">
-                                                    <span className="text-white/20 text-[9px] font-black uppercase tracking-[0.2em] block mb-4 pl-1">Mode de Jeu</span>
+                                                    <span className="text-white/20 text-caption font-black uppercase tracking-[0.2em] block mb-4 pl-1">Mode de Jeu</span>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <button
                                                             onClick={(e) => {
@@ -2836,7 +2836,7 @@ export default function InteractiveMapV2({
                                                                 socket?.emit("geoguesser:room:settings", { gameMode: m });
                                                                 setActiveSession({ ...activeSession, gameMode: m });
                                                             }}
-                                                            className={`py-3 rounded-xl text-[9px] font-black uppercase transition-all ${(!activeSession.gameMode || activeSession.gameMode === 'NORMAL') ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${(!activeSession.gameMode || activeSession.gameMode === 'NORMAL') ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
                                                         >
                                                             Normal
                                                         </button>
@@ -2847,7 +2847,7 @@ export default function InteractiveMapV2({
                                                                 socket?.emit("geoguesser:room:settings", { gameMode: m });
                                                                 setActiveSession({ ...activeSession, gameMode: m });
                                                             }}
-                                                            className={`py-3 rounded-xl text-[9px] font-black uppercase transition-all ${activeSession.gameMode === 'SPECIAL' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${activeSession.gameMode === 'SPECIAL' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
                                                         >
                                                             Spécial
                                                         </button>
@@ -2856,7 +2856,7 @@ export default function InteractiveMapV2({
                                                         <motion.p
                                                             initial={{ opacity: 0, x: -10 }}
                                                             animate={{ opacity: 1, x: 0 }}
-                                                            className="mt-4 text-[8px] text-amber-400 font-black uppercase italic tracking-[0.2em] pl-1 flex items-center gap-2"
+                                                            className="mt-4 text-caption text-amber-400 font-black uppercase italic tracking-[0.2em] pl-1 flex items-center gap-2"
                                                         >
                                                             <Clock size={10} className="animate-bounce" />
                                                             Défi : 10 secondes par round
@@ -2871,7 +2871,7 @@ export default function InteractiveMapV2({
                                 <div className="flex items-center gap-2 mt-6">
                                     <button
                                         onClick={handleLeaveSession}
-                                        className="flex-1 py-5 rounded-2xl bg-red-500/10 text-red-500 font-black uppercase text-[10px] italic hover:bg-red-500 hover:text-white transition-all border border-red-500/10 shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                        className="flex-1 py-5 rounded-2xl bg-red-500/10 text-red-500 font-black uppercase text-caption italic hover:bg-red-500 hover:text-white transition-all border border-red-500/10 shadow-lg active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         <LogOut size={14} />
                                         <span>{activeSession.hostId === currentUserId ? 'Dissoudre' : 'Quitter'}</span>
@@ -2883,10 +2883,10 @@ export default function InteractiveMapV2({
                             <div className="flex-1 p-6 lg:p-10 flex flex-col relative bg-[#0a0d14] h-full overflow-hidden">
                                 <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 border-b border-white/5 pb-6 shrink-0">
                                     <div className="flex flex-col w-full sm:w-auto">
-                                        <h3 className="text-white/40 font-black uppercase text-[10px] tracking-[0.3em]">Participants connectés</h3>
+                                        <h3 className="text-white/40 font-black uppercase text-caption tracking-widest">Participants connectés</h3>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-emerald-500/60 text-[9px] font-black uppercase tracking-widest italic">
+                                            <span className="text-emerald-500/60 text-caption font-black uppercase tracking-widest italic">
                                                 {activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0} / 8 Places occupées
                                             </span>
                                         </div>
@@ -2910,12 +2910,12 @@ export default function InteractiveMapV2({
 
                                 {/* Spectators Section */}
                                 {activeSession.participants?.filter((p: any) => p.isSpectator && p.isConnected).length > 0 && (
-                                    <div className="mb-8 flex items-center gap-4 bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-3xl animate-in fade-in slide-in-from-top-2 duration-700">
+                                    <div className="mb-8 flex items-center gap-4 bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-3xl animate-in fade-in slide-in-from-top-2 duration-300">
                                         <div className="flex flex-col shrink-0 pr-4 border-r border-emerald-500/10">
-                                            <span className="text-emerald-500 font-black uppercase text-[10px] tracking-widest mb-0.5 mt-0.5">
+                                            <span className="text-emerald-500 font-black uppercase text-caption tracking-widest mb-0.5 mt-0.5">
                                                 En observation
                                             </span>
-                                            <span className="text-emerald-500/40 text-[8px] font-bold uppercase italic whitespace-nowrap">
+                                            <span className="text-emerald-500/40 text-caption font-bold uppercase italic whitespace-nowrap">
                                                 {activeSession.participants?.filter((p: any) => p.isSpectator && p.isConnected).length} spectateur(s)
                                             </span>
                                         </div>
@@ -2926,11 +2926,11 @@ export default function InteractiveMapV2({
                                                     className="relative group shrink-0"
                                                     title={`${s.userName} regarde la partie`}
                                                 >
-                                                    <div className="w-10 h-10 rounded-2xl border-2 border-[#0a0d14] bg-slate-900 flex items-center justify-center overflow-hidden hover:scale-110 hover:-translate-y-1 transition-all z-10 hover:z-20 relative shadow-xl">
+                                                    <div className="w-10 h-10 rounded-2xl border-2 border-[#0a0d14] bg-slate-900 flex items-center justify-center overflow-hidden  hover:-translate-y-1 transition-all z-10 hover:z-20 relative shadow-xl">
                                                         {s.userAvatar ? (
                                                             <img src={s.userAvatar} alt="" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <span className="text-white/40 font-black text-[10px] uppercase italic">{s.userName?.[0] || 'S'}</span>
+                                                            <span className="text-white/40 font-black text-caption uppercase italic">{s.userName?.[0] || 'S'}</span>
                                                         )}
                                                         <div className="absolute inset-0 bg-emerald-500/10" />
                                                     </div>
@@ -2938,7 +2938,7 @@ export default function InteractiveMapV2({
                                             ))}
                                         </div>
                                         <div className="flex-1 text-right">
-                                            <span className="text-emerald-500/30 text-[9px] font-black uppercase italic tracking-tighter">Ils guettent vos faits et gestes...</span>
+                                            <span className="text-emerald-500/30 text-caption font-black uppercase italic tracking-tighter">Ils guettent vos faits et gestes...</span>
                                         </div>
                                     </div>
                                 )}
@@ -2951,7 +2951,7 @@ export default function InteractiveMapV2({
                                             key={p.id}
                                             className="p-6 rounded-[2.5rem] bg-white/[0.03] border border-white/5 flex items-center gap-5 hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all group"
                                         >
-                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-transform overflow-hidden">
+                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center border border-emerald-500/20 group- transition-transform overflow-hidden">
                                                 {p.userAvatar ? (
                                                     <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                 ) : (
@@ -2963,7 +2963,7 @@ export default function InteractiveMapV2({
                                                     <span className="text-white font-black text-sm uppercase italic tracking-tight">{p.userName}</span>
                                                 </div>
                                                 {p.userId === activeSession.hostId && (
-                                                    <span className="text-emerald-500 text-[9px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
+                                                    <span className="text-emerald-500 text-caption font-black uppercase tracking-widest mt-1 flex items-center gap-2">
                                                         <Crown size={10} /> Maitre du Salon
                                                     </span>
                                                 )}
@@ -2977,7 +2977,7 @@ export default function InteractiveMapV2({
                                                 <div className="w-2 h-2 rounded-full bg-white/5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-white/20 font-black uppercase text-[10px] tracking-widest italic">Libre</span>
+                                                <span className="text-white/20 font-black uppercase text-caption tracking-widest italic">Libre</span>
                                             </div>
                                         </div>
                                     )))}
@@ -3026,7 +3026,7 @@ export default function InteractiveMapV2({
                                 <span className="text-[180px] font-black italic text-emerald-500 drop-shadow-[0_0_50px_rgba(16,185,129,0.5)] leading-none">
                                     {timeLeft}
                                 </span>
-                                <span className="text-white/20 font-black uppercase tracking-[1em] text-xl mt-4 italic">
+                                <span className="text-white/20 font-black uppercase tracking-widest text-xl mt-4 italic">
                                     Préparez-vous
                                 </span>
                             </motion.div>
@@ -3066,7 +3066,7 @@ export default function InteractiveMapV2({
                                             </div>
                                             <div>
                                                 <h4 className="text-white font-black text-xs uppercase italic mb-1">{rule.t}</h4>
-                                                <p className="text-white/40 text-[11px] font-medium leading-relaxed">{rule.d}</p>
+                                                <p className="text-white/40 text-caption font-medium leading-relaxed">{rule.d}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -3147,7 +3147,7 @@ export default function InteractiveMapV2({
                                         rotate: i * 18
                                     }}
                                     transition={{ duration: 3, ease: "easeOut" }}
-                                    className="absolute w-4 h-4 rounded-sm bg-emerald-500 shadow-[0_0_25px_#10b981]"
+                                    className="absolute w-4 h-4 rounded-sm bg-emerald-500 "
                                 />
                             ))}
 
@@ -3176,7 +3176,7 @@ export default function InteractiveMapV2({
                                         rotate: [0, 8, -8, 0]
                                     }}
                                     transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-                                    className="w-40 h-40 rounded-full bg-emerald-500 flex items-center justify-center text-black shadow-[0_0_80px_#10b981]"
+                                    className="w-40 h-40 rounded-full bg-emerald-500 flex items-center justify-center text-black "
                                 >
                                     <Sparkles size={80} />
                                 </motion.div>
@@ -3185,7 +3185,7 @@ export default function InteractiveMapV2({
                                     <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter mb-3 drop-shadow-[0_10px_10px_rgba(0,0,0,1)]">
                                         MAP EXACTE !
                                     </h1>
-                                    <p className="text-emerald-400 font-black text-2xl uppercase tracking-[0.3em] animate-pulse">
+                                    <p className="text-emerald-400 font-black text-2xl uppercase tracking-widest animate-pulse">
                                         +250 PTS BONUS
                                     </p>
                                 </div>

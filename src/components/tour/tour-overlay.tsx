@@ -169,7 +169,7 @@ export function TourOverlay() {
 
             {/* Glowing ring around the spotlight */}
             <div
-                className="absolute border border-violet-500/40 rounded-[18px] transition-all duration-300 pointer-events-none shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+                className="absolute border border-violet-500/40 rounded-[18px] transition-all duration-300 pointer-events-none "
                 style={{
                     left: x,
                     top: y,
@@ -220,7 +220,7 @@ export function TourOverlay() {
                                     className={cn(
                                         "h-1 rounded-full transition-all duration-300",
                                         idx + 1 === currentStep 
-                                            ? "w-4 bg-violet-500 shadow-[0_0_8px_#8b5cf6]" 
+                                            ? "w-4 bg-violet-500 " 
                                             : "w-1 bg-white/20"
                                     )}
                                 />

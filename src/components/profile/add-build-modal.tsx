@@ -177,9 +177,9 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                         {STEPS.map((s, i) => (
                             <div key={i} className="flex items-center gap-1.5 flex-1">
                                 <div className={cn(
-                                    "flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black transition-all duration-300 border shrink-0",
+                                    "flex items-center justify-center w-6 h-6 rounded-full text-caption font-black transition-all duration-300 border shrink-0",
                                     i < step
-                                        ? "bg-emerald-500 border-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                                        ? "bg-emerald-500 border-emerald-400 text-white "
                                         : i === step
                                             ? "bg-emerald-500/20 border-emerald-400/60 text-emerald-200 ring-2 ring-emerald-500/40"
                                             : "bg-zinc-800 border-white/20 text-zinc-300"
@@ -187,14 +187,14 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                     {i < step ? <Check className="w-3 h-3" /> : i + 1}
                                 </div>
                                 <span className={cn(
-                                    "text-[10px] font-bold uppercase tracking-wider hidden sm:inline transition-colors",
+                                    "text-caption font-bold uppercase tracking-wider hidden sm:inline transition-colors",
                                     i === step ? "text-white" : "text-zinc-400"
                                 )}>
                                     {s.label}
                                 </span>
                                 {i < STEPS.length - 1 && (
                                     <div className={cn(
-                                        "flex-1 h-px transition-all duration-500",
+                                        "flex-1 h-px transition-all duration-300",
                                         i < step ? "bg-emerald-500/60" : "bg-white/15"
                                     )} />
                                 )}
@@ -225,7 +225,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 />
                                 <div className="flex justify-end mt-1.5">
                                     <span className={cn(
-                                        "text-[10px] font-bold tabular-nums transition-colors",
+                                        "text-caption font-bold tabular-nums transition-colors",
                                         name.length >= 28 ? "text-amber-400" : "text-zinc-400"
                                     )}>
                                         {name.length}/30
@@ -274,7 +274,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                     )}
                                 </div>
                                 <p className={cn(
-                                    "text-[10px] mt-1.5 flex items-center gap-1 transition-colors",
+                                    "text-caption mt-1.5 flex items-center gap-1 transition-colors",
                                     url.trim().length > 0 && urlIsValid === false ? "text-red-400" : "text-zinc-500"
                                 )}>
                                     <ShieldAlert className="w-3 h-3 shrink-0" />
@@ -298,7 +298,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                     <button
                                         type="button"
                                         onClick={() => setTags([])}
-                                        className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors font-bold"
+                                        className="text-caption text-zinc-500 hover:text-red-400 transition-colors font-bold"
                                     >
                                         Effacer tout
                                     </button>
@@ -334,7 +334,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
 
                                     return (
                                         <div key={cat.name}>
-                                            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-300 mb-2">{cat.name}</h4>
+                                            <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-300 mb-2">{cat.name}</h4>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {filteredIds.map(tagId => {
                                                     const tag = DO_TAGS.find(t => t.id === tagId)!;
@@ -354,7 +354,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                                 }
                                                             }}
                                                             className={cn(
-                                                                "px-2.5 py-1 text-[11px] rounded-lg transition-all border font-semibold select-none flex items-center gap-1.5",
+                                                                "px-2.5 py-1 text-caption rounded-lg transition-all border font-semibold select-none flex items-center gap-1.5",
                                                                 isSelected
                                                                     ? `${tag.className} shadow-md opacity-100 ring-2 ring-emerald-500/40 shadow-emerald-500/10`
                                                                     : isDisabled
@@ -376,12 +376,12 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                             {/* Selected summary */}
                             {tags.length > 0 ? (
                                 <div className="mt-auto flex items-center gap-2 p-2.5 bg-zinc-900/50 rounded-xl border border-white/5">
-                                    <span className="text-[10px] text-zinc-500 font-bold shrink-0">Sélectionnés :</span>
+                                    <span className="text-caption text-zinc-500 font-bold shrink-0">Sélectionnés :</span>
                                     <div className="flex gap-1.5 flex-wrap">
                                         {tags.map(tid => {
                                             const tag = DO_TAGS.find(t => t.id === tid);
                                             return tag ? (
-                                                <span key={tid} className={cn("px-2 py-0.5 text-[10px] rounded-md border font-semibold", tag.className)}>
+                                                <span key={tid} className={cn("px-2 py-0.5 text-caption rounded-md border font-semibold", tag.className)}>
                                                     {tag.label}
                                                 </span>
                                             ) : null;
@@ -390,7 +390,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 </div>
                             ) : (
                                 <div className="mt-auto p-2.5 bg-zinc-900/30 rounded-xl border border-dashed border-white/5 text-center">
-                                    <span className="text-[10px] text-zinc-600 italic">Étape optionnelle — passe directement à Suivant si tu le souhaites</span>
+                                    <span className="text-caption text-zinc-600 italic">Étape optionnelle — passe directement à Suivant si tu le souhaites</span>
                                 </div>
                             )}
                         </div>
@@ -403,7 +403,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 <Label className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-1 block">
                                     Classe du personnage <span className="text-zinc-400 font-normal">(recommandé)</span>
                                 </Label>
-                                <p className="text-[10px] text-zinc-400 mb-3">
+                                <p className="text-caption text-zinc-400 mb-3">
                                     Sélectionnez la classe pour une belle preview, même si DofusBook est lent.
                                 </p>
 
@@ -438,7 +438,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                 className={cn(
                                                     "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden group bg-zinc-900/30",
                                                     isSelected
-                                                        ? "scale-110 border-emerald-500 bg-emerald-500/10 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)] z-20"
+                                                        ? "scale-110 border-emerald-500 bg-emerald-500/10  z-20"
                                                         : "border-white/5 hover:border-white/20 hover:bg-zinc-900/60 z-10"
                                                 )}
                                             >
@@ -446,7 +446,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                     "relative w-8 h-8 transition-all duration-300 z-10",
                                                     isSelected
                                                         ? "scale-110 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)] opacity-100"
-                                                        : "opacity-70 group-hover:opacity-100 group-hover:scale-110"
+                                                        : "opacity-70 group-hover:opacity-100 group-"
                                                 )}>
                                                     <NextImage
                                                         src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
@@ -467,7 +467,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                             {DOFUS_CLASSES.find(c => c.id === (hoveredClassId || classId))?.name}
                                         </span>
                                     ) : (
-                                        <span className="text-[10px] font-medium text-zinc-400 italic">
+                                        <span className="text-caption font-medium text-zinc-400 italic">
                                             Survolez pour voir le nom de la classe
                                         </span>
                                     )}

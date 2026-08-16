@@ -528,7 +528,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                 Roadmap Architect
               </span>
             </h1>
-            <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mt-1">
+            <p className="text-zinc-500 text-caption uppercase font-black tracking-widest mt-1">
               {guide?.slug.includes('gp0') ? "Orchestrateur Tactique (Maître)" : "Bibliothèque de Sous-Guide"}
             </p>
           </div>
@@ -571,7 +571,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
           { id: "settings", label: "Configuration", icon: Settings2, color: "text-zinc-400" },
         ].map((t: any) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-3 py-3 px-6 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all
+            className={`flex-1 flex items-center justify-center gap-3 py-3 px-6 rounded-xl text-caption font-black uppercase tracking-[0.2em] transition-all
               ${tab === t.id ? "bg-zinc-800 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"}`}>
             <t.icon className={`w-4 h-4 ${tab === t.id ? t.color : ""}`} />
             <span className="hidden sm:inline">{t.label}</span>
@@ -593,14 +593,14 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                 <div className="flex justify-between items-center bg-zinc-900/40 p-6 rounded-3xl border border-white/5">
                   <div className="flex items-center gap-8">
                     <div className="space-y-1">
-                      <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Architecture Globale</div>
+                      <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Architecture Globale</div>
                       <div className="text-xl font-black text-white flex items-center gap-2">
                         {milestones.length} <span className="text-zinc-600 font-bold">Objectifs</span>
                       </div>
                     </div>
                     <div className="w-px h-10 bg-white/5" />
                     <div className="space-y-1">
-                      <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Social Radar</div>
+                      <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Social Radar</div>
                       <div className="text-xl font-black text-blue-500 flex items-center gap-2">
                         {progress.filter(m => !m.isCompleted).length} <span className="text-zinc-600 font-bold text-xs uppercase">Membres Actifs</span>
                       </div>
@@ -612,7 +612,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                       const allOpen = expandedChapters.size === chapters.length;
                       setExpandedChapters(allOpen ? new Set() : new Set(chapters));
                     }}
-                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all"
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-caption font-black uppercase tracking-widest text-zinc-400 transition-all"
                   >
                     {expandedChapters.size === chapters.length ? "Tout fermer" : "Tout déplier"}
                   </button>
@@ -697,7 +697,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                 {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                               </div>
                               <div className="text-left">
-                                <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest block">Phase {ch}</span>
+                                <span className="text-caption font-black text-zinc-600 uppercase tracking-widest block">Phase {ch}</span>
                                 <span className="text-white font-black text-lg">{label}</span>
                               </div>
                             </div>
@@ -734,7 +734,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                         {ms.sequences.length > 0 && (
                                           <div className="flex flex-wrap gap-1 mt-1">
                                             {ms.sequences.map(s => (
-                                              <span key={s.id} className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 border border-white/5">
+                                              <span key={s.id} className="text-caption px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 border border-white/5">
                                                 {s.subGuideRef} : {s.subGuideName}
                                               </span>
                                             ))}
@@ -746,11 +746,11 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                       {milestoneHeatmap[ms.id] > 0 && (
                                         <div className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center gap-2">
                                           <Users className="w-3 h-3 text-blue-400" />
-                                          <span className="text-[10px] font-black text-blue-400">{milestoneHeatmap[ms.id]}</span>
+                                          <span className="text-caption font-black text-blue-400">{milestoneHeatmap[ms.id]}</span>
                                         </div>
                                       )}
 
-                                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${ms.isOptional ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-500"}`}>
+                                      <span className={`text-caption px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${ms.isOptional ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-500"}`}>
                                         {ms.isOptional ? "Bonus" : ms.type}
                                       </span>
 
@@ -818,31 +818,31 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                       <div className="space-y-6">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="col-span-2">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Titre de la Mission</label>
+                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-2">Titre de la Mission</label>
                             <input type="text" value={editingMs.title} onChange={e => setEditingMs(p => ({ ...p!, title: e.target.value }))}
                               className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-white font-bold focus:border-emerald-500/50 outline-none transition-colors" />
                           </div>
                           
                           <div className="col-span-2">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Sous-titre / Lore</label>
+                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-2">Sous-titre / Lore</label>
                             <input type="text" value={editingMs.subtitle ?? ""} onChange={e => setEditingMs(p => ({ ...p!, subtitle: e.target.value }))}
                               className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-zinc-400 text-sm focus:border-emerald-500/50 outline-none transition-colors italic" />
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">N° Chapitre</label>
+                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-2">N° Chapitre</label>
                             <input type="number" value={editingMs.chapter} onChange={e => setEditingMs(p => ({ ...p!, chapter: parseInt(e.target.value) || 0 }))}
                               className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-white font-bold outline-none" />
                           </div>
                           
                           <div>
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Nom Chapitre</label>
+                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-2">Nom Chapitre</label>
                             <input type="text" value={editingMs.chapterLabel} onChange={e => setEditingMs(p => ({ ...p!, chapterLabel: e.target.value }))}
                               className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-white font-bold outline-none" />
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Accent Visuel</label>
+                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-2">Accent Visuel</label>
                             <div className="flex items-center gap-3">
                               <input type="color" value={editingMs.accentColor} onChange={e => setEditingMs(p => ({ ...p!, accentColor: e.target.value }))} 
                                 className="w-12 h-12 rounded-xl cursor-pointer bg-zinc-950 border border-white/5 p-1" />
@@ -852,7 +852,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Catégorie</label>
+                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-2">Catégorie</label>
                             <select value={editingMs.type} onChange={e => setEditingMs(p => ({ ...p!, type: e.target.value }))} 
                               className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-white font-bold outline-none appearance-none">
                               {["INFO", "SEPARATEUR", "DOFUS", "DONJON", "ALIGNEMENT", "QUETE_SERIE", "METIER", "PREREQUIS"].map(t => <option key={t}>{t}</option>)}
@@ -865,7 +865,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                              className="w-5 h-5 accent-purple-500 rounded cursor-pointer" />
                            <label htmlFor="isOpt" className="flex-1 cursor-pointer">
                               <span className="block text-white font-black text-sm">Mission Optionnelle</span>
-                              <span className="block text-[10px] text-zinc-600 uppercase font-bold">Ne bloque pas la progression principale</span>
+                              <span className="block text-caption text-zinc-600 uppercase font-bold">Ne bloque pas la progression principale</span>
                            </label>
                         </div>
 
@@ -874,7 +874,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                           <div className="flex justify-between items-center">
                             <h4 className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Instructions Tactiques</h4>
                             <button onClick={() => setEditingSeq({ milestoneId: editingMs.id, order: editingMs.sequences.length + 1, isOptional: false })} 
-                              className="flex items-center gap-1 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-black hover:bg-emerald-500/20 transition-all">
+                              className="flex items-center gap-1 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg text-caption font-black hover:bg-emerald-500/20 transition-all">
                               <Plus className="w-3 h-3" /> NOUVELLE SÉQUENCE
                             </button>
                           </div>
@@ -884,12 +884,12 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                               <div key={seq.id} className="group/seq bg-zinc-950 border border-white/5 rounded-2xl p-4 hover:border-white/20 transition-all">
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex items-start gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] font-black text-emerald-500">
+                                    <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-caption font-black text-emerald-500">
                                       {seq.subGuideRef.replace("GP", "")}
                                     </div>
                                     <div className="min-w-0">
                                       <div className="text-sm font-black text-white truncate">{seq.subGuideName}</div>
-                                      <div className="text-[10px] text-zinc-500 font-bold mt-0.5">
+                                      <div className="text-caption text-zinc-500 font-bold mt-0.5">
                                         {seq.stepFrom ? `Étapes ${seq.stepFrom}${seq.stepTo ? ` → ${seq.stepTo}` : ""}` : "Guide Complet"}
                                       </div>
                                     </div>
@@ -900,7 +900,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                   </div>
                                 </div>
                                 {seq.note && (
-                                  <div className="mt-3 text-[10px] bg-amber-500/5 text-amber-500/80 p-2 rounded-xl border border-amber-500/10 italic flex items-start gap-2">
+                                  <div className="mt-3 text-caption bg-amber-500/5 text-amber-500/80 p-2 rounded-xl border border-amber-500/10 italic flex items-start gap-2">
                                     <Zap className="w-3 h-3 flex-shrink-0" /> {seq.note}
                                   </div>
                                 )}
@@ -940,9 +940,9 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                   <div>
                                     <h4 className="text-white font-black text-xl flex items-center gap-3">
                                       Royal Composer
-                                      <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">v2.0</span>
+                                      <span className="text-caption font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">v2.0</span>
                                     </h4>
-                                    <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.2em]">Édition avancée de la séquence tactique</p>
+                                    <p className="text-zinc-500 text-caption uppercase font-black tracking-[0.2em]">Édition avancée de la séquence tactique</p>
                                   </div>
                                 </div>
 
@@ -956,7 +956,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                       else toast.error((res as any).error || "Erreur de chargement");
                                       setLoading(false);
                                     }}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-black hover:bg-blue-500/20 transition-all"
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-500/10 text-blue-400 rounded-xl text-caption font-black hover:bg-blue-500/20 transition-all"
                                   >
                                     <Zap className="w-4 h-4" /> SYNCHRO GANYMÈDE
                                   </button>
@@ -972,32 +972,32 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                 <div className="w-96 border-r border-white/5 bg-zinc-900/20 p-8 space-y-8 overflow-y-auto custom-scrollbar">
                                   <div className="space-y-6">
                                     <div>
-                                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-3">Référence Tactique</label>
+                                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-3">Référence Tactique</label>
                                       <input value={editingSeq.subGuideRef ?? ""} onChange={e => setEditingSeq(p => ({ ...p!, subGuideRef: e.target.value.toUpperCase() }))}
                                         className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-6 py-4 text-emerald-400 font-mono text-center text-3xl font-black focus:border-emerald-500/50 outline-none" placeholder="GP..." />
                                     </div>
                                     
                                     <div>
-                                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-3">Nom du Segment</label>
+                                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-3">Nom du Segment</label>
                                       <input value={editingSeq.subGuideName ?? ""} onChange={e => setEditingSeq(p => ({ ...p!, subGuideName: e.target.value }))}
                                         className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-5 py-4 text-white font-black text-sm focus:border-emerald-500/50 outline-none" placeholder="Titre de la quête..." />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
                                       <div>
-                                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-3">Étape Début</label>
+                                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-3">Étape Début</label>
                                         <input type="number" value={editingSeq.stepFrom ?? ""} onChange={e => setEditingSeq(p => ({ ...p!, stepFrom: e.target.value ? parseInt(e.target.value) : undefined }))}
                                           className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-4 text-white font-black text-center outline-none" />
                                       </div>
                                       <div>
-                                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-3">Étape Fin</label>
+                                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-3">Étape Fin</label>
                                         <input type="number" value={editingSeq.stepTo ?? ""} onChange={e => setEditingSeq(p => ({ ...p!, stepTo: e.target.value ? parseInt(e.target.value) : undefined }))}
                                           className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-4 text-white font-black text-center outline-none" />
                                       </div>
                                     </div>
 
                                     <div>
-                                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-3">Note Spéciale</label>
+                                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-3">Note Spéciale</label>
                                       <textarea value={editingSeq.note ?? ""} onChange={e => setEditingSeq(p => ({ ...p!, note: e.target.value }))}
                                         className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-5 py-4 text-zinc-400 text-sm min-h-[100px] outline-none italic" placeholder="Instructions spécifiques pour ce segment..." />
                                     </div>
@@ -1008,7 +1008,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                       <Users className="w-5 h-5" />
                                       <span className="text-xs font-black uppercase tracking-widest">Impact Cohorte</span>
                                     </div>
-                                    <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 text-[10px] text-zinc-400 font-bold leading-relaxed">
+                                    <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 text-caption text-zinc-400 font-bold leading-relaxed">
                                       Cette séquence sera ajoutée à l'arbre de progression de tous les membres de la guilde ayant activé ce guide.
                                     </div>
                                   </div>
@@ -1079,7 +1079,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                               </div>
                                               <button 
                                                 onClick={() => setEditingSeq(p => ({ ...p!, stepFrom: undefined, stepTo: undefined }))}
-                                                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[10px] font-black transition-all"
+                                                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-caption font-black transition-all"
                                               >
                                                 EFFACER LE FILTRE
                                               </button>
@@ -1101,10 +1101,10 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                 <div>
                                                   <h5 className="text-white font-black text-xl">{s.name || `Étape Tactique #${s.stepNumber}`}</h5>
                                                   <div className="flex items-center gap-3 mt-1">
-                                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
                                                       <TreePine className="w-3 h-3" /> {editingSeq.subGuideRef}
                                                     </span>
-                                                    {s.map && <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                                                    {s.map && <span className="text-caption font-black text-blue-400 uppercase tracking-widest flex items-center gap-1">
                                                       <Zap className="w-3 h-3" /> {s.map} [{s.pos_x}, {s.pos_y}]
                                                     </span>}
                                                   </div>
@@ -1135,7 +1135,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                             </div>
 
                                             {editingStepIndex === idx ? (
-                                              <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                                              <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
                                                 
                                                 {/* Tabs: Visual / Code */}
                                                 <div className="flex gap-2 p-1 bg-zinc-950 rounded-2xl border border-white/5 w-fit">
@@ -1143,7 +1143,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                     if (editorMode === 'CODE') setActiveBlocks(htmlToBlocks(s.web_text));
                                                     setEditorMode('VISUAL');
                                                   }} 
-                                                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editorMode === 'VISUAL' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>Visual</button>
+                                                    className={`px-4 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest transition-all ${editorMode === 'VISUAL' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>Visual</button>
                                                   <button onClick={() => {
                                                     if (editorMode === 'VISUAL') {
                                                       const html = blocksToHtml(activeBlocks);
@@ -1153,7 +1153,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                     }
                                                     setEditorMode('CODE');
                                                   }} 
-                                                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editorMode === 'CODE' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>Code (HTML)</button>
+                                                    className={`px-4 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest transition-all ${editorMode === 'CODE' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>Code (HTML)</button>
                                                 </div>
 
                                                 {editorMode === 'VISUAL' ? (
@@ -1178,7 +1178,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                 <Package className="w-8 h-8 text-zinc-700" />
                                                               )}
                                                               {block.quantity && (
-                                                                <div className="absolute top-1 right-1 bg-blue-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded shadow-lg z-20">
+                                                                <div className="absolute top-1 right-1 bg-blue-500 text-white text-caption font-black px-1.5 py-0.5 rounded shadow-lg z-20">
                                                                   {block.quantity}
                                                                 </div>
                                                               )}
@@ -1187,7 +1187,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
 
                                                             <div className="flex-1 space-y-3 relative">
                                                               <div className="flex items-center gap-2">
-                                                                <div className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${block.tagType === 'item' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'}`}>
+                                                                <div className={`text-caption font-black px-2 py-0.5 rounded uppercase tracking-widest ${block.tagType === 'item' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'}`}>
                                                                   {block.tagType === 'item' ? 'Objet / Ressource' : 'Donjon / Boss'}
                                                                 </div>
                                                                 <button onClick={() => {
@@ -1233,7 +1233,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                           <img src={r.imageUrl} className="w-10 h-10 object-contain" />
                                                                           <div className="flex-1 min-w-0">
                                                                             <div className="text-white text-xs font-black truncate">{r.name}</div>
-                                                                            <div className="text-zinc-500 text-[10px] uppercase font-bold">Nv. {r.level} • ID: {r.id}</div>
+                                                                            <div className="text-zinc-500 text-caption uppercase font-bold">Nv. {r.level} • ID: {r.id}</div>
                                                                           </div>
                                                                         </button>
                                                                       ))}
@@ -1244,7 +1244,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                 <div className="flex gap-2">
                                                                   <div className="flex-1 relative">
                                                                      <input value={block.id} onChange={e => { const n = [...activeBlocks]; (n[bIdx] as any).id = e.target.value; setActiveBlocks(n); }} 
-                                                                       className="w-full bg-zinc-950 border border-white/5 rounded-lg px-3 py-1.5 text-zinc-500 font-mono text-[10px] outline-none" placeholder="ID DofusDB" />
+                                                                       className="w-full bg-zinc-950 border border-white/5 rounded-lg px-3 py-1.5 text-zinc-500 font-mono text-caption outline-none" placeholder="ID DofusDB" />
                                                                   </div>
                                                                   <div className="w-20 relative">
                                                                      <input value={block.quantity || ''} onChange={e => { const n = [...activeBlocks]; (n[bIdx] as any).quantity = e.target.value; setActiveBlocks(n); }} 
@@ -1265,7 +1265,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                             </div>
 
                                                             <div className="flex-1 space-y-3 relative">
-                                                              <div className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">
+                                                              <div className="text-caption font-black px-2 py-0.5 rounded uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">
                                                                 Quête / Succès
                                                               </div>
 
@@ -1293,7 +1293,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                       (n[bIdx] as any).id = e.target.value; 
                                                                       setActiveBlocks(n); 
                                                                     }} 
-                                                                    className="w-32 bg-zinc-950 border border-white/5 rounded-lg px-3 py-1.5 text-zinc-500 font-mono text-[10px] outline-none" placeholder="ID" />
+                                                                    className="w-32 bg-zinc-950 border border-white/5 rounded-lg px-3 py-1.5 text-zinc-500 font-mono text-caption outline-none" placeholder="ID" />
                                                                 </div>
                                                               </div>
                                                             </div>
@@ -1302,14 +1302,14 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
 
                                                         {block.type === 'IMAGE' && (
                                                           <div className="space-y-3">
-                                                            <div className="flex items-center gap-2 text-[10px] font-black text-purple-400 uppercase tracking-widest"><Package className="w-3 h-3" /> Bloc Image / Illustration</div>
+                                                            <div className="flex items-center gap-2 text-caption font-black text-purple-400 uppercase tracking-widest"><Package className="w-3 h-3" /> Bloc Image / Illustration</div>
                                                             <div className="flex items-center gap-4 bg-zinc-900 border border-white/5 p-4 rounded-2xl group/img">
                                                               <div className="w-24 h-24 bg-black rounded-xl overflow-hidden border border-white/10 group-hover/img:border-emerald-500/50 transition-all flex items-center justify-center">
                                                                 <img src={block.url} className="w-full h-full object-contain" />
                                                               </div>
                                                               <div className="flex-1 space-y-2">
                                                                 <input value={block.url} onChange={e => { const n = [...activeBlocks]; (n[bIdx] as any).url = e.target.value; setActiveBlocks(n); }} 
-                                                                  className="w-full bg-zinc-950 border border-white/5 rounded-lg px-3 py-2 text-zinc-500 text-[10px] font-mono" placeholder="URL Image..." />
+                                                                  className="w-full bg-zinc-950 border border-white/5 rounded-lg px-3 py-2 text-zinc-500 text-caption font-mono" placeholder="URL Image..." />
                                                                 <input value={block.alt || ''} onChange={e => { const n = [...activeBlocks]; (n[bIdx] as any).alt = e.target.value; setActiveBlocks(n); }} 
                                                                   className="w-full bg-zinc-950 border border-white/5 rounded-lg px-3 py-2 text-white text-xs font-bold" placeholder="Description (Alt)..." />
                                                               </div>
@@ -1323,7 +1323,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                               <img src={block.iconUrl} className="w-8 h-8 object-contain" />
                                                             </div>
                                                             <div className="flex-1">
-                                                              <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Métier Requis</div>
+                                                              <div className="text-caption font-black text-amber-500 uppercase tracking-widest">Métier Requis</div>
                                                               <div className="text-white font-black">{block.name}</div>
                                                             </div>
                                                           </div>
@@ -1342,7 +1342,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                             {/* Rendered Preview for HTML content */}
                                                             {(block.content.includes('<') || block.content.includes('/>') || block.content.includes('&') || block.content.includes('[')) && (
                                                               <div className="p-4 bg-zinc-900/50 rounded-xl border border-white/5 ganymade-step-text text-sm cursor-default" onClick={handleTextClick}>
-                                                                <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-2 opacity-50">Aperçu Rendu</div>
+                                                                <div className="text-caption font-black text-emerald-500 uppercase tracking-widest mb-2 opacity-50">Aperçu Rendu</div>
                                                                 <div dangerouslySetInnerHTML={{ __html: fixBrokenImages(sanitizeHtml(
                                                                   block.content.replace(/\[\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,\s*(\d+))?\s*\]/g, '<span class="pos-interactive">$&</span>')
                                                                 )) ?? "" }} />
@@ -1362,7 +1362,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                               if (matches.length === 0) return null;
                                                               return (
                                                                 <div className="p-3 bg-zinc-950/40 border border-white/5 rounded-2xl space-y-2">
-                                                                  <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
+                                                                  <div className="text-caption font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
                                                                     <Package size={12} className="text-amber-500" />
                                                                     Positions détectées dans le texte ({matches.length})
                                                                   </div>
@@ -1374,7 +1374,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                       return (
                                                                         <div key={mIdx} className="p-2 bg-zinc-900/40 border border-white/5 rounded-xl flex items-center justify-between gap-3 hover:border-white/10 transition-all">
                                                                           <div className="flex items-center gap-2">
-                                                                            <span className="text-[10px] font-mono font-black text-cyan-400 bg-zinc-950 px-2 py-1 rounded-lg">
+                                                                            <span className="text-caption font-mono font-black text-cyan-400 bg-zinc-950 px-2 py-1 rounded-lg">
                                                                               [{x}, {y}]
                                                                             </span>
                                                                           </div>
@@ -1382,7 +1382,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                             <select
                                                                               value={w}
                                                                               onChange={(e) => updateCoordinateWorld(bIdx, mIdx, e.target.value)}
-                                                                              className="w-full bg-zinc-950 hover:bg-zinc-950 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-lg pl-3 pr-8 py-1 text-[10px] font-bold text-white outline-none appearance-none transition-all cursor-pointer"
+                                                                              className="w-full bg-zinc-950 hover:bg-zinc-950 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-lg pl-3 pr-8 py-1 text-caption font-bold text-white outline-none appearance-none transition-all cursor-pointer"
                                                                             >
                                                                               {DOFUS_WORLDS.map(world => (
                                                                                 <option key={world.id} value={world.id} className="bg-zinc-950 text-white py-1">
@@ -1405,15 +1405,15 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                             {/* Coordinates Generator / Position Assistant */}
                                                             <div className="p-3 bg-zinc-950/60 border border-white/5 rounded-2xl flex flex-wrap items-center gap-3">
                                                               <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider">X:</span>
+                                                                <span className="text-caption font-black text-cyan-400 uppercase tracking-wider">X:</span>
                                                                 <input type="number" id={`px-${bIdx}`} placeholder="0" className="w-14 bg-zinc-900 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white text-center outline-none" />
                                                               </div>
                                                               <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider">Y:</span>
+                                                                <span className="text-caption font-black text-cyan-400 uppercase tracking-wider">Y:</span>
                                                                 <input type="number" id={`py-${bIdx}`} placeholder="0" className="w-14 bg-zinc-900 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white text-center outline-none" />
                                                               </div>
                                                               <div className="flex items-center gap-1.5 flex-1 min-w-[200px] relative">
-                                                                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider mr-1.5">Monde:</span>
+                                                                <span className="text-caption font-black text-cyan-400 uppercase tracking-wider mr-1.5">Monde:</span>
                                                                 <div className="relative flex-1">
                                                                   <select id={`pw-${bIdx}`} className="w-full bg-zinc-900 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-lg pl-3 pr-8 py-1 text-xs font-bold text-white outline-none appearance-none transition-all cursor-pointer">
                                                                     {DOFUS_WORLDS.map(world => (
@@ -1445,7 +1445,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                     yInput.value = "";
                                                                   }
                                                                 }}
-                                                                className="px-3 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all"
+                                                                className="px-3 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-400 text-caption font-black uppercase tracking-wider rounded-lg transition-all"
                                                               >
                                                                 Insérer
                                                               </button>
@@ -1456,17 +1456,17 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                     ))}
 
                                                     <div className="flex flex-wrap gap-2 pt-2">
-                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TEXT', content: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-zinc-400 border border-white/5">+ TEXTE</button>
-                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TASK', label: '', checked: false }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-zinc-400 border border-white/5">+ TÂCHE</button>
-                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'QUEST', title: '', id: '', name: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-zinc-400 border border-white/5">+ QUÊTE</button>
-                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TAG', tagType: 'item', name: '', id: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-blue-400 border border-white/5">+ OBJET</button>
-                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TAG', tagType: 'dungeon', name: '', id: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-purple-400 border border-white/5">+ DONJON</button>
-                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'IMAGE', url: '', alt: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-pink-400 border border-white/5">+ IMAGE</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TEXT', content: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-caption font-black text-zinc-400 border border-white/5">+ TEXTE</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TASK', label: '', checked: false }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-caption font-black text-zinc-400 border border-white/5">+ TÂCHE</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'QUEST', title: '', id: '', name: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-caption font-black text-zinc-400 border border-white/5">+ QUÊTE</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TAG', tagType: 'item', name: '', id: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-caption font-black text-blue-400 border border-white/5">+ OBJET</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TAG', tagType: 'dungeon', name: '', id: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-caption font-black text-purple-400 border border-white/5">+ DONJON</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'IMAGE', url: '', alt: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-caption font-black text-pink-400 border border-white/5">+ IMAGE</button>
                                                       
                                                       <div className="relative">
                                                         <button 
                                                           onClick={() => setShowJobPicker(!showJobPicker)}
-                                                          className={`px-4 py-2 rounded-xl text-[10px] font-black border transition-all ${showJobPicker ? 'bg-amber-500 text-amber-950 border-amber-500' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'}`}
+                                                          className={`px-4 py-2 rounded-xl text-caption font-black border transition-all ${showJobPicker ? 'bg-amber-500 text-amber-950 border-amber-500' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'}`}
                                                         >
                                                           + MÉTIER
                                                         </button>
@@ -1474,7 +1474,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                         {showJobPicker && (
                                                           <div className="absolute bottom-full left-0 mb-4 p-3 bg-zinc-900 border border-white/10 rounded-[2rem] grid grid-cols-4 gap-2 z-[110] w-72 shadow-2xl animate-in zoom-in-95 fade-in duration-200">
                                                             <div className="col-span-4 px-2 pb-2 border-b border-white/5 mb-1 flex justify-between items-center">
-                                                              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Sélecteur de Métier</span>
+                                                              <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Sélecteur de Métier</span>
                                                               <button onClick={() => setShowJobPicker(false)} className="text-zinc-500 hover:text-white"><X className="w-3 h-3" /></button>
                                                             </div>
                                                             {[
@@ -1489,7 +1489,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                                                 }}
                                                                 className="p-3 hover:bg-white/5 rounded-2xl transition-all flex flex-col items-center gap-1 group/jbtn" title={job.name}>
                                                                 <img src={`https://static.ankama.com/dofus/www/game/items/200/${job.id}.png` || `https://api.dofusdb.fr/img/jobs/${job.id}.png`} className="w-10 h-10 object-contain group-hover/jbtn:scale-110 transition-transform" />
-                                                                <span className="text-[8px] font-bold text-zinc-500 group-hover/jbtn:text-amber-400 truncate w-full text-center">{job.name}</span>
+                                                                <span className="text-caption font-bold text-zinc-500 group-hover/jbtn:text-amber-400 truncate w-full text-center">{job.name}</span>
                                                               </button>
                                                             ))}
                                                           </div>
@@ -1625,7 +1625,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                 </div>
 
                 <div className="bg-zinc-900/50 border border-white/10 rounded-3xl p-8">
-                  <h4 className="text-zinc-500 font-black text-[10px] uppercase tracking-[0.2em] mb-4">Bibliothèque Tactique ({importedSubs.length})</h4>
+                  <h4 className="text-zinc-500 font-black text-caption uppercase tracking-[0.2em] mb-4">Bibliothèque Tactique ({importedSubs.length})</h4>
                   <div className="flex-1 overflow-y-auto custom-scrollbar pb-32">
                     {importedSubs.length === 0 ? (
                       <div className="h-40 flex flex-col items-center justify-center text-zinc-700 italic text-xs">
@@ -1644,7 +1644,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                             <span className="text-zinc-300 text-xs font-bold truncate">{sub.guideName}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-zinc-600 bg-zinc-900 px-2 py-1 rounded-lg border border-white/5">{sub.totalSteps} ét.</span>
+                            <span className="text-caption font-black text-zinc-600 bg-zinc-900 px-2 py-1 rounded-lg border border-white/5">{sub.totalSteps} ét.</span>
                             <button 
                               onClick={async () => {
                                 if (!confirm(`Supprimer le sous-guide ${sub.guideRef} ? Cette action le retirera de toutes les séquences l'utilisant.`)) return;
@@ -1731,12 +1731,12 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                               </div>
                               <div className="min-w-0">
                                 <div className="text-white font-black text-sm truncate">{profile.pseudoDofus || profile.user?.name}</div>
-                                <div className="text-purple-400 text-[10px] font-black uppercase tracking-widest mt-0.5">{percent}% de la route</div>
+                                <div className="text-purple-400 text-caption font-black uppercase tracking-widest mt-0.5">{percent}% de la route</div>
                               </div>
                             </div>
                             
                             <div className="space-y-1">
-                               <div className="flex justify-between text-[9px] font-black text-zinc-600 uppercase">
+                               <div className="flex justify-between text-caption font-black text-zinc-600 uppercase">
                                   <span>Progression</span>
                                   <span>{done.length}/{milestones.length}</span>
                                </div>
@@ -1747,8 +1747,8 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                             
                             {done.length > 0 && (
                               <div className="mt-4 pt-3 border-t border-white/5">
-                                <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1">Dernière étape atteinte</p>
-                                <p className="text-zinc-400 text-[11px] font-bold truncate">
+                                <p className="text-zinc-600 text-caption font-black uppercase tracking-widest mb-1">Dernière étape atteinte</p>
+                                <p className="text-zinc-400 text-caption font-bold truncate">
                                    {[...done].sort((a, b) => b.order - a.order)[0]?.title}
                                 </p>
                               </div>
@@ -1779,7 +1779,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                      <div className="flex items-center justify-between p-4 bg-zinc-950/40 border border-white/5 rounded-2xl">
                         <div>
                            <span className="block text-white font-black text-sm">Activer le Guide</span>
-                           <span className="block text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Rend le guide visible par tous les membres</span>
+                           <span className="block text-caption text-zinc-500 uppercase font-bold mt-0.5">Rend le guide visible par tous les membres</span>
                         </div>
                         <button
                            onClick={async () => {
@@ -1792,7 +1792,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                               }
                               setLoading(false);
                            }}
-                           className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                           className={`px-4 py-2 text-caption font-black uppercase tracking-widest rounded-xl transition-all ${
                               guide?.isActive 
                                  ? "bg-emerald-500 text-emerald-950 hover:bg-emerald-400" 
                                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
@@ -1806,7 +1806,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                      <div className="flex items-center justify-between p-4 bg-zinc-950/40 border border-white/5 rounded-2xl">
                         <div>
                            <span className="block text-white font-black text-sm">Mode Construction 🚧</span>
-                           <span className="block text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Affiche "En construction" aux membres (idéal pour rédiger au propre)</span>
+                           <span className="block text-caption text-zinc-500 uppercase font-bold mt-0.5">Affiche "En construction" aux membres (idéal pour rédiger au propre)</span>
                         </div>
                         <button
                            onClick={async () => {
@@ -1820,7 +1820,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                               }
                               setLoading(false);
                            }}
-                           className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                           className={`px-4 py-2 text-caption font-black uppercase tracking-widest rounded-xl transition-all ${
                               (guide as any)?.isUnderConstruction 
                                  ? "bg-amber-500 text-amber-950 hover:bg-amber-400" 
                                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
@@ -1834,7 +1834,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                      <div className="flex items-center justify-between p-4 bg-zinc-950/40 border border-white/5 rounded-2xl">
                         <div>
                            <span className="block text-white font-black text-sm">Mode de Rendu</span>
-                           <span className="block text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Arbre d'objectifs (classique) ou Timeline verticale (collaboratif)</span>
+                           <span className="block text-caption text-zinc-500 uppercase font-bold mt-0.5">Arbre d'objectifs (classique) ou Timeline verticale (collaboratif)</span>
                         </div>
                         <div className="flex bg-zinc-950 rounded-xl overflow-hidden p-1 border border-white/5">
                            {(["TREE", "TIMELINE"] as const).map((mode) => (
@@ -1850,7 +1850,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                                     }
                                     setLoading(false);
                                  }}
-                                 className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all rounded-lg ${
+                                 className={`px-3 py-1.5 text-caption font-black uppercase tracking-widest transition-all rounded-lg ${
                                     ((guide as any)?.displayMode || "TREE") === mode
                                        ? "bg-zinc-850 text-white"
                                        : "text-zinc-500 hover:text-zinc-300"
@@ -1875,9 +1875,9 @@ export default function OptimizedGuideAdminClient({ initialGuides, firstGuildId 
                         className="w-full flex items-center justify-between p-5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl group transition-all">
                         <div className="text-left">
                            <span className="block text-red-400 font-black">Réinitialiser la structure</span>
-                           <span className="block text-[10px] text-red-500/60 uppercase font-bold">Supprime tous les milestones et chapitres</span>
+                           <span className="block text-caption text-red-500/60 uppercase font-bold">Supprime tous les milestones et chapitres</span>
                         </div>
-                        <Trash2 className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
+                        <Trash2 className="w-6 h-6 text-red-500 group- transition-transform" />
                       </button>
                   </div>
                </div>

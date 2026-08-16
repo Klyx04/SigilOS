@@ -51,7 +51,7 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "w-full justify-between bg-black/40 border-white/10 h-12 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-zinc-900/60 transition-all",
+                        "w-full justify-between bg-black/40 border-white/10 h-12 text-caption font-black uppercase tracking-widest rounded-xl hover:bg-zinc-900/60 transition-all",
                         className
                     )}
                 >
@@ -80,7 +80,7 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                         />
                     </div>
                     <CommandList className="max-h-[350px] scrollbar-thin scrollbar-thumb-white/10">
-                        <CommandEmpty className="py-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
+                        <CommandEmpty className="py-6 text-center text-caption font-black uppercase tracking-[0.2em] text-zinc-600">
                             Aucun rôle trouvé.
                         </CommandEmpty>
 
@@ -96,15 +96,15 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                                     <UserCircle className="w-4 h-4 text-zinc-500" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Aucune Mention</span>
-                                    <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">Désactiver les pings</span>
+                                    <span className="text-caption font-black uppercase tracking-widest text-zinc-300">Aucune Mention</span>
+                                    <span className="text-caption font-bold text-zinc-600 uppercase tracking-tighter">Désactiver les pings</span>
                                 </div>
                                 {value === null && <Check className="ml-auto w-4 h-4 text-amber-500" />}
                             </CommandItem>
                         </CommandGroup>
 
                         {categories.everyone.length > 0 && (
-                            <CommandGroup heading={<span className="text-[9px] font-black uppercase tracking-[0.3em] text-amber-500/50 px-2">Global</span>}>
+                            <CommandGroup heading={<span className="text-caption font-black uppercase tracking-widest text-amber-500/50 px-2">Global</span>}>
                                 <CommandItem
                                     onSelect={() => {
                                         onChange("everyone");
@@ -116,8 +116,8 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                                         <Users className="w-4 h-4 text-amber-500" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">@Everyone</span>
-                                        <span className="text-[8px] font-bold text-amber-500/40 uppercase tracking-tighter">Attirer l&apos;attention de tous</span>
+                                        <span className="text-caption font-black uppercase tracking-widest text-amber-500">@Everyone</span>
+                                        <span className="text-caption font-bold text-amber-500/40 uppercase tracking-tighter">Attirer l&apos;attention de tous</span>
                                     </div>
                                     {value === "everyone" && <Check className="ml-auto w-4 h-4 text-amber-500" />}
                                 </CommandItem>
@@ -125,7 +125,7 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                         )}
 
                         {categories.staff.length > 0 && (
-                            <CommandGroup heading={<span className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400/50 px-2 mt-2">Administration</span>}>
+                            <CommandGroup heading={<span className="text-caption font-black uppercase tracking-widest text-indigo-400/50 px-2 mt-2">Administration</span>}>
                                 {categories.staff.map((role) => (
                                     <CommandItem
                                         key={role.id}
@@ -139,8 +139,8 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                                             <Shield className="w-4 h-4 text-indigo-400" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-200">@{role.name}</span>
-                                            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">Rôle Privilégié</span>
+                                            <span className="text-caption font-black uppercase tracking-widest text-zinc-200">@{role.name}</span>
+                                            <span className="text-caption font-bold text-zinc-600 uppercase tracking-tighter">Rôle Privilégié</span>
                                         </div>
                                         {value === role.id && <Check className="ml-auto w-4 h-4 text-indigo-400" />}
                                     </CommandItem>
@@ -149,7 +149,7 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                         )}
 
                         {categories.others.length > 0 && (
-                            <CommandGroup heading={<span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500/50 px-2 mt-2">Autres Rôles</span>}>
+                            <CommandGroup heading={<span className="text-caption font-black uppercase tracking-widest text-zinc-500/50 px-2 mt-2">Autres Rôles</span>}>
                                 {categories.others.map((role) => (
                                     <CommandItem
                                         key={role.id}
@@ -163,7 +163,7 @@ export function RoleSelector({ value, onChange, roles, placeholder = "Sélection
                                             <Star className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-200">@{role.name}</span>
+                                            <span className="text-caption font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-200">@{role.name}</span>
                                         </div>
                                         {value === role.id && <Check className="ml-auto w-4 h-4 text-zinc-400" />}
                                     </CommandItem>

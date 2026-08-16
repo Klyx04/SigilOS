@@ -90,7 +90,7 @@ export function ItemInline({ itemId }: { itemId: string }) {
                 className="object-contain group-hover/item:scale-125 transition-transform"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-            <span className="text-amber-400 font-bold italic text-[12px]">
+            <span className="text-amber-400 font-bold italic text-label">
                 {item?.name || `Objet #${itemId}`}
             </span>
         </a>
@@ -128,7 +128,7 @@ export function MonsterInline({ monsterId }: { monsterId: string }) {
                 className="object-contain group-hover/monster:scale-125 transition-transform"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-            <span className="text-rose-400 font-bold italic text-[12px]">
+            <span className="text-rose-400 font-bold italic text-label">
                 {monster?.name || `Monstre #${monsterId}`}
             </span>
         </a>

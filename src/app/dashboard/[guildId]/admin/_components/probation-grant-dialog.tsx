@@ -83,11 +83,11 @@ export function WelcomeBadgeDialog({
                 <div className="space-y-6 py-4">
                     <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-4">
                         <div className="flex-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Membre ciblé</p>
+                            <p className="text-caption font-black uppercase tracking-widest text-zinc-500">Membre ciblé</p>
                             <p className="text-sm font-bold text-white">{memberName}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Badge</p>
+                            <p className="text-caption font-black uppercase tracking-widest text-zinc-500">Badge</p>
                             <p className="text-sm font-bold text-amber-400">{roleName}</p>
                         </div>
                     </div>
@@ -120,7 +120,7 @@ export function WelcomeBadgeDialog({
 
                     <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
                         <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+                        <p className="text-caption text-zinc-500 leading-relaxed italic">
                             Ce badge est purement visuel sur SigilOS et n'affecte pas les permissions Discord. Il sera automatiquement retiré à l'expiration.
                         </p>
                     </div>

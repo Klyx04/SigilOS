@@ -19,9 +19,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
-        sigil: "group relative bg-gradient-to-br from-amber-500 to-amber-700 text-white font-bold overflow-hidden shadow-[0_0_20px_-5px_rgba(245,158,11,0.5)] hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.8)] border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
-        "sigil-emerald": "group relative bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold overflow-hidden shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.8)] border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
-        "sigil-destructive": "group relative bg-gradient-to-br from-rose-500 to-rose-700 text-white font-bold overflow-hidden shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)] hover:shadow-[0_0_30px_-5px_rgba(244,63,94,0.8)] border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        sigil: "group relative bg-gradient-to-br from-amber-500 to-amber-700 text-white font-bold overflow-hidden   border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        "sigil-emerald": "group relative bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold overflow-hidden   border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        "sigil-destructive": "group relative bg-gradient-to-br from-rose-500 to-rose-700 text-white font-bold overflow-hidden   border-t border-white/20 active:scale-95 transition-all duration-300 uppercase tracking-wide",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -57,10 +57,10 @@ function Button({
   const isSigil = variant && (variant as string).startsWith("sigil")
 
   const shimmer = isSigil ? (
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-300 ease-in-out pointer-events-none" />
   ) : null
   const pulse = isSigil ? (
-    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-[0_0_8px_white] shrink-0" />
+    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse  shrink-0" />
   ) : null
 
   if (asChild) {

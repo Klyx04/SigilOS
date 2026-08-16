@@ -518,7 +518,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         >
                             Tous
                             <span className={cn(
-                                "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                                "px-1.5 py-0.5 rounded-full text-caption font-bold",
                                 selectedFilter === "ALL" ? "bg-white/15 text-white" : "bg-zinc-800 text-zinc-500"
                             )}>
                                 {events.length}
@@ -544,7 +544,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                     <Icon className={cn("h-3.5 w-3.5", isActive ? config.color : "")} />
                                     {config.label}
                                     <span className={cn(
-                                        "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                                        "px-1.5 py-0.5 rounded-full text-caption font-bold",
                                         isActive ? "bg-white/15" : "bg-zinc-800 text-zinc-500"
                                     )}>
                                         {count}
@@ -574,7 +574,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         <button
                             onClick={() => setGridType("week")}
                             className={cn(
-                                "px-3 py-1 rounded-md text-[11px] font-semibold transition-all",
+                                "px-3 py-1 rounded-md text-caption font-semibold transition-all",
                                 gridType === "week" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
                             )}
                         >
@@ -583,7 +583,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         <button
                             onClick={() => setGridType("month")}
                             className={cn(
-                                "px-3 py-1 rounded-md text-[11px] font-semibold transition-all",
+                                "px-3 py-1 rounded-md text-caption font-semibold transition-all",
                                 gridType === "month" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
                             )}
                         >
@@ -605,7 +605,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         </button>
                         <button
                             onClick={() => setCurrentDate(new Date())}
-                            className="px-3 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white rounded-md hover:bg-white/5 transition-all"
+                            className="px-3 py-1 text-caption font-semibold text-zinc-400 hover:text-white rounded-md hover:bg-white/5 transition-all"
                         >
                             Aujourd'hui
                         </button>
@@ -628,10 +628,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 {loading ? (
                 <div className="flex flex-col items-center justify-center py-24 space-y-4">
                     <div className="relative">
-                        <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center animate-pulse">
-                            <CalendarIcon className="h-8 w-8 text-amber-500/50" />
+                        <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center animate-pulse">
+                            <CalendarIcon className="h-8 w-8 text-zinc-500" />
                         </div>
-                        <Loader2 className="absolute -top-1 -right-1 h-6 w-6 text-amber-500 animate-spin" />
+                        <Loader2 className="absolute -top-1 -right-1 h-6 w-6 text-emerald-500 animate-spin" />
                     </div>
                     <p className="text-zinc-400 text-sm animate-pulse">Chargement de l'agenda...</p>
                 </div>
@@ -658,11 +658,11 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     if (!open) setPrefilledDate(null);
                 }}
             >
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-orange-500/25 shadow-[0_0_50px_rgba(249,115,22,0.2)]">
-                    <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-white/10">
+                    <DialogTitle className="text-title font-bold text-foreground">
                         Créer un événement
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground font-bold">
+                    <DialogDescription className="text-muted-foreground">
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
                     <EventForm 
@@ -716,7 +716,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
             {/* ============ DAY EVENTS MODAL (via +N badge) ============ */}
             <Dialog open={!!selectedDayEvents} onOpenChange={(open) => !open && setSelectedDayEvents(null)}>
-                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-zinc-950/98 border border-white/10 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ">
                     <DialogTitle className="text-lg font-black uppercase italic tracking-tighter text-foreground flex items-center gap-2">
                         <CalendarIcon className="h-5 w-5 text-amber-500" />
                         {selectedDayEvents ? format(selectedDayEvents.date, "EEEE d MMMM", { locale: fr }) : ""}
@@ -750,7 +750,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-orange-500/25 shadow-[0_0_50px_rgba(249,115,22,0.2)]">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-orange-500/25 ">
                     <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Modifier l'événement
                     </DialogTitle>

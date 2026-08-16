@@ -138,19 +138,19 @@ function StatCard({ label, value, trend, suffix = "", color, icon, realtime, des
     return (
         <motion.div
             whileHover={{ scale: 1.02, y: -5 }}
-            className={`relative overflow-hidden rounded-3xl bg-zinc-900/40 backdrop-blur-xl border ${colorConfig.split(' ')[0]} shadow-2xl p-6 group transition-all duration-500`}
+            className={`relative overflow-hidden rounded-3xl bg-zinc-900/40 backdrop-blur-xl border ${colorConfig.split(' ')[0]} shadow-2xl p-6 group transition-all duration-300`}
         >
-            <div className={`absolute inset-0 bg-gradient-to-br ${colorConfig.split(' ').pop()} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${colorConfig.split(' ').pop()} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">
+                    <div className="text-3xl filter drop-shadow-md group- transition-transform">
                         {icon}
                     </div>
                     {realtime && (
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2 }} className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Live</span>
+                            <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">Live</span>
                         </div>
                     )}
                 </div>
@@ -159,12 +159,12 @@ function StatCard({ label, value, trend, suffix = "", color, icon, realtime, des
                     <div className={`text-4xl font-black ${colorConfig.split(' ')[1]} mb-1 tracking-tighter leading-none`}>
                         {isNaN(displayValue) ? '0' : Math.round(displayValue).toLocaleString()}{suffix}
                     </div>
-                    <div className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">{label}</div>
-                    {description && <div className="text-[9px] text-zinc-500 font-medium leading-none">{description}</div>}
+                    <div className="text-caption font-black text-zinc-300 uppercase tracking-widest mb-1">{label}</div>
+                    {description && <div className="text-caption text-zinc-500 font-medium leading-none">{description}</div>}
                 </div>
 
                 {trend !== undefined && trend !== 0 && (
-                    <div className="mt-4 flex items-center gap-1 text-[10px] font-bold">
+                    <div className="mt-4 flex items-center gap-1 text-caption font-bold">
                         {trend > 0 ? <TrendingUp className="w-3 h-3 text-green-400" /> : <TrendingDown className="w-3 h-3 text-red-400" />}
                         <span className={trend > 0 ? "text-green-400" : "text-red-400"}>
                             {trend > 0 ? '+' : ''}{trend} (24h)

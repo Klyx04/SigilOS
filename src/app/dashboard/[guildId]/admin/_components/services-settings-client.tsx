@@ -65,9 +65,9 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
                                 Salon de mention des passeurs
                             </CardTitle>
                             {isConfigured ? (
-                                <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-black uppercase tracking-wider text-[10px]">Actif</Badge>
+                                <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-black uppercase tracking-wider text-caption">Actif</Badge>
                             ) : (
-                                <Badge variant="outline" className="text-zinc-500 font-black uppercase tracking-wider text-[10px]">Inactif</Badge>
+                                <Badge variant="outline" className="text-zinc-500 font-black uppercase tracking-wider text-caption">Inactif</Badge>
                             )}
                         </div>
                         <CardDescription className="text-zinc-400 mt-2 text-xs">

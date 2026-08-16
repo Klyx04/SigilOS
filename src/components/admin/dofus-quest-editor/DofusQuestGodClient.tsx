@@ -140,7 +140,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                             else toast.error("Erreur de synchronisation", { id: toastId });
                         });
                     }}
-                    className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-xs tracking-widest transition-all shadow-[0_0_30px_rgba(79,70,229,0.3)] hover:scale-105 active:scale-95 px-8"
+                    className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-xs tracking-widest transition-all   active:scale-95 px-8"
                 >
                     <RefreshCcw className={`w-4 h-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
                     Synchroniser toute la base (Seed)
@@ -194,7 +194,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                 const localImg = `/module-dofus/${DOFUS_IMG_MAP[dofus.slug] ?? "Dofus_Abyssal.png"}`;
 
                 return (
-                    <div key={dofus.id} className="border border-white/5 rounded-3xl overflow-hidden bg-zinc-950/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:border-white/10">
+                    <div key={dofus.id} className="border border-white/5 rounded-3xl overflow-hidden bg-zinc-950/40 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-white/10">
                         {/* Dofus header card */}
                         <div
                             role="button"
@@ -217,7 +217,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                     <img
                                         src={localImg}
                                         alt={dofus.name}
-                                        className="relative w-24 h-24 rounded-[3rem] object-contain bg-black/60 p-3 shadow-2xl border border-white/10 group-hover/icon:scale-105 transition-transform duration-500"
+                                        className="relative w-24 h-24 rounded-[3rem] object-contain bg-black/60 p-3 shadow-2xl border border-white/10 group-hover/icon:scale-105 transition-transform duration-300"
                                         onError={(e: any) => { e.target.onerror = null; e.target.src = dofus.imageUrl ?? ''; }}
                                     />
                                 </div>
@@ -227,30 +227,30 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                         <h3 className="text-3xl font-black text-white italic tracking-tighter drop-shadow-lg truncate">
                                             {dofus.name}
                                         </h3>
-                                        <Badge className="bg-white/5 text-zinc-500 border-white/5 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-lg border">
+                                        <Badge className="bg-white/5 text-zinc-500 border-white/5 text-caption font-black uppercase tracking-widest px-2.5 py-0.5 rounded-lg border">
                                             {dofus.slug}
                                         </Badge>
                                         {dofus.questCount === 0 && (
-                                            <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/10 uppercase font-black text-[9px]">Vide</Badge>
+                                            <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/10 uppercase font-black text-caption">Vide</Badge>
                                         )}
                                     </div>
                                     
                                     <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
                                         <div className="flex items-center gap-2.5 text-zinc-500/80">
                                             <Trophy className="w-4 h-4" />
-                                            <span className="text-[11px] font-black uppercase tracking-[0.1em] tabular-nums">{dofus.chainCount} succès</span>
+                                            <span className="text-caption font-black uppercase tracking-[0.1em] tabular-nums">{dofus.chainCount} succès</span>
                                         </div>
                                         <div className="flex items-center gap-2.5 text-zinc-500/80">
                                             <Database className="w-4 h-4" />
-                                            <span className="text-[11px] font-black uppercase tracking-[0.1em] tabular-nums">{dofus.questCount} quêtes</span>
+                                            <span className="text-caption font-black uppercase tracking-[0.1em] tabular-nums">{dofus.questCount} quêtes</span>
                                         </div>
                                         <div className="flex items-center gap-2.5 text-emerald-500/60">
                                             <MapPin className="w-4 h-4" />
-                                            <span className="text-[11px] font-black uppercase tracking-[0.1em] tabular-nums">{dofus.withCoords} coords</span>
+                                            <span className="text-caption font-black uppercase tracking-[0.1em] tabular-nums">{dofus.withCoords} coords</span>
                                         </div>
                                         <div className="flex items-center gap-2.5 text-rose-500/60">
                                             <Skull className="w-4 h-4" />
-                                            <span className="text-[11px] font-black uppercase tracking-[0.1em] tabular-nums">
+                                            <span className="text-caption font-black uppercase tracking-[0.1em] tabular-nums">
                                                 {(() => {
                                                     const djs = (dofus.chains || []).flatMap(c => (c.entries || []).flatMap(e => (e.dungeonsRequired ?? []) as any[]));
                                                     const unique = new Set(djs.map(d => d.id || d.name));
@@ -269,16 +269,16 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                         <span className={`text-2xl font-black tabular-nums italic drop-shadow-md ${coveragePct === 100 ? "text-emerald-400" : coveragePct > 75 ? "text-sky-400" : "text-amber-500"}`}>
                                             {coveragePct}%
                                         </span>
-                                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest pt-1">Prêt</span>
+                                        <span className="text-caption text-zinc-500 font-black uppercase tracking-widest pt-1">Prêt</span>
                                     </div>
                                     <div className="w-32 h-1.5 bg-black/40 rounded-full border border-white/5 overflow-hidden p-0.5">
                                         <div 
-                                            className={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${coveragePct === 100 ? 'from-emerald-600 to-emerald-400' : 'from-amber-600 to-amber-400'}`}
+                                            className={`h-full rounded-full transition-all duration-300 bg-gradient-to-r ${coveragePct === 100 ? 'from-emerald-600 to-emerald-400' : 'from-amber-600 to-amber-400'}`}
                                             style={{ width: `${coveragePct}%` }}
                                         />
                                     </div>
                                 </div>
-                                <div className={`p-3 rounded-2xl bg-white/5 border border-white/5 group-hover:bg-white/10 group-hover:border-white/20 transition-all duration-500 ${isExpanded ? "rotate-180 bg-white/10" : ""}`}>
+                                <div className={`p-3 rounded-2xl bg-white/5 border border-white/5 group-hover:bg-white/10 group-hover:border-white/20 transition-all duration-300 ${isExpanded ? "rotate-180 bg-white/10" : ""}`}>
                                     <ChevronDown className="w-6 h-6 text-zinc-400" />
                                 </div>
                             </div>
@@ -300,7 +300,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                             <div className="flex items-center gap-8">
                                                 {/* Recommended Level */}
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-[9px] font-black uppercase text-zinc-500 tracking-[0.2em]">Lvl recommandé</span>
+                                                    <span className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">Lvl recommandé</span>
                                                     <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
                                                         <Trophy className="w-3.5 h-3.5 text-amber-500" />
                                                         <span className="text-sm font-black text-white italic tabular-nums">
@@ -314,7 +314,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
 
                                                 {/* Category Selection */}
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-[9px] font-black uppercase text-zinc-500 tracking-[0.2em]">Classification</span>
+                                                    <span className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">Classification</span>
                                                     <div className="flex items-center gap-2">
                                                         <Select
                                                             value={dofus.filterCategory}
@@ -352,7 +352,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                             <Button 
                                                 disabled={isPending}
                                                 onClick={(e) => { e.stopPropagation(); handleCompile(dofus.slug); }}
-                                                className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white h-12 px-8 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(16,185,129,0.1)] active:scale-95 group/btn"
+                                                className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white h-12 px-8 rounded-2xl text-caption font-black uppercase tracking-widest transition-all  active:scale-95 group/btn"
                                             >
                                                 <Zap className={`w-4 h-4 mr-3 ${isPending ? 'animate-pulse' : 'group-hover/btn:animate-bounce'}`} />
                                                 Compiler & Seed la chaîne
@@ -377,10 +377,10 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                             </div>
                                                             <span className="text-base font-black text-zinc-200 italic">{chain.sectionName}</span>
                                                             <div className="h-4 w-px bg-white/10 mx-2" />
-                                                            <span className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest">{(chain.entries || []).length} étapes</span>
+                                                            <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest">{(chain.entries || []).length} étapes</span>
                                                         </div>
                                                         <div className="flex items-center gap-4">
-                                                            <span className="text-[11px] text-zinc-500 font-bold tabular-nums">
+                                                            <span className="text-caption text-zinc-500 font-bold tabular-nums">
                                                                 {entriesWithCoords}/{(chain.entries || []).length} localisations
                                                             </span>
                                                             {chainExpanded ? <ChevronDown className="w-4 h-4 text-zinc-700" /> : <ChevronRight className="w-4 h-4 text-zinc-700" />}
@@ -397,9 +397,9 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                             >
                                                                 <div className="border-t border-white/5 p-2">
                                                                     <div className="overflow-x-auto rounded-xl border border-white/5">
-                                                                        <table className="w-full text-[12px] border-separate border-spacing-y-1.5 px-2">
+                                                                        <table className="w-full text-label border-separate border-spacing-y-1.5 px-2">
                                                                             <thead>
-                                                                                <tr className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                                                                                <tr className="text-zinc-500 text-caption font-black uppercase tracking-[0.2em]">
                                                                                     <th className="text-left px-5 py-4">#</th>
                                                                                     <th className="text-left px-4 py-4">Quête</th>
                                                                                     <th className="text-left px-4 py-4">Lien DB</th>
@@ -421,10 +421,10 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                             <td className="px-5 py-4 first:rounded-l-2xl last:rounded-r-2xl text-zinc-600 font-black tabular-nums border-y border-l border-white/5 group-hover/row:border-white/10">{idx + 1}</td>
                                                                                             <td className="px-4 py-4 border-y border-white/5 group-hover/row:border-white/10">
                                                                                                 <div className="flex items-center gap-3">
-                                                                                                    <div className={`w-2 h-2 rounded-full ${isDungeon ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'bg-indigo-500/40'}`} />
+                                                                                                    <div className={`w-2 h-2 rounded-full ${isDungeon ? 'bg-rose-500 ' : 'bg-indigo-500/40'}`} />
                                                                                                     <div className="flex flex-col">
                                                                                                        <span className="font-black text-white italic truncate max-w-[200px] leading-none mb-1">{entry.name}</span>
-                                                                                                       {isDungeon && <span className="text-[10px] font-black text-rose-400 uppercase tracking-tighter">Instance Donjon</span>}
+                                                                                                       {isDungeon && <span className="text-caption font-black text-rose-400 uppercase tracking-tighter">Instance Donjon</span>}
                                                                                                     </div>
                                                                                                 </div>
                                                                                             </td>
@@ -434,13 +434,13 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                                         href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId}`}
                                                                                                         target="_blank"
                                                                                                         rel="noopener noreferrer"
-                                                                                                        className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500 hover:text-white transition-all font-black text-[10px] tracking-wide"
+                                                                                                        className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500 hover:text-white transition-all font-black text-caption tracking-wide"
                                                                                                     >
                                                                                                         {entry.dofusdbId}
                                                                                                         <ExternalLink className="w-3 h-3" />
                                                                                                     </a>
                                                                                                 ) : (
-                                                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black italic text-[10px]">
+                                                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black italic text-caption">
                                                                                                        <AlertTriangle className="w-3 h-3" />
                                                                                                        MANQUANT
                                                                                                     </span>
@@ -454,7 +454,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                                            <div className="flex items-center gap-1.5">
                                                                                                                <span className="text-emerald-400 font-black tabular-nums tracking-wider text-sm bg-emerald-500/5 px-2 py-0.5 rounded-md">[{coords.x}, {coords.y}]</span>
                                                                                                            </div>
-                                                                                                           <span className="text-[10px] font-bold text-zinc-500 mt-1 flex items-center gap-1 max-w-[140px] truncate">
+                                                                                                           <span className="text-caption font-bold text-zinc-500 mt-1 flex items-center gap-1 max-w-[140px] truncate">
                                                                                                                <MapPin className="w-2.5 h-2.5" />
                                                                                                                {entry.npcSubArea ?? entry.zone}
                                                                                                            </span>
@@ -469,7 +469,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                                     <Button 
                                                                                                         variant="ghost" 
                                                                                                         size="icon" 
-                                                                                                        className="h-10 w-10 rounded-xl hover:bg-white/10 text-zinc-600 hover:text-white transition-all hover:scale-110 active:scale-90"
+                                                                                                        className="h-10 w-10 rounded-xl hover:bg-white/10 text-zinc-600 hover:text-white transition-all  active:scale-90"
                                                                                                         onClick={() => {
                                                                                                             if (entry.externalRef) {
                                                                                                                 window.open(entry.externalRef, '_blank');
@@ -484,7 +484,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                                     <Button 
                                                                                                         variant="ghost" 
                                                                                                         size="icon" 
-                                                                                                        className="h-10 w-10 rounded-xl hover:bg-white/10 text-indigo-400 hover:text-indigo-300 transition-all hover:scale-110 active:scale-90"
+                                                                                                        className="h-10 w-10 rounded-xl hover:bg-white/10 text-indigo-400 hover:text-indigo-300 transition-all  active:scale-90"
                                                                                                         onClick={() => {
                                                                                                             setEditingEntry(entry);
                                                                                                             setIsEntryDialogOpen(true);
@@ -585,7 +585,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: { open: boole
                 
                 <form onSubmit={handleSubmit} className="p-8 space-y-6">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">ID Base DofusDB</label>
+                        <label className="text-caption font-black uppercase tracking-widest text-zinc-500">ID Base DofusDB</label>
                         <Input 
                             type="number" 
                             value={formData.dofusdbId} 
@@ -596,7 +596,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: { open: boole
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">Lien Tutoriel (DofusPourLesNoobs)</label>
+                        <label className="text-caption font-black uppercase tracking-widest text-indigo-400 italic">Lien Tutoriel (DofusPourLesNoobs)</label>
                         <Input 
                             value={formData.externalRef || ""} 
                             onChange={e => setFormData({...formData, externalRef: e.target.value})} 
@@ -607,7 +607,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: { open: boole
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 block">Coord X</label>
+                            <label className="text-caption font-black uppercase tracking-widest text-emerald-500 block">Coord X</label>
                             <Input 
                                 type="number" 
                                 value={formData.coords?.x ?? ""} 
@@ -623,7 +623,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: { open: boole
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 block">Coord Y</label>
+                            <label className="text-caption font-black uppercase tracking-widest text-emerald-500 block">Coord Y</label>
                             <Input 
                                 type="number" 
                                 value={formData.coords?.y ?? ""} 
@@ -642,7 +642,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: { open: boole
 
                     <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl h-11 text-zinc-400 hover:text-white">Annuler</Button>
-                        <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black italic text-[10px] uppercase tracking-widest rounded-xl h-11 px-8 shadow-xl">
+                        <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black italic text-caption uppercase tracking-widest rounded-xl h-11 px-8 shadow-xl">
                             {loading ? "Enregistrement..." : "Sauvegarder"}
                         </Button>
                     </div>

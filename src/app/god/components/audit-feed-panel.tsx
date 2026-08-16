@@ -123,9 +123,9 @@ export function AuditFeedPanel({ logs, total }: { logs: any[]; total: number }) 
                 </div>
             </div>
 
-            <div className="space-y-3 font-mono text-[11px] overflow-y-auto pr-2 pb-4 flex-1 styling-scrollbar">
+            <div className="space-y-3 font-mono text-caption overflow-y-auto pr-2 pb-4 flex-1 styling-scrollbar">
                 {filteredLogs.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-600 text-[10px] uppercase tracking-widest font-bold">
+                    <div className="text-center py-12 text-zinc-600 text-caption uppercase tracking-widest font-bold">
                         Aucun log ne correspond
                     </div>
                 ) : (
@@ -140,21 +140,21 @@ export function AuditFeedPanel({ logs, total }: { logs: any[]; total: number }) 
                                         {new Date(log.createdAt).toLocaleTimeString()}
                                     </span>
                                     
-                                    <Badge variant="outline" className={cn("text-[9px] px-2 py-0.5 h-auto uppercase font-black", ACTION_COLORS[log.action] || "bg-zinc-800 text-zinc-400 border-white/5")}>
+                                    <Badge variant="outline" className={cn("text-caption px-2 py-0.5 h-auto uppercase font-black", ACTION_COLORS[log.action] || "bg-zinc-800 text-zinc-400 border-white/5")}>
                                         {log.action}
                                     </Badge>
 
                                     <span className="text-zinc-300 ml-1">@{log.actorName}</span>
                                     
                                     {log.guild?.name && (
-                                        <span className="text-[9px] text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded ml-auto">
+                                        <span className="text-caption text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded ml-auto">
                                             {log.guild.name}
                                         </span>
                                     )}
                                 </div>
                                 
                                 <div className="text-zinc-500 flex flex-col gap-0.5 pl-[68px]">
-                                    <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                                    <div className="flex items-center gap-2 flex-wrap text-caption">
                                         <span className="opacity-70 font-semibold">{log.targetType}</span>
                                         {log.targetId && <span>({log.targetId})</span>}
                                         
@@ -169,7 +169,7 @@ export function AuditFeedPanel({ logs, total }: { logs: any[]; total: number }) 
                                             </span>
                                         )}
                                         {metadata.geo?.isp && (
-                                            <span className="text-zinc-500 bg-zinc-800/50 px-1 py-0.5 rounded font-mono text-[9px]">
+                                            <span className="text-zinc-500 bg-zinc-800/50 px-1 py-0.5 rounded font-mono text-caption">
                                                 {metadata.geo.isp}
                                             </span>
                                         )}

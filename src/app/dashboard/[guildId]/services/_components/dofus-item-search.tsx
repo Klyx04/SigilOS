@@ -155,13 +155,13 @@ export function DofusItemSearch({
                                     </span>
                                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                                         <span className="text-xs text-zinc-400">Niv. {item.level}</span>
-                                        <span className="text-[10px] text-zinc-600">{item.type}</span>
+                                        <span className="text-caption text-zinc-600">{item.type}</span>
                                     </div>
                                 </button>
                             </li>
                         ))}
                     </ul>
-                    <p className="border-t border-white/5 px-3 py-1.5 text-[9px] text-zinc-600">
+                    <p className="border-t border-white/5 px-3 py-1.5 text-caption text-zinc-600">
                         Source : Dofusdude (api.dofusdu.de)
                     </p>
                 </div>

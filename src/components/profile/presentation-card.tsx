@@ -99,7 +99,7 @@ export function PresentationCard({
     if (!isEditing && !readOnly && !hasAnyContent) {
         return (
             <Card className="p-10 bg-zinc-950/60 border border-emerald-500/20 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden group">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-lg shadow-emerald-500/10">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center group- transition-transform duration-300 shadow-lg shadow-emerald-500/10">
                     <Sparkles className="w-8 h-8 text-emerald-400" />
                 </div>
                 <div className="space-y-2 max-w-md">
@@ -129,7 +129,7 @@ export function PresentationCard({
                     </div>
                     <div>
                         <h3 className="text-base font-black text-white uppercase tracking-wider">Présentation & Profil Membre</h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Fiche de {displayName}</p>
+                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Fiche de {displayName}</p>
                     </div>
                 </div>
                 {!readOnly && !isEditing && (
@@ -137,7 +137,7 @@ export function PresentationCard({
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsEditing(true)}
-                        className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white bg-zinc-900 border border-white/10 hover:border-white/20 h-8 px-3 rounded-xl transition-all"
+                        className="text-caption font-black uppercase tracking-widest text-zinc-400 hover:text-white bg-zinc-900 border border-white/10 hover:border-white/20 h-8 px-3 rounded-xl transition-all"
                     >
                         <Pencil className="w-3 h-3 mr-1.5 text-sky-400" />
                         Modifier
@@ -154,7 +154,7 @@ export function PresentationCard({
                             <Compass className="w-4 h-4" />
                             Activités & Contenu préféré
                         </label>
-                        <p className="text-[11px] text-zinc-500">Cochez ce que vous aimez faire pour indiquer vos préférences à la guilde :</p>
+                        <p className="text-caption text-zinc-500">Cochez ce que vous aimez faire pour indiquer vos préférences à la guilde :</p>
                         <div className="flex flex-wrap gap-2 pt-1">
                             {PREFERRED_ACTIVITIES.map(act => {
                                 const active = selectedActivities.includes(act.id);
@@ -228,7 +228,7 @@ export function PresentationCard({
 
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-2">
-                        <p className="text-[10px] text-zinc-500 italic opacity-60">
+                        <p className="text-caption text-zinc-500 italic opacity-60">
                             Sauvegarde instantanée. Ces informations seront visibles par les membres de la guilde.
                         </p>
                         <div className="flex items-center gap-2">
@@ -264,7 +264,7 @@ export function PresentationCard({
                     {/* Preferred activity badges */}
                     {selectedActivities.length > 0 && (
                         <div className="space-y-2">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                            <h4 className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
                                 <Compass className="w-3.5 h-3.5 text-sky-400" /> Activités appréciées
                             </h4>
                             <div className="flex flex-wrap gap-2">
@@ -291,7 +291,7 @@ export function PresentationCard({
                     {/* Objectifs recherchés */}
                     {objectifsText && (
                         <div className="p-4 rounded-2xl bg-amber-500/[0.06] border border-amber-500/20 space-y-1">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                            <h4 className="text-caption font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
                                 <Target className="w-3.5 h-3.5" /> Objectifs actuels
                             </h4>
                             <p className="text-xs text-amber-200/90 font-medium leading-relaxed">
@@ -303,7 +303,7 @@ export function PresentationCard({
                     {/* Discord / MP Contact */}
                     {contactText && (
                         <div className="p-4 rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/20 space-y-1">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                            <h4 className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
                                 <MessageCircle className="w-3.5 h-3.5" /> Contact MP & Discord
                             </h4>
                             <p className="text-xs text-emerald-200/90 font-medium leading-relaxed">
@@ -315,7 +315,7 @@ export function PresentationCard({
                     {/* Note de Présentation */}
                     {introText ? (
                         <div className="p-5 rounded-2xl bg-black/40 border border-white/5 space-y-2">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                            <h4 className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
                                 <MessageSquare className="w-3.5 h-3.5 text-sky-400" /> Bio / À propos
                             </h4>
                             <p className="text-xs text-zinc-300 leading-relaxed font-medium italic whitespace-pre-wrap">

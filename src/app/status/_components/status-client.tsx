@@ -117,7 +117,7 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
 
                 {/* Services List */}
                 <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                    <h3 className="text-caption font-black text-zinc-600 uppercase tracking-widest mb-6 flex items-center gap-2">
                         <Activity className="w-3 h-3" />
                         Services de la plateforme
                     </h3>
@@ -132,9 +132,9 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                         </div>
                         <div className="flex items-center gap-6">
                             {health?.services.database.latency && (
-                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{health.services.database.latency}ms latency</span>
+                                <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest">{health.services.database.latency}ms latency</span>
                             )}
-                            <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border ${siteStatus === "up" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"
+                            <div className={`text-caption font-black uppercase tracking-widest px-3 py-1 rounded-lg border ${siteStatus === "up" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"
                                 }`}>
                                 {siteStatus === "up" ? "Opérationnel" : "Hors ligne"}
                             </div>
@@ -149,7 +149,7 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                             </div>
                             <span className="font-bold text-white tracking-tight">Discord Integration</span>
                         </div>
-                        <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border bg-emerald-500/5 border-emerald-500/20 text-emerald-400`}>
+                        <div className={`text-caption font-black uppercase tracking-widest px-3 py-1 rounded-lg border bg-emerald-500/5 border-emerald-500/20 text-emerald-400`}>
                             Connecté
                         </div>
                     </div>

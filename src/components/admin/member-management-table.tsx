@@ -390,7 +390,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
-                            className={`px-5 py-2.5 rounded-[16px] text-[10px] font-black uppercase tracking-[0.15em] transition-all ${activeTab === tab
+                            className={`px-5 py-2.5 rounded-[16px] text-caption font-black uppercase tracking-[0.15em] transition-all ${activeTab === tab
                                 ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20 border-t border-white/20"
                                 : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                 }`}
@@ -402,13 +402,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Select value={roleFilter} onValueChange={setRoleFilter}>
-                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8 focus:ring-violet-500/20">
+                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-2xl text-caption font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8 focus:ring-violet-500/20">
                             <SelectValue placeholder="Rôle" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                            <SelectItem value="all" className="text-[10px] font-black uppercase tracking-widest">Tous les rôles</SelectItem>
+                            <SelectItem value="all" className="text-caption font-black uppercase tracking-widest">Tous les rôles</SelectItem>
                             {uniqueRoles.map(role => (
-                                <SelectItem key={role} value={role!} className="text-[10px] font-black uppercase tracking-widest">
+                                <SelectItem key={role} value={role!} className="text-caption font-black uppercase tracking-widest">
                                     {role}
                                 </SelectItem>
                             ))}
@@ -416,14 +416,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </Select>
 
                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8 focus:ring-violet-500/20">
+                        <SelectTrigger className="w-[170px] h-11 bg-black/40 border-white/5 rounded-2xl text-caption font-black uppercase tracking-widest whitespace-nowrap overflow-hidden pr-8 focus:ring-violet-500/20">
                             <SelectValue placeholder="Arrivée" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                            <SelectItem value="all" className="text-[10px] font-black uppercase tracking-widest">Toutes époques</SelectItem>
-                            <SelectItem value="week" className="text-[10px] font-black uppercase tracking-widest">{"< 1 semaine"}</SelectItem>
-                            <SelectItem value="month" className="text-[10px] font-black uppercase tracking-widest">{"< 1 mois"}</SelectItem>
-                            <SelectItem value="old" className="text-[10px] font-black uppercase tracking-widest">{"> 6 mois"}</SelectItem>
+                            <SelectItem value="all" className="text-caption font-black uppercase tracking-widest">Toutes époques</SelectItem>
+                            <SelectItem value="week" className="text-caption font-black uppercase tracking-widest">{"< 1 semaine"}</SelectItem>
+                            <SelectItem value="month" className="text-caption font-black uppercase tracking-widest">{"< 1 mois"}</SelectItem>
+                            <SelectItem value="old" className="text-caption font-black uppercase tracking-widest">{"> 6 mois"}</SelectItem>
                         </SelectContent>
                     </Select>
 
@@ -445,7 +445,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         <div className="h-40 flex flex-col items-center justify-center gap-2 text-zinc-500">
                             <ShieldAlert className="w-7 h-7 opacity-40" />
                             <p className="italic text-sm">Aucune exclusion active.</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                            <p className="text-caption font-black uppercase tracking-widest opacity-60">
                                 Les membres bannis ou supprimés du dashboard apparaîtront ici (protection anti-ré-provisionnement).
                             </p>
                         </div>
@@ -461,7 +461,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             <div className="font-black text-sm md:text-base text-zinc-200 flex items-center gap-2 truncate">
                                                 <span className="text-zinc-400 font-mono text-xs md:text-sm">{ban.discordId}</span>
                                             </div>
-                                            <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                                            <div className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
                                                 {ban.reason} · {formatDistanceToNow(new Date(ban.createdAt), { addSuffix: true, locale: fr })}
                                                 {ban.bannedByName ? ` · par ${ban.bannedByName}` : ""}
                                             </div>
@@ -472,7 +472,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         size="sm"
                                         disabled={isUpdating === ban.discordId}
                                         onClick={() => handleLiftExclusion(ban)}
-                                        className="shrink-0 rounded-xl text-[10px] font-black uppercase tracking-widest border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                                        className="shrink-0 rounded-xl text-caption font-black uppercase tracking-widest border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                                     >
                                         {isUpdating === ban.discordId ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <UserCheck className="w-3.5 h-3.5 mr-2" />}
                                         Réintégrer
@@ -487,22 +487,22 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                 <Table className="min-w-[800px] lg:min-w-0">
                     <TableHeader className="bg-white/[0.02] border-b border-white/5">
                         <TableRow className="hover:bg-transparent border-none">
-                            <TableHead className="pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Membre</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Statut</TableHead>
+                            <TableHead className="pl-8 text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Membre</TableHead>
+                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Statut</TableHead>
                             <TableHead className="py-6">
                                 <button
                                     onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : "desc")}
-                                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
+                                    className="flex items-center gap-2 text-caption font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
                                 >
                                     Arrivée
                                     <ArrowUpDown className="w-3 h-3" />
                                 </button>
                             </TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Activité</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Discord ID</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Ankama ID</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Suppression</TableHead>
-                            <TableHead className="text-right text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-6 pr-8">Actions</TableHead>
+                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Activité</TableHead>
+                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Discord ID</TableHead>
+                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Ankama ID</TableHead>
+                            <TableHead className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6">Suppression</TableHead>
+                            <TableHead className="text-right text-caption font-black uppercase tracking-[0.2em] text-zinc-500 py-6 pr-8">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -535,12 +535,12 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                     <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20 stroke-[3]" />
                                                 )}
                                                 {!member.pseudoDofus && (
-                                                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase font-black tracking-widest leading-none">
+                                                    <span className="text-caption px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase font-black tracking-widest leading-none">
                                                         Pseudo manquant
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                                            <div className="text-caption text-zinc-500 font-bold uppercase tracking-widest flex items-center gap-1">
                                                 <span>@{getDisplayName(member)}</span>
                                             </div>
                                         </div>
@@ -550,7 +550,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                     <div className="flex flex-col gap-1.5">
                                         <Badge
                                             variant="outline"
-                                            className={`capitalize text-[9px] font-black tracking-[0.1em] px-2 py-1 rounded-lg w-fit ${member.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]" :
+                                            className={`capitalize text-caption font-black tracking-[0.1em] px-2 py-1 rounded-lg w-fit ${member.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 " :
                                                 member.status === "ARCHIVED" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                                                     "bg-red-500/10 text-red-400 border-red-500/20"
                                                 }`}
@@ -564,7 +564,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             <Badge 
                                                 variant="outline" 
                                                 onClick={() => setVacationTarget(member)}
-                                                className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 cursor-pointer hover:bg-cyan-500/20 transition-colors text-[9px] font-black tracking-[0.1em] px-2 py-1 rounded-lg w-fit"
+                                                className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 cursor-pointer hover:bg-cyan-500/20 transition-colors text-caption font-black tracking-[0.1em] px-2 py-1 rounded-lg w-fit"
                                             >
                                                 <Palmtree className="w-2.5 h-2.5 mr-1" />
                                                 Vacances
@@ -575,7 +575,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 <TableCell className="text-xs font-medium text-zinc-400 tabular-nums">
                                     {new Date(member.createdAt).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </TableCell>
-                                <TableCell className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">
+                                <TableCell className="text-caption text-zinc-500 font-bold uppercase tracking-tight">
                                     {formatDistanceToNow(new Date(member.updatedAt ?? member.archivedAt ?? new Date()), { addSuffix: true, locale: fr })}
                                 </TableCell>
                                 <TableCell>
@@ -583,7 +583,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
                                         className="flex items-center gap-2 group/copy cursor-pointer w-fit"
                                     >
-                                        <code className="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-350 font-mono border border-white/5 group-hover/copy:border-white/20 transition-all">
+                                        <code className="text-caption px-2 py-1 rounded bg-zinc-800 text-zinc-350 font-mono border border-white/5 group-hover/copy:border-white/20 transition-all">
                                             {member.user.accounts[0]?.providerAccountId || "Unknown"}
                                         </code>
                                         <Copy className="w-3 h-3 text-zinc-650 group-hover/copy:text-zinc-450 opacity-0 group-hover/copy:opacity-100 transition-all" />
@@ -596,14 +596,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             className="flex items-center gap-2 group/id relative cursor-pointer w-fit"
                                         >
                                             <div className="px-2 py-1 rounded bg-indigo-500/20 border border-indigo-500/40 group-hover/id:border-indigo-400 transition-all">
-                                                <span className="text-[10px] font-black text-indigo-400 font-mono tracking-tight uppercase">{member.ankamaId}</span>
+                                                <span className="text-caption font-black text-indigo-400 font-mono tracking-tight uppercase">{member.ankamaId}</span>
                                             </div>
                                             <Copy className="w-3 h-3 text-indigo-600 group-hover/id:text-indigo-400 opacity-0 group-hover/id:opacity-100 transition-all" />
                                         </div>
                                     ) : (
                                         <button 
                                             onClick={() => openIdDialog(member)}
-                                            className="text-[9px] font-black uppercase text-zinc-650 hover:text-zinc-400 transition-colors italic flex items-center gap-1"
+                                            className="text-caption font-black uppercase text-zinc-650 hover:text-zinc-400 transition-colors italic flex items-center gap-1"
                                         >
                                             <Edit className="w-3 h-3" />
                                             Ajouter ID
@@ -620,19 +620,19 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
                                         return (
                                             <div className="flex flex-col gap-1">
-                                                <div className={`flex items-center gap-1.5 font-black text-[10px] uppercase tracking-widest px-2 py-1 rounded-lg w-fit ${
+                                                <div className={`flex items-center gap-1.5 font-black text-caption uppercase tracking-widest px-2 py-1 rounded-lg w-fit ${
                                                     isUrgent ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-orange-500/10 text-orange-400'
                                                 }`}>
                                                     <Clock className="w-3 h-3" />
                                                     {diffDays <= 0 ? "Imminent" : `J-${diffDays}`}
                                                 </div>
-                                                <span className="text-[9px] text-zinc-650 font-medium italic pl-1">
+                                                <span className="text-caption text-zinc-650 font-medium italic pl-1">
                                                     {format(deletionDate, "dd/MM HH:mm")}
                                                 </span>
                                             </div>
                                         );
                                     })() : (
-                                        <span className="text-[10px] text-zinc-750 font-bold uppercase tracking-widest pl-2">
+                                        <span className="text-caption text-zinc-750 font-bold uppercase tracking-widest pl-2">
                                             -
                                         </span>
                                     )}
@@ -645,42 +645,42 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48 bg-zinc-950 border-white/10 text-zinc-300 rounded-2xl shadow-xl">
-                                            <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2 py-1.5">Actions Membre</DropdownMenuLabel>
+                                            <DropdownMenuLabel className="text-caption font-black uppercase tracking-widest text-zinc-500 px-2 py-1.5">Actions Membre</DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-white/5" />
                                             {member.status !== "ACTIVE" && (isAdmin || isSuperAdmin) && (
-                                                <DropdownMenuItem onClick={() => handleReactivate(member.id, member.status as "ARCHIVED" | "BANNED")} className="gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                <DropdownMenuItem onClick={() => handleReactivate(member.id, member.status as "ARCHIVED" | "BANNED")} className="gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                     <RotateCcw className="h-3.5 w-3.5 text-emerald-500" />
                                                     {member.status === "BANNED" ? "Debannir & Reintegrer" : "Reactiver"}
                                                 </DropdownMenuItem>
                                             )}
                                             {member.status === "ACTIVE" && !isProtected && (
-                                                <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "ARCHIVED")} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "ARCHIVED")} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                     <UserX className="h-3.5 w-3.5 text-amber-500" />
                                                     Archiver
                                                 </DropdownMenuItem>
                                             )}
                                             {!isProtected && (
-                                                <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "BANNED")} className="gap-2 focus:bg-red-500/10 focus:text-red-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "BANNED")} className="gap-2 focus:bg-red-500/10 focus:text-red-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                     <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
                                                     Bannir (SigilOS)
                                                 </DropdownMenuItem>
                                             )}
                                             {isProtected && (
-                                                <DropdownMenuItem disabled className="gap-2 text-zinc-600 cursor-not-allowed text-[10px] font-black uppercase tracking-wider">
+                                                <DropdownMenuItem disabled className="gap-2 text-zinc-600 cursor-not-allowed text-caption font-black uppercase tracking-wider">
                                                     <ShieldAlert className="h-3.5 w-3.5" />
                                                     {isSelf ? "Votre compte" : "Proprietaire protege"}
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuSeparator className="bg-white/5" />
-                                            <DropdownMenuItem onClick={() => openIdDialog(member)} className="gap-2 focus:bg-indigo-500/10 focus:text-indigo-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                            <DropdownMenuItem onClick={() => openIdDialog(member)} className="gap-2 focus:bg-indigo-500/10 focus:text-indigo-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                 <Edit className="h-3.5 w-3.5 text-indigo-400" />
                                                 Modifier ID Dofus
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setVacationTarget(member)} className="gap-2 focus:bg-cyan-500/10 focus:text-cyan-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                            <DropdownMenuItem onClick={() => setVacationTarget(member)} className="gap-2 focus:bg-cyan-500/10 focus:text-cyan-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                 <Palmtree className="h-3.5 w-3.5 text-cyan-400" />
                                                 Modifier Vacances
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleUpdatePseudo(member.id)} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                            <DropdownMenuItem onClick={() => handleUpdatePseudo(member.id)} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                 <Edit className="h-3.5 w-3.5 text-amber-500" />
                                                 Modifier Pseudo
                                             </DropdownMenuItem>
@@ -688,13 +688,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 <>
                                                     <DropdownMenuSeparator className="bg-white/5" />
                                                     {isSuperAdmin && (
-                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                             <UserCheck className="h-3.5 w-3.5" />
                                                             Proprietaire
                                                         </DropdownMenuItem>
                                                     )}
                                                     {(isSuperAdmin || member.status !== "ACTIVE") && !isProtected && (
-                                                        <DropdownMenuItem onClick={() => handleDelete(member.id)} className="gap-2 focus:bg-red-650 focus:text-white text-red-500 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                        <DropdownMenuItem onClick={() => handleDelete(member.id)} className="gap-2 focus:bg-red-650 focus:text-white text-red-500 cursor-pointer text-caption font-black uppercase tracking-wider">
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                             Supprimer
                                                         </DropdownMenuItem>
@@ -714,8 +714,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
             {/* Pagination UI */}
             {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">
                         Affichage de {Math.min(filteredMembers.length, (currentPage - 1) * pageSize + 1)} à {Math.min(filteredMembers.length, currentPage * pageSize)} sur {filteredMembers.length} membres
                     </div>
                     <div className="flex items-center gap-2">
@@ -730,9 +730,9 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         </Button>
 
                         <div className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-white/5 border border-white/10">
-                            <span className="text-[10px] font-black text-white">{currentPage}</span>
-                            <span className="text-[10px] font-black text-zinc-600">/</span>
-                            <span className="text-[10px] font-black text-zinc-400">{totalPages}</span>
+                            <span className="text-caption font-black text-white">{currentPage}</span>
+                            <span className="text-caption font-black text-zinc-600">/</span>
+                            <span className="text-caption font-black text-zinc-400">{totalPages}</span>
                         </div>
 
                         <Button
@@ -776,7 +776,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     <div className="px-6 py-6 space-y-6">
                         <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
                             <div className="flex-1 space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 pl-1">Nom / Pseudo</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 pl-1">Nom / Pseudo</label>
                                 <Input 
                                     placeholder="Nom"
                                     value={namePart}
@@ -787,7 +787,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                             </div>
                             <div className="pt-6 font-black text-xl text-zinc-700">#</div>
                             <div className="w-24 space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 pl-1">4 Chiffres</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 pl-1">4 Chiffres</label>
                                 <Input 
                                     placeholder="0000"
                                     value={digitsPart}
@@ -801,7 +801,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         {!isIdValid && (namePart || digitsPart) && (
                             <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 flex items-start gap-3">
                                 <ShieldAlert className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+                                <p className="text-caption text-zinc-500 leading-relaxed italic">
                                     Format invalide : Le nom doit faire max 50 caractères et il faut exactement 4 chiffres après le #.
                                 </p>
                             </div>
@@ -809,7 +809,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </div>
 
                     <div className="px-6 py-4 bg-white/5 flex justify-end gap-3 lg:gap-2">
-                        <Button variant="ghost" onClick={() => setIdTarget(null)} className="font-bold text-zinc-500 hover:text-white uppercase text-[10px] tracking-widest rounded-xl">
+                        <Button variant="ghost" onClick={() => setIdTarget(null)} className="font-bold text-zinc-500 hover:text-white uppercase text-caption tracking-widest rounded-xl">
                             Annuler
                         </Button>
                         <Button 

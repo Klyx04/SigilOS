@@ -86,7 +86,7 @@ export function RunProgressModal({
                                         <div 
                                             className={cn(
                                                 "relative w-10 h-10 rounded-lg border-2 flex items-center justify-center overflow-hidden transition-all",
-                                                isCurrentPalier ? "scale-110 shadow-[0_0_15px_rgba(var(--color),0.4)] border-current" : "opacity-40 border-white/10"
+                                                isCurrentPalier ? "scale-110  border-current" : "opacity-40 border-white/10"
                                             )}
                                             style={{ 
                                                 color: palier.couleur,
@@ -106,7 +106,7 @@ export function RunProgressModal({
                                                     className="object-contain p-1"
                                                 />
                                             </div>
-                                            <span className="relative z-10 text-[10px] font-black drop-shadow-md">
+                                            <span className="relative z-10 text-caption font-black drop-shadow-md">
                                                 {["I", "II", "III", "IV", "V"][idx]}
                                             </span>
                                         </div>
@@ -130,9 +130,9 @@ export function RunProgressModal({
                                                     disabled={isUpdating}
                                                     onClick={() => handleFloorClick(floor)}
                                                     className={cn(
-                                                        "relative h-12 flex flex-col items-center justify-center rounded-xl border transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100",
+                                                        "relative h-12 flex flex-col items-center justify-center rounded-xl border transition-all  active:scale-95 disabled:opacity-50 disabled:hover:scale-100",
                                                         isActive 
-                                                            ? "bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] z-10" 
+                                                            ? "bg-white text-black border-white  z-10" 
                                                             : isDone
                                                                 ? "bg-white/5 border-white/10 text-white/30"
                                                                 : "bg-black/40 border-white/5 text-white/60 hover:border-white/20 hover:bg-white/10"
@@ -162,7 +162,7 @@ export function RunProgressModal({
                                 className={cn(
                                     "w-full h-16 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50",
                                     currentFloor === 26
-                                        ? "bg-amber-500 text-black border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.4)]"
+                                        ? "bg-amber-500 text-black border-amber-400 "
                                         : "bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20"
                                 )}
                             >
@@ -177,7 +177,7 @@ export function RunProgressModal({
                                     </div>
                                     <div className="flex flex-col items-start">
                                         <span className="text-lg font-black uppercase tracking-[0.2em]">Combat Final</span>
-                                        <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Étage 26+</span>
+                                        <span className="text-caption font-bold opacity-60 uppercase tracking-widest">Étage 26+</span>
                                     </div>
                                 </div>
                                 {currentFloor === 26 && <CheckCircle2 className="w-6 h-6 animate-in zoom-in" />}
@@ -190,7 +190,7 @@ export function RunProgressModal({
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in">
                             <div className="flex flex-col items-center gap-3">
                                 <Loader2 className="w-10 h-10 text-purple-400 animate-spin" />
-                                <span className="text-xs font-black uppercase tracking-[0.3em] text-purple-400/80">Modification...</span>
+                                <span className="text-xs font-black uppercase tracking-widest text-purple-400/80">Modification...</span>
                             </div>
                         </div>
                     )}

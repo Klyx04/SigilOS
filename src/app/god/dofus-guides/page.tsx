@@ -60,13 +60,13 @@ export default async function DofusGuidesGodPage() {
         <div className="flex gap-6">
           <div className="text-center">
             <div className="text-2xl font-black text-emerald-400 tabular-nums">{guides.length}</div>
-            <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Guides</div>
+            <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Guides</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-black text-blue-400 tabular-nums">
               {guides.reduce((acc, g) => acc + g.milestones.length, 0)}
             </div>
-            <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Milestones</div>
+            <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Milestones</div>
           </div>
         </div>
       </div>

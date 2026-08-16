@@ -94,7 +94,7 @@ export function JobsGrid({
                         <h3 className="text-base font-black text-white uppercase tracking-wider">
                             Maîtrise Artisanale
                         </h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Métiers & Tarifs Forgemagie</p>
+                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Métiers & Tarifs Forgemagie</p>
                     </div>
                 </div>
                 {!readOnly && (
@@ -120,25 +120,25 @@ export function JobsGrid({
                                     <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900 border border-zinc-800 p-1 h-12 rounded-xl">
                                         <TabsTrigger 
                                             value="Récolte"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Récolte
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Artisanat"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Artisanat
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Forgemagie"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Forgemagie
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Élevage"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Élevage
                                         </TabsTrigger>
@@ -156,11 +156,11 @@ export function JobsGrid({
                                                                 className={cn(
                                                                     "group relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 aspect-square",
                                                                     isSelected
-                                                                        ? "border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]"
+                                                                        ? "border-amber-500/50 bg-amber-500/10 "
                                                                         : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
                                                                 )}
                                                             >
-                                                                <div className="mb-3 transform transition-transform group-hover:scale-110 duration-300">
+                                                                <div className="mb-3 transform transition-transform group- duration-300">
                                                                     {job.icon.startsWith("/") ? (
                                                                         <Image
                                                                             src={job.icon}
@@ -177,7 +177,7 @@ export function JobsGrid({
                                                                     {job.name}
                                                                 </span>
                                                                 {isSelected && (
-                                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 " />
                                                                 )}
                                                             </button>
                                                         );
@@ -229,25 +229,25 @@ export function JobsGrid({
                         <TabsList className="grid w-full grid-cols-4 bg-zinc-950/40 border border-white/10 p-1 h-11 rounded-xl mb-6">
                             <TabsTrigger 
                                 value="Récolte"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
                             >
                                 Récolte
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Artisanat"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
                             >
                                 Artisanat
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Forgemagie"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
                             >
                                 Forgemagie
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Élevage"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:"
                             >
                                 Élevage
                             </TabsTrigger>
@@ -267,7 +267,7 @@ export function JobsGrid({
                                                     key={job.id}
                                                     className="group relative flex flex-col items-center justify-center p-5 rounded-2xl border border-white/5 bg-zinc-950/30 hover:border-white/10 hover:bg-zinc-900/10 shadow-lg aspect-square overflow-hidden transition-all duration-300"
                                                 >
-                                                    <div className="mb-3 transform transition-transform duration-500 group-hover:scale-110">
+                                                    <div className="mb-3 transform transition-transform duration-300 group-">
                                                         {job.icon.startsWith("/") ? (
                                                             <Image
                                                                 src={job.icon}
@@ -280,7 +280,7 @@ export function JobsGrid({
                                                             <span className="text-4xl">{job.icon}</span>
                                                         )}
                                                     </div>
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-center text-zinc-300 leading-tight group-hover:text-white transition-colors duration-300">
+                                                    <span className="text-caption font-bold uppercase tracking-widest text-center text-zinc-300 leading-tight group-hover:text-white transition-colors duration-300">
                                                         {job.name}
                                                     </span>
                                                 </div>
@@ -289,7 +289,7 @@ export function JobsGrid({
                                     ) : (
                                         <div className="flex flex-col items-center justify-center p-12 rounded-2xl border border-dashed border-zinc-800/60 bg-zinc-950/20 text-zinc-500 text-center">
                                             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Aucun métier</p>
-                                            <p className="text-[10px] text-zinc-600 mt-1">Vous n'avez renseigné aucun métier de type {category.toLowerCase()}.</p>
+                                            <p className="text-caption text-zinc-600 mt-1">Vous n'avez renseigné aucun métier de type {category.toLowerCase()}.</p>
                                         </div>
                                     )}
                                 </TabsContent>
@@ -321,7 +321,7 @@ export function JobsGrid({
                                             value={prices.classic === null ? "" : prices.classic}
                                             onChange={(e) => handlePriceChange("classic", e.target.value)}
                                         />
-                                        <span className="absolute right-2 top-1.5 text-[10px] text-zinc-500 font-bold">K</span>
+                                        <span className="absolute right-2 top-1.5 text-caption text-zinc-500 font-bold">K</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -335,7 +335,7 @@ export function JobsGrid({
                                             value={prices.trans === null ? "" : prices.trans}
                                             onChange={(e) => handlePriceChange("trans", e.target.value)}
                                         />
-                                        <span className="absolute right-2 top-1.5 text-[10px] text-zinc-500 font-bold">K</span>
+                                        <span className="absolute right-2 top-1.5 text-caption text-zinc-500 font-bold">K</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -349,14 +349,14 @@ export function JobsGrid({
                                             value={prices.exo === null ? "" : prices.exo}
                                             onChange={(e) => handlePriceChange("exo", e.target.value)}
                                         />
-                                        <span className="absolute right-2 top-1.5 text-[10px] text-zinc-500 font-bold">K</span>
+                                        <span className="absolute right-2 top-1.5 text-caption text-zinc-500 font-bold">K</span>
                                     </div>
                                 </div>
                             </div>
                             <Button
                                 onClick={handleSavePrices}
                                 variant="sigil"
-                                className="w-full h-8 text-[11px]"
+                                className="w-full h-8 text-caption"
                             >
                                 Sauvegarder les tarifs
                             </Button>

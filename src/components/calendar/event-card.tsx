@@ -121,14 +121,14 @@ export function EventCard({
 
                 {/* Date Box */}
                 <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/50 ml-2">
-                    <span className="text-[10px] font-medium uppercase text-zinc-500">{format(startDate, "MMM", { locale: fr })}</span>
+                    <span className="text-caption font-medium uppercase text-zinc-500">{format(startDate, "MMM", { locale: fr })}</span>
                     <span className="text-xl font-bold text-zinc-200">{format(startDate, "dd")}</span>
                 </div>
 
                 {/* Info Main */}
                 <div className="mr-auto min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] font-medium border-0", theme.bg, theme.color)}>
+                        <Badge variant="outline" className={cn("h-5 px-1.5 text-caption font-medium border-0", theme.bg, theme.color)}>
                             <Icon className="mr-1 h-3 w-3" />
                             {theme.label}
                         </Badge>
@@ -163,13 +163,13 @@ export function EventCard({
                                 {a.user.image ? (
                                     <img src={a.user.image} alt={attendeeName} className="h-full w-full object-cover" />
                                 ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-400">{attendeeName?.[0]}</div>
+                                    <div className="h-full w-full flex items-center justify-center text-caption text-zinc-400">{attendeeName?.[0]}</div>
                                 )}
                             </div>
                         );
                     })}
                     {attendeeCount > 4 && (
-                        <div className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
+                        <div className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 flex items-center justify-center text-caption font-bold text-zinc-400">
                             +{attendeeCount - 4}
                         </div>
                     )}
@@ -204,7 +204,7 @@ export function EventCard({
                     src={EVENT_IMAGES[event.type] || EVENT_IMAGES["EVENT_GUILD"]}
                     alt="Event type"
                     className={cn(
-                        "w-full h-full object-cover transition-all duration-500 transform group-hover:scale-105",
+                        "w-full h-full object-cover transition-all duration-300 transform group-",
                         isCompleted ? "grayscale" : "grayscale group-hover:grayscale-0"
                     )}
                 />
@@ -216,9 +216,9 @@ export function EventCard({
             {/* Completed watermark stamp overlay */}
             {isCompleted && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-                    <div className="rotate-[-15deg] flex flex-col items-center px-6 py-3 border-2 border-emerald-500/40 rounded-xl bg-emerald-500/10 backdrop-blur-[2px] shadow-[0_0_24px_rgba(16,185,129,0.2)]">
+                    <div className="rotate-[-15deg] flex flex-col items-center px-6 py-3 border-2 border-emerald-500/40 rounded-xl bg-emerald-500/10 backdrop-blur-[2px] ">
                         <CheckCircle2 className="h-8 w-8 text-emerald-500/80" />
-                        <span className="mt-1 text-sm font-black uppercase tracking-[0.25em] text-emerald-400/90">
+                        <span className="mt-1 text-sm font-black uppercase tracking-widest text-emerald-400/90">
                             Terminé
                         </span>
                     </div>
@@ -307,7 +307,7 @@ export function EventCard({
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
-                            <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Organisé par</span>
+                            <span className="text-caption text-zinc-500 uppercase tracking-wider font-semibold">Organisé par</span>
                             <span className={cn("text-sm font-medium transition-colors", theme.color)}>{displayCreatorName}</span>
                         </div>
                     </div>
@@ -317,7 +317,7 @@ export function EventCard({
             <CardFooter className="p-5 pt-0 mt-auto">
                 <div className="w-full flex flex-col gap-2 p-3 rounded-lg bg-zinc-950/30 border border-zinc-800/30 transition-colors hover:bg-zinc-950/50">
                     <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Participants</span>
+                        <span className="text-caption font-semibold text-zinc-500 uppercase tracking-wider">Participants</span>
                         <div className="flex items-center text-xs font-medium text-zinc-500">
                             <Users className="w-3 h-3 mr-1.5" />
                             {displayAttendeeCount}
@@ -340,7 +340,7 @@ export function EventCard({
                                     <div key={isKralamoure ? `${idx}-${participantName}` : a.id} className="flex items-center gap-2.5">
                                         <Avatar className="h-6 w-6 border border-zinc-700/50 shadow-sm relative z-0">
                                             {!isKralamoure && a.user?.image && <AvatarImage src={a.user.image} />}
-                                            <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
+                                            <AvatarFallback className="text-caption bg-zinc-800 text-zinc-400">
                                                 {participantInitial}
                                             </AvatarFallback>
                                         </Avatar>

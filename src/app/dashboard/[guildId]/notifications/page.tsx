@@ -225,7 +225,7 @@ export default function NotificationsPage() {
                         <st.icon className={cn("w-3.5 h-3.5 shrink-0", statusFilter === st.id ? "text-cyan-400" : "text-zinc-600")} />
                         <span className="whitespace-nowrap">{st.label}</span>
                         <span className={cn(
-                            "min-w-[26px] text-center px-2 py-0.5 rounded-full text-[10px] font-bold tabular-nums",
+                            "min-w-[26px] text-center px-2 py-0.5 rounded-full text-caption font-bold tabular-nums",
                             statusFilter === st.id ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" : "bg-white/5 text-zinc-600"
                         )}>
                             {st.count}
@@ -254,7 +254,7 @@ export default function NotificationsPage() {
                         >
                             {cat.label}
                             <span className={cn(
-                                "min-w-[22px] text-center px-1.5 py-0.5 rounded-md text-[10px] font-black tabular-nums",
+                                "min-w-[22px] text-center px-1.5 py-0.5 rounded-md text-caption font-black tabular-nums",
                                 activeTab === cat.id ? "bg-black/30 text-cyan-200" : "bg-white/10 text-zinc-500"
                             )}>
                                 {count}
@@ -314,17 +314,17 @@ export default function NotificationsPage() {
                             )} />
 
                             {/* Icon Box */}
-                            <div className="shrink-0 h-10 w-10 rounded-lg bg-black/40 border border-white/5 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <div className="shrink-0 h-10 w-10 rounded-lg bg-black/40 border border-white/5 flex items-center justify-center group- transition-transform">
                                 {getIcon(notif.category)}
                             </div>
 
                             {/* Content */}
                             <div className="flex-1 min-w-0 pt-0.5 pr-8">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 group-hover:text-zinc-400">
+                                    <span className="text-caption font-black uppercase tracking-wider text-zinc-500 group-hover:text-zinc-400">
                                         {getCategoryLabel(notif.category)}
                                     </span>
-                                    <span className="text-[10px] text-zinc-600">
+                                    <span className="text-caption text-zinc-600">
                                         • {format(new Date(notif.createdAt), "d MMMM 'à' HH:mm", { locale: fr })}
                                     </span>
                                 </div>
@@ -354,7 +354,7 @@ export default function NotificationsPage() {
                                                         e.stopPropagation();
                                                         setReplyNotif(notif);
                                                     }}
-                                                    className="h-7 px-3 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-all"
+                                                    className="h-7 px-3 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5   transition-all"
                                                 >
                                                     <MessageSquare className="w-3.5 h-3.5" />
                                                     Répondre

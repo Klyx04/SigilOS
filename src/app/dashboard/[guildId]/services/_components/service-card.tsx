@@ -69,14 +69,14 @@ function AvailabilityMini({ raw }: { raw: unknown }) {
 
     return (
         <div className="space-y-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Disponibilités</p>
+            <p className="text-caption font-black uppercase tracking-widest text-zinc-500">Disponibilités</p>
             <div className="grid grid-cols-7 gap-0.5">
                 {JOURS.map(jour => {
                     const slots = map[jour] || [];
                     const isActive = slots.length > 0;
                     return (
                         <div key={jour} className="flex flex-col items-center gap-0.5">
-                            <span className={`text-[8px] font-bold ${isActive ? "text-zinc-200" : "text-zinc-600"}`}>
+                            <span className={`text-caption font-bold ${isActive ? "text-zinc-200" : "text-zinc-600"}`}>
                                 {JOUR_ABBR[jour]?.slice(0, 3)}
                             </span>
                             <div className="flex flex-col gap-0.5 w-full">
@@ -98,7 +98,7 @@ function AvailabilityMini({ raw }: { raw: unknown }) {
             {/* Légende */}
             <div className="flex gap-2 mt-1">
                 {["matin", "midi", "soir", "nuit"].map(s => (
-                    <span key={s} className="flex items-center gap-0.5 text-[8px] text-zinc-500">
+                    <span key={s} className="flex items-center gap-0.5 text-caption text-zinc-500">
                         <span className={`inline-block h-1.5 w-3 rounded-sm ${SLOT_COLORS[s]}`} />
                         {SLOT_ABBR[s]}
                     </span>
@@ -149,7 +149,7 @@ function OcrePackBadge({ packLabel, price }: { packLabel: string; price: string 
             </div>
             <div className="flex-1 min-w-0">
                 <p className={`text-xs font-black uppercase tracking-wider ${config.glow}`}>{config.label}</p>
-                <p className="text-[10px] text-zinc-400 font-medium">Quête Ocre complète</p>
+                <p className="text-caption text-zinc-400 font-medium">Quête Ocre complète</p>
             </div>
             {price && (
                 <div className="shrink-0 flex items-center gap-1.5">
@@ -203,14 +203,14 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
 
     return (
         <div className={cn(
-            "group relative flex flex-col rounded-3xl border transition-all duration-500 overflow-hidden",
+            "group relative flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden",
             isPaused 
                 ? "border-white/5 opacity-60 bg-zinc-950/20" 
                 : "border-white/10 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/20 shadow-xl hover:shadow-2xl"
         )}>
             {/* Background Ambient Glow */}
             {!isPaused && (
-                <div className={cn("absolute -top-24 -right-24 w-48 h-48 blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-700 bg-gradient-to-br", col.bg)} />
+                <div className={cn("absolute -top-24 -right-24 w-48 h-48 blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br", col.bg)} />
             )}
 
             <div className="relative p-6 flex flex-col gap-5 h-full z-10">
@@ -218,13 +218,13 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
             {/* ── Header : badge catégorie + pause badge ── */}
             <div className="flex items-start justify-between gap-2">
                 <Badge variant="outline" className={cn(
-                    "text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1 border rounded-full shadow-sm transition-all",
+                    "text-caption font-black uppercase tracking-[0.15em] px-3 py-1 border rounded-full shadow-sm transition-all",
                     col.badge
                 )}>
                     {CATEGORY_EMOJIS[listing.category]} {CATEGORY_LABELS[listing.category]}
                 </Badge>
                 {isPaused && (
-                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest px-2 py-0.5">
+                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-caption font-black uppercase tracking-widest px-2 py-0.5">
                         PAUSE
                     </Badge>
                 )}
@@ -287,7 +287,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
                             </div>
                         ) : null}
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest leading-none">Éleveur Certifié</p>
+                            <p className="text-caption text-emerald-400 font-black uppercase tracking-widest leading-none">Éleveur Certifié</p>
                             <p className="text-xs text-zinc-400 font-bold mt-1 truncate">{label}</p>
                         </div>
                     </div>
@@ -367,7 +367,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
             {/* ── TUTORAT Classes ── */}
             {listing.category === "TUTORAT" && (listing.professions as string[] | null)?.length ? (
                 <div className="space-y-2">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-pink-500 flex items-center gap-1.5">
+                    <p className="text-caption font-black uppercase tracking-widest text-pink-500 flex items-center gap-1.5">
                         <GraduationCap className="h-3 w-3" /> Classes proposées
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -418,7 +418,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
                                 ? `${Number(listing.price.replace(/\s/g, "")).toLocaleString("fr-FR")}`
                                 : listing.price}
                         </span>
-                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-0.5">kamas total</span>
+                        <span className="text-caption text-zinc-500 font-black uppercase tracking-widest mt-0.5">kamas total</span>
                     </div>
                 </div>
             ) : null}
@@ -473,7 +473,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
                     </div>
                     <div className="flex flex-col">
                         <span className="text-sm font-black text-white tracking-tight leading-none">{name}</span>
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Vendeur certifié</span>
+                        <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Vendeur certifié</span>
                     </div>
                 </div>
 

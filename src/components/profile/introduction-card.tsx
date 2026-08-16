@@ -58,7 +58,7 @@ export function IntroductionCard({
         return (
             <Card className="p-12 bg-zinc-900/40 border-white/5 flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group- transition-transform duration-300">
                     <Sparkles className="w-8 h-8 text-emerald-400" />
                 </div>
                 <div className="space-y-2 max-w-sm">
@@ -90,7 +90,7 @@ export function IntroductionCard({
                         </div>
                         <div>
                             <h3 className="text-sm font-bold text-white tracking-tight">Ma Présentation</h3>
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black opacity-60">Bio de {displayName}</p>
+                            <p className="text-caption text-zinc-500 uppercase tracking-widest font-black opacity-60">Bio de {displayName}</p>
                         </div>
                     </div>
                     {!readOnly && !isEditing && (
@@ -98,7 +98,7 @@ export function IntroductionCard({
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsEditing(true)}
-                            className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white h-7 px-3 rounded-lg"
+                            className="text-caption font-black uppercase tracking-widest text-zinc-400 hover:text-white h-7 px-3 rounded-lg"
                         >
                             Modifier
                         </Button>
@@ -112,10 +112,10 @@ export function IntroductionCard({
                                 <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-white/5">
                                     <div className="flex items-center gap-1">
                                         <EmojiPicker onSelect={handleEmojiSelect} />
-                                        <span className="text-[10px] font-bold text-zinc-500 uppercase ml-2">Apparence & Bio</span>
+                                        <span className="text-caption font-bold text-zinc-500 uppercase ml-2">Apparence & Bio</span>
                                     </div>
                                     <div className={cn(
-                                        "text-[10px] font-black tabular-nums transition-colors px-2 py-1 rounded",
+                                        "text-caption font-black tabular-nums transition-colors px-2 py-1 rounded",
                                         text.length > MAX_CHARS ? "text-rose-500 bg-rose-500/10" : "text-zinc-500 bg-black/20"
                                     )}>
                                         {text.length} / {MAX_CHARS}
@@ -125,12 +125,12 @@ export function IntroductionCard({
                                     value={text}
                                     onChange={(e) => setText(e.target.value)}
                                     placeholder="Partage ton histoire, tes objectifs ou tes passions..."
-                                    className="bg-transparent border-none min-h-[160px] max-h-[400px] resize-y p-4 focus-visible:ring-0 text-[13px] leading-relaxed placeholder:text-zinc-700"
+                                    className="bg-transparent border-none min-h-[160px] max-h-[400px] resize-y p-4 focus-visible:ring-0 text-body-sm leading-relaxed placeholder:text-zinc-700"
                                 />
                             </div>
 
                             <div className="flex items-center justify-between pt-1">
-                                <p className="text-[10px] text-zinc-500 italic flex items-center gap-1.5 opacity-60">
+                                <p className="text-caption text-zinc-500 italic flex items-center gap-1.5 opacity-60">
                                     <Info className="w-3 h-3 text-emerald-500/50" />
                                     Visible par toute la guilde. Markdown supporté.
                                 </p>
@@ -143,7 +143,7 @@ export function IntroductionCard({
                                             setIsEditing(false);
                                         }}
                                         disabled={isSaving}
-                                        className="text-[11px] font-bold text-zinc-400 hover:text-white"
+                                        className="text-caption font-bold text-zinc-400 hover:text-white"
                                     >
                                         Annuler
                                     </Button>
@@ -162,7 +162,7 @@ export function IntroductionCard({
                     ) : (
                         <div className="p-6 rounded-2xl bg-black/40 border border-white/5 text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap min-h-[80px] group-hover:bg-black/60 transition-colors">
                             {introduction ? (
-                                <div className="text-[13px] text-zinc-300/90 tracking-wide font-medium italic">
+                                <div className="text-body-sm text-zinc-300/90 tracking-wide font-medium italic">
                                     "{introduction}"
                                 </div>
                             ) : (

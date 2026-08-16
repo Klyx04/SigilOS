@@ -80,7 +80,7 @@ export default async function StuffHubPage({
                 backHref={`/dashboard/${guildId}`}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-300">
                 {cards.map((card) => {
                     const Icon = card.icon;
                     const a = ACCENT[card.accent];
@@ -90,18 +90,18 @@ export default async function StuffHubPage({
                     return (
                         <Link key={card.href} href={card.href} className="group outline-none">
                             <div className={cn(
-                                "relative flex flex-col h-full rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all duration-700 hover:border-white/10 hover:bg-white/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
-                                "before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/[0.05] before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-700"
+                                "relative flex flex-col h-full rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
+                                "before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/[0.05] before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300"
                             )}>
                                 <div className={cn(
-                                    "absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-0 group-hover:opacity-20 transition-opacity duration-700 rounded-full z-0",
+                                    "absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-full z-0",
                                     a.bg
                                 )} />
 
                                 <div className="relative z-10 flex flex-col h-full">
                                     <div className="flex items-center justify-between mb-8">
                                         <div className={cn(
-                                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border group-hover:scale-110 group-hover:rotate-3 shadow-xl",
+                                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 border group- group-hover:rotate-3 shadow-xl",
                                             a.bg,
                                             a.border.replace("hover:", "")
                                         )}>
@@ -113,14 +113,14 @@ export default async function StuffHubPage({
                                         <h3 className="text-xl font-black text-white tracking-tighter uppercase leading-tight">
                                             {card.title}
                                         </h3>
-                                        <p className="text-[13px] text-zinc-500 font-medium leading-relaxed group-hover:text-zinc-400 transition-colors">
+                                        <p className="text-body-sm text-zinc-500 font-medium leading-relaxed group-hover:text-zinc-400 transition-colors">
                                             {card.description}
                                         </p>
                                     </div>
 
                                     <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
                                         <div className={cn(
-                                            "flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                                            "flex items-center gap-2 text-caption font-black uppercase tracking-[0.2em] transition-all",
                                             a.text,
                                             "opacity-40 group-hover:opacity-100"
                                         )}>

@@ -39,7 +39,7 @@ function ErrorContent() {
 
     return (
         <div className="relative z-10 max-w-md w-full group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-orange-500/20 to-red-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-orange-500/20 to-red-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-300" />
 
             <div className="relative bg-zinc-950/80 backdrop-blur-3xl border border-red-500/20 rounded-3xl p-10 text-center shadow-2xl">
                 <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-8 shadow-inner">
@@ -53,7 +53,7 @@ function ErrorContent() {
                     </p>
                     {error && (
                         <div className="inline-block px-3 py-1 rounded-md bg-red-500/5 border border-red-500/10">
-                            <p className="text-[10px] font-mono text-red-500/50 uppercase tracking-widest font-bold">
+                            <p className="text-caption font-mono text-red-500/50 uppercase tracking-widest font-bold">
                                 Diagnostics: {error}
                             </p>
                         </div>

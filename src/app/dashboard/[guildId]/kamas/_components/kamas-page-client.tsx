@@ -76,7 +76,7 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                     <div key={label} className={`rounded-2xl border p-4 space-y-2 ${bg}`}>
                         <div className={`flex items-center gap-2 ${color}`}>
                             <Icon className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
+                            <span className="text-caption font-bold uppercase tracking-widest">{label}</span>
                         </div>
                         <div>
                             <span className={`text-2xl font-black font-mono ${color}`}>{value}</span>
@@ -106,7 +106,7 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                                 >
                                     {v === "donations" ? "Historique" : "Classement"}
                                     {v === "donations" && pendingCount > 0 && canReview && (
-                                        <span className="ml-1.5 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full">{pendingCount}</span>
+                                        <span className="ml-1.5 bg-amber-500 text-black text-caption font-black px-1.5 py-0.5 rounded-full">{pendingCount}</span>
                                     )}
                                 </button>
                             ))}
@@ -130,7 +130,7 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                                     <button
                                         key={t.key}
                                         onClick={() => setActiveTab(t.key)}
-                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${activeTab === t.key ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+                                        className={`px-3 py-1 rounded-lg text-caption font-bold uppercase tracking-wider transition-all duration-200 ${activeTab === t.key ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
                                     >
                                         {t.label}
                                         {t.key === "PENDING" && pendingCount > 0 && (
@@ -196,11 +196,11 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                                                 <p className={`text-sm font-bold truncate ${entry.isCurrentUser ? "text-amber-300" : "text-white"}`}>
                                                     {entry.pseudoDofus || entry.discordNickname || "Membre"}
                                                 </p>
-                                                <p className="text-[10px] text-zinc-600">{entry.donationCount} don{entry.donationCount > 1 ? "s" : ""}</p>
+                                                <p className="text-caption text-zinc-600">{entry.donationCount} don{entry.donationCount > 1 ? "s" : ""}</p>
                                             </div>
                                             <div className="text-right shrink-0">
                                                 <p className="text-sm font-black text-amber-400 font-mono">{entry.totalAmount.toLocaleString("fr-FR")}</p>
-                                                <p className="text-[9px] text-zinc-600 uppercase font-bold">kamas</p>
+                                                <p className="text-caption text-zinc-600 uppercase font-bold">kamas</p>
                                             </div>
                                         </div>
                                     ))}

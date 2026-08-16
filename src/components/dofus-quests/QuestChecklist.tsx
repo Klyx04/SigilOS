@@ -36,7 +36,7 @@ function SectionBadge({ type }: { type: string }) {
     const cfg = map[type] || { label: type, color: "#6b7280" };
     return (
         <span
-            className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            className="text-caption font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
             style={{ background: `${cfg.color}22`, color: cfg.color, border: `1px solid ${cfg.color}44` }}
         >
             {cfg.label}
@@ -129,7 +129,7 @@ function QuestEntryRow({
                     disabled={isPending || (!!isLocked && !isCompleted)}
                     onClick={(e) => { e.stopPropagation(); handleToggle(); }}
                     className={`flex-shrink-0 transition-all duration-150 z-10 ${
-                        isLocked && !isCompleted ? "cursor-not-allowed opacity-20 grayscale" : "hover:scale-110"
+                        isLocked && !isCompleted ? "cursor-not-allowed opacity-20 grayscale" : ""
                     }`}
                 >
                     {isCompleted ? (
@@ -149,23 +149,23 @@ function QuestEntryRow({
                 {/* Name */}
                 <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-x-2">
-                        <span className={`text-[14px] font-black italic tracking-tight transition-colors ${
+                        <span className={`text-body font-black italic tracking-tight transition-colors ${
                             isCompleted ? "text-white/30 line-through" : "text-white"
                         }`}>
                             {entry.name}
                         </span>
                         <div className="flex items-center gap-2">
-                            {entry.zone && <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{entry.zone}</span>}
-                            {(entry as any).level != null && <span className="text-[10px] text-zinc-600 font-medium">Lvl {(entry as any).level}</span>}
+                            {entry.zone && <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest">{entry.zone}</span>}
+                            {(entry as any).level != null && <span className="text-caption text-zinc-600 font-medium">Lvl {(entry as any).level}</span>}
                         </div>
                     </div>
                 </div>
 
                 {/* Badges */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                    {hasDungeons && <span className="text-[9px] text-rose-400/80 font-black uppercase">🏰 DJ</span>}
+                    {hasDungeons && <span className="text-caption text-rose-400/80 font-black uppercase">🏰 DJ</span>}
                     {entry.isLast && (
-                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ background: `${dofusColor}20`, color: dofusColor }}>
+                        <span className="text-caption font-black uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ background: `${dofusColor}20`, color: dofusColor }}>
                             🎯 Final
                         </span>
                     )}
@@ -202,12 +202,12 @@ function QuestEntryRow({
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon requis</div>
-                                        <div className="text-[13px] font-black text-white italic truncate">{d.name}</div>
+                                        <div className="text-caption font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon requis</div>
+                                        <div className="text-body-sm font-black text-white italic truncate">{d.name}</div>
                                         <div className="flex items-center gap-2 mt-0.5">
-                                            {d.level && d.level > 0 && <span className="text-[9px] text-zinc-500 font-bold">Lvl {d.level}</span>}
-                                            {d.bossName && <span className="text-[9px] text-zinc-600 italic">— {d.bossName}</span>}
-                                            {d.idoleName && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
+                                            {d.level && d.level > 0 && <span className="text-caption text-zinc-500 font-bold">Lvl {d.level}</span>}
+                                            {d.bossName && <span className="text-caption text-zinc-600 italic">— {d.bossName}</span>}
+                                            {d.idoleName && <span className="text-caption font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
                                         </div>
                                     </div>
                                     {(d as any).dplnUrl && (
@@ -219,7 +219,7 @@ function QuestEntryRow({
                                         >
                                             <a href={(d as any).dplnUrl} target="_blank" rel="noopener noreferrer">
                                                 <BookOpen className="w-4 h-4 mr-2" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Stratégie</span>
+                                                <span className="text-caption font-black uppercase tracking-widest">Stratégie</span>
                                             </a>
                                         </Button>
                                     )}
@@ -234,12 +234,12 @@ function QuestEntryRow({
                                         <img src={di.mapImg} alt={di.dungeonName} className="w-12 h-12 object-cover rounded-xl border border-rose-500/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                     )}
                                     <div className="flex-1">
-                                        <div className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon</div>
-                                        <div className="text-[13px] font-black text-white italic">{di.dungeonName}</div>
+                                        <div className="text-caption font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon</div>
+                                        <div className="text-body-sm font-black text-white italic">{di.dungeonName}</div>
                                     </div>
                                     {di.x !== undefined && (
                                         <Link href={`/dashboard/${guildId}/worldmap?x=${di.x}&y=${di.y}&zoom=4&world=${di.worldId ?? 0}`}
-                                            className="h-8 w-8 rounded-xl bg-rose-500 text-black flex items-center justify-center hover:scale-110 transition-transform flex-shrink-0"
+                                            className="h-8 w-8 rounded-xl bg-rose-500 text-black flex items-center justify-center  transition-transform flex-shrink-0"
                                             onClick={(e) => e.stopPropagation()}>
                                             <MapPin className="w-4 h-4" />
                                         </Link>
@@ -256,13 +256,13 @@ function QuestEntryRow({
                                             <Wand2 className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                            <div className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
                                                 PNJ OBJECTIF
-                                                <span className="text-[8px] bg-white/5 px-1 py-0.5 rounded opacity-0 group-hover/travel:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                <span className="text-caption bg-white/5 px-1 py-0.5 rounded opacity-0 group-hover/travel:opacity-100 transition-opacity flex items-center gap-0.5">
                                                     <Copy className="w-2.5 h-2.5" /> COPIER
                                                 </span>
                                             </div>
-                                            <div className="text-[12px] font-bold text-white italic group-hover/travel:text-emerald-400 transition-colors">
+                                            <div className="text-label font-bold text-white italic group-hover/travel:text-emerald-400 transition-colors">
                                                 {(() => {
                                                     const objectives = Array.isArray((entry as any).objectives) ? (entry as any).objectives : [];
                                                     const objWithNpc = objectives.find((o: any) => extractObjectiveText(o).includes("{npc,"));
@@ -274,7 +274,7 @@ function QuestEntryRow({
                                     </div>
                                     <Link
                                         href={`/dashboard/${guildId}/worldmap?x=${(entry as any).coords.x}&y=${(entry as any).coords.y}&zoom=4&world=${(entry as any).coords.worldId ?? 0}`}
-                                        className="h-8 w-8 rounded-lg bg-emerald-500 text-black flex items-center justify-center hover:scale-110 transition-transform shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                        className="h-8 w-8 rounded-lg bg-emerald-500 text-black flex items-center justify-center  transition-transform "
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <MapPin className="w-4 h-4" />
@@ -285,10 +285,10 @@ function QuestEntryRow({
                             {/* Positions de lancement */}
                             {Array.isArray((entry as any).positions) && (entry as any).positions.length > 0 && (
                                 <div className="space-y-2">
-                                    <div className="text-[10px] font-black text-emerald-500/80 uppercase tracking-widest italic mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Positions de lancement</div>
+                                    <div className="text-caption font-black text-emerald-500/80 uppercase tracking-widest italic mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Positions de lancement</div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {(entry as any).positions.map((p: any, i: number) => (
-                                            <button key={i} onClick={(e) => { e.stopPropagation(); copyWithToast(`/travel ${p.x} ${p.y}`); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold font-mono hover:bg-emerald-500/20 transition-colors">
+                                            <button key={i} onClick={(e) => { e.stopPropagation(); copyWithToast(`/travel ${p.x} ${p.y}`); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-bold font-mono hover:bg-emerald-500/20 transition-colors">
                                                 <MapPin className="w-2.5 h-2.5" />
                                                 {p.x}, {p.y}
                                                 <Copy className="w-2.5 h-2.5 text-emerald-500/50" />
@@ -301,17 +301,17 @@ function QuestEntryRow({
                             {/* Objectives */}
                             {Array.isArray((entry as any).objectives) && (entry as any).objectives.length > 0 && (
                                 <div className="space-y-2">
-                                    <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic mb-2">Marche à suivre</div>
+                                    <div className="text-caption font-black text-zinc-600 uppercase tracking-widest italic mb-2">Marche à suivre</div>
                                     {(entry as any).objectives.map((obj: any, i: number) => {
                                         const text = extractObjectiveText(obj);
                                         const isReturn = text.toLowerCase().includes("retour") || text.toLowerCase().includes("aller voir");
                                         return (
                                             <div key={i} className="flex gap-2 items-start py-0.5">
-                                                <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-[8px] font-black mt-0.5 ${isReturn ? "animate-pulse" : ""}`}
+                                                <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-caption font-black mt-0.5 ${isReturn ? "animate-pulse" : ""}`}
                                                     style={{ background: isReturn ? `${dofusColor}40` : "rgba(255,255,255,0.05)", color: isReturn ? "#fff" : "rgba(255,255,255,0.4)" }}>
                                                     {i + 1}
                                                 </div>
-                                                <div className={`text-[12.5px] font-medium leading-relaxed ${isReturn ? "text-white" : "text-zinc-400"}`}>
+                                                <div className={`text-label font-medium leading-relaxed ${isReturn ? "text-white" : "text-zinc-400"}`}>
                                                     <ParsedObjective text={obj} guildId={guildId} zone={entry.zone ?? undefined} />
                                                 </div>
                                             </div>

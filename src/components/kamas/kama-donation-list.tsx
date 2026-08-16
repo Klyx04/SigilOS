@@ -90,7 +90,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-white truncate">
                                     {d.profile.pseudoDofus || d.profile.discordNickname || "Membre"}
-                                    {isOwn && <span className="ml-2 text-[9px] text-zinc-500 font-normal">(vous)</span>}
+                                    {isOwn && <span className="ml-2 text-caption text-zinc-500 font-normal">(vous)</span>}
                                 </p>
                                 <p className="text-xs text-zinc-500">
                                     {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true, locale: fr })}
@@ -102,11 +102,11 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                 <p className="text-sm font-black text-amber-400 font-mono">
                                     {d.amount.toLocaleString("fr-FR")}
                                 </p>
-                                <p className="text-[9px] text-zinc-600 font-bold uppercase">kamas</p>
+                                <p className="text-caption text-zinc-600 font-bold uppercase">kamas</p>
                             </div>
 
                             {/* Status */}
-                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0 ${cfg.bg} ${cfg.color}`}>
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-caption font-bold uppercase tracking-wider shrink-0 ${cfg.bg} ${cfg.color}`}>
                                 <Icon className="w-3 h-3" />
                                 {cfg.label}
                             </div>
@@ -128,7 +128,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
 
                                 {d.proofUrl && (
                                     <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Preuve screenshot</p>
+                                        <p className="text-caption font-bold text-zinc-500 uppercase tracking-widest">Preuve screenshot</p>
                                         <div className="rounded-xl overflow-hidden border border-white/10 bg-zinc-800/30">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={d.proofUrl} alt="Preuve don" className="w-full max-h-80 object-contain" />
@@ -137,7 +137,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                             href={d.proofUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                                            className="inline-flex items-center gap-1.5 text-caption text-zinc-500 hover:text-zinc-300 transition-colors"
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <Eye className="w-3 h-3" /> Voir en plein écran

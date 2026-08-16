@@ -53,7 +53,7 @@ export default function StatsClient({
     const hasSocialData = (stats.social?.totalMessages || 0) > 0;
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header */}
             <div className="flex items-center gap-4 pb-6 border-b border-white/10">
                 <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">

@@ -22,9 +22,9 @@ export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
     };
 
     const getProgressColor = () => {
-        if (capacityPercent >= 80) return "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]";
-        if (capacityPercent >= 50) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]";
-        return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
+        if (capacityPercent >= 80) return "bg-red-500 ";
+        if (capacityPercent >= 50) return "bg-amber-500 ";
+        return "bg-emerald-500 ";
     };
 
     return (
@@ -38,7 +38,7 @@ export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
                             ⚠️ Alerte Seuil Critique : La guilde utilise <span className="font-black text-white">{Math.round(capacityPercent)}%</span> de son quota de membres ({stats.active} / {stats.maxMembers}).
                         </div>
                     </div>
-                    <span className="text-[10px] uppercase font-black tracking-widest text-red-400 bg-red-500/20 px-2 py-1 rounded-md">
+                    <span className="text-caption uppercase font-black tracking-widest text-red-400 bg-red-500/20 px-2 py-1 rounded-md">
                         Limite &gt; 80%
                     </span>
                 </div>
@@ -50,7 +50,7 @@ export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
                             ⚡ Attention Capacité : La guilde a dépassé la moitié de sa capacité ({stats.active} / {stats.maxMembers} — <span className="font-black text-white">{Math.round(capacityPercent)}%</span>).
                         </div>
                     </div>
-                    <span className="text-[10px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/20 px-2 py-1 rounded-md">
+                    <span className="text-caption uppercase font-black tracking-widest text-amber-400 bg-amber-500/20 px-2 py-1 rounded-md">
                         Seuil &gt; 50%
                     </span>
                 </div>
@@ -64,7 +64,7 @@ export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
                         <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
                             <Users className="w-5 h-5" />
                         </div>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${getCapacityColor()}`}>
+                        <span className={`text-caption font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${getCapacityColor()}`}>
                             {stats.active} / {stats.maxMembers}
                         </span>
                     </div>
@@ -75,7 +75,7 @@ export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
                     {/* Progress Bar */}
                     <div className="mt-4 h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                         <div
-                            className={`h-full transition-all duration-1000 ease-out rounded-full ${getProgressColor()}`}
+                            className={`h-full transition-all duration-300 ease-out rounded-full ${getProgressColor()}`}
                             style={{ width: `${capacityPercent}%` }}
                         />
                     </div>

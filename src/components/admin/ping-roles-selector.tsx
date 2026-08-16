@@ -33,13 +33,13 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
         <div className="space-y-3">
             <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Liste Blanche</span>
+                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Liste Blanche</span>
                     {value.length > 0 && (
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={() => onChange([])}
-                            className="h-6 text-[9px] font-black uppercase text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 px-2"
+                            className="h-6 text-caption font-black uppercase text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 px-2"
                         >
                             Tout effacer
                         </Button>
@@ -83,7 +83,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div 
-                                                    className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_-2px_currentColor]" 
+                                                    className="w-2.5 h-2.5 rounded-full " 
                                                     style={{ 
                                                         backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color,
                                                         color: role.color === "#000000" ? "#9ca3af" : role.color
@@ -109,7 +109,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                             return (
                                 <div 
                                     key={id} 
-                                    className="flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-tight"
+                                    className="flex items-center gap-1.5 px-2 py-0.5 rounded border text-caption font-bold uppercase tracking-tight"
                                     style={{ 
                                         backgroundColor: `${color}15`, 
                                         borderColor: `${color}30`,
@@ -131,8 +131,8 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                     <div className="mt-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
                         <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                         <div>
-                            <p className="text-[10px] text-amber-400 font-black uppercase tracking-widest mb-1">Aucun rôle autorisé</p>
-                            <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+                            <p className="text-caption text-amber-400 font-black uppercase tracking-widest mb-1">Aucun rôle autorisé</p>
+                            <p className="text-caption text-zinc-500 leading-relaxed italic">
                                 {description}
                             </p>
                         </div>

@@ -12,7 +12,7 @@ export function SuperAdminHeader() {
                 {/* Logo & Title */}
                 <div className="flex items-center gap-4">
                     <Link href="/" className="flex items-center gap-3 group">
-                        <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center group-hover:bg-amber-500/30 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                        <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center group-hover:bg-amber-500/30 transition-all ">
                             <Shield className="w-4 h-4 text-amber-500 drop-shadow-sm" />
                         </div>
                         <span className="font-black text-xl tracking-tight text-white/95 drop-shadow-sm">

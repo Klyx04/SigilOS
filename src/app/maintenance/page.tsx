@@ -24,7 +24,7 @@ export default async function MaintenancePage() {
             <div className="relative z-10 flex flex-col items-center gap-10 px-6 max-w-2xl w-full text-center">
                 {/* Logo + Icon */}
                 <div className="relative">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center shadow-[0_0_60px_rgba(99,102,241,0.2)] mx-auto">
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center  mx-auto">
                         <Wrench className="w-10 h-10 text-indigo-400 animate-[spin_8s_linear_infinite]" />
                     </div>
                     {/* Pulsing ring */}

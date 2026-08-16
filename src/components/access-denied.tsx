@@ -4,7 +4,7 @@ import { ShieldAlert } from "lucide-react";
 
 export default function AccessDenied() {
     return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center animate-in fade-in zoom-in duration-500">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center animate-in fade-in zoom-in duration-300">
             <div className="relative">
                 <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full" />
                 <ShieldAlert className="w-24 h-24 text-red-500 relative z-10" />

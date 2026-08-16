@@ -131,7 +131,7 @@ export default async function UnifiedValidationPage({
                     </TabsList>
                 </div>
 
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <TabsContent value="missions" className="outline-none m-0">
                         <MissionValidationQueue submissions={missions ?? []} guildId={guildId} />
                     </TabsContent>

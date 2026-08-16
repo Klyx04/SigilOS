@@ -316,12 +316,12 @@ export function AltPseudos({
                         <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
                             Mes Mules & Alts
                             {!readOnly && (
-                                <span className="text-[10px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                                <span className="text-caption text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full font-mono font-bold">
                                     {localPseudos.length}/{maxPseudos}
                                 </span>
                             )}
                         </h3>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Personnages secondaires de guilde</p>
+                        <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Personnages secondaires de guilde</p>
                     </div>
                 </div>
 
@@ -357,7 +357,7 @@ export function AltPseudos({
                                     className={cn(
                                         "relative flex flex-col justify-between p-4 rounded-2xl bg-black/60 border transition-all group/item overflow-hidden space-y-3",
                                         editingMuleId === mule.id 
-                                            ? "border-indigo-500/50 bg-indigo-950/20 shadow-[0_0_25px_rgba(99,102,241,0.2)]"
+                                            ? "border-indigo-500/50 bg-indigo-950/20 "
                                             : "border-white/10 hover:border-indigo-500/40 hover:bg-black/80"
                                     )}
                                 >
@@ -386,10 +386,10 @@ export function AltPseudos({
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: cls.color }}>
+                                                    <span className="text-caption font-extrabold uppercase tracking-wider" style={{ color: cls.color }}>
                                                         {cls.name}
                                                     </span>
-                                                    <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full font-mono">
+                                                    <span className="text-caption font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full font-mono">
                                                         Nv. {mule.level !== undefined ? mule.level : 200}
                                                     </span>
                                                 </div>
@@ -401,7 +401,7 @@ export function AltPseudos({
                                     <div className="flex flex-wrap items-center gap-1.5 z-10 pt-1 border-t border-white/5">
                                         {alignData && alignData.id !== "neutre" ? (
                                             <div className={cn(
-                                                "flex items-center gap-1.5 bg-black/60 border rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                                                "flex items-center gap-1.5 bg-black/60 border rounded-xl px-2.5 py-1 text-caption font-bold uppercase tracking-wider",
                                                 alignData.id === "bontarien" ? "border-blue-500/30 text-blue-300" : "border-red-500/30 text-red-300"
                                             )}>
                                                 <div className="relative w-4 h-4 shrink-0 rounded-full overflow-hidden">
@@ -410,11 +410,11 @@ export function AltPseudos({
                                                 <span>{alignData.name}</span>
                                             </div>
                                         ) : (
-                                            <span className="text-[10px] text-zinc-500 font-bold italic">Neutre</span>
+                                            <span className="text-caption text-zinc-500 font-bold italic">Neutre</span>
                                         )}
 
                                         {orderData && (
-                                            <div className="flex items-center gap-1.5 bg-black/60 border border-amber-500/30 rounded-xl px-2.5 py-1 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                                            <div className="flex items-center gap-1.5 bg-black/60 border border-amber-500/30 rounded-xl px-2.5 py-1 text-caption font-bold text-amber-300 uppercase tracking-wider">
                                                 <div className="relative w-4 h-4 shrink-0">
                                                     <NextImage src={orderData.icon} alt={orderData.name} fill className="object-contain" unoptimized />
                                                 </div>
@@ -433,7 +433,7 @@ export function AltPseudos({
                                                 navigator.clipboard.writeText(`/w ${mule.pseudo} `);
                                                 toast.success("Commande copiée !", { description: `/w ${mule.pseudo}` });
                                             }}
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/25 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/25 text-caption font-black uppercase tracking-wider transition-all cursor-pointer"
                                             title="Copier /w dans Dofus"
                                         >
                                             <Copy className="w-3 h-3" /> /w {mule.pseudo}
@@ -498,7 +498,7 @@ export function AltPseudos({
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={handleCancelFormEdit}
-                                    className="h-6 px-2 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5 rounded-md"
+                                    className="h-6 px-2 text-caption font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5 rounded-md"
                                 >
                                     Mode Ajout
                                 </Button>
@@ -509,7 +509,7 @@ export function AltPseudos({
                             <div className="flex flex-col gap-5">
                                 {/* 1. Class Selection Grid */}
                                 <div className="grid gap-2 w-full">
-                                    <label className="text-[11px] text-zinc-400 font-black uppercase tracking-wider ml-1">Sélectionner une classe</label>
+                                    <label className="text-caption text-zinc-400 font-black uppercase tracking-wider ml-1">Sélectionner une classe</label>
                                     <div className="flex bg-zinc-950/40 p-2 rounded-xl border border-white/5 overflow-x-auto gap-2 custom-scrollbar pb-3 snap-x">
                                         {DOFUS_CLASSES.map((cls) => (
                                             <button
@@ -543,7 +543,7 @@ export function AltPseudos({
                                 {/* 2. Pseudo & Level Fields */}
                                 <div className="flex flex-col sm:flex-row gap-4 items-end">
                                     <div className="grid gap-1.5 flex-[2] w-full relative">
-                                        <label className="text-[11px] text-zinc-400 font-black uppercase tracking-wider ml-1">Pseudo</label>
+                                        <label className="text-caption text-zinc-400 font-black uppercase tracking-wider ml-1">Pseudo</label>
                                         <div className="flex gap-2 items-center">
                                             <div className="relative flex-1">
                                                 <Input
@@ -578,7 +578,7 @@ export function AltPseudos({
                                                 {isVerifyingMule ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                             </Button>
                                         </div>
-                                        <p className="text-[10px] leading-relaxed text-zinc-500 ml-1">
+                                        <p className="text-caption leading-relaxed text-zinc-500 ml-1">
                                             {newPseudoVerified ? (
                                                 <span className="text-emerald-500 font-bold flex items-center gap-1.5">
                                                     <UserCheck className="w-3 h-3" /> Pseudo validé sur le ladder Ankama.
@@ -594,7 +594,7 @@ export function AltPseudos({
                                     </div>
 
                                     <div className="grid gap-1.5 w-full sm:w-28">
-                                        <label className="text-[11px] text-zinc-400 font-black uppercase tracking-wider ml-1">Niveau</label>
+                                        <label className="text-caption text-zinc-400 font-black uppercase tracking-wider ml-1">Niveau</label>
                                         <Input
                                             type="number"
                                             min={0}
@@ -622,7 +622,7 @@ export function AltPseudos({
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center gap-1.5">
                                             <Shield className="w-3.5 h-3.5 text-indigo-400" />
-                                            <label className="text-[11px] text-zinc-300 font-black uppercase tracking-wider">Alignement (Optionnel)</label>
+                                            <label className="text-caption text-zinc-300 font-black uppercase tracking-wider">Alignement (Optionnel)</label>
                                         </div>
                                         
                                         <div className="flex flex-wrap gap-2">
@@ -647,9 +647,9 @@ export function AltPseudos({
                                                         className={cn(
                                                             "h-12 px-4 rounded-xl flex items-center gap-3 transition-all border text-xs font-bold uppercase tracking-wider relative overflow-hidden",
                                                             isSel 
-                                                                ? align.id === "bontarien" ? "bg-blue-500/10 border-blue-500/40 text-blue-400 font-black shadow-[0_0_12px_rgba(59,130,246,0.15)]" :
-                                                                  align.id === "brakmarien" ? "bg-red-500/10 border-red-500/40 text-red-400 font-black shadow-[0_0_12px_rgba(239,68,68,0.15)]" :
-                                                                  "bg-zinc-800 border-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.05)]"
+                                                                ? align.id === "bontarien" ? "bg-blue-500/10 border-blue-500/40 text-blue-400 font-black " :
+                                                                  align.id === "brakmarien" ? "bg-red-500/10 border-red-500/40 text-red-400 font-black " :
+                                                                  "bg-zinc-800 border-white/20 text-white "
                                                                 : "bg-black/20 border-white/5 text-zinc-500 hover:text-zinc-300"
                                                         )}
                                                     >
@@ -668,7 +668,7 @@ export function AltPseudos({
                                         <div className="flex flex-col gap-2 pt-2 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
                                             <div className="flex items-center gap-1.5">
                                                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                                                <label className="text-[11px] text-zinc-300 font-black uppercase tracking-wider">Ordre / Spécialisation</label>
+                                                <label className="text-caption text-zinc-300 font-black uppercase tracking-wider">Ordre / Spécialisation</label>
                                             </div>
                                             
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -680,9 +680,9 @@ export function AltPseudos({
                                                             type="button"
                                                             onClick={() => { setNewOrder(order.id); setNewAlignmentLevel(0); }}
                                                             className={cn(
-                                                                "h-14 px-4 rounded-xl flex items-center gap-3 transition-all border text-left text-[11px] font-black uppercase tracking-widest relative overflow-hidden",
+                                                                "h-14 px-4 rounded-xl flex items-center gap-3 transition-all border text-left text-caption font-black uppercase tracking-widest relative overflow-hidden",
                                                                 isSel
-                                                                    ? "bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+                                                                    ? "bg-amber-500/10 border-amber-500/40 text-amber-400 "
                                                                     : "bg-black/20 border-white/5 text-zinc-500 hover:text-zinc-300"
                                                             )}
                                                         >
@@ -704,14 +704,14 @@ export function AltPseudos({
                                         <div className="flex flex-col gap-2 pt-2 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
                                             <div className="flex items-center gap-1.5">
                                                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                                                <label className="text-[11px] text-zinc-300 font-black uppercase tracking-wider">Tranche d'Alignement</label>
+                                                <label className="text-caption text-zinc-300 font-black uppercase tracking-wider">Tranche d'Alignement</label>
                                             </div>
                                             <div className="flex flex-wrap gap-1.5">
                                                 <button
                                                     type="button"
                                                     onClick={() => setNewAlignmentLevel(0)}
                                                     className={cn(
-                                                        "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                        "px-3 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
                                                         newAlignmentLevel === 0
                                                             ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
                                                             : "bg-black/20 border-white/5 text-zinc-500 hover:text-zinc-300"
@@ -725,7 +725,7 @@ export function AltPseudos({
                                                         type="button"
                                                         onClick={() => setNewAlignmentLevel(level)}
                                                         className={cn(
-                                                            "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                            "px-3 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
                                                             newAlignmentLevel === level
                                                                 ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
                                                                 : "bg-black/20 border-white/5 text-zinc-500 hover:text-zinc-300"
@@ -746,7 +746,7 @@ export function AltPseudos({
                                         variant="sigil-emerald"
                                         onClick={handleAddOrUpdatePseudo}
                                         disabled={!newPseudo.trim()}
-                                        className="h-10 px-6 w-full sm:w-auto font-black uppercase tracking-widest text-[10px]"
+                                        className="h-10 px-6 w-full sm:w-auto font-black uppercase tracking-widest text-caption"
                                     >
                                         {editingMuleId ? (
                                             <>

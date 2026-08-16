@@ -130,7 +130,7 @@ export function LifecyclePanel({
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent uppercase tracking-tighter">
                         🛠️ State & Maintenance
                     </h2>
-                    <p className="text-sm text-zinc-500 mt-1 uppercase text-[10px] font-bold tracking-widest leading-relaxed">
+                    <p className="text-sm text-zinc-500 mt-1 uppercase text-caption font-bold tracking-widest leading-relaxed">
                         Gestion centralisée du cycle de vie des données, des fantômes et de la sécurité plateforme.
                     </p>
                 </div>
@@ -139,7 +139,7 @@ export function LifecyclePanel({
                     {totalPending > 0 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded-lg animate-pulse">
                             <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
+                            <span className="text-caption font-black uppercase tracking-widest text-rose-400">
                                 Attention ({totalPending} Anomalies)
                             </span>
                         </div>
@@ -173,8 +173,8 @@ export function LifecyclePanel({
                         <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl mb-4 flex items-start gap-4">
                             <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500">Hygiène des Guildes</h4>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-amber-500">Hygiène des Guildes</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
                                     <strong>Réactiver :</strong> Restaure l'accès immédiat et annule le compte à rebours. <br/>
                                     <strong>Supprimer :</strong> Efface PHYSIQUEMENT toutes les données (Missions, Stocks, Roster) de la base. Action IRRÉVERSIBLE.
                                 </p>
@@ -206,8 +206,8 @@ export function LifecyclePanel({
                          <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl mb-4 flex items-start gap-4">
                             <ShieldBan className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-orange-500">Connexions non autorisées</h4>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-orange-500">Connexions non autorisées</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
                                     Ces serveurs Discord ont ajouté le bot mais ne sont PAS dans la liste blanche (Whitelist). 
                                     Le bot est inactif sur ces serveurs mais consomme des ressources de gateway.
                                 </p>
@@ -227,7 +227,7 @@ export function LifecyclePanel({
                                             )}
                                             <div>
                                                 <div className="font-bold text-sm text-zinc-200">{g.name}</div>
-                                                <div className="text-[10px] font-mono text-zinc-500">{g.id}</div>
+                                                <div className="text-caption font-mono text-zinc-500">{g.id}</div>
                                             </div>
                                         </div>
                                         <button 
@@ -253,8 +253,8 @@ export function LifecyclePanel({
                          <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl mb-4 flex items-start gap-4">
                             <Info className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-400">Nettoyage des Fantômes</h4>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-purple-400">Nettoyage des Fantômes</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
                                     Comptes Discord sans profil de guilde (vieux de <strong>&gt;24h</strong> - GDPR). 
                                     La purge supprime l'entrée "User" et les sessions de connexion. 
                                     Aucune perte de progression métier/xp possible ici.
@@ -273,8 +273,8 @@ export function LifecyclePanel({
                          <div className="p-4 bg-zinc-500/5 border border-zinc-500/10 rounded-xl mb-4 flex items-start gap-4">
                             <Archive className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nettoyage technique</h4>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-zinc-400">Nettoyage technique</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
                                     Profils existants sans compte Discord lié (suite à une désynchronisation ou suppression manuelle brute).
                                 </p>
                             </div>
@@ -291,8 +291,8 @@ export function LifecyclePanel({
                         <section className="p-4 bg-red-500/5 border border-red-500/10 rounded-xl mb-4 flex items-start gap-4">
                             <ShieldBan className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-red-500">Zone de Bannissement</h4>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-red-500">Zone de Bannissement</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
                                    Le ban plateforme bloque l'accès au BOT sur TOUTES les guildes pour l'ID spécifié. 
                                    Pour une guilde bannie, le bot ne répondra plus à aucune commande sur ce serveur.
                                 </p>
@@ -661,13 +661,13 @@ function OrphanPanel({
                                     }[profile.archiveReason || ''] || profile.archiveReason}
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
-                                    <div className="text-zinc-600 text-[10px] font-medium">
+                                    <div className="text-zinc-600 text-caption font-medium">
                                         {profile.archivedAt
                                             ? formatDistanceToNow(new Date(profile.archivedAt), { addSuffix: true, locale: fr })
                                             : '—'}
                                     </div>
                                     {profile.scheduledDeletion && (
-                                        <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
+                                        <div className={`flex items-center gap-1 text-caption font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
                                             differenceInDays(new Date(profile.scheduledDeletion), new Date()) <= 3
                                                 ? 'bg-red-500/10 text-red-500 animate-pulse'
                                                 : 'bg-amber-500/10 text-amber-500'
@@ -892,7 +892,7 @@ function GhostPurgeTab({ users }: { users: GhostUser[] }) {
                             </div>
                             <div>
                                 <div className="text-sm font-bold text-zinc-300">{user.name || 'Fantôme Inconnu'}</div>
-                                <div className="text-[10px] text-zinc-600 font-mono tracking-tighter">{user.id}</div>
+                                <div className="text-caption text-zinc-600 font-mono tracking-tighter">{user.id}</div>
                             </div>
                         </div>
                         <Button 

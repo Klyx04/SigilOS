@@ -81,14 +81,14 @@ function RaidEligibilityBadge({ purpleKamasBalance, requiredPurpleKamas = 30 }: 
     const isEligible = purpleKamasBalance >= requiredPurpleKamas;
     if (isEligible) {
         return (
-            <span className="flex items-center gap-1.5 text-[9px] font-black bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+            <span className="flex items-center gap-1.5 text-caption font-black bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                 <Swords className="w-2.5 h-2.5" />
                 Raid éligible
             </span>
         );
     }
     return (
-        <span className="flex items-center gap-1.5 text-[9px] font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+        <span className="flex items-center gap-1.5 text-caption font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
             <Lock className="w-2.5 h-2.5" />
             Non éligible
         </span>
@@ -101,7 +101,7 @@ function RaidEligibilityBadge({ purpleKamasBalance, requiredPurpleKamas = 30 }: 
 
 function PurpleKamasBadge({ balance }: { balance: number }) {
     return (
-        <span className="flex items-center gap-1.5 text-[9px] font-black bg-violet-500/15 border border-violet-500/25 text-violet-300 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+        <span className="flex items-center gap-1.5 text-caption font-black bg-violet-500/15 border border-violet-500/25 text-violet-300 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
             <KamasVioletIcon size={12} />
             Bourse: {balance}
         </span>
@@ -172,12 +172,12 @@ function MemberRow({
                         <img
                             src={member.discordImage}
                             alt={displayName}
-                            className="w-10 h-10 rounded-full object-cover border-2 transition-transform group-hover:scale-105"
+                            className="w-10 h-10 rounded-full object-cover border-2 transition-transform group-"
                             style={{ borderColor: `${roleColor}50` }}
                         />
                     ) : (
                         <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-transform group-hover:scale-105"
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-transform group-"
                             style={{
                                 backgroundColor: `${roleColor}15`,
                                 borderColor: `${roleColor}50`,
@@ -203,12 +203,12 @@ function MemberRow({
                         <RaidEligibilityBadge purpleKamasBalance={purpleBalance} requiredPurpleKamas={requiredPurpleKamas} />
                         <PurpleKamasBadge balance={purpleBalance} />
                         {member.totalAmount > 0 && (
-                            <span className="text-[9px] font-bold bg-zinc-800/80 border border-white/10 text-zinc-300 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+                            <span className="text-caption font-bold bg-zinc-800/80 border border-white/10 text-zinc-300 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                                 {member.totalAmount.toLocaleString("fr-FR")} k donnés
                             </span>
                         )}
                         {isMax && (
-                            <span className="text-[9px] font-black bg-amber-500/15 border border-amber-500/25 text-amber-400 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+                            <span className="text-caption font-black bg-amber-500/15 border border-amber-500/25 text-amber-400 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                                 MAX ✓
                             </span>
                         )}
@@ -220,7 +220,7 @@ function MemberRow({
                             <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden relative">
                                 <div
                                     className={cn(
-                                        "h-full rounded-full transition-all duration-700",
+                                        "h-full rounded-full transition-all duration-300",
                                         isEligible
                                             ? "bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-400"
                                             : "bg-gradient-to-r from-zinc-700 to-zinc-500"
@@ -228,7 +228,7 @@ function MemberRow({
                                     style={{ width: `${Math.min(100, (purpleBalance / requiredPurpleKamas) * 100)}%` }}
                                 />
                             </div>
-                            <div className="flex items-center gap-1 shrink-0 text-[10px] text-zinc-400 font-mono">
+                            <div className="flex items-center gap-1 shrink-0 text-caption text-zinc-400 font-mono">
                                 <KamasVioletIcon size={10} />
                                 <span>{purpleBalance}/{requiredPurpleKamas}</span>
                             </div>
@@ -238,7 +238,7 @@ function MemberRow({
 
                 {/* Status pill */}
                 <div className={cn(
-                    "text-[9px] font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-full border shrink-0 hidden sm:flex",
+                    "text-caption font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-full border shrink-0 hidden sm:flex",
                     statusCfg.className
                 )}>
                     {statusCfg.icon}
@@ -263,7 +263,7 @@ function MemberRow({
                         {/* Individual donations breakdown */}
                         {member.donations.length > 0 && (
                             <div className="space-y-1.5">
-                                <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">Détail des dons</p>
+                                <p className="text-caption uppercase tracking-widest text-zinc-600 font-bold">Détail des dons</p>
                                 {member.donations.map((d, i) => {
                                     const dCfg = d.status === "VALIDATED"
                                         ? { label: "Validé", color: "text-emerald-400", dot: "bg-emerald-400" }
@@ -332,11 +332,11 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                         <div className="flex items-center gap-3">
                             <div className="text-center px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                                 <div className="text-2xl font-black text-emerald-400">{eligibleCount}</div>
-                                <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Éligibles</div>
+                                <div className="text-caption text-zinc-500 uppercase tracking-wider font-bold">Éligibles</div>
                             </div>
                             <div className="text-center px-4 py-2 rounded-xl bg-zinc-800/50 border border-zinc-700/30">
                                 <div className="text-2xl font-black text-zinc-300">{data.memberCount - eligibleCount}</div>
-                                <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Non éligibles</div>
+                                <div className="text-caption text-zinc-500 uppercase tracking-wider font-bold">Non éligibles</div>
                             </div>
                         </div>
                     </div>
@@ -422,8 +422,8 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                         <div className="hidden sm:flex items-center gap-3 px-4 pb-1">
                             <span className="w-8 shrink-0" />
                             <span className="w-10 shrink-0" />
-                            <span className="flex-1 text-[10px] uppercase tracking-widest text-zinc-700 font-bold">Membre</span>
-                            <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-bold">Statut</span>
+                            <span className="flex-1 text-caption uppercase tracking-widest text-zinc-700 font-bold">Membre</span>
+                            <span className="text-caption uppercase tracking-widest text-zinc-700 font-bold">Statut</span>
                             <span className="w-5 shrink-0" />
                         </div>
 
@@ -441,7 +441,7 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                 )}
 
                 {/* ── Footer ── */}
-                <div className="flex items-start gap-2 text-[11px] text-zinc-600 pt-1 border-t border-white/[0.03] pt-4">
+                <div className="flex items-start gap-2 text-caption text-zinc-600 pt-1 border-t border-white/[0.03] pt-4">
                     <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500/50" />
                     <span>
                         Récapitulatif de la semaine Dofus en cours (reset mardi 07h00 Paris).
@@ -478,7 +478,7 @@ function StatCard({
         <div className={cn("rounded-2xl border px-4 py-3.5 transition-all duration-200", colors[color])}>
             <div className="flex items-center gap-2 mb-2">
                 {icon}
-                <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">{label}</span>
+                <span className="text-caption uppercase tracking-widest text-zinc-600 font-bold">{label}</span>
             </div>
             <div className="text-xl font-black text-white font-mono">{value}</div>
         </div>

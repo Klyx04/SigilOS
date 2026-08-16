@@ -128,7 +128,7 @@ export function ChannelPreview({
 
     if (state.status === "loading") {
         return (
-            <div className={`flex items-center gap-1.5 text-[11px] font-bold ${textColor} opacity-70 ${className}`}>
+            <div className={`flex items-center gap-1.5 text-caption font-bold ${textColor} opacity-70 ${className}`}>
                 <Loader2 className="w-3 h-3 animate-spin" />
                 <span>Résolution du salon…</span>
             </div>
@@ -137,7 +137,7 @@ export function ChannelPreview({
 
     if (state.status === "error") {
         return (
-            <div className={`flex items-center gap-1.5 text-[11px] font-bold text-red-400/90 ${className}`}>
+            <div className={`flex items-center gap-1.5 text-caption font-bold text-red-400/90 ${className}`}>
                 <AlertTriangle className="w-3 h-3 text-red-400/80" />
                 <span>Salon introuvable</span>
             </div>
@@ -145,7 +145,7 @@ export function ChannelPreview({
     }
 
     return (
-        <div className={`flex items-center gap-1.5 text-[11px] font-bold ${textColor} ${className}`}>
+        <div className={`flex items-center gap-1.5 text-caption font-bold ${textColor} ${className}`}>
             <Hash className="w-3 h-3" />
             <span>#{state.name}</span>
         </div>

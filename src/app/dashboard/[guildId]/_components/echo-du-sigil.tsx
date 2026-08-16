@@ -14,11 +14,11 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
     return (
         <div className="relative group perspective-1000">
             {/* Ambient Background Glow (Subtle) */}
-            <div className="absolute -inset-10 bg-indigo-500/5 rounded-[40px] blur-[100px] opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-1000" />
+            <div className="absolute -inset-10 bg-indigo-500/5 rounded-[40px] blur-[100px] opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-300" />
 
-            <div className="relative glass-premium p-8 md:p-12 rounded-3xl border border-white/5 overflow-hidden group-hover:border-white/10 transition-all duration-500">
+            <div className="relative glass-premium p-8 md:p-12 rounded-3xl border border-white/5 overflow-hidden group-hover:border-white/10 transition-all duration-300">
                 {/* Decorative Pattern Layer */}
-                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-700">
+                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-300">
                     <svg width="240" height="240" viewBox="0 0 120 120" fill="none" className="animate-spin-slow">
                         <circle cx="60" cy="60" r="58" stroke="white" strokeWidth="0.2" strokeDasharray="4 4" />
                         <circle cx="60" cy="60" r="40" stroke="white" strokeWidth="0.2" strokeDasharray="2 8" />
@@ -29,11 +29,11 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
                     <div className="space-y-6 max-w-3xl">
                         <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+                            <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center ">
                                 <Sparkles className="w-5 h-5 text-indigo-400" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Intelligence Focus</span>
+                                <span className="text-caption font-black uppercase tracking-widest text-indigo-400">Intelligence Focus</span>
                                 <h2 className="text-2xl md:text-5xl font-black tracking-tighter text-white leading-[1.1]">
                                      {data.title}
                                  </h2>
@@ -45,7 +45,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                         </p>
 
                         <div className="flex items-center gap-6 pt-4">
-                            <Button asChild className="h-12 bg-white text-black hover:bg-zinc-100 font-bold px-8 rounded-2xl group/btn transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
+                            <Button asChild className="h-12 bg-white text-black hover:bg-zinc-100 font-bold px-8 rounded-2xl group/btn transition-all  active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
                                 <Link href={data.actionHref}>
                                     <span className="flex items-center gap-3">
                                         {data.actionLabel}
@@ -55,7 +55,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                             </Button>
 
                             {data.priority > 80 && (
-                                <Badge variant="outline" className="border-indigo-500/30 bg-indigo-500/5 text-indigo-400/80 font-black uppercase tracking-widest text-[9px] py-1 px-3 h-8 shadow-[inset_0_0_12px_rgba(99,102,241,0.1)]">
+                                <Badge variant="outline" className="border-indigo-500/30 bg-indigo-500/5 text-indigo-400/80 font-black uppercase tracking-widest text-caption py-1 px-3 h-8 shadow-[inset_0_0_12px_rgba(99,102,241,0.1)]">
                                     Priorité Critique
                                 </Badge>
                             )}
@@ -93,8 +93,8 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                                         strokeLinecap="round"
                                     />
                                 </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-all duration-500 group-hover/progress:scale-110">
-                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Score</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-all duration-300 group-hover/progress:scale-110">
+                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1">Score</span>
                                     <span className="text-4xl font-black text-white tracking-tighter">{Math.round(data.priority)}</span>
                                 </div>
                             </div>

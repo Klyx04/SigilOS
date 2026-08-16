@@ -294,7 +294,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 </a>
                                 <span className="opacity-40">•</span>
                                 <span>{data.questInfo.serverName}</span>
-                                <Badge variant="outline" className="ml-2 border-amber-500/30 text-amber-500 text-[10px] h-5 px-1.5">
+                                <Badge variant="outline" className="ml-2 border-amber-500/30 text-amber-500 text-caption h-5 px-1.5">
                                     Unity
                                 </Badge>
                             </div>
@@ -302,11 +302,11 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
-                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Étape Actuelle</span>
+                                <span className="text-caption uppercase tracking-wider text-muted-foreground font-bold">Étape Actuelle</span>
                                 <span className="text-lg font-bold text-amber-500">{data.questInfo.currentStep}<span className="text-muted-foreground/30 text-xs ml-1">/ {data.questInfo.totalSteps}</span></span>
                             </div>
                             <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
-                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Progression</span>
+                                <span className="text-caption uppercase tracking-wider text-muted-foreground font-bold">Progression</span>
                                 <span className="text-lg font-bold text-emerald-500">{data.stats.progressPercent}%</span>
                             </div>
                         </div>
@@ -423,19 +423,19 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                             <TabsList className="inline-flex w-auto bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-1.5 rounded-2xl min-w-full sm:min-w-0 gap-2">
                                 <TabsTrigger value="manquants" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-red-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-red-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Manquants</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none font-black">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-red-500/10 text-red-500 border-none font-black">
                                         {filteredManquants.length}
                                     </Badge>
                                 </TabsTrigger>
                                 <TabsTrigger value="possedes" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-emerald-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Possédés</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none font-black">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-emerald-500/10 text-emerald-500 border-none font-black">
                                         {filteredPossedes.length}
                                     </Badge>
                                 </TabsTrigger>
                                 <TabsTrigger value="doublons" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-amber-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Doublons</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none font-black">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-amber-500/10 text-amber-500 border-none font-black">
                                         {filteredDoublons.length}
                                     </Badge>
                                 </TabsTrigger>
@@ -529,7 +529,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                 </TabsContent>
 
                 {/* Tab: Guild Directory (Membres) */}
-                <TabsContent value="membres" className="outline-none mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="membres" className="outline-none mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <OcreGuildDirectory guildId={guildId} />
                 </TabsContent>
             </Tabs>
@@ -550,7 +550,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-white uppercase tracking-wider">Monstres sélectionnés</span>
-                                    <span className="text-[10px] text-muted-foreground italic">Actions groupées Metamob</span>
+                                    <span className="text-caption text-muted-foreground italic">Actions groupées Metamob</span>
                                 </div>
                             </div>
 

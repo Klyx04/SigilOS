@@ -87,7 +87,7 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-white/10 overflow-hidden shadow-[0_0_60px_rgba(20,184,166,0.15)]"
+                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-white/10 overflow-hidden "
                     >
                         {/* Decorative background glows */}
                         <div className="absolute -top-24 -left-24 w-64 h-64 bg-teal-500/10 rounded-full blur-[100px]" />

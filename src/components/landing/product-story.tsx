@@ -62,7 +62,7 @@ export function ProductStory() {
         <section id="produit" className="w-full border-t border-white/5 py-20">
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
                 <div className="max-w-2xl mb-10">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-4">
+                    <p className="text-caption font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-4">
                         Produit
                     </p>
                     <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
@@ -85,7 +85,7 @@ export function ProductStory() {
                             onClick={() => setActiveId(s.id)}
                             onKeyDown={(e) => onTabKeyDown(e, idx)}
                             className={cn(
-                                "px-4 py-2.5 rounded-t-lg text-[13px] font-semibold whitespace-nowrap border-b-2 transition-colors -mb-px",
+                                "px-4 py-2.5 rounded-t-lg text-body-sm font-semibold whitespace-nowrap border-b-2 transition-colors -mb-px",
                                 activeId === s.id
                                     ? "text-white border-emerald-400"
                                     : "text-zinc-500 border-transparent hover:text-white"
@@ -113,7 +113,7 @@ export function ProductStory() {
                             {active.bullets.map((b) => (
                                 <li
                                     key={b}
-                                    className="text-[11px] font-semibold text-zinc-300 bg-white/5 border border-white/10 px-3 py-1 rounded-full"
+                                    className="text-caption font-semibold text-zinc-300 bg-white/5 border border-white/10 px-3 py-1 rounded-full"
                                 >
                                     {b}
                                 </li>

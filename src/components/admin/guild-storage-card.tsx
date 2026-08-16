@@ -52,12 +52,12 @@ export async function GuildStorageCard({ guildId }: { guildId: string }) {
                         <p className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
                             Stockage de la guilde
                             {d.overLimit && (
-                                <span className="inline-flex items-center gap-1 bg-red-500/10 border border-red-500/30 text-red-500 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg">
+                                <span className="inline-flex items-center gap-1 bg-red-500/10 border border-red-500/30 text-red-500 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-lg">
                                     <AlertTriangle className="w-3 h-3" /> Seuil dépassé
                                 </span>
                             )}
                         </p>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                        <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">
                             {d.totalFiles} fichier(s) en stock
                         </p>
                     </div>
@@ -66,7 +66,7 @@ export async function GuildStorageCard({ guildId }: { guildId: string }) {
                     <p className="text-xl font-black text-white tracking-tight font-mono">
                         {formatBytes(d.totalBytes)} <span className="text-zinc-500 text-sm">/ {formatBytes(d.limitBytes)}</span>
                     </p>
-                    <p className={cn("text-[10px] font-black uppercase tracking-widest", d.overLimit ? "text-red-500" : "text-zinc-400")}>
+                    <p className={cn("text-caption font-black uppercase tracking-widest", d.overLimit ? "text-red-500" : "text-zinc-400")}>
                         {d.usagePercent}% utilisé
                     </p>
                 </div>
@@ -91,8 +91,8 @@ export async function GuildStorageCard({ guildId }: { guildId: string }) {
                         >
                             <Icon className={cn("w-4 h-4 shrink-0", cfg.color)} />
                             <div className="min-w-0 flex-1">
-                                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest truncate">{b.label}</p>
-                                <p className="text-[11px] font-mono font-black text-zinc-200">{formatBytes(b.bytes)}</p>
+                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest truncate">{b.label}</p>
+                                <p className="text-caption font-mono font-black text-zinc-200">{formatBytes(b.bytes)}</p>
                             </div>
                             <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-white transition-colors shrink-0" />
                         </Link>
@@ -102,10 +102,10 @@ export async function GuildStorageCard({ guildId }: { guildId: string }) {
 
             {/* Nettoyage automatique : ce qui disparaît vs ce qui est conservé */}
             <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-white/5">
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mr-1">Nettoyage auto :</span>
-                <span className="text-[9px] font-medium text-zinc-400 bg-white/5 border border-white/10 rounded-lg px-2 py-1">⏱ 24h — preuves non validées (missions, succès, kamas)</span>
-                <span className="text-[9px] font-medium text-zinc-400 bg-white/5 border border-white/10 rounded-lg px-2 py-1">⏱ 7 jours — preuves prêts &amp; coffre</span>
-                <span className="text-[9px] font-medium text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-2 py-1">🛡 Conservées — présentation, icône &amp; bannière</span>
+                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest mr-1">Nettoyage auto :</span>
+                <span className="text-caption font-medium text-zinc-400 bg-white/5 border border-white/10 rounded-lg px-2 py-1">⏱ 24h — preuves non validées (missions, succès, kamas)</span>
+                <span className="text-caption font-medium text-zinc-400 bg-white/5 border border-white/10 rounded-lg px-2 py-1">⏱ 7 jours — preuves prêts &amp; coffre</span>
+                <span className="text-caption font-medium text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-2 py-1">🛡 Conservées — présentation, icône &amp; bannière</span>
             </div>
         </div>
     );

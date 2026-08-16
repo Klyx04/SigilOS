@@ -158,7 +158,7 @@ export function DjPostDetailModal({
                                         : (post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : "Mode Quête")}
                                 </p>
                             </div>
-                            <Badge className={`mb-1 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]" : "bg-white/5 text-slate-400 border-white/10"}`}>
+                            <Badge className={`mb-1 text-caption font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 " : "bg-white/5 text-slate-400 border-white/10"}`}>
                                 {post.status === "OPEN" ? "Ouvert" : post.status === "FULL" ? "Complet" : "Fermé"}
                             </Badge>
                         </div>
@@ -168,18 +168,18 @@ export function DjPostDetailModal({
                         {/* Info grid */}
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="bg-slate-900/40 rounded-xl p-4 border border-white/5 shadow-inner">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Swords className="w-3.5 h-3.5" /> Mode</p>
+                                <p className="text-slate-500 text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Swords className="w-3.5 h-3.5" /> Mode</p>
                                 <p className="font-black text-white text-base">{MODE_LABELS[post.mode] ?? post.mode}</p>
                             </div>
                             <div className="bg-slate-900/40 rounded-xl p-4 border border-white/5 shadow-inner">
-                                <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Places</p>
+                                <p className="text-slate-500 text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Places</p>
                                 <p className={`font-black text-base ${spotsLeft === 0 ? "text-amber-400" : "text-emerald-400"}`}>
                                     {acceptedCount}/{post.maxMembers} — {spotsLeft > 0 ? <span className="text-slate-300 font-medium">{`${spotsLeft} dispo${spotsLeft > 1 ? "s" : ""}`}</span> : "Complet"}
                                 </p>
                             </div>
                             {post.targetDate && (
                                 <div className="bg-indigo-500/5 rounded-xl p-4 border border-indigo-500/10 col-span-2 shadow-inner">
-                                    <p className="text-indigo-400/80 text-[10px] uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Date prévue</p>
+                                    <p className="text-indigo-400/80 text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Date prévue</p>
                                     <p className="font-bold text-indigo-300">
                                         {new Date(post.targetDate).toLocaleDateString("fr-FR", {
                                             weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
@@ -196,7 +196,7 @@ export function DjPostDetailModal({
                                     <Map className="w-4 h-4 text-cyan-400" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] text-cyan-500/70 font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
+                                    <p className="text-caption text-cyan-500/70 font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
                                     <span className="text-sm text-cyan-300 font-bold">
                                         {(post.dungeonsJson as any[])?.length > 0
                                             ? `Multi-donjons — ${(post.dungeonsJson as any[]).length}`
@@ -207,25 +207,25 @@ export function DjPostDetailModal({
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
                                 {post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        className="text-caption font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
                                 {post.dungeon?.dofensiveUrl && (
                                     <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 border border-emerald-900/40 hover:border-emerald-500/50 bg-emerald-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        className="text-caption font-bold text-emerald-400 hover:text-emerald-300 border border-emerald-900/40 hover:border-emerald-500/50 bg-emerald-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
                                         <span>🛡️</span> Dofensive
                                     </a>
                                 )}
                                 {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
                                 {post.questId && post.questId !== -1 && (
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
-                                        className="text-[11px] font-bold text-slate-300 hover:text-white border border-white/5 hover:border-white/10 bg-white/5 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-bold text-slate-300 hover:text-white border border-white/5 hover:border-white/10 bg-white/5 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
                                     </a>
                                 )}
@@ -235,7 +235,7 @@ export function DjPostDetailModal({
                         {/* Multi-donjons : liste de la session (#26) */}
                         {(post.dungeonsJson as any[])?.length > 0 && (
                             <div className="space-y-2">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Donjons de la session</p>
+                                <p className="text-caption text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Donjons de la session</p>
                                 {(post.dungeonsJson as any[]).map((d: any, idx: number) => (
                                     <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900/40 border border-white/5">
                                         {d.imageUrl ? (
@@ -247,13 +247,13 @@ export function DjPostDetailModal({
                                         )}
                                         <div className="min-w-0 flex-1">
                                             <p className="text-xs font-bold text-white truncate">{d.name}</p>
-                                            <p className="text-[10px] text-slate-500">
+                                            <p className="text-caption text-slate-500">
                                                 Lvl {d.level}
                                                 {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
                                                 {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
                                             </p>
                                         </div>
-                                        <span className="text-[9px] font-black text-indigo-400/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
+                                        <span className="text-caption font-black text-indigo-400/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
                                     </div>
                                 ))}
                             </div>
@@ -269,7 +269,7 @@ export function DjPostDetailModal({
                         {/* Wanted achievements */}
                         {post.wantedAchievementIds.length > 0 && post.dungeon && (
                             <div className="space-y-2">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5" /> Succès visés</p>
+                                <p className="text-caption text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5" /> Succès visés</p>
                                 <div className="flex gap-2 flex-wrap">
                                     {post.dungeon.achievements
                                         .filter((a) => post.wantedAchievementIds.includes(a.id))
@@ -288,7 +288,7 @@ export function DjPostDetailModal({
                         {/* Required classes */}
                         {post.requiredClasses && post.requiredClasses.length > 0 && (
                             <div className="space-y-2">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Classes demandées</p>
+                                <p className="text-caption text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Classes demandées</p>
                                 <div className="flex gap-1.5 flex-wrap">
                                     {post.requiredClasses.map((c) => {
                                         const classData = getClass(c);
@@ -297,7 +297,7 @@ export function DjPostDetailModal({
                                                 <div className="w-4 h-4 rounded overflow-hidden">
                                                     <img src={classData?.icon} alt={classData?.name || c} className="w-full h-full object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
                                                 </div>
-                                                <span className="text-[11px] text-indigo-200 font-medium">{classData?.name || c}</span>
+                                                <span className="text-caption text-indigo-200 font-medium">{classData?.name || c}</span>
                                             </div>
                                         );
                                     })}
@@ -307,18 +307,18 @@ export function DjPostDetailModal({
 
                         {/* Participants list */}
                         <div>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
+                            <p className="text-caption text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
                                 <Users className="w-3 h-3" /> Participants ({acceptedCount}/{post.maxMembers})
                             </p>
                             <div className="space-y-1.5">
                                 {/* Creator row */}
                                 <div className="flex items-center gap-4 bg-amber-500/5 rounded-xl p-3 border border-amber-500/10 shadow-sm relative overflow-hidden">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-amber-500/40 ">
                                         {post.profile.user.image && <img src={post.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                     </div>
                                     <div className="flex-1 min-w-0 z-10">
                                         <p className="text-sm font-black text-white truncate drop-shadow-sm">{displayName(post.profile)}</p>
-                                        <span className="text-[10px] text-amber-500/80 font-bold flex items-center mt-0.5"><Crown className="w-3 h-3 mr-1 inline" /> Créateur du groupe</span>
+                                        <span className="text-caption text-amber-500/80 font-bold flex items-center mt-0.5"><Crown className="w-3 h-3 mr-1 inline" /> Créateur du groupe</span>
                                     </div>
                                     <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none" />
                                 </div>
@@ -333,18 +333,18 @@ export function DjPostDetailModal({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <p className="text-sm font-bold text-slate-200 truncate group-hover:text-white transition-colors">{displayName(p.profile)}</p>
-                                                    {p.classe && <Badge variant="outline" className="text-[9px] h-4 border-slate-700 text-slate-400 px-1.5">{p.classe}</Badge>}
+                                                    {p.classe && <Badge variant="outline" className="text-caption h-4 border-slate-700 text-slate-400 px-1.5">{p.classe}</Badge>}
                                                     {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
-                                                        <Badge variant="outline" className="text-[9px] h-4 border-indigo-700 text-indigo-400 px-1.5 max-w-[120px] truncate">
+                                                        <Badge variant="outline" className="text-caption h-4 border-indigo-700 text-indigo-400 px-1.5 max-w-[120px] truncate">
                                                             {(post.dungeonsJson as any[])[p.dungeonIndex]?.name}
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                {p.message && <p className="text-[11px] text-slate-500 italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
+                                                {p.message && <p className="text-caption text-slate-500 italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-                                            <Badge className={`text-[10px] font-bold uppercase tracking-wider ${STATUS_COLORS[p.status] || STATUS_COLORS.PENDING}`}>
+                                            <Badge className={`text-caption font-bold uppercase tracking-wider ${STATUS_COLORS[p.status] || STATUS_COLORS.PENDING}`}>
                                                 {p.status === "PENDING" ? "En attente" : p.status === "ACCEPTED" ? "Approuvé" : "Refusé"}
                                             </Badge>
 
@@ -379,10 +379,10 @@ export function DjPostDetailModal({
                         {/* Join form */}
                         {!isOwner && !myParticipation && post.status === "OPEN" && spotsLeft > 0 && (
                             <div className="border-t border-white/5 pt-6 space-y-4">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Candidature</p>
+                                <p className="text-caption text-slate-500 uppercase tracking-widest font-bold">Candidature</p>
                                 <div className="bg-slate-900/40 rounded-xl p-4 border border-white/5 grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-inner">
                                     <div className="sm:col-span-1">
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-2">Ta classe</label>
+                                        <label className="text-caption text-slate-500 font-bold uppercase tracking-widest block mb-2">Ta classe</label>
                                         <div className="grid grid-cols-6 gap-1.5 p-2 rounded-xl bg-slate-900 border border-white/10 shadow-inner">
                                             {DOFUS_CLASSES.map((c) => {
                                                 const isSelected = classe === c.name;
@@ -395,7 +395,7 @@ export function DjPostDetailModal({
                                                         className={cn(
                                                             "aspect-square rounded-lg flex items-center justify-center transition-all border group/class",
                                                             isSelected 
-                                                                ? "border-indigo-500/50 bg-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.2)] scale-110 z-10" 
+                                                                ? "border-indigo-500/50 bg-indigo-500/20  scale-110 z-10" 
                                                                 : "border-transparent opacity-40 hover:opacity-100 hover:bg-white/5 hover:border-white/10"
                                                         )}
                                                     >
@@ -411,7 +411,7 @@ export function DjPostDetailModal({
                                         </div>
                                     </div>
                                     <div className="sm:col-span-2">
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Message (opt.)</label>
+                                        <label className="text-caption text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Message (opt.)</label>
                                         <input
                                             type="text"
                                             value={message}

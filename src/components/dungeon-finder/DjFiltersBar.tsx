@@ -101,7 +101,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                     key={value}
                                     onClick={() => onChange({ ...filters, mode: value })}
                                     className={cn(
-                                        "relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-[11px] font-black transition-colors",
+                                        "relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-caption font-black transition-colors",
                                         isActive ? activeText : "text-zinc-500 hover:text-zinc-300"
                                     )}
                                 >
@@ -118,7 +118,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     {/* Advanced Filter Toggle */}
                     <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`relative flex items-center gap-2 px-4 rounded-xl text-[11px] font-black h-11 transition-all border ${showAdvanced || hasActiveAdvancedFilters
+                        className={`relative flex items-center gap-2 px-4 rounded-xl text-caption font-black h-11 transition-all border ${showAdvanced || hasActiveAdvancedFilters
                             ? "bg-white/10 border-white/20 text-white"
                             : "bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300 hover:bg-slate-900"
                             }`}
@@ -154,14 +154,14 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     >
                         <div className="flex flex-wrap items-center gap-2 p-3 bg-zinc-900/50 border border-white/5 rounded-2xl shadow-inner mb-2">
                             {/* Level presets */}
-                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mr-2">Niveau</span>
+                            <span className="text-caption font-black text-slate-600 uppercase tracking-widest mr-2">Niveau</span>
                             {LEVEL_PRESETS.map((preset) => {
                                 const isActive = activePreset?.label === preset.label;
                                 return (
                                     <button
                                         key={preset.label}
                                         onClick={() => onChange({ ...filters, minLevel: preset.min, maxLevel: preset.max })}
-                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-colors border ${isActive
+                                        className={`px-3 py-1.5 rounded-lg text-caption font-black transition-colors border ${isActive
                                             ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
                                             : "bg-white/5 text-slate-500 border-transparent hover:bg-white/10 hover:text-slate-300"
                                             }`}
@@ -198,7 +198,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
 
                             {/* Results count */}
                             {hasActiveFilters && (
-                                <span className="ml-auto text-[10px] text-slate-600 font-black uppercase tracking-widest">
+                                <span className="ml-auto text-caption text-slate-600 font-black uppercase tracking-widest">
                                     {filtered}/{total} RÉSULTATS
                                 </span>
                             )}
@@ -222,7 +222,7 @@ function ToggleChip({
     return (
         <button
             onClick={onToggle}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${active
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption font-bold border transition-colors ${active
                 ? colorClass
                 : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-300"
                 }`}

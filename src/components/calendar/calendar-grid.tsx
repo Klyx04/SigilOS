@@ -273,7 +273,7 @@ export function CalendarGrid({
                                             "h-9 w-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-300",
                                             isCurrentDay
                                                 ? "bg-gradient-to-r from-amber-400 to-amber-600 text-zinc-950 shadow-[0_4px_16px_rgba(245,158,11,0.5)] scale-105"
-                                                : "text-zinc-100 group-hover:text-amber-400 group-hover:scale-110"
+                                                : "text-zinc-100 group-hover:text-amber-400 group-"
                                         )}>
                                             {format(day, "d")}
                                         </span>
@@ -285,7 +285,7 @@ export function CalendarGrid({
                                                 }}
                                                 className={cn(
                                                     "text-xs font-extrabold bg-[#0d1214] border px-2 py-0.5 rounded-full transition-all",
-                                                    "border-white/10 text-zinc-300 hover:border-amber-500/50 hover:text-amber-400 hover:scale-105"
+                                                    "border-white/10 text-zinc-300 hover:border-amber-500/50 hover:text-amber-400 "
                                                 )}
                                                 title={`Voir les ${dayEvents.length} événements de ce jour`}
                                             >
@@ -345,7 +345,7 @@ export function CalendarGrid({
                                                                 </div>
 
                                                                 <div className="flex flex-col min-w-0">
-                                                                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60 leading-none mb-0.5">
+                                                                    <span className="text-caption font-black uppercase tracking-wider opacity-60 leading-none mb-0.5">
                                                                         {time}
                                                                     </span>
                                                                     <span className="truncate text-zinc-200 group-hover/btn:text-white transition-colors">
@@ -356,7 +356,7 @@ export function CalendarGrid({
                                                                 {/* Completed watermark stamp */}
                                                                 {isCompleted && (
                                                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                        <span className="rotate-[-12deg] border border-emerald-500/50 bg-emerald-500/10 text-emerald-400/90 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-sm backdrop-blur-[1px] shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                                                                        <span className="rotate-[-12deg] border border-emerald-500/50 bg-emerald-500/10 text-emerald-400/90 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-sm backdrop-blur-[1px] ">
                                                                             ✓ Terminé
                                                                         </span>
                                                                     </div>
@@ -401,7 +401,7 @@ export function CalendarGrid({
             <div className="flex flex-wrap items-center justify-center gap-4 py-4 bg-[#0a0f12]/40 border border-white/[0.03] rounded-2xl backdrop-blur-md px-6 shadow-inner">
                 {Object.entries(TYPE_CONFIG).map(([type, config]) => (
                     <div key={type} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.03] hover:border-white/[0.06] hover:bg-white/[0.03] transition-all">
-                        <div className={cn("h-2.5 w-2.5 rounded-full shadow-[0_0_8px_currentColor]", config.dot)} />
+                        <div className={cn("h-2.5 w-2.5 rounded-full ", config.dot)} />
                         <span className="text-xs font-bold text-zinc-400 tracking-wide">{config.label}</span>
                     </div>
                 ))}

@@ -94,7 +94,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                 </DialogHeader>
                 <div className="py-4 space-y-5">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Difficulté</label>
+                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Difficulté</label>
                         <Select value={difficulty} onValueChange={setDifficulty}>
                             <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
                                 <SelectValue />
@@ -108,7 +108,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
                         <Select value={epreuveCode} onValueChange={setEpreuveCode}>
                             <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
                                 <SelectValue placeholder="Run standard" />
@@ -122,7 +122,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                         </Select>
                         {!epreuveCode && (
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Objectifs</label>
+                                <label className="text-caption font-black text-white/40 uppercase tracking-widest">Objectifs</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {Object.entries(OBJECTIVES).map(([key, obj]) => (
                                         <button
@@ -146,7 +146,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Date de départ</label>
+                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Date de départ</label>
                             <Input
                                 type="date"
                                 value={date}
@@ -155,7 +155,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Heure</label>
+                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Heure</label>
                             <Input
                                 type="time"
                                 value={time}
@@ -166,7 +166,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
                         <Input
                             type="number"
                             min={0}

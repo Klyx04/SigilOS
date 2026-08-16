@@ -146,7 +146,7 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
                 <div className="space-y-8">
                     {Object.entries(groupedItems).map(([job, jobItems]: [string, any]) => (
                         <div key={job} className="space-y-4">
-                            <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] flex items-center gap-2 px-1">
+                            <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] flex items-center gap-2 px-1">
                                 <Hammer className="w-3 h-3" /> {job}
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -155,7 +155,7 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
                                         key={item.id}
                                         className={cn(
                                             "group relative overflow-hidden p-4 transition-all duration-300 rounded-2xl border-white/5 bg-zinc-900/40 backdrop-blur-md",
-                                            item.canCraft ? "border-purple-500/30 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]" : "hover:border-white/10"
+                                            item.canCraft ? "border-purple-500/30 bg-purple-500/5 " : "hover:border-white/10"
                                         )}
                                     >
                                         <div className="flex items-center gap-4">
@@ -166,7 +166,7 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
                                                          alt={item.name} 
                                                          width={48} 
                                                          height={48}
-                                                         className="object-contain group-hover:scale-110 transition-transform duration-500"
+                                                         className="object-contain group- transition-transform duration-300"
                                                      />
                                                 ) : (
                                                     <Sparkles className="w-8 h-8 text-zinc-700" />
@@ -178,7 +178,7 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
                                                     {item.name}
                                                 </h4>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <Badge variant="outline" className="bg-white/5 text-[10px] uppercase border-none text-zinc-400">
+                                                    <Badge variant="outline" className="bg-white/5 text-caption uppercase border-none text-zinc-400">
                                                         {item.category}
                                                     </Badge>
                                                 </div>

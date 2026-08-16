@@ -16,9 +16,9 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
-    ACTIVE: "border-cyan-500/40 bg-cyan-500/10 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]",
+    ACTIVE: "border-cyan-500/40 bg-cyan-500/10 text-cyan-400 ",
     RETURNED: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
-    PARTIAL: "border-amber-500/40 bg-amber-500/10 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)]",
+    PARTIAL: "border-amber-500/40 bg-amber-500/10 text-amber-400 ",
     CANCELLED: "border-white/10 bg-white/5 text-zinc-500",
 };
 
@@ -73,26 +73,26 @@ export function LoanCard({ loan, guildId, currentProfileId, isAdmin }: LoanCardP
 
     return (
         <div className={cn(
-            "group relative flex flex-col rounded-3xl border transition-all duration-500 overflow-hidden",
+            "group relative flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden",
             isActive 
                 ? "border-white/10 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/20 shadow-xl hover:shadow-2xl" 
                 : "border-white/5 opacity-60 bg-zinc-950/20"
         )}>
             {/* Background Glow */}
             {isActive && (
-                <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/5 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/5 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             )}
 
             <div className="relative p-6 flex flex-col gap-5 h-full z-10">
             {/* Header: Status + Type */}
             <div className="flex items-center justify-between">
                 <Badge variant="outline" className={cn(
-                    "text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1 border rounded-full shadow-sm",
+                    "text-caption font-black uppercase tracking-[0.15em] px-3 py-1 border rounded-full shadow-sm",
                     STATUS_COLORS[loan.status]
                 )}>
                     {LOAN_STATUS_LABELS[loan.status]}
                 </Badge>
-                <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
+                <span className="text-caption text-zinc-500 font-black uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
                     {LOAN_TYPE_LABELS[loan.type]}
                 </span>
             </div>
@@ -111,42 +111,42 @@ export function LoanCard({ loan, guildId, currentProfileId, isAdmin }: LoanCardP
                     </div>
                     <div className="flex flex-col">
                         <span className="font-black text-white text-lg leading-none">{loan.amount}</span>
-                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-0.5">Valeur estimée</span>
+                        <span className="text-caption text-zinc-500 font-black uppercase tracking-widest mt-0.5">Valeur estimée</span>
                     </div>
                 </div>
             )}
 
             {/* Lender → Borrower */}
             <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group/flow">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-orange-500/5 opacity-0 group-hover/flow:opacity-100 transition-opacity duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-orange-500/5 opacity-0 group-hover/flow:opacity-100 transition-opacity duration-300" />
                 
                 <div className="flex flex-col items-center gap-2 flex-1 z-10">
-                    <Avatar className="h-10 w-10 rounded-xl border border-emerald-500/20 shadow-lg group-hover:scale-110 transition-transform">
+                    <Avatar className="h-10 w-10 rounded-xl border border-emerald-500/20 shadow-lg group- transition-transform">
                         <AvatarImage src={loan.lender.user?.image || undefined} />
                         <AvatarFallback className="text-xs bg-emerald-500/10 text-emerald-400 font-black">{lenderName.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">{lenderName}</span>
+                    <span className="text-caption font-black uppercase tracking-widest text-emerald-400">{lenderName}</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1 z-10">
                     <div className="h-px w-8 bg-zinc-800 relative">
                         <ArrowRight className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-hover/flow:text-cyan-400 transition-colors" />
                     </div>
-                    <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">TRANSFERT</span>
+                    <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">TRANSFERT</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-2 flex-1 z-10">
-                    <Avatar className="h-10 w-10 rounded-xl border border-orange-500/20 shadow-lg group-hover:scale-110 transition-transform">
+                    <Avatar className="h-10 w-10 rounded-xl border border-orange-500/20 shadow-lg group- transition-transform">
                         <AvatarImage src={loan.borrower.user?.image || undefined} />
                         <AvatarFallback className="text-xs bg-orange-500/10 text-orange-400 font-black">{borrowerName.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{borrowerName}</span>
+                    <span className="text-caption font-black uppercase tracking-widest text-orange-400">{borrowerName}</span>
                 </div>
             </div>
 
             {/* Due date */}
             {loan.dueDate && (
-                <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+                <div className="flex items-center gap-2 text-caption text-zinc-400">
                     <Clock className="h-3 w-3 shrink-0" />
                     <span>Échéance : {new Date(loan.dueDate).toLocaleDateString("fr-FR")}</span>
                 </div>
@@ -166,7 +166,7 @@ export function LoanCard({ loan, guildId, currentProfileId, isAdmin }: LoanCardP
                     )}
                     <div className="min-w-0">
                         <p className="text-base font-black text-white truncate leading-tight">{loan.linkedItemName}</p>
-                        <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Item associé</p>
+                        <p className="text-caption text-zinc-500 font-black uppercase tracking-widest mt-1">Item associé</p>
                     </div>
                 </div>
             )}
@@ -192,7 +192,7 @@ export function LoanCard({ loan, guildId, currentProfileId, isAdmin }: LoanCardP
                         size="sm"
                         onClick={handleReturn}
                         disabled={returnLoading || cancelLoading}
-                        className="h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] transition-all"
+                        className="h-10 px-6 rounded-xl text-caption font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/20  transition-all"
                     >
                         {returnLoading
                             ? <span className="h-4 w-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin mr-2" />

@@ -78,7 +78,7 @@ export default async function DelegatesPage() {
                     <Users className="w-5 h-5 text-violet-400" />
                     <div className="space-y-0.5">
                         <div className="text-xs font-black text-violet-400 uppercase tracking-widest leading-none">Délégués</div>
-                        <div className="text-[10px] text-violet-500/70 font-bold">{delegates.length} total</div>
+                        <div className="text-caption text-violet-500/70 font-bold">{delegates.length} total</div>
                     </div>
                 </div>
             </div>

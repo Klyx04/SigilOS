@@ -220,11 +220,11 @@ export default function MiniGamesGodClient({
                                             <h3 className="text-2xl font-black text-white uppercase italic tracking-tight">{game.name}</h3>
                                             <div className="flex items-center gap-2 mt-1">
                                                 {game.isEnabled ? (
-                                                    <span className="flex items-center gap-1.5 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                                                    <span className="flex items-center gap-1.5 text-emerald-400 text-caption font-black uppercase tracking-widest">
                                                         <CheckCircle2 size={12} /> OPÉRATIONNEL
                                                     </span>
                                                 ) : (
-                                                    <span className="flex items-center gap-1.5 text-red-500 text-[10px] font-black uppercase tracking-widest">
+                                                    <span className="flex items-center gap-1.5 text-red-500 text-caption font-black uppercase tracking-widest">
                                                         <AlertTriangle size={12} /> MAINTENANCE
                                                     </span>
                                                 )}
@@ -234,7 +234,7 @@ export default function MiniGamesGodClient({
 
                                     <div className="flex-1 space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                                 <MessageSquare size={12} /> Message de Maintenance
                                             </label>
                                             <input
@@ -251,7 +251,7 @@ export default function MiniGamesGodClient({
                                         <button
                                             onClick={() => handleToggle(game.gameId)}
                                             className={cn(
-                                                "px-6 py-4 rounded-xl font-black uppercase text-[10px] italic transition-all flex items-center gap-2",
+                                                "px-6 py-4 rounded-xl font-black uppercase text-caption italic transition-all flex items-center gap-2",
                                                 game.isEnabled 
                                                     ? "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white"
                                                     : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white"
@@ -262,7 +262,7 @@ export default function MiniGamesGodClient({
                                         <button
                                             onClick={() => saveStatus(game.gameId)}
                                             disabled={game.isSaving}
-                                            className="px-6 py-4 rounded-xl bg-white text-black font-black uppercase text-[10px] italic hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
+                                            className="px-6 py-4 rounded-xl bg-white text-black font-black uppercase text-caption italic hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
                                         >
                                             {game.isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                                             Sauvegarder
@@ -270,7 +270,7 @@ export default function MiniGamesGodClient({
                                     </div>
                                 </div>
                                 <div className={cn(
-                                    "absolute -right-20 -bottom-20 w-64 h-64 blur-[100px] opacity-10 transition-all duration-1000",
+                                    "absolute -right-20 -bottom-20 w-64 h-64 blur-[100px] opacity-10 transition-all duration-300",
                                     game.isEnabled ? `bg-${game.color}-500` : "bg-red-500"
                                 )} />
                             </motion.div>
@@ -294,7 +294,7 @@ export default function MiniGamesGodClient({
                                         </div>
                                         <div>
                                             <h2 className="text-xl font-black text-white uppercase italic">Signalements</h2>
-                                            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Maps signalées par les joueurs</p>
+                                            <p className="text-zinc-500 text-caption font-bold uppercase tracking-widest">Maps signalées par les joueurs</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -306,7 +306,7 @@ export default function MiniGamesGodClient({
                                         >
                                             <Loader2 size={14} className={isRefreshing ? "animate-spin" : ""} />
                                         </button>
-                                        <span className="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                                        <span className="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-caption font-black uppercase">
                                             {reportedIds.length} Total
                                         </span>
                                     </div>
@@ -329,7 +329,7 @@ export default function MiniGamesGodClient({
                                                                 <img 
                                                                     src={`/game-data/hd_maps/${id}.webp`}
                                                                     alt=""
-                                                                    className="w-full h-full object-cover opacity-60 group-hover/map:opacity-100 group-hover/map:scale-110 transition-all duration-500"
+                                                                    className="w-full h-full object-cover opacity-60 group-hover/map:opacity-100 group-hover/map:scale-110 transition-all duration-300"
                                                                     onError={(e) => {
                                                                         (e.currentTarget as any).style.display = 'none';
                                                                     }}
@@ -349,7 +349,7 @@ export default function MiniGamesGodClient({
                                                                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                                                                         <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Vérification HD #{id}</span>
                                                                     </div>
-                                                                    <span className="text-amber-500/60 text-xs font-black uppercase tracking-[0.3em] italic">
+                                                                    <span className="text-amber-500/60 text-xs font-black uppercase tracking-widest italic">
                                                                         Signalement par un joueur • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"} 
                                                                         {details && ` • ${WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}`}
                                                                     </span>
@@ -358,7 +358,7 @@ export default function MiniGamesGodClient({
                                                         </div>
                                                         <div>
                                                             <div className="text-xs font-black text-white group-hover:text-amber-500 transition-colors tracking-tight">ID: {id}</div>
-                                                            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                                                            <div className="text-caption text-zinc-500 font-mono mt-0.5">
                                                                 {details ? (
                                                                     <>
                                                                         Pos: [{details.x}, {details.y}] • 
@@ -402,7 +402,7 @@ export default function MiniGamesGodClient({
                                         </div>
                                         <div>
                                             <h2 className="text-xl font-black text-white uppercase italic">Blacklist</h2>
-                                            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Maps totalement exclues du pool</p>
+                                            <p className="text-zinc-500 text-caption font-bold uppercase tracking-widest">Maps totalement exclues du pool</p>
                                         </div>
                                     </div>
                                 </div>
@@ -457,7 +457,7 @@ export default function MiniGamesGodClient({
                                                                 <img 
                                                                     src={`/game-data/hd_maps/${id}.webp`}
                                                                     alt=""
-                                                                    className="w-full h-full object-cover opacity-40 group-hover/map:opacity-80 group-hover/map:scale-110 transition-all duration-500"
+                                                                    className="w-full h-full object-cover opacity-40 group-hover/map:opacity-80 group-hover/map:scale-110 transition-all duration-300"
                                                                     onError={(e) => {
                                                                         (e.currentTarget as any).style.display = 'none';
                                                                     }}
@@ -477,7 +477,7 @@ export default function MiniGamesGodClient({
                                                                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                                                         <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Blacklist HD #{id}</span>
                                                                     </div>
-                                                                    <span className="text-red-500/60 text-xs font-black uppercase tracking-[0.3em] italic">
+                                                                    <span className="text-red-500/60 text-xs font-black uppercase tracking-widest italic">
                                                                         Exclusion active • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}
                                                                         {details && ` • ${WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}`}
                                                                     </span>
@@ -486,7 +486,7 @@ export default function MiniGamesGodClient({
                                                         </div>
                                                         <div>
                                                             <div className="text-xs font-black text-white group-hover:text-red-500 transition-colors tracking-tight">ID: {id}</div>
-                                                            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                                                            <div className="text-caption text-zinc-500 font-mono mt-0.5">
                                                                 {details ? (
                                                                     <>
                                                                         Pos: [{details.x}, {details.y}] • 

@@ -202,7 +202,7 @@ function ManualAuditButton({ guildId, roleId }: { guildId: string, roleId: strin
                         {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : isSuccess ? <Check className="w-3 h-3" /> : <Send className="w-3 h-3" />}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-black border-white/10 text-[10px] font-black uppercase tracking-widest">
+                <TooltipContent className="bg-black border-white/10 text-caption font-black uppercase tracking-widest">
                     {isPending ? "Envoi..." : isSuccess ? "Envoyé !" : "Envoyer Audit sur Discord"}
                 </TooltipContent>
             </Tooltip>
@@ -385,7 +385,7 @@ export default function MemberManagement({
                             <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-white italic uppercase leading-none">
                                 Gestion <span className="text-violet-500">Membres</span>
                             </h1>
-                            <p className="text-zinc-500 font-black mt-1.5 flex items-center gap-2 uppercase text-[10px] tracking-[0.2em] italic">
+                            <p className="text-zinc-500 font-black mt-1.5 flex items-center gap-2 uppercase text-caption tracking-[0.2em] italic">
                                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                                 Audit et réconciliation Discord / Dashboard
                             </p>
@@ -397,7 +397,7 @@ export default function MemberManagement({
                         variant="outline" 
                         onClick={() => fetchData(true)}
                         disabled={refreshing || loading}
-                        className="bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 transition-all rounded-2xl px-6 h-12 backdrop-blur-xl group text-[10px] font-black uppercase tracking-widest"
+                        className="bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 transition-all rounded-2xl px-6 h-12 backdrop-blur-xl group text-caption font-black uppercase tracking-widest"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 mr-2.5 group-hover:text-violet-400 transition-colors ${refreshing ? 'animate-spin' : ''}`} />
                         {refreshing ? "Mise à jour..." : "Actualiser"}
@@ -419,7 +419,7 @@ export default function MemberManagement({
                             <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
                                 <div className={`absolute top-0 right-0 w-24 h-24 ${colors.glow} blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
                                 <CardHeader className="pb-3">
-                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-bold uppercase text-[10px] tracking-[0.2em]`}>
+                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-bold uppercase text-caption tracking-[0.2em]`}>
                                         <stat.icon className="w-3 h-3" />
                                         {stat.label}
                                     </CardDescription>
@@ -433,10 +433,10 @@ export default function MemberManagement({
                                                 className="h-1.5 bg-white/5"
                                                 indicatorClassName={colors.indicator}
                                             />
-                                            <p className={`text-[10px] ${colors.sublabel} font-black uppercase tracking-widest`}>{stat.sub}</p>
+                                            <p className={`text-caption ${colors.sublabel} font-black uppercase tracking-widest`}>{stat.sub}</p>
                                         </div>
                                     ) : (
-                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
+                                        <p className="text-caption text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -472,7 +472,7 @@ export default function MemberManagement({
                                         </div>
                                     </TooltipTrigger>
                                     {isDisabled && (
-                                        <TooltipContent className="bg-zinc-900 border-white/10 text-[10px] font-black uppercase tracking-widest text-amber-500">
+                                        <TooltipContent className="bg-zinc-900 border-white/10 text-caption font-black uppercase tracking-widest text-amber-500">
                                             Permission &quot;Gestion des Membres&quot; requise
                                         </TooltipContent>
                                     )}
@@ -484,7 +484,7 @@ export default function MemberManagement({
                 </div>
 
                 {/* --- TAB 1: AUDIT --- */}
-                <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
+                <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-[600px]">
                     <div className="space-y-8">
                         {/* Bottom Utility Cards */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -503,8 +503,8 @@ export default function MemberManagement({
                                     <MemberSyncButton guildId={guildId} />
                                     <DailyReportButton guildId={guildId} />
                                     <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                        <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
-                                        <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">HEBDOMADAIRE LUNDI 04:00 AM</Badge>
+                                        <span className="text-caption font-black uppercase text-zinc-600 tracking-widest">Planification</span>
+                                        <Badge variant="outline" className="text-caption bg-zinc-800 border-none font-black text-indigo-400">HEBDOMADAIRE LUNDI 04:00 AM</Badge>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -523,7 +523,7 @@ export default function MemberManagement({
                                         <div className="text-center py-6 space-y-2">
                                             <Settings2 className="w-8 h-8 text-zinc-600 mx-auto" />
                                             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aucun rôle mappé</p>
-                                            <p className="text-[10px] text-zinc-600 leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
+                                            <p className="text-caption text-zinc-600 leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
                                         </div>
                                     ) : (
                                         data?.stats.map(s => {
@@ -539,7 +539,7 @@ export default function MemberManagement({
                                                             <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
+                                                            <span className="text-caption font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
                                                                 {s.totalDashboard}/{s.totalDiscord}
                                                             </span>
                                                             <ManualAuditButton guildId={guildId} roleId={s.roleId} />
@@ -548,7 +548,7 @@ export default function MemberManagement({
                                                     <div className="flex items-center gap-4">
                                                         <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/5 p-[1px]">
                                                             <div 
-                                                                className={`h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
+                                                                className={`h-full rounded-full transition-all duration-300  ${
                                                                     percent === 100 ? 'bg-emerald-500' : 
                                                                     percent > 70 ? 'bg-violet-500' : 
                                                                     percent > 30 ? 'bg-indigo-500' : 'bg-amber-600'
@@ -556,7 +556,7 @@ export default function MemberManagement({
                                                                 style={{ width: `${percent}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-[11px] font-black text-white w-8 text-right italic">{percent.toFixed(0)}%</span>
+                                                        <span className="text-caption font-black text-white w-8 text-right italic">{percent.toFixed(0)}%</span>
                                                     </div>
                                                 </div>
                                             );
@@ -585,9 +585,9 @@ export default function MemberManagement({
                                             <SelectValue placeholder="Tous les rôles" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-[10px] font-black tracking-widest">Tous les rôles</SelectItem>
+                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest">Tous les rôles</SelectItem>
                                             {data?.stats.map(s => (
-                                                <SelectItem key={s.roleId} value={s.roleId} className="text-[10px] font-black uppercase tracking-widest">
+                                                <SelectItem key={s.roleId} value={s.roleId} className="text-caption font-black uppercase tracking-widest">
                                                     {s.roleName}
                                                 </SelectItem>
                                             ))}
@@ -595,39 +595,39 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-2xl text-[10px] font-black text-zinc-300 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-2xl text-caption font-black text-zinc-300 uppercase tracking-widest">
                                             <SelectValue placeholder="Dashboard" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-[10px] font-black tracking-widest text">Tous</SelectItem>
-                                            <SelectItem value="dashboard" className="uppercase text-[10px] font-black tracking-widest">Inscrits</SelectItem>
-                                            <SelectItem value="missing" className="uppercase text-[10px] font-black tracking-widest">Absents</SelectItem>
+                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest text">Tous</SelectItem>
+                                            <SelectItem value="dashboard" className="uppercase text-caption font-black tracking-widest">Inscrits</SelectItem>
+                                            <SelectItem value="missing" className="uppercase text-caption font-black tracking-widest">Absents</SelectItem>
                                         </SelectContent>
                                     </Select>
 
                                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-white/5 rounded-2xl text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-white/5 rounded-2xl text-caption font-black text-zinc-400 uppercase tracking-widest">
                                             <div className="flex items-center gap-2">
                                                 <Calendar className="w-3.5 h-3.5 text-violet-400" />
                                                 <SelectValue placeholder="Rejoint le" />
                                             </div>
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-[10px] font-black tracking-widest">Tout temps</SelectItem>
-                                            <SelectItem value="week" className="uppercase text-[10px] font-black tracking-widest">{"< 1 semaine"}</SelectItem>
-                                            <SelectItem value="month" className="uppercase text-[10px] font-black tracking-widest">{"< 1 mois"}</SelectItem>
-                                            <SelectItem value="old" className="uppercase text-[10px] font-black tracking-widest">{"> 6 mois"}</SelectItem>
+                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest">Tout temps</SelectItem>
+                                            <SelectItem value="week" className="uppercase text-caption font-black tracking-widest">{"< 1 semaine"}</SelectItem>
+                                            <SelectItem value="month" className="uppercase text-caption font-black tracking-widest">{"< 1 mois"}</SelectItem>
+                                            <SelectItem value="old" className="uppercase text-caption font-black tracking-widest">{"> 6 mois"}</SelectItem>
                                         </SelectContent>
                                     </Select>
 
                                     <Select value={actionFilter} onValueChange={setActionFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-2xl text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-2xl text-caption font-black text-zinc-400 uppercase tracking-widest">
                                             <SelectValue placeholder="Actions" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl">
-                                            <SelectItem value="all" className="uppercase text-[10px] font-black tracking-widest">Toutes</SelectItem>
-                                            <SelectItem value="relancer" className="uppercase text-[10px] font-black tracking-widest text">À relancer</SelectItem>
-                                            <SelectItem value="voir" className="uppercase text-[10px] font-black tracking-widest text">À voir</SelectItem>
+                                            <SelectItem value="all" className="uppercase text-caption font-black tracking-widest">Toutes</SelectItem>
+                                            <SelectItem value="relancer" className="uppercase text-caption font-black tracking-widest text">À relancer</SelectItem>
+                                            <SelectItem value="voir" className="uppercase text-caption font-black tracking-widest text">À voir</SelectItem>
                                         </SelectContent>
                                     </Select>
 
@@ -637,11 +637,11 @@ export default function MemberManagement({
                                         onClick={() => setRelanceTargets(
                                             filteredAuditMembers.map(m => ({ id: m.discordId, name: m.displayName }))
                                         )}
-                                        className="h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 text-[10px] font-black uppercase tracking-widest px-4 gap-2"
+                                        className="h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 text-caption font-black uppercase tracking-widest px-4 gap-2"
                                     >
                                         <Bell className="w-3.5 h-3.5" />
                                         Relance groupée
-                                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[9px]">
+                                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-caption">
                                             {filteredAuditMembers.length}
                                         </span>
                                     </Button>
@@ -654,26 +654,26 @@ export default function MemberManagement({
                                 <Table className="min-w-[800px] lg:min-w-0">
                                     <TableHeader className="bg-white/[0.02] border-b border-white/5">
                                         <TableRow className="hover:bg-transparent border-none">
-                                            <TableHead className="pl-8 py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">
+                                            <TableHead className="pl-8 py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">
                                                 <button onClick={() => toggleSort('displayName')} className="flex items-center gap-2 hover:text-white transition-colors">
                                                     Membre Discord
                                                     <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'displayName' ? 'text-violet-400' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] py-6">Rôles Discord</TableHead>
-                                            <TableHead className="py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">
+                                            <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] py-6">Rôles Discord</TableHead>
+                                            <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">
                                                 <button onClick={() => toggleSort('joinedAt')} className="flex items-center gap-2 hover:text-white transition-colors">
                                                     Arrivée
                                                     <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'joinedAt' ? 'text-violet-400' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">
+                                            <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">
                                                 <button onClick={() => toggleSort('hasDashboardProfile')} className="flex items-center gap-2 hover:text-white transition-colors">
                                                     Status
                                                     <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'hasDashboardProfile' ? 'text-violet-400' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6">Actions</TableHead>
+                                            <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -686,7 +686,7 @@ export default function MemberManagement({
                                                             <div className="absolute inset-0 blur-xl bg-violet-500/20 animate-pulse" />
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <span className="text-sm font-black uppercase tracking-[0.3em] text-white">Calcul du différentiel</span>
+                                                            <span className="text-sm font-black uppercase tracking-widest text-white">Calcul du différentiel</span>
                                                             <p className="text-xs text-zinc-500">Récupération des profils Discord autorisés...</p>
                                                         </div>
                                                     </div>
@@ -725,16 +725,16 @@ export default function MemberManagement({
                                                             <div className="flex flex-col leading-tight">
                                                                 <span className="font-black text-base text-zinc-200 group-hover:text-white transition-colors">{member.displayName}</span>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">@{member.username}</span>
+                                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest">@{member.username}</span>
                                                                     {member.ankamaId && (
-                                                                        <span className="text-[9px] text-violet-400 font-black tracking-tight uppercase px-1.5 py-0.5 rounded bg-violet-600/10 border border-violet-500/20">{member.ankamaId}</span>
+                                                                        <span className="text-caption text-violet-400 font-black tracking-tight uppercase px-1.5 py-0.5 rounded bg-violet-600/10 border border-violet-500/20">{member.ankamaId}</span>
                                                                     )}
                                                                     {member.hasDashboardProfile && (
                                                                         <div className="flex items-center gap-2 ml-1">
-                                                                            <span className="text-[9px] text-blue-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                            <span className="text-caption text-blue-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                                                                 <MessageSquare className="w-2.5 h-2.5" /> {member.discordMessageCountWeekly || 0}
                                                                             </span>
-                                                                            <span className="text-[9px] text-emerald-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                            <span className="text-caption text-emerald-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                                                                 <Mic className="w-2.5 h-2.5" /> {(member.discordVoiceTimeWeekly || 0) < 60 ? `${member.discordVoiceTimeWeekly || 0}m` : `${Math.round((member.discordVoiceTimeWeekly || 0) / 60)}h`}
                                                                             </span>
                                                                         </div>
@@ -752,7 +752,7 @@ export default function MemberManagement({
                                                                     <Badge 
                                                                         key={rId} 
                                                                         variant="outline" 
-                                                                        className="text-[9px] h-5 font-black border-white/10 uppercase tracking-[0.1em] rounded-md px-1.5 backdrop-blur-md"
+                                                                        className="text-caption h-5 font-black border-white/10 uppercase tracking-[0.1em] rounded-md px-1.5 backdrop-blur-md"
                                                                         style={{ 
                                                                             color: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}` : undefined,
                                                                             backgroundColor: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}20` : undefined
@@ -763,7 +763,7 @@ export default function MemberManagement({
                                                                 );
                                                             })}
                                                             {member.roles.length > 2 && (
-                                                                <Badge variant="outline" className="text-[9px] h-5 font-black border-white/5 text-zinc-400 bg-white/5 uppercase tracking-tighter">
+                                                                <Badge variant="outline" className="text-caption h-5 font-black border-white/5 text-zinc-400 bg-white/5 uppercase tracking-tighter">
                                                                     +{member.roles.length - 2}
                                                                 </Badge>
                                                             )}
@@ -774,12 +774,12 @@ export default function MemberManagement({
                                                     </TableCell>
                                                     <TableCell>
                                                         {member.hasDashboardProfile ? (
-                                                            <div className="flex items-center gap-1.5 text-emerald-400 font-black text-[10px] uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
+                                                            <div className="flex items-center gap-1.5 text-emerald-400 font-black text-caption uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                                                 Inscrit
                              </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-1.5 text-amber-500 font-black text-[10px] uppercase tracking-widest bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
+                                                            <div className="flex items-center gap-1.5 text-amber-500 font-black text-caption uppercase tracking-widest bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                                                 Absent
                                                             </div>
@@ -787,7 +787,7 @@ export default function MemberManagement({
                                                     </TableCell>
                                                     <TableCell className="pr-8 text-right">
                                                          {member.hasDashboardProfile ? (
-                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-[10px] font-black uppercase tracking-widest p-0 w-9" asChild>
+                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-caption font-black uppercase tracking-widest p-0 w-9" asChild>
                                                                  <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
                                                                      <ArrowUpRight className="w-4 h-4" />
                                                                  </a>
@@ -796,7 +796,7 @@ export default function MemberManagement({
                                                              <Button 
                                                                  variant="outline" 
                                                                  size="sm" 
-                                                                 className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-all text-[10px] font-black uppercase tracking-widest px-3 gap-1.5"
+                                                                 className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-all text-caption font-black uppercase tracking-widest px-3 gap-1.5"
                                                                  onClick={() => setRelanceTargets([{ id: member.discordId, name: member.displayName }])}
                                                              >
                                                                  <Bell className="w-3.5 h-3.5" />
@@ -813,8 +813,8 @@ export default function MemberManagement({
 
                             {/* Pagination UI */}
                             {totalPages > 1 && (
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">
                                         Affichage de {Math.min(filteredAuditMembers.length, (currentPage - 1) * pageSize + 1)} à {Math.min(filteredAuditMembers.length, currentPage * pageSize)} sur {filteredAuditMembers.length} membres
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -829,9 +829,9 @@ export default function MemberManagement({
                                         </Button>
 
                                         <div className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-white/5 border border-white/10">
-                                            <span className="text-[10px] font-black text-white">{currentPage}</span>
-                                            <span className="text-[10px] font-black text-zinc-600">/</span>
-                                            <span className="text-[10px] font-black text-zinc-400">{totalPages}</span>
+                                            <span className="text-caption font-black text-white">{currentPage}</span>
+                                            <span className="text-caption font-black text-zinc-600">/</span>
+                                            <span className="text-caption font-black text-zinc-400">{totalPages}</span>
                                         </div>
 
                                         <Button
@@ -853,7 +853,7 @@ export default function MemberManagement({
                 </TabsContent>
 
                 {/* --- TAB 2: MANAGEMENT --- */}
-                <TabsContent value="management" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
+                <TabsContent value="management" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-[600px]">
                     <MemberStatsOverview stats={initialStats} />
                     <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <MemberManagementTable 
@@ -869,7 +869,7 @@ export default function MemberManagement({
                 </TabsContent>
 
                 {/* --- TAB 3: BLACKLIST --- */}
-                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
+                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-[600px]">
                     <MemberBlacklist guildId={guildId} />
                 </TabsContent>
             </Tabs>

@@ -31,7 +31,7 @@ export function FloatingHUD({ guildId }: { guildId: string }) {
 
     return (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-            <div className="flex items-center gap-2 p-2 rounded-full bg-zinc-950/40 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all hover:scale-105 hover:border-primary/30 group">
+            <div className="flex items-center gap-2 p-2 rounded-full bg-zinc-950/40 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all  hover:border-primary/30 group">
                 <TooltipProvider delayDuration={0}>
                     {ITEMS.map((item) => (
                         <Tooltip key={item.href}>
@@ -54,7 +54,7 @@ export function FloatingHUD({ guildId }: { guildId: string }) {
 
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 cursor-pointer hover:scale-110 transition-transform">
+                        <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 cursor-pointer  transition-transform">
                             <div className="w-full h-full bg-gradient-to-br from-primary via-purple-500 to-amber-500" />
                         </div>
                     </TooltipTrigger>

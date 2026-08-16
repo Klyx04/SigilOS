@@ -88,12 +88,12 @@ export function BentoHub({ guildId }: { guildId: string }) {
             {MODULES.map((mod) => (
                 <Link key={mod.href} href={mod.href} className={cn("group", mod.size)}>
                     <Card className={cn(
-                        "h-full p-8 bg-zinc-900/40 border-white/5 backdrop-blur-xl transition-all duration-500 flex flex-col justify-between overflow-hidden relative",
+                        "h-full p-8 bg-zinc-900/40 border-white/5 backdrop-blur-xl transition-all duration-300 flex flex-col justify-between overflow-hidden relative",
                         mod.bg,
                         mod.border
                     )}>
                         <div className="relative z-10">
-                            <div className={cn("p-4 rounded-2xl bg-white/5 w-fit mb-6 transition-transform group-hover:scale-110", mod.color)}>
+                            <div className={cn("p-4 rounded-2xl bg-white/5 w-fit mb-6 transition-transform group-", mod.color)}>
                                 <mod.icon className="h-8 w-8" />
                             </div>
                             <h3 className="text-2xl font-black italic tracking-tighter mb-2">{mod.name}</h3>

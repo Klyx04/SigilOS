@@ -45,7 +45,7 @@ export function ActivitiesNav({ guildId }: { guildId: string }) {
                             )}
                         >
                             <Icon className={cn("w-4 h-4 transition-colors", isActive ? "" : "text-zinc-600 group-hover:text-zinc-400")} />
-                            <span className="text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap">
+                            <span className="text-caption font-black uppercase tracking-[0.15em] whitespace-nowrap">
                                 {tab.name}
                             </span>
                         </Link>

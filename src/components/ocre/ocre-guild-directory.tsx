@@ -185,13 +185,13 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                             <Card 
                                 key={member.id} 
                                 className={`relative group overflow-hidden bg-card/20 backdrop-blur-md border border-white/5 hover:border-white/10 hover:bg-card/30 transition-all duration-300 ${
-                                    isLinked ? "hover:shadow-[0_0_30px_rgba(245,158,11,0.03)]" : "opacity-80 hover:opacity-100"
+                                    isLinked ? "" : "opacity-80 hover:opacity-100"
                                 }`}
                             >
                                 <CardContent className="p-5 flex flex-col justify-between h-full min-h-[170px] gap-4">
                                     <div className="flex gap-4 items-start">
                                         {/* Avatar */}
-                                        <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-white/5 shrink-0 bg-zinc-950/50 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                        <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-white/5 shrink-0 bg-zinc-950/50 flex items-center justify-center group- transition-transform">
                                             {member.user.image ? (
                                                 <Image 
                                                     src={member.user.image} 
@@ -212,17 +212,17 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                                     {getDisplayName(member) || "Dofusien"}
                                                 </span>
                                                 {isLinked ? (
-                                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-none px-2 py-0.5 text-[9px] font-black tracking-wider uppercase shrink-0">
+                                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-none px-2 py-0.5 text-caption font-black tracking-wider uppercase shrink-0">
                                                         Lié
                                                     </Badge>
                                                 ) : (
-                                                    <Badge className="bg-red-500/10 text-red-400 border-none px-2 py-0.5 text-[9px] font-black tracking-wider uppercase shrink-0">
+                                                    <Badge className="bg-red-500/10 text-red-400 border-none px-2 py-0.5 text-caption font-black tracking-wider uppercase shrink-0">
                                                         Non lié
                                                     </Badge>
                                                 )}
                                             </div>
 
-                                            <div className="flex flex-col gap-0.5 text-[11px] text-muted-foreground">
+                                            <div className="flex flex-col gap-0.5 text-caption text-muted-foreground">
                                                 {member.pseudoDofus && (
                                                     <span className="truncate">
                                                         Dofus : <span className="text-zinc-300 font-semibold">{member.pseudoDofus}</span>
@@ -251,7 +251,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                         <div className="space-y-2 pt-2 border-t border-white/5">
                                             {hasSnapshot ? (
                                                 <>
-                                                    <div className="flex items-center justify-between text-[11px]">
+                                                    <div className="flex items-center justify-between text-caption">
                                                         <span className="text-muted-foreground">
                                                             {member.serverName || "Serveur"}
                                                             <span className="opacity-30 mx-1.5">•</span>
@@ -269,7 +269,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                                         />
                                                     </div>
                                                     {member.metamobLastSync && (
-                                                        <div className="flex items-center gap-1 text-[9px] text-zinc-500 italic mt-1 justify-end">
+                                                        <div className="flex items-center gap-1 text-caption text-zinc-500 italic mt-1 justify-end">
                                                             <Clock className="h-2.5 w-2.5" />
                                                             Sync {formatDistanceToNow(new Date(member.metamobLastSync), { addSuffix: true, locale: fr })}
                                                         </div>
@@ -278,7 +278,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                             ) : (
                                                 <div className="flex items-center gap-2 p-2.5 bg-amber-500/5 border border-amber-500/10 rounded-xl">
                                                     <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                                                    <span className="text-[10px] text-amber-400 font-semibold leading-normal">
+                                                    <span className="text-caption text-amber-400 font-semibold leading-normal">
                                                         Compte lié mais aucune synchronisation effectuée.
                                                     </span>
                                                 </div>
@@ -286,7 +286,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center p-4 bg-zinc-950/40 rounded-xl border border-white/5 text-center mt-2">
-                                            <span className="text-[10px] text-zinc-500 italic leading-normal">
+                                            <span className="text-caption text-zinc-500 italic leading-normal">
                                                 Ce membre n&apos;a pas configuré son compte Metamob. Les échanges automatiques ne sont pas disponibles.
                                             </span>
                                         </div>
@@ -294,7 +294,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                 </CardContent>
 
                                 {/* Aesthetic border glow on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none -z-10" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -z-10" />
                             </Card>
                         );
                     })}

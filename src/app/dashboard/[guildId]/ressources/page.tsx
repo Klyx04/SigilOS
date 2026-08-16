@@ -44,7 +44,7 @@ function SectionHeader({
             >
                 <Icon className="h-4 w-4" style={{ color }} />
             </div>
-            <h2 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-400">
+            <h2 className="text-xs font-black uppercase tracking-widest text-zinc-400">
                 {label}
             </h2>
             <div className="flex-1 h-px bg-white/5" />

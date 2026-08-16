@@ -196,7 +196,7 @@ export default async function SuperAdminPage(props: {
                 <div className="flex-1 flex items-center justify-center bg-black py-20">
                     <div className="flex flex-col items-center gap-6">
                         <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] animate-pulse">Initializing Interface...</span>
+                        <span className="text-caption font-black text-zinc-600 uppercase tracking-widest animate-pulse">Initializing Interface...</span>
                     </div>
                 </div>
             }>
@@ -210,7 +210,7 @@ export default async function SuperAdminPage(props: {
                                         <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 shrink-0">
                                             <Activity className="w-5 h-5 text-blue-400" />
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                                        <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
                                             Central Operations
                                         </span>
                                     </div>
@@ -271,7 +271,7 @@ export default async function SuperAdminPage(props: {
                                 <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Stockage & Captures</h1>
                                 <p className="text-zinc-500 text-base md:text-lg font-medium">Espace disque par guilde : missions, kamas, prêts, succès et fichiers orphelins.</p>
                             </div>
-                            <div className="w-full animate-in fade-in duration-500">
+                            <div className="w-full animate-in fade-in duration-300">
                                 <StorageOverviewPanel />
                             </div>
                         </div>
@@ -285,7 +285,7 @@ export default async function SuperAdminPage(props: {
                             </div>
 
                             {(resolvedSearchParams as any).sub === "STORAGE" ? (
-                                <div className="w-full animate-in fade-in duration-500">
+                                <div className="w-full animate-in fade-in duration-300">
                                     <StorageOverviewPanel />
                                 </div>
                             ) : (
@@ -416,7 +416,7 @@ href={`${godRoute}/game-data/bounties`}
                                 <div className="flex-1 flex items-center justify-center bg-black py-20">
                                     <div className="flex flex-col items-center gap-6">
                                         <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-                                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] animate-pulse">Chargement de la télémétrie...</span>
+                                        <span className="text-caption font-black text-zinc-600 uppercase tracking-widest animate-pulse">Chargement de la télémétrie...</span>
                                     </div>
                                 </div>
                             }>
@@ -488,11 +488,11 @@ async function OcrStatsServer() {
                 <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-1">
                         <div className="text-4xl font-black text-cyan-400 tracking-tighter">{ocrStats.todayTotal}</div>
-                        <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">24h Cycle</div>
+                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">24h Cycle</div>
                     </div>
                     <div className="space-y-1">
                         <div className="text-4xl font-black text-white tracking-tighter">{ocrStats.monthlyTotal}</div>
-                        <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Monthly</div>
+                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Monthly</div>
                     </div>
                 </div>
             </div>
@@ -613,7 +613,7 @@ async function GameDataStatsServer() {
                             <stat.icon className="w-6 h-6" />
                         </div>
                         <div>
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{stat.label}</div>
+                            <div className="text-caption font-black text-zinc-500 uppercase tracking-widest">{stat.label}</div>
                             <div className="text-xl font-black text-white">{stat.count}</div>
                         </div>
                     </div>

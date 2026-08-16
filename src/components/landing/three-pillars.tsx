@@ -26,7 +26,7 @@ export function ThreePillars() {
         <section className="w-full border-t border-white/5 py-20">
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
                 <div className="max-w-2xl mb-10">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-4">
+                    <p className="text-caption font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-4">
                         Ce que vous retrouvez
                     </p>
                     <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-white">

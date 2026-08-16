@@ -33,7 +33,7 @@ export function renderInlineContent(
       parts.push(
         <span
           key={`travel-${match.index}`}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold ${posColor} hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold ${posColor} hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0`}
           onClick={(e) => {
             e.stopPropagation();
             navigator.clipboard.writeText(`/travel ${x} ${y}`).then(() => {

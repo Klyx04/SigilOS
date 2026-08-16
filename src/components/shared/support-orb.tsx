@@ -30,10 +30,10 @@ export function SupportOrb() {
 
                 {/* Text Block */}
                 <div className="flex flex-col text-left">
-                    <span className="text-[11px] font-bold text-white uppercase tracking-wider leading-none">
+                    <span className="text-caption font-bold text-white uppercase tracking-wider leading-none">
                         Soutenir <span className="text-emerald-400">SigilOS</span>
                     </span>
-                    <span className="text-[9px] font-medium text-zinc-400 mt-1 flex items-center gap-1 leading-none">
+                    <span className="text-caption font-medium text-zinc-400 mt-1 flex items-center gap-1 leading-none">
                         <Coffee className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                         Donation Ko-fi
                     </span>

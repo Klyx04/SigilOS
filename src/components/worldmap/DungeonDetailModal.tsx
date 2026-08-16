@@ -113,11 +113,11 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                             </div>
                             <div className="min-w-0">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest italic">
+                                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-500 text-caption md:text-caption font-black uppercase tracking-widest italic">
                                         Lvl {resolvedDj?.level || dungeon.level}
                                     </span>
                                     {isOcreQuest && (
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-[8px] md:text-[10px] font-black uppercase tracking-widest italic">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-caption md:text-caption font-black uppercase tracking-widest italic">
                                             <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
                                             Quête Ocre
                                         </span>
@@ -126,7 +126,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                 <h2 className="text-xl md:text-3xl font-black text-white truncate drop-shadow-2xl uppercase italic tracking-tighter">
                                     {resolvedDj?.name || (typeof dungeon.name === 'string' ? dungeon.name : dungeon.name?.fr || "Donjon")}
                                 </h2>
-                                <p className="text-[10px] md:text-sm font-bold text-white/40 flex items-center gap-2 uppercase tracking-[0.2em]">
+                                <p className="text-caption md:text-sm font-bold text-white/40 flex items-center gap-2 uppercase tracking-[0.2em]">
                                     <Sword size={12} className="text-amber-500" /> {resolvedDj?.bossName || "Boss Inconnu"}
                                 </p>
                             </div>
@@ -141,7 +141,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                             <button
                                 key={d.id}
                                 onClick={() => setSelectedDungeonIndex(idx)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all whitespace-nowrap ${
+                                className={`px-4 py-2 rounded-xl text-caption font-black uppercase italic transition-all whitespace-nowrap ${
                                     selectedDungeonIndex === idx 
                                         ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20" 
                                         : "bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50 border border-white/5"
@@ -158,7 +158,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
-                            <p className="text-white/20 font-black uppercase text-[10px] tracking-[0.3em] animate-pulse">Analyse des Succès de Guilde...</p>
+                            <p className="text-white/20 font-black uppercase text-caption tracking-widest animate-pulse">Analyse des Succès de Guilde...</p>
                         </div>
                     ) : directoryData.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-4 bg-white/[0.02] border border-dashed border-white/5 rounded-3xl">
@@ -170,7 +170,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                     ) : (
                         <div className="space-y-4">
                             <div className="flex items-center gap-4 mb-6">
-                                <h3 className="text-white/20 font-black uppercase text-[10px] tracking-[0.3em]">Répertoire des Succès</h3>
+                                <h3 className="text-white/20 font-black uppercase text-caption tracking-widest">Répertoire des Succès</h3>
                                 <div className="flex-1 h-px bg-white/5" />
                             </div>
 
@@ -181,7 +181,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                 return (
                                     <div 
                                         key={achv.achievementId}
-                                        className={`rounded-[1.5rem] border transition-all duration-500 overflow-hidden ${
+                                        className={`rounded-[1.5rem] border transition-all duration-300 overflow-hidden ${
                                             isExpanded 
                                                 ? "bg-white/[0.03] border-amber-500/30 shadow-2xl" 
                                                 : "bg-white/[0.01] border-white/5 hover:border-white/10 hover:bg-white/[0.02]"
@@ -194,7 +194,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                             <div className="flex items-center gap-4 flex-1">
                                                 <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 shadow-inner group">
                                                     {achv.iconUrl ? (
-                                                        <img src={achv.iconUrl} alt="" className="w-8 h-8 object-contain drop-shadow-md group-hover:scale-110 transition-transform" />
+                                                        <img src={achv.iconUrl} alt="" className="w-8 h-8 object-contain drop-shadow-md group- transition-transform" />
                                                     ) : (
                                                         <Trophy className="text-amber-500" size={20} />
                                                     )}
@@ -202,17 +202,17 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                 <div className="min-w-0">
                                                     <h4 className="text-xs md:text-sm font-black text-white uppercase italic tracking-tight truncate">{achv.achievementName}</h4>
                                                     <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1">
-                                                        <span className="text-[8px] md:text-[9px] font-black text-amber-500 bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-500/20">
+                                                        <span className="text-caption md:text-caption font-black text-amber-500 bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-500/20">
                                                             {achv.points} PTS
                                                         </span>
-                                                        <span className="text-[8px] md:text-[9px] font-bold text-white/30 uppercase tracking-widest">
+                                                        <span className="text-caption md:text-caption font-bold text-white/30 uppercase tracking-widest">
                                                             Complétion : {completionRate}%
                                                         </span>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isExpanded ? "bg-amber-500/20 text-amber-500" : "bg-white/5 text-white/20 border border-white/10"}`}>
-                                                <ChevronDown size={14} className={`transition-transform duration-500 ${isExpanded ? "rotate-180" : ""}`} />
+                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
                                             </div>
                                         </button>
 
@@ -229,10 +229,10 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                         {/* Missing List */}
                                                         <div className="space-y-4 flex flex-col h-full">
                                                             <div className="flex items-center justify-between shrink-0">
-                                                                <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                                                                <span className="text-caption font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
                                                                     <Circle size={8} fill="currentColor" /> Cherchent encore
                                                                 </span>
-                                                                <span className="text-[10px] font-black text-white/20 bg-white/5 px-2 py-0.5 rounded-lg">
+                                                                <span className="text-caption font-black text-white/20 bg-white/5 px-2 py-0.5 rounded-lg">
                                                                     {achv.missing.length}
                                                                 </span>
                                                             </div>
@@ -240,7 +240,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                                 {achv.missing.length > 0 ? achv.missing.map((member) => (
                                                                     <MemberPill key={member.id} member={member} isMissing />
                                                                 )) : (
-                                                                    <p className="text-[10px] text-white/10 italic py-2">Tout le monde a validé ! 🎉</p>
+                                                                    <p className="text-caption text-white/10 italic py-2">Tout le monde a validé ! 🎉</p>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -248,10 +248,10 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                         {/* Completed List */}
                                                         <div className="space-y-4 flex flex-col h-full">
                                                             <div className="flex items-center justify-between shrink-0">
-                                                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                                                                <span className="text-caption font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
                                                                     <CheckCircle2 size={8} fill="currentColor" /> Déjà validé
                                                                 </span>
-                                                                <span className="text-[10px] font-black text-white/20 bg-white/5 px-2 py-0.5 rounded-lg">
+                                                                <span className="text-caption font-black text-white/20 bg-white/5 px-2 py-0.5 rounded-lg">
                                                                     {achv.hasCompleted.length}
                                                                 </span>
                                                             </div>
@@ -259,7 +259,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                                 {achv.hasCompleted.length > 0 ? achv.hasCompleted.map((member) => (
                                                                     <MemberPill key={member.id} member={member} />
                                                                 )) : (
-                                                                    <p className="text-[10px] text-white/10 italic py-2">Aucun succès validé.</p>
+                                                                    <p className="text-caption text-white/10 italic py-2">Aucun succès validé.</p>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -280,13 +280,13 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                         <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
                              <Users size={14} />
                         </div>
-                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest leading-tight">
+                        <p className="text-caption text-white/30 font-bold uppercase tracking-widest leading-tight">
                             Consultez les membres de guilde<br/>pour organiser vos groupes
                         </p>
                     </div>
                     <a 
                         href={`/dashboard/${guildId}/donjons-et-quetes`}
-                        className="px-6 py-3 rounded-2xl bg-amber-600 text-white font-black text-[10px] uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        className="px-6 py-3 rounded-2xl bg-amber-600 text-white font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
                     >
                         Créer un groupe <ChevronRight size={14} />
                     </a>
@@ -308,7 +308,7 @@ function MemberPill({ member, isMissing }: { member: any, isMissing?: boolean })
                     <Users size={12} className="text-white/20" />
                 )}
             </div>
-            <span className="text-[11px] font-bold text-white/70 truncate flex-1 uppercase tracking-tighter">
+            <span className="text-caption font-bold text-white/70 truncate flex-1 uppercase tracking-tighter">
                 {member.name}
             </span>
             {classInfo && (

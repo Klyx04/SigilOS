@@ -46,7 +46,7 @@ function ScrollToTopButton() {
     <AnimatePresence>
       {v && <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="fixed bottom-8 right-8 z-50 w-12 h-12 rounded-2xl bg-emerald-600/90 backdrop-blur-xl border border-emerald-500/30 flex items-center justify-center text-white hover:bg-emerald-500 transition-all hover:scale-110"><ArrowUp className="w-5 h-5" /></motion.button>}
+        className="fixed bottom-8 right-8 z-50 w-12 h-12 rounded-2xl bg-emerald-600/90 backdrop-blur-xl border border-emerald-500/30 flex items-center justify-center text-white hover:bg-emerald-500 transition-all "><ArrowUp className="w-5 h-5" /></motion.button>}
     </AnimatePresence>
   );
 }
@@ -98,13 +98,13 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
               isCompleted ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-zinc-900 border-white/10 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
             }`}>
-            {isCompleted ? <><CheckCircle2 className="w-4 h-4" /> Complétée <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onToggle("NOT_STARTED"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle("NOT_STARTED"); } }} className="ml-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-rose-400 text-[8px] cursor-pointer" title="Réinitialiser">↺</span></> : <><Circle className="w-4 h-4" /> Valider</>}
+            {isCompleted ? <><CheckCircle2 className="w-4 h-4" /> Complétée <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onToggle("NOT_STARTED"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle("NOT_STARTED"); } }} className="ml-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-rose-400 text-caption cursor-pointer" title="Réinitialiser">↺</span></> : <><Circle className="w-4 h-4" /> Valider</>}
           </button>
           {members.length > 0 && (
             <div className="flex flex-wrap gap-1 ml-auto justify-end">
               {members.map((m: any) => (
                 <div key={m.profileId} className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0" title={`${m.pseudo}${m.status === "COMPLETED" ? " — quête complétée" : " — je suis ici"}`}>
-                  {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-[6px] font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
+                  {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
               ))}
             </div>
@@ -113,13 +113,13 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
 
         {liveViewers.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400/80 flex items-center gap-1">
+            <span className="text-caption font-black uppercase tracking-widest text-emerald-400/80 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> En direct
             </span>
             <div className="flex -space-x-1.5">
               {liveViewers.map((m) => (
                 <div key={m.profileId} title={`${m.userName} regarde cette quête`} className="w-5 h-5 rounded-full border-2 border-emerald-500/60 overflow-hidden bg-zinc-700 shrink-0">
-                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-[6px] font-black text-emerald-300 flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
+                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-emerald-300 flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
               ))}
             </div>
@@ -127,7 +127,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
         )}
 
         {/* Position de lancement */}
-        <div className="flex flex-wrap items-center gap-2 text-[10px]">
+        <div className="flex flex-wrap items-center gap-2 text-caption">
           <span className="text-zinc-600 font-bold uppercase tracking-widest">Position de lancement</span>
           {quest.zone && <span className="text-zinc-400 font-medium">{quest.zone}</span>}
           {coords && (
@@ -142,28 +142,28 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
 
         {/* Objectifs */}
         {objList.length > 0 && (
-          <div className="text-[11px] text-zinc-300 leading-relaxed space-y-0.5">
+          <div className="text-caption text-zinc-300 leading-relaxed space-y-0.5">
             {objList.slice(0, 3).map((t: string, i: number) => <p key={i} className="flex items-start gap-1.5"><span className="text-zinc-600 mt-0.5 shrink-0">•</span><span>{t}</span></p>)}
-            {objList.length > 3 && <p className="text-zinc-600 italic text-[10px]">+{objList.length - 3} autres objectifs</p>}
+            {objList.length > 3 && <p className="text-zinc-600 italic text-caption">+{objList.length - 3} autres objectifs</p>}
           </div>
         )}
 
         {/* Items / Donjons */}
         <div className="flex flex-wrap gap-1.5">
-          {items.map((it: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-bold">{typeof it === "string" ? it : it.name || it}</span>)}
-          {dungeons.map((d: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[9px] font-bold flex items-center gap-1"><Skull className="w-2 h-2" />{typeof d === "string" ? d : d.name}</span>)}
+          {items.map((it: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-caption font-bold">{typeof it === "string" ? it : it.name || it}</span>)}
+          {dungeons.map((d: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-caption font-bold flex items-center gap-1"><Skull className="w-2 h-2" />{typeof d === "string" ? d : d.name}</span>)}
         </div>
 
         {/* Liens externes */}
         <div className="flex gap-2 pt-1 border-t border-white/5 items-center">
-          {quest.dofusdbId && <a href={`https://dofusdb.fr/fr/database/quest/${quest.dofusdbId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] font-bold hover:bg-cyan-500/20 transition-all"><img src="https://dofusdb.fr/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> DofusDB</a>}
-          {quest.externalRef && <a href={quest.externalRef} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-bold hover:bg-amber-500/20 transition-all"><img src="https://www.dofuspourlesnoobs.com/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> Guide Noobs</a>}
+          {quest.dofusdbId && <a href={`https://dofusdb.fr/fr/database/quest/${quest.dofusdbId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-caption font-bold hover:bg-cyan-500/20 transition-all"><img src="https://dofusdb.fr/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> DofusDB</a>}
+          {quest.externalRef && <a href={quest.externalRef} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-caption font-bold hover:bg-amber-500/20 transition-all"><img src="https://www.dofuspourlesnoobs.com/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> Guide Noobs</a>}
           {quest.isDungeon && !quest.externalRef && (
-            <button onClick={() => { const slug = (quest.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); window.open(`https://www.dofuspourlesnoobs.com/donjon-${slug}.html`, "_blank"); }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-bold hover:bg-amber-500/20 transition-all"><img src="https://www.dofuspourlesnoobs.com/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> Guide Noobs</button>
+            <button onClick={() => { const slug = (quest.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); window.open(`https://www.dofuspourlesnoobs.com/donjon-${slug}.html`, "_blank"); }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-caption font-bold hover:bg-amber-500/20 transition-all"><img src="https://www.dofuspourlesnoobs.com/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> Guide Noobs</button>
           )}
           {/* Badge Prérequis si présent */}
           {quest.requirements && typeof quest.requirements === 'object' && (quest.requirements as any).npc && (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-bold"><Info className="w-2.5 h-2.5" /> Prérequis: {(quest.requirements as any).npc}</span>
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-caption font-bold"><Info className="w-2.5 h-2.5" /> Prérequis: {(quest.requirements as any).npc}</span>
           )}
         </div>
       </div>
@@ -211,26 +211,26 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              {isNext && !isCompleted && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
+              {isNext && !isCompleted && <span className="text-caption font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
               {isBlocked && <Lock className="w-2.5 h-2.5 text-zinc-600" />}
               {/* Chantier #68 — icône de quête dans chaque quête */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/icons/icone-quete.png" alt="" className="w-3.5 h-3.5 shrink-0 object-contain opacity-80" loading="lazy" />
               <span className={`text-xs font-bold leading-tight ${isCompleted ? "text-emerald-300" : isBlocked ? "text-zinc-500" : "text-white"}`}>{quest.name}</span>
               {liveViewers.length > 0 && (
-                <span className="flex items-center gap-1 text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider" title={`${liveViewers.map((v) => v.userName).join(", ")} regarde(nt) cette quête`}>
+                <span className="flex items-center gap-1 text-caption font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider" title={`${liveViewers.map((v) => v.userName).join(", ")} regarde(nt) cette quête`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {liveViewers.length} en direct
                 </span>
               )}
-              {quest.isDungeon && <span className="text-[8px] font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Donjon</span>}
-              {quest.isOptional && <span className="text-[8px] font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Optionnel</span>}
-              {quest.level && <span className="text-[8px] font-black text-zinc-600">N{quest.level}</span>}
+              {quest.isDungeon && <span className="text-caption font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Donjon</span>}
+              {quest.isOptional && <span className="text-caption font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Optionnel</span>}
+              {quest.level && <span className="text-caption font-black text-zinc-600">N{quest.level}</span>}
               {isBlocked && prereqs && prereqs.length > 0 && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onFocusPrereq?.(prereqs[0].fromQuestId); }}
                   title={`Prérequis : ${prereqs.map(p => p.name).join(" · ")}`}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[8px] font-black uppercase tracking-wider hover:bg-amber-500/20 transition-colors"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-caption font-black uppercase tracking-wider hover:bg-amber-500/20 transition-colors"
                 >
                   <Lock className="w-2.5 h-2.5" />
                   {prereqs.length > 1 ? `${prereqs.length} prérequis` : "1 prérequis"}
@@ -250,7 +250,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                       : "Marquer que je suis ici (quête en cours)"
                 }
                 disabled={isBlocked && !isRenduIci}
-                className={`ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all ${
+                className={`ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-caption font-black uppercase tracking-wider border transition-all ${
                   isRenduIci
                     ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
                     : isBlocked
@@ -262,7 +262,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                 Je suis ici
               </button>
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-medium mt-1">
+            <div className="flex items-center gap-3 text-caption text-zinc-500 font-medium mt-1">
               {quest.zone && <span><MapPin className="w-2.5 h-2.5 inline mr-0.5" />{quest.zone}</span>}
               {quest.npcName && <span>{quest.npcName}</span>}
             </div>
@@ -275,11 +275,11 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                 <div className="flex -space-x-1.5">
                   {renduMembers.slice(0, 4).map((m: any) => (
                     <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0">
-                      {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-[6px] font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
+                      {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                     </div>
                   ))}
                 </div>
-                <span className="text-[8px] font-bold text-amber-300/80 uppercase tracking-wider group-hover/av:text-amber-300">
+                <span className="text-caption font-bold text-amber-300/80 uppercase tracking-wider group-hover/av:text-amber-300">
                   {renduMembers.length} membre{renduMembers.length > 1 ? "s" : ""} ici
                 </span>
               </button>
@@ -295,12 +295,12 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
               <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-amber-400" /> Je suis ici</h4>
               <button onClick={() => setShowRendu(false)} className="text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-[10px] text-zinc-500 font-medium mb-3">Sur « {quest.name} »</p>
+            <p className="text-caption text-zinc-500 font-medium mb-3">Sur « {quest.name} »</p>
             <div className="space-y-2">
               {renduMembers.map((m: any) => (
                 <div key={m.profileId} className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-700 border border-white/10 shrink-0">
-                    {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-[8px] font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
+                    {m.image ? <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-zinc-400 flex items-center justify-center h-full">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
                   </div>
                   <span className="text-xs font-bold text-zinc-200">{m.pseudo}</span>
                 </div>
@@ -353,18 +353,18 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
           </div>
           <div>
             <h3 className="font-black text-sm text-white uppercase tracking-tight">{chain.sectionName}</h3>
-            <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{completedCount}/{entries.length} • {progress}%</p>
+            <p className="text-caption text-zinc-500 font-medium mt-0.5">{completedCount}/{entries.length} • {progress}%</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {completedCount < entries.length && (
             <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleValidateAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleValidateAll(); } }}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500/20 transition-all cursor-pointer">
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-black uppercase tracking-wider hover:bg-emerald-500/20 transition-all cursor-pointer">
               <CheckCircle2 className="w-3 h-3" /> Tout valider
             </span>
           )}
           <div className="hidden sm:block w-20 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }} />
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }} />
           </div>
           <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform duration-300 ${collapsed ? "" : "rotate-180"}`} />
         </div>
@@ -437,17 +437,17 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
   return (
     <div className="w-full lg:w-[280px] shrink-0 bg-zinc-950/40 border border-white/5 rounded-3xl overflow-hidden self-start lg:sticky lg:top-4">
       <div className="p-5 border-b border-white/5 bg-zinc-900/20">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+        <h3 className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
           <Users className="w-3 h-3 text-emerald-400" />
           QUI EST OÙ
         </h3>
-        {guildName && <p className="text-[9px] text-zinc-600 font-bold mt-1">{guildName}</p>}
+        {guildName && <p className="text-caption text-zinc-600 font-bold mt-1">{guildName}</p>}
       </div>
       <div className="p-3 space-y-2 max-h-[480px] overflow-y-auto custom-scrollbar">
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/30 border border-white/5">
             <div className="w-8 h-8 rounded-full border-2 border-emerald-500/30 overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center">
-              {m.image ? <img src={m.image} alt="" className="w-full h-full object-cover" /> : <span className="text-[9px] font-black text-zinc-500">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
+              {m.image ? <img src={m.image} alt="" className="w-full h-full object-cover" /> : <span className="text-caption font-black text-zinc-500">{m.pseudo?.[0]?.toUpperCase() || "?"}</span>}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white truncate">{m.pseudo}</p>
@@ -462,15 +462,15 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
                     }`} />
                   );
                 })}
-                <span className="text-[8px] font-black text-zinc-600 ml-auto">{m.pct}%</span>
+                <span className="text-caption font-black text-zinc-600 ml-auto">{m.pct}%</span>
               </div>
             </div>
           </div>
         ))}
       </div>
       <div className="px-3 pb-3 text-center">
-        <p className="text-[8px] text-zinc-700 font-medium">{members.length} membre{members.length > 1 ? "s" : ""}</p>
-        {currentUser && <p className="text-[7px] text-emerald-700/50 font-medium mt-0.5">En ligne</p>}
+        <p className="text-caption text-zinc-700 font-medium">{members.length} membre{members.length > 1 ? "s" : ""}</p>
+        {currentUser && <p className="text-caption text-emerald-700/50 font-medium mt-0.5">En ligne</p>}
       </div>
     </div>
   );
@@ -551,7 +551,7 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
         {presenceConnected && presence.length > 0 && (
           <div className="flex items-center gap-3 flex-wrap px-4 py-2.5 rounded-2xl border border-emerald-500/15 bg-emerald-500/5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Temps réel" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 shrink-0">Présence live</span>
+            <span className="text-caption font-black uppercase tracking-widest text-emerald-400 shrink-0">Présence live</span>
             <div className="flex -space-x-1.5">
               {presence.map((m) => (
                 <div
@@ -559,11 +559,11 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
                   title={m.questId ? `${m.userName} — ${questNameById.get(m.questId) || "parcourt la page"}` : m.userName}
                   className="w-6 h-6 rounded-full border-2 border-[#0a0d14] overflow-hidden bg-zinc-700 shrink-0"
                 >
-                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-[7px] font-black text-zinc-400 flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
+                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" /> : <span className="text-caption font-black text-zinc-400 flex items-center justify-center h-full">{m.userName?.[0]?.toUpperCase() || "?"}</span>}
                 </div>
               ))}
             </div>
-            <span className="text-[9px] text-zinc-400 font-medium">{presence.length} membre{presence.length > 1 ? "s" : ""} sur cette page</span>
+            <span className="text-caption text-zinc-400 font-medium">{presence.length} membre{presence.length > 1 ? "s" : ""} sur cette page</span>
           </div>
         )}
 
@@ -577,13 +577,13 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl shrink-0 border border-emerald-500/20" style={{ background: `${dofusColor}10` }}>
               <span className="text-sm text-emerald-400">{completedQuests}/{totalQuests}</span>
-              <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline text-emerald-400/60">Étapes</span>
+              <span className="text-caption font-black uppercase tracking-widest hidden sm:inline text-emerald-400/60">Étapes</span>
             </div>
             <div className="w-20 sm:w-28 h-1.5 rounded-full bg-zinc-800 overflow-hidden hidden sm:block">
-              <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${progressPercent}%` }} />
+              <div className="h-full rounded-full bg-emerald-500 transition-all duration-300" style={{ width: `${progressPercent}%` }} />
             </div>
-            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{progressPercent}%</span>
-            <button onClick={() => setHideCompleted(!hideCompleted)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900/50 border border-white/5 text-zinc-500 hover:text-zinc-300 text-[9px] font-black uppercase tracking-widest transition-all" title={hideCompleted ? "Afficher" : "Masquer"}>
+            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">{progressPercent}%</span>
+            <button onClick={() => setHideCompleted(!hideCompleted)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900/50 border border-white/5 text-zinc-500 hover:text-zinc-300 text-caption font-black uppercase tracking-widest transition-all" title={hideCompleted ? "Afficher" : "Masquer"}>
               {hideCompleted ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
               <span className="hidden sm:inline">{hideCompleted ? "Afficher" : "Masquer"}</span>
             </button>

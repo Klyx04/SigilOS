@@ -136,7 +136,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                     {!isDiscordConfigured && (
                         <div className="mx-0 mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
                             <Bell className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                            <div className="text-[10px] text-amber-200/80 leading-relaxed font-medium">
+                            <div className="text-caption text-amber-200/80 leading-relaxed font-medium">
                                 <span className="text-amber-500 font-bold block mb-0.5">Configuration Discord absente</span>
                                 Le salon de notification des Songes n&apos;est pas configuré. Seule la notification interne SigilOS sera envoyée.
                             </div>

@@ -266,7 +266,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                 <p className="text-zinc-300 font-medium">Analyse méticuleuse des doublons de la guilde...</p>
                                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-emerald-500 transition-all duration-500 ease-out"
+                                        className="h-full bg-emerald-500 transition-all duration-300 ease-out"
                                         style={{ width: `${progress}%` }}
                                     />
                                 </div>
@@ -289,14 +289,14 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                     <TabsList className="grid w-full grid-cols-2 bg-zinc-950/80 border border-white/5 p-1 rounded-xl shrink-0 sm:w-auto">
                                         <TabsTrigger 
                                             value="monsters" 
-                                            className="rounded-lg font-black py-2 text-[10px] uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
+                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
                                         >
                                             <PackageOpen className="h-3.5 w-3.5 shrink-0" />
                                             <span>Par Monstre ({monstersList.length})</span>
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="members" 
-                                            className="rounded-lg font-black py-2 text-[10px] uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
+                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
                                         >
                                             <Users className="h-3.5 w-3.5 shrink-0" />
                                             <span>Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})</span>
@@ -310,7 +310,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                             value={monsterSearch}
                                             onChange={(e) => setMonsterSearch(e.target.value)}
                                             placeholder="RECHERCHER..."
-                                            className="pl-9 bg-zinc-900/50 border-white/10 h-9 text-[10px] font-black uppercase tracking-[0.1em] placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-emerald-500/10 transition-all rounded-xl"
+                                            className="pl-9 bg-zinc-900/50 border-white/10 h-9 text-caption font-black uppercase tracking-[0.1em] placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-emerald-500/10 transition-all rounded-xl"
                                         />
                                     </div>
                                 </div>
@@ -322,14 +322,14 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                         </span>
-                                        <span className="font-bold text-emerald-400 text-[11px]">Recherché</span>
-                                        <span className="text-[10px] text-zinc-500 hidden xs:inline">(vous manque)</span>
+                                        <span className="font-bold text-emerald-400 text-caption">Recherché</span>
+                                        <span className="text-caption text-zinc-500 hidden xs:inline">(vous manque)</span>
                                     </div>
                                     <div className="w-px h-3 bg-white/10 shrink-0" />
                                     <div className="flex items-center gap-1.5">
                                         <span className="h-2 w-2 rounded-full bg-zinc-700 shrink-0" />
-                                        <span className="font-bold text-zinc-400 text-[11px]">Possédé</span>
-                                        <span className="text-[10px] text-zinc-500 hidden xs:inline">(déjà acquis)</span>
+                                        <span className="font-bold text-zinc-400 text-caption">Possédé</span>
+                                        <span className="text-caption text-zinc-500 hidden xs:inline">(déjà acquis)</span>
                                     </div>
                                 </div>
                             </div>
@@ -364,11 +364,11 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                 )}
                                                             </h4>
                                                             {monster.coversNeed && (
-                                                                <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">Recherché (vous manque)</span>
+                                                                <span className="text-caption text-emerald-500 font-bold uppercase tracking-wider">Recherché (vous manque)</span>
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Badge variant="outline" className="text-[10px] border-white/10 bg-black/20 text-zinc-400 font-bold">
+                                                    <Badge variant="outline" className="text-caption border-white/10 bg-black/20 text-zinc-400 font-bold">
                                                         x{monster.providers.length}
                                                     </Badge>
                                                 </div>
@@ -379,7 +379,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                 <Link href={`/dashboard/${guildId}/members/${provider.profileId}`} target="_blank" rel="noopener noreferrer">
                                                                     <Avatar className="h-5 w-5 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
                                                                         <AvatarImage src={provider.avatar} />
-                                                                        <AvatarFallback className="text-[8px] bg-zinc-800 text-zinc-400 font-bold">
+                                                                        <AvatarFallback className="text-caption bg-zinc-800 text-zinc-400 font-bold">
                                                                             {provider.name.substring(0, 2).toUpperCase()}
                                                                         </AvatarFallback>
                                                                     </Avatar>
@@ -391,7 +391,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                         rel="noopener noreferrer"
                                                                         className="text-zinc-300 hover:text-amber-400 font-semibold transition-colors cursor-pointer"
                                                                     >
-                                                                        {provider.name} <span className="text-zinc-500 text-[10px] ml-1 font-normal">(x{provider.count})</span>
+                                                                        {provider.name} <span className="text-zinc-500 text-caption ml-1 font-normal">(x{provider.count})</span>
                                                                     </Link>
                                                                 </div>
                                                             </div>
@@ -473,7 +473,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                     <p className="text-xs text-zinc-500">
                                                                         propose {partner.monstersTheyHave.length} monstres
                                                                     </p>
-                                                                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-semibold">
+                                                                    <span className="text-caption bg-zinc-800 text-zinc-400 px-1.5 rounded font-semibold">
                                                                         {partner.username}
                                                                     </span>
                                                                 </div>
@@ -575,7 +575,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                             {!hasOcreChannel && (
                                 <div className="mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
                                     <Bell className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                    <div className="text-[10px] text-amber-200/80 leading-relaxed font-medium">
+                                    <div className="text-caption text-amber-200/80 leading-relaxed font-medium">
                                         <span className="text-amber-500 font-bold block mb-0.5">Configuration Discord absente</span>
                                         Demandez à un officier de configurer le salon Ocre pour activer les notifications Discord.
                                     </div>
@@ -603,7 +603,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                         </p>
                                         {hasOcreChannel && sendDiscordPing && (
                                             <div className="flex items-center gap-1 mt-2 animate-in fade-in">
-                                                <span className="text-[10px] text-emerald-400/90 font-bold uppercase tracking-widest">
+                                                <span className="text-caption text-emerald-400/90 font-bold uppercase tracking-widest">
                                                     Sera posté dans #{targetChannelName}
                                                 </span>
                                             </div>

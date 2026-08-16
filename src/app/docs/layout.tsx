@@ -52,7 +52,7 @@ export default async function DocsLayout({
 
                     <div className="relative z-10 max-w-2xl">
                         <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-red-500/20 to-rose-500/10 border border-red-500/30 flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-red-500/20 group">
-                            <ShieldCheck className="w-12 h-12 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] group-hover:scale-110 transition-transform duration-500" />
+                            <ShieldCheck className="w-12 h-12 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] group- transition-transform duration-300" />
                         </div>
                         <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight uppercase font-heading">
                             Accès <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-400 italic">Réservé</span>
@@ -63,7 +63,7 @@ export default async function DocsLayout({
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                             <Link
                                 href="/"
-                                className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-black font-black uppercase text-[10px] tracking-[0.2em] hover:scale-105 transition-all shadow-2xl shadow-white/10 active:scale-95 group"
+                                className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-black font-black uppercase text-caption tracking-[0.2em]  transition-all shadow-2xl shadow-white/10 active:scale-95 group"
                             >
                                 Retour à l'accueil
                                 <Home className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
@@ -71,7 +71,7 @@ export default async function DocsLayout({
 
                             <Button
                                 variant="outline"
-                                className="px-10 h-14 rounded-full border-white/10 hover:border-white/20 hover:bg-white/5 text-zinc-300 font-black uppercase text-[10px] tracking-[0.2em] transition-all"
+                                className="px-10 h-14 rounded-full border-white/10 hover:border-white/20 hover:bg-white/5 text-zinc-300 font-black uppercase text-caption tracking-[0.2em] transition-all"
                                 asChild
                             >
                                 <Link href="/guilds">Explorer l'Annuaire</Link>
@@ -143,7 +143,7 @@ export default async function DocsLayout({
                             <div className="space-y-10">
                                 {/* Search Section */}
                                 <div>
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-4 px-1">Navigation</h4>
+                                    <h4 className="text-caption font-black uppercase tracking-widest text-zinc-600 mb-4 px-1">Navigation</h4>
                                     <DocsSearch />
                                 </div>
 
@@ -152,8 +152,8 @@ export default async function DocsLayout({
                                     {categories.map(category => (
                                         <div key={category} className="space-y-4">
                                             <div className="flex items-center gap-3 px-1">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
-                                                <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 " />
+                                                <h4 className="text-caption font-black uppercase tracking-widest text-zinc-400">
                                                     {category}
                                                 </h4>
                                             </div>
@@ -166,7 +166,7 @@ export default async function DocsLayout({
                                                             <Link
                                                                 href={`/docs/${doc.slug}`}
                                                                 className={cn(
-                                                                    "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-300 relative overflow-hidden",
+                                                                    "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-body-sm font-bold transition-all duration-300 relative overflow-hidden",
                                                                     "text-zinc-500 hover:text-white hover:bg-white/[0.03] border border-transparent hover:border-white/5",
                                                                     isSubPage && "ml-4 border-l border-white/5 rounded-l-none pl-4"
                                                                 )}

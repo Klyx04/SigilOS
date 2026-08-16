@@ -131,7 +131,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <button
                         onClick={() => setIsAutoRefresh(!isAutoRefresh)}
                         className={cn(
-                            "flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
+                            "flex items-center gap-2.5 px-4 py-2 rounded-xl text-caption font-black uppercase tracking-wider transition-all border",
                             isAutoRefresh 
                                 ? "bg-violet-500/10 text-violet-400 border-violet-500/20" 
                                 : "bg-zinc-900/50 text-zinc-500 border-white/5 hover:text-zinc-300"
@@ -150,7 +150,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                         disabled={isPending}
                         className="p-2.5 rounded-xl bg-zinc-900 border border-white/5 hover:border-white/10 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
                     >
-                        <RefreshCw className={cn("w-4 h-4 group-hover:rotate-180 transition-all duration-700", isPending && "animate-spin")} />
+                        <RefreshCw className={cn("w-4 h-4 group-hover:rotate-180 transition-all duration-300", isPending && "animate-spin")} />
                     </button>
                 </div>
             </div>
@@ -177,7 +177,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                         {t.label}
                         {t.count !== null && (
                             <span className={cn(
-                                "text-[9px] font-black px-1.5 py-0.5 rounded-md",
+                                "text-caption font-black px-1.5 py-0.5 rounded-md",
                                 telemetryTab === t.id ? "bg-violet-500/20 text-violet-300" : "bg-zinc-900 text-zinc-600"
                             )}>
                                 {t.count}
@@ -194,8 +194,8 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full" />
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Pages Vues (24h)</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group-hover:scale-105 transition-all duration-300">
+                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Pages Vues (24h)</span>
+                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
                                 {stats.summary.pageViews24h.toLocaleString()}
                             </span>
                         </div>
@@ -210,8 +210,8 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full" />
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Interactions (24h)</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group-hover:scale-105 transition-all duration-300">
+                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Interactions (24h)</span>
+                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
                                 {stats.summary.interactions24h.toLocaleString()}
                             </span>
                         </div>
@@ -226,8 +226,8 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Users Actifs (24h)</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group-hover:scale-105 transition-all duration-300">
+                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Users Actifs (24h)</span>
+                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
                                 {stats.summary.uniqueUsers24h.toLocaleString()}
                             </span>
                         </div>
@@ -242,8 +242,8 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full" />
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">Actions Moy. / User</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group-hover:scale-105 transition-all duration-300">
+                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Actions Moy. / User</span>
+                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
                                 {stats.summary.averageActionsPerUser}
                             </span>
                         </div>
@@ -266,7 +266,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 <Activity className="w-4 h-4 text-violet-400 animate-pulse" />
                                 Flux d'activité Live
                             </h3>
-                            <span className="text-[9px] font-black uppercase text-zinc-600 bg-zinc-900 border border-white/5 px-3 py-1 rounded-full">
+                            <span className="text-caption font-black uppercase text-zinc-600 bg-zinc-900 border border-white/5 px-3 py-1 rounded-full">
                                 {filteredEvents.length} événements
                             </span>
                         </div>
@@ -315,11 +315,11 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                                     <span className="text-xs font-black text-white block truncate">
                                                         {event.userName}
                                                     </span>
-                                                    <span className="text-[8px] text-zinc-500 font-bold uppercase block truncate leading-none mt-0.5">
+                                                    <span className="text-caption text-zinc-500 font-bold uppercase block truncate leading-none mt-0.5">
                                                         {event.guildName}
                                                     </span>
                                                 </div>
-                                                <span className="text-[9px] font-black text-zinc-500 uppercase shrink-0 font-mono">
+                                                <span className="text-caption font-black text-zinc-500 uppercase shrink-0 font-mono">
                                                     {new Date(event.createdAt).toLocaleTimeString("fr-FR", { 
                                                         hour: "2-digit", 
                                                         minute: "2-digit", 
@@ -332,7 +332,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                                 {/* Action label */}
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className={cn(
-                                                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-md border tracking-wider",
+                                                        "text-caption font-black uppercase px-2 py-0.5 rounded-md border tracking-wider",
                                                         isClick 
                                                             ? "bg-amber-500/5 text-amber-400 border-amber-500/10" 
                                                             : "bg-violet-500/5 text-violet-400 border-violet-500/10"
@@ -341,19 +341,19 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                                     </span>
 
                                                     {isClick ? (
-                                                        <span className="text-[10px] font-black text-zinc-400 truncate max-w-[320px]">
-                                                            Clic sur <code className="text-amber-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-[9px]">{event.elementId}</code>
+                                                        <span className="text-caption font-black text-zinc-400 truncate max-w-[320px]">
+                                                            Clic sur <code className="text-amber-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-caption">{event.elementId}</code>
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[10px] font-bold text-zinc-400 truncate max-w-[320px]">
-                                                            Navigué vers <code className="text-violet-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-[9px]">{event.path}</code>
+                                                        <span className="text-caption font-bold text-zinc-400 truncate max-w-[320px]">
+                                                            Navigué vers <code className="text-violet-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-caption">{event.path}</code>
                                                         </span>
                                                     )}
                                                 </div>
 
                                                 {/* Meta/details rendering */}
                                                 {event.details && typeof event.details === "object" && (
-                                                    <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider flex items-center gap-2 pt-1">
+                                                    <div className="text-caption text-zinc-600 font-bold uppercase tracking-wider flex items-center gap-2 pt-1">
                                                         {isClick ? (
                                                             (event.details as any).label && (
                                                                 <span>Label: "{(event.details as any).label}"</span>
@@ -395,7 +395,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             <span className="text-xs font-black text-violet-400 block font-mono">
                                 {stats.moduleStats?.length || 0} Modules analysés
                             </span>
-                            <span className="text-[9px] text-zinc-500 uppercase font-bold">
+                            <span className="text-caption text-zinc-500 uppercase font-bold">
                                 {selectedGuildId === "all" ? "Périmètre Global" : "Filtre Guilde Actif"}
                             </span>
                         </div>
@@ -414,7 +414,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                             <span className="text-xs font-black text-white uppercase tracking-wider block">
                                                 {mod.name}
                                             </span>
-                                            <span className="text-[9px] font-black text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-md">
+                                            <span className="text-caption font-black text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-md">
                                                 {mod.uniqueUsersCount} membres actifs
                                             </span>
                                         </div>
@@ -429,15 +429,15 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
 
                                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5 text-center">
                                         <div>
-                                            <span className="text-[8px] font-black text-zinc-500 uppercase block">Pages Vues</span>
+                                            <span className="text-caption font-black text-zinc-500 uppercase block">Pages Vues</span>
                                             <span className="text-xs font-black text-zinc-200">{mod.views}</span>
                                         </div>
                                         <div>
-                                            <span className="text-[8px] font-black text-zinc-500 uppercase block">Clics</span>
+                                            <span className="text-caption font-black text-zinc-500 uppercase block">Clics</span>
                                             <span className="text-xs font-black text-amber-400">{mod.interactions}</span>
                                         </div>
                                         <div>
-                                            <span className="text-[8px] font-black text-zinc-500 uppercase block">Total</span>
+                                            <span className="text-caption font-black text-zinc-500 uppercase block">Total</span>
                                             <span className="text-xs font-black text-violet-400">{mod.totalActions}</span>
                                         </div>
                                     </div>
@@ -457,10 +457,10 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             <div className="space-y-3">
                                 {stats.topInteractions.slice(0, 7).map((item: any) => (
                                     <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
-                                        <code className="text-emerald-300 font-mono text-[10px] bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
+                                        <code className="text-emerald-300 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
                                             {item.elementId}
                                         </code>
-                                        <span className="text-zinc-400 font-mono text-[10px]">{item.count} clics</span>
+                                        <span className="text-zinc-400 font-mono text-caption">{item.count} clics</span>
                                     </div>
                                 ))}
                             </div>
@@ -475,10 +475,10 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             <div className="space-y-3">
                                 {stats.topInteractions.slice(-7).reverse().map((item: any) => (
                                     <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
-                                        <code className="text-amber-300/80 font-mono text-[10px] bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
+                                        <code className="text-amber-300/80 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
                                             {item.elementId}
                                         </code>
-                                        <span className="text-zinc-500 font-mono text-[10px]">{item.count} clic(s)</span>
+                                        <span className="text-zinc-500 font-mono text-caption">{item.count} clic(s)</span>
                                     </div>
                                 ))}
                             </div>
@@ -498,9 +498,9 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                     <TrendingUp className="w-4 h-4 text-violet-400" />
                                     Activité par heure (Dernières 24h)
                                 </h3>
-                                <p className="text-zinc-500 text-[11px] font-medium">Comparatif des consultations de pages et des clics d'interaction.</p>
+                                <p className="text-zinc-500 text-caption font-medium">Comparatif des consultations de pages et des clics d'interaction.</p>
                             </div>
-                            <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
+                            <div className="flex gap-4 text-caption font-black uppercase tracking-widest">
                                 <span className="flex items-center gap-1.5 text-violet-400">
                                     <span className="w-2.5 h-2.5 rounded-full bg-violet-500/20 border border-violet-500" /> Pages Vues
                                 </span>
@@ -587,7 +587,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                         return (
                                             <div key={item.path} className="space-y-1.5">
                                                 <div className="flex justify-between text-xs font-bold text-zinc-300">
-                                                    <span className="truncate max-w-[350px] font-mono text-[11px]">{item.path}</span>
+                                                    <span className="truncate max-w-[350px] font-mono text-caption">{item.path}</span>
                                                     <span className="text-zinc-400">{item.count} vues</span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
@@ -619,7 +619,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                         return (
                                             <div key={item.elementId} className="space-y-1.5">
                                                 <div className="flex justify-between text-xs font-bold text-zinc-300">
-                                                    <span className="truncate max-w-[350px] font-mono text-[10px] text-amber-400/90">{item.elementId}</span>
+                                                    <span className="truncate max-w-[350px] font-mono text-caption text-amber-400/90">{item.elementId}</span>
                                                     <span className="text-zinc-400">{item.count} clics</span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
@@ -654,15 +654,15 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 stats.topUsers.map((item: any) => (
                                     <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-7 h-7 rounded-lg bg-zinc-950/60 flex items-center justify-center border border-white/5 text-[10px] font-black text-emerald-400">
+                                            <div className="w-7 h-7 rounded-lg bg-zinc-950/60 flex items-center justify-center border border-white/5 text-caption font-black text-emerald-400">
                                                 {item.userName.substring(0, 2).toUpperCase()}
                                             </div>
                                             <div>
                                                 <span className="text-xs font-bold text-white block leading-tight">{item.userName}</span>
-                                                <span className="text-[9px] text-zinc-500 font-semibold uppercase">{item.guildName}</span>
+                                                <span className="text-caption text-zinc-500 font-semibold uppercase">{item.guildName}</span>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-white/5">
+                                        <span className="text-caption font-black uppercase text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-white/5">
                                             {item.count} act.
                                         </span>
                                     </div>
@@ -682,12 +682,12 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 <p className="text-zinc-600 text-xs italic">Aucune connexion enregistrée</p>
                             ) : (
                                 stats.usersLastSeen.map((item: any) => (
-                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 text-[11px]">
+                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 text-caption">
                                         <div className="min-w-0">
                                             <span className="font-bold text-white block truncate">{item.userName}</span>
-                                            <span className="text-[9px] text-zinc-500 font-semibold uppercase truncate block">{item.guildName}</span>
+                                            <span className="text-caption text-zinc-500 font-semibold uppercase truncate block">{item.guildName}</span>
                                         </div>
-                                        <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-white/5 shrink-0">
+                                        <span className="text-caption font-semibold text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-white/5 shrink-0">
                                             {item.lastActive ? new Date(item.lastActive).toLocaleDateString("fr-FR", {
                                                 day: "2-digit",
                                                 month: "2-digit",
@@ -720,7 +720,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 return (
                                     <div key={item.guildId} className="space-y-1.5">
                                         <div className="flex justify-between text-xs font-bold text-zinc-300">
-                                            <span className="truncate max-w-[400px] font-mono text-[11px] text-emerald-400/90">{item.guildName}</span>
+                                            <span className="truncate max-w-[400px] font-mono text-caption text-emerald-400/90">{item.guildName}</span>
                                             <span className="text-zinc-400">{item.count} actions</span>
                                         </div>
                                         <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">

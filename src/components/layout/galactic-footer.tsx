@@ -87,7 +87,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
 
                             <div className="h-3 w-px bg-white/10 hidden sm:block" />
 
-                            <nav className="hidden sm:flex items-center gap-4 text-[10px] font-medium text-zinc-400">
+                            <nav className="hidden sm:flex items-center gap-4 text-caption font-medium text-zinc-400">
                                 <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
                                 <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
                                 <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions</Link>
@@ -105,7 +105,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                                 systemStatus === "degraded" ? "bg-amber-400" : 
                                 "bg-red-400"
                             )}></div>
-                            <span className="text-[10px] font-semibold text-zinc-300">
+                            <span className="text-caption font-semibold text-zinc-300">
                                 {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
                             </span>
                         </Link>
@@ -153,7 +153,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
 
                     {/* Resources */}
                     <div className="space-y-6">
-                        <h4 className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Plateforme</h4>
+                        <h4 className="text-white text-caption font-black uppercase tracking-widest">Plateforme</h4>
                         <nav className="flex flex-col gap-4">
                             <Link href="/guilds" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Annuaire de Guildes</Link>
                             <Link href="/changelog" className="text-zinc-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">Mises à jour</Link>
@@ -163,7 +163,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
 
                     {/* Status Badge & Discord */}
                     <div className="space-y-6">
-                        <h4 className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Système</h4>
+                        <h4 className="text-white text-caption font-black uppercase tracking-widest">Système</h4>
                         <div className="flex flex-col gap-4 items-start">
                             <Link href="/status" className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-colors">
                                 <div className={cn(
@@ -173,7 +173,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                                 )} />
                                 <div className="flex flex-col">
                                     <span className={cn(
-                                        "text-[10px] font-black uppercase tracking-widest",
+                                        "text-caption font-black uppercase tracking-widest",
                                         systemStatus === "online" ? "text-emerald-500" : "text-white"
                                     )}>
                                         {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
@@ -183,7 +183,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                             <Link
                                 href="https://discord.gg/uX7G6SUDgN"
                                 target="_blank"
-                                className="flex items-center gap-3 text-emerald-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest group"
+                                className="flex items-center gap-3 text-emerald-500 hover:text-white transition-colors text-caption font-black uppercase tracking-widest group"
                             >
                                 <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-colors">
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -199,13 +199,13 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                 {/* Bottom Bar: Legal & Credits */}
                 <div className="pt-8 border-t border-white/5 flex flex-col lg:flex-row justify-between items-center gap-8">
                     <div className="flex flex-col gap-4 text-center lg:text-left w-full lg:w-auto">
-                        <div className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">
+                        <div className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-caption font-black text-zinc-600 uppercase tracking-[0.2em]">
                             <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
                             <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
                             <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions</Link>
                             <Link href="/legal/faq" className="hover:text-white transition-colors">Aide</Link>
                         </div>
-                        <p className="text-zinc-600 text-[10px] font-medium leading-relaxed max-w-xl opacity-60">
+                        <p className="text-zinc-600 text-caption font-medium leading-relaxed max-w-xl opacity-60">
                             SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.
                             Tous droits réservés. © 2026 Sigil Project.
                         </p>

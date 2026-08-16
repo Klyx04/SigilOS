@@ -124,7 +124,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
 
                         {/* Step 2 */}
                         <div className="relative pl-6 border-l-2 border-indigo-500/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-indigo-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-indigo-500 border-2 border-zinc-950 " />
                             <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
 
                             <div className="space-y-4">
@@ -184,7 +184,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-indigo-400">SigilOS</span>
-                                        <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-1 rounded">BOT</span>
+                                        <span className="bg-indigo-500/20 text-indigo-300 text-caption px-1 rounded">BOT</span>
                                         <span className="text-xs text-zinc-500">Maintenant</span>
                                     </div>
 
@@ -201,22 +201,22 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
 
                                         <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                                             <div>
-                                                <div className="text-[#b5bac1] text-[9px] font-bold uppercase tracking-wider mb-0.5">Activité</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Activité</div>
                                                 <div className="text-zinc-200 text-xs">SUCCÈS / SCORE</div>
                                             </div>
                                             <div>
-                                                <div className="text-[#b5bac1] text-[9px] font-bold uppercase tracking-wider mb-0.5">Places</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Places</div>
                                                 <div className="text-zinc-200 text-xs">👥 2 / 4</div>
                                             </div>
                                             <div className="col-span-2">
-                                                <div className="text-[#b5bac1] text-[9px] font-bold uppercase tracking-wider mb-0.5">Description</div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Description</div>
                                                 <div className="text-zinc-200 text-xs">Besoin d'un Panda et Enu pour le succès.</div>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
                                             <div className="w-4 h-4 rounded-full bg-zinc-700" />
-                                            <span className="text-[#949ba4] text-[10px]">SigilOS • Dungeon Finder</span>
+                                            <span className="text-[#949ba4] text-caption">SigilOS • Dungeon Finder</span>
                                         </div>
                                     </div>
                                 </div>

@@ -73,7 +73,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                 <div>
                     <button 
                         onClick={() => router.back()}
-                        className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-[10px] font-black uppercase italic mb-2"
+                        className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-caption font-black uppercase italic mb-2"
                     >
                         <ArrowLeft size={14} /> Retour Admin
                     </button>
@@ -112,7 +112,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-black text-white truncate uppercase italic">{b.name}</p>
-                                <p className="text-[10px] font-bold text-white/40 truncate">{b.zoneName || "Zone Inconnue"}</p>
+                                <p className="text-caption font-bold text-white/40 truncate">{b.zoneName || "Zone Inconnue"}</p>
                             </div>
                         </button>
                     ))}
@@ -137,7 +137,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
 
                                 <div className="space-y-8">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest italic">Nom de l'avis</label>
+                                        <label className="text-caption font-black text-rose-500/60 uppercase tracking-widest italic">Nom de l'avis</label>
                                         <Input 
                                             value={selectedBounty.name} 
                                             onChange={(e) => setSelectedBounty({...selectedBounty, name: e.target.value})}
@@ -146,7 +146,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest italic">Niveau</label>
+                                            <label className="text-caption font-black text-rose-500/60 uppercase tracking-widest italic">Niveau</label>
                                             <Input 
                                                 type="number"
                                                 value={selectedBounty.level} 
@@ -155,7 +155,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest italic">Zone(s)</label>
+                                            <label className="text-caption font-black text-rose-500/60 uppercase tracking-widest italic">Zone(s)</label>
                                             <Input 
                                                 value={selectedBounty.zoneName} 
                                                 onChange={(e) => setSelectedBounty({...selectedBounty, zoneName: e.target.value})}
@@ -174,7 +174,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                     </h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest italic">Quantité</label>
+                                            <label className="text-caption font-black text-white/40 uppercase tracking-widest italic">Quantité</label>
                                             <Input 
                                                 type="number"
                                                 value={selectedBounty.doplons} 
@@ -183,7 +183,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest italic">Type</label>
+                                            <label className="text-caption font-black text-white/40 uppercase tracking-widest italic">Type</label>
                                             <select 
                                                 value={selectedBounty.rewardType}
                                                 onChange={(e) => setSelectedBounty({...selectedBounty, rewardType: e.target.value})}
@@ -197,7 +197,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest italic">Milice / Ordre</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest italic">Milice / Ordre</label>
                                         <Input 
                                             value={selectedBounty.milice} 
                                             onChange={(e) => setSelectedBounty({...selectedBounty, milice: e.target.value})}
@@ -211,7 +211,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                         <Sparkles className="text-blue-400" size={20} /> Mécaniques
                                     </h3>
                                     <div className="space-y-2 h-full flex flex-col">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest italic">Résumé Tactique</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest italic">Résumé Tactique</label>
                                         <Textarea 
                                             value={selectedBounty.mechanics} 
                                             onChange={(e) => setSelectedBounty({...selectedBounty, mechanics: e.target.value})}

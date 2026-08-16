@@ -185,7 +185,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-white/10 overflow-hidden shadow-[0_0_60px_rgba(139,92,246,0.25)] bg-zinc-950/80 backdrop-blur-2xl"
+                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-white/10 overflow-hidden  bg-zinc-950/80 backdrop-blur-2xl"
                     >
                         {/* Decorative background glows */}
                         <div className="absolute -top-24 -left-24 w-64 h-64 bg-violet-600/20 rounded-full blur-[100px]" />
@@ -195,7 +195,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                             {/* Step indicators — nombre de points = étapes du flux (pseudo/classe + activités) */}
                             <div className="flex items-center gap-3">
                                 {flowSteps.map(s => (
-                                    <div key={s} className={cn("w-2 h-2 rounded-full transition-all duration-300", step === s ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
+                                    <div key={s} className={cn("w-2 h-2 rounded-full transition-all duration-300", step === s ? "bg-violet-500 scale-125 " : "bg-white/20")} />
                                 ))}
                             </div>
 
@@ -220,7 +220,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
 
                                     <form onSubmit={handlePseudoSubmit} className="space-y-4 text-left max-w-md mx-auto">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 pl-1">Pseudo Dofus Exact</label>
+                                            <label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 pl-1">Pseudo Dofus Exact</label>
                                             <Input
                                                 placeholder="Ex: Dark-Iop"
                                                 value={pseudo}
@@ -289,14 +289,14 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                                     className={cn(
                                                         "flex flex-col items-center justify-center p-2 rounded-xl border transition-all relative group",
                                                         isSelected 
-                                                            ? "bg-violet-500/20 border-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.2)]" 
+                                                            ? "bg-violet-500/20 border-violet-500 " 
                                                             : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/15"
                                                     )}
                                                 >
                                                     <div className="w-10 h-10 relative flex items-center justify-center">
                                                         <img src={cls.icon} alt={cls.name} className="w-8 h-8 object-contain" />
                                                     </div>
-                                                    <span className="text-[9px] font-black uppercase tracking-tight text-zinc-400 mt-1 truncate w-full group-hover:text-white transition-colors">{cls.name}</span>
+                                                    <span className="text-caption font-black uppercase tracking-tight text-zinc-400 mt-1 truncate w-full group-hover:text-white transition-colors">{cls.name}</span>
                                                     {isSelected && (
                                                         <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5 shadow-md">
                                                             <Check className="w-2.5 h-2.5 text-white" />

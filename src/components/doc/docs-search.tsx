@@ -49,7 +49,7 @@ export function DocsSearch() {
             >
                 <Search className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors" />
                 <span className="flex-1 truncate">Rechercher...</span>
-                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-white/10 bg-zinc-950 px-1.5 font-mono text-[10px] font-medium text-zinc-500">
+                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-white/10 bg-zinc-950 px-1.5 font-mono text-caption font-medium text-zinc-500">
                     <span className="text-xs">Ctrl</span>K
                 </kbd>
             </button>
@@ -57,7 +57,7 @@ export function DocsSearch() {
             <CommandDialog 
                 open={open} 
                 onOpenChange={setOpen}
-                className="max-w-[600px] bg-zinc-950 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+                className="max-w-[600px] bg-zinc-950 border-white/10  backdrop-blur-2xl"
             >
                 <DialogTitle className="sr-only">Recherche Documentation</DialogTitle>
                 <div className="relative">
@@ -91,7 +91,7 @@ export function DocsSearch() {
                                         {doc.title}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[9px] uppercase tracking-[0.2em] font-black text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-white/5 group-data-[selected=true]:border-indigo-500/20 group-data-[selected=true]:text-indigo-500/80">
+                                        <span className="text-caption uppercase tracking-[0.2em] font-black text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-white/5 group-data-[selected=true]:border-indigo-500/20 group-data-[selected=true]:text-indigo-500/80">
                                             {doc.category}
                                         </span>
                                         {doc.excerpt && (
@@ -109,15 +109,15 @@ export function DocsSearch() {
                 <div className="p-3 border-t border-white/5 bg-zinc-950/50 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                          <div className="flex items-center gap-1.5">
-                            <kbd className="px-1.5 py-0.5 rounded border border-white/10 bg-zinc-900 text-[10px] font-black text-zinc-500">↑↓</kbd>
-                            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Naviguer</span>
+                            <kbd className="px-1.5 py-0.5 rounded border border-white/10 bg-zinc-900 text-caption font-black text-zinc-500">↑↓</kbd>
+                            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">Naviguer</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <kbd className="px-1.5 py-0.5 rounded border border-white/10 bg-zinc-900 text-[10px] font-black text-zinc-500">Enter</kbd>
-                            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Ouvrir</span>
+                            <kbd className="px-1.5 py-0.5 rounded border border-white/10 bg-zinc-900 text-caption font-black text-zinc-500">Enter</kbd>
+                            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest">Ouvrir</span>
                         </div>
                     </div>
-                    <span className="text-[8px] font-black text-indigo-500/40 uppercase tracking-[0.3em]">SigilOS Search Index</span>
+                    <span className="text-caption font-black text-indigo-500/40 uppercase tracking-widest">SigilOS Search Index</span>
                 </div>
             </CommandDialog>
         </>

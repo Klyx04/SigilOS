@@ -67,7 +67,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                             {initialData?.id ? "Mise à jour d'Archive" : "Nouvelle Entrée Documentaire"}
                         </h2>
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Status:</span>
+                            <span className="text-caption font-bold text-zinc-500 uppercase tracking-tighter">Status:</span>
                             <Badge status={formData.isPublished ? "online" : "draft"} />
                         </div>
                     </div>
@@ -121,7 +121,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-3xl border border-white/5 bg-white/[0.02]">
                                 {/* TITRE */}
                                 <div className="space-y-4 md:col-span-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Titre de la page</Label>
+                                    <Label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">Titre de la page</Label>
                                     <Input
                                         value={formData.title}
                                         onChange={(e) => handleChange("title", e.target.value)}
@@ -133,8 +133,8 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                 {/* SLUG */}
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Lien d'accès (URL Slug)</Label>
-                                        <span className="text-[9px] text-teal-500/60 font-bold uppercase tracking-tighter">Unique</span>
+                                        <Label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">Lien d'accès (URL Slug)</Label>
+                                        <span className="text-caption text-teal-500/60 font-bold uppercase tracking-tighter">Unique</span>
                                     </div>
                                     <div className="relative">
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 text-sm font-bold">/docs/</div>
@@ -151,10 +151,10 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                 {/* CATEGORY (Classification) */}
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Catégorie (Classification)</Label>
+                                        <Label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">Catégorie (Classification)</Label>
                                         <div className="group relative">
                                             <HelpCircle className="w-3.5 h-3.5 text-zinc-600 cursor-help" />
-                                            <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-zinc-900 border border-white/10 rounded text-[9px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none shadow-2xl">
+                                            <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-zinc-900 border border-white/10 rounded text-caption text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none shadow-2xl">
                                                 Ex: <strong>Guides Utilisateurs</strong>, <strong>Administration</strong> ou <strong>Documentation Technique</strong>.
                                             </div>
                                         </div>
@@ -169,7 +169,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
 
                                 {/* ACCESS LEVEL */}
                                 <div className="space-y-4">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Niveau d'Accès</Label>
+                                    <Label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500">Niveau d'Accès</Label>
                                     <Select
                                         value={formData.accessLevel}
                                         onValueChange={(val: any) => handleChange("accessLevel", val)}
@@ -183,7 +183,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                                     <Globe className="w-4 h-4 text-teal-400" />
                                                     <div className="flex flex-col text-left">
                                                         <span className="font-bold text-xs uppercase tracking-widest text-white">Public</span>
-                                                        <span className="text-[9px] text-zinc-500 font-medium">Visible par tous les membres</span>
+                                                        <span className="text-caption text-zinc-500 font-medium">Visible par tous les membres</span>
                                                     </div>
                                                 </div>
                                             </SelectItem>
@@ -192,7 +192,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                                     <Shield className="w-4 h-4 text-amber-500" />
                                                     <div className="flex flex-col text-left">
                                                         <span className="font-bold text-xs uppercase tracking-widest text-white">Administration</span>
-                                                        <span className="text-[9px] text-zinc-500 font-medium">Réservé aux Officiers / Staff</span>
+                                                        <span className="text-caption text-zinc-500 font-medium">Réservé aux Officiers / Staff</span>
                                                     </div>
                                                 </div>
                                             </SelectItem>
@@ -205,8 +205,8 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                 <div className="space-y-4 flex flex-col justify-end">
                                     <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex items-center justify-between h-12">
                                         <div className="flex items-center gap-2">
-                                            <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px]", formData.isPublished ? "bg-teal-500 shadow-teal-500/50" : "bg-zinc-600 shadow-transparent")} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Visibilité publique</span>
+                                            <div className={cn("w-1.5 h-1.5 rounded-full ", formData.isPublished ? "bg-teal-500 shadow-teal-500/50" : "bg-zinc-600 shadow-transparent")} />
+                                            <span className="text-caption font-black uppercase tracking-widest text-zinc-400">Visibilité publique</span>
                                         </div>
                                         <button
                                             onClick={() => handleChange("isPublished", !formData.isPublished)}
@@ -229,7 +229,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
                                     <Label className="text-sm font-black uppercase tracking-widest text-zinc-500">Contenu (Rich Text)</Label>
-                                    <span className="text-[10px] text-zinc-600 font-mono italic">Markdown supporté</span>
+                                    <span className="text-caption text-zinc-600 font-mono italic">Markdown supporté</span>
                                 </div>
                                 <AdvancedEditor
                                     initialContent={formData.content}
@@ -248,7 +248,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                     <div className="p-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <Eye className="w-3 h-3 text-teal-400" />
-                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Rendu Temps Réel</span>
+                                            <span className="text-caption font-black text-white/40 uppercase tracking-[0.2em]">Rendu Temps Réel</span>
                                         </div>
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-12 scrollbar-thin scrollbar-thumb-white/10">
@@ -271,7 +271,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
 function Badge({ status }: { status: "online" | "draft" }) {
     return (
         <div className={cn(
-            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border",
+            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-caption font-black uppercase tracking-wider border",
             status === "online"
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 : "bg-amber-500/10 text-amber-500 border-amber-500/20"

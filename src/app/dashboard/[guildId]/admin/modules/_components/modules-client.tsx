@@ -389,7 +389,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                         <div key={group.label} className="space-y-8">
                         <div className="flex items-center gap-4 px-2">
                              <div className="h-0.5 w-8 bg-white/15" />
-                            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
+                            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
                                 {group.label}
                             </h3>
                         </div>
@@ -416,14 +416,14 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                             <div className="flex items-start justify-between gap-4 mb-6">
                                                 <div className="flex items-center gap-4">
                                                     <div className={cn(
-                                                        "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-all duration-200",
+                                                        "relative h-14 w-14 rounded-2xl flex items-center justify-center border transition-colors duration-200",
                                                         isEnabled 
-                                                            ? `bg-white/[0.03] ${mod.borderColor}`
+                                                            ? "bg-emerald-500/[0.06] border-emerald-500/30"
                                                             : "bg-white/[0.01] border-white/5"
                                                     )}>
                                                         <Icon className={cn(
-                                                            "w-7 h-7 transition-all duration-200",
-                                                            isEnabled ? mod.color : "text-zinc-600"
+                                                            "w-7 h-7 transition-colors duration-200",
+                                                            isEnabled ? "text-emerald-400" : "text-zinc-600"
                                                         )} strokeWidth={1.5} />
                                                     </div>
 
@@ -510,7 +510,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
             {/* Support Note */}
             <div className="pt-16 pb-10 text-center space-y-4">
                 <div className="h-px w-32 bg-white/5 mx-auto" />
-                <p className="text-xs font-medium text-zinc-600 uppercase tracking-[0.25em]">
+                <p className="text-xs font-medium text-zinc-600 uppercase tracking-widest">
                     Modules de la guilde
                 </p>
             </div>

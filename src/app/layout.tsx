@@ -121,7 +121,7 @@ export default async function RootLayout({
                 theme="dark"
                 toastOptions={{
                   className: "group font-sans border-white/5 bg-[#0d0f11]/90 backdrop-blur-2xl text-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-4 border border-zinc-500/10",
-                  descriptionClassName: "text-zinc-400 font-medium text-[13px]",
+                  descriptionClassName: "text-zinc-400 font-medium text-body-sm",
                   style: {
                     borderLeft: '3px solid rgba(255,255,255,0.1)',
                   },

@@ -40,7 +40,7 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
         if (active && payload && payload.length) {
             return (
                 <div className="bg-zinc-900/95 border border-white/10 p-3 rounded-lg shadow-2xl backdrop-blur-md">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-caption font-bold text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
                     <p className="text-sm font-bold text-white">
                         {unit === "kamas" 
                             ? `${(payload[0].value / 1000000).toFixed(1)}M kamas` 
@@ -57,7 +57,7 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 {/* Répartition */}
                 <div className="flex flex-col">
-                    <h4 className="text-[10px] font-bold text-zinc-500 mb-6 uppercase tracking-widest flex items-center gap-2">
+                    <h4 className="text-caption font-bold text-zinc-500 mb-6 uppercase tracking-widest flex items-center gap-2">
                         <span className="w-1 h-1 rounded-full bg-emerald-500" />
                         Répartition par catégorie
                     </h4>
@@ -91,7 +91,7 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                                 <span className="text-2xl font-black text-white leading-none">
                                     {pieData.reduce((acc, curr) => acc + curr.value, 0)}
                                 </span>
-                                <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">Total</span>
+                                <span className="text-caption text-zinc-500 uppercase font-bold tracking-tighter">Total</span>
                             </div>
                         </div>
                     )}
@@ -99,7 +99,7 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                         {pieData.map((entry, i) => (
                             <div key={entry.name} className="flex items-center gap-1.5 no-wrap">
                                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                <span className="text-[11px] font-medium text-zinc-400">{entry.name}</span>
+                                <span className="text-caption font-medium text-zinc-400">{entry.name}</span>
                             </div>
                         ))}
                     </div>
@@ -107,7 +107,7 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
 
                 {/* Top Validations */}
                 <div className="flex flex-col">
-                    <h4 className="text-[10px] font-bold text-zinc-500 mb-6 uppercase tracking-widest flex items-center gap-2">
+                    <h4 className="text-caption font-bold text-zinc-500 mb-6 uppercase tracking-widest flex items-center gap-2">
                         <span className="w-1 h-1 rounded-full bg-violet-500" />
                         Efficacité du Staff
                     </h4>
@@ -149,7 +149,7 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
 
             {/* Top Donors */}
             <div className="pt-8 border-t border-white/5">
-                <h4 className="text-[10px] font-bold text-zinc-500 mb-8 uppercase tracking-widest flex items-center gap-2">
+                <h4 className="text-caption font-bold text-zinc-500 mb-8 uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1 h-1 rounded-full bg-amber-500" />
                     Grands Philanthropes (Kamas)
                 </h4>

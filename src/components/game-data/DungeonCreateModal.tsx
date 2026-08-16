@@ -99,7 +99,7 @@ export function DungeonCreateModal({
               <span className="text-xl tracking-tight text-white leading-none">
                 Donjon Non Peuplé
               </span>
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+              <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">
                 Base de données de jeu
               </span>
             </div>
@@ -124,7 +124,7 @@ export function DungeonCreateModal({
           <div className="space-y-4">
             {/* Dungeon Name (Read-only) */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">Nom du Donjon</label>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">Nom du Donjon</label>
               <input
                 type="text"
                 value={name}
@@ -136,7 +136,7 @@ export function DungeonCreateModal({
             {/* DofusDB ID (Read-only / optional) */}
             {dofusdbId && (
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">ID DofusDB</label>
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">ID DofusDB</label>
                 <input
                   type="text"
                   value={dofusdbId}
@@ -148,7 +148,7 @@ export function DungeonCreateModal({
 
             {/* Boss Name */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">Nom du Gardien (Boss) *</label>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">Nom du Gardien (Boss) *</label>
               <div className="relative group">
                 <Swords className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-rose-500 transition-colors" />
                 <input
@@ -165,7 +165,7 @@ export function DungeonCreateModal({
 
             {/* Level */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">Niveau du Donjon (1-200) *</label>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">Niveau du Donjon (1-200) *</label>
               <div className="relative group">
                 <Trophy className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-rose-500 transition-colors" />
                 <input
@@ -183,7 +183,7 @@ export function DungeonCreateModal({
 
             {/* Image URL */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">URL de l'image (Optionnel)</label>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">URL de l'image (Optionnel)</label>
               <div className="relative group">
                 <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-rose-500 transition-colors" />
                 <input
@@ -199,7 +199,7 @@ export function DungeonCreateModal({
 
             {/* DPNL URL */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">Lien Dofus pour les Noobs (Optionnel)</label>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">Lien Dofus pour les Noobs (Optionnel)</label>
               <div className="relative group">
                 <Link className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-rose-500 transition-colors" />
                 <input
@@ -215,7 +215,7 @@ export function DungeonCreateModal({
 
             {/* Dofensive URL */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block ml-1">Lien Dofensive (Optionnel)</label>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block ml-1">Lien Dofensive (Optionnel)</label>
               <div className="relative group">
                 <Link className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-rose-500 transition-colors" />
                 <input

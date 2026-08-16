@@ -110,7 +110,7 @@ export default async function PublicRoadmapPage() {
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex items-center gap-3">
                                                         <h3 className="font-semibold text-zinc-100 flex items-center gap-2">
-                                                            {item.priority === "HIGH" && <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider">Haut</span>}
+                                                            {item.priority === "HIGH" && <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded text-caption font-semibold uppercase tracking-wider">Haut</span>}
                                                             {item.title}
                                                         </h3>
                                                     </div>

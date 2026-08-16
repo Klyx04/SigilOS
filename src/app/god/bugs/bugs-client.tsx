@@ -340,7 +340,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="border border-white/5 bg-zinc-950/40 rounded-xl overflow-hidden">
                         <CardContent className="p-5 space-y-3">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60">
+                            <div className="flex items-center gap-2 text-caption font-black uppercase tracking-widest text-white/60">
                                 <Trophy className="w-4 h-4 text-amber-400" />
                                 Top Contributeurs
                             </div>
@@ -361,7 +361,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
 
                     <Card className="border border-white/5 bg-zinc-950/40 rounded-xl overflow-hidden">
                         <CardContent className="p-5 space-y-3">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60">
+                            <div className="flex items-center gap-2 text-caption font-black uppercase tracking-widest text-white/60">
                                 <MessageSquareText className="w-4 h-4 text-indigo-400" />
                                 Par Catégorie
                             </div>
@@ -378,7 +378,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
 
                     <Card className="border border-white/5 bg-zinc-950/40 rounded-xl overflow-hidden">
                         <CardContent className="p-5 space-y-3">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60">
+                            <div className="flex items-center gap-2 text-caption font-black uppercase tracking-widest text-white/60">
                                 <Hash className="w-4 h-4 text-emerald-400" />
                                 Par Guilde
                             </div>
@@ -449,7 +449,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
 
             {/* CREATE MODAL */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="sm:max-w-[600px] p-0 bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden rounded-2xl">
+                <DialogContent className="sm:max-w-[600px] p-0 bg-zinc-950 border border-white/10  overflow-hidden rounded-2xl">
                     <div className="px-6 py-5 border-b border-white/5 bg-zinc-900/20">
                         <DialogTitle className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
                             <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20">
@@ -470,7 +470,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                         <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)} className="text-zinc-400 hover:text-white hover:bg-white/5">
                             Annuler
                         </Button>
-                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all">
+                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8  transition-all">
                             Créer le ticket
                         </Button>
                     </DialogFooter>
@@ -479,7 +479,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
 
             {/* EDIT MODAL */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="sm:max-w-[600px] p-0 bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden rounded-2xl">
+                <DialogContent className="sm:max-w-[600px] p-0 bg-zinc-950 border border-white/10  overflow-hidden rounded-2xl">
                     <div className="px-6 py-5 border-b border-white/5 bg-zinc-900/20">
                         <DialogTitle className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
                             <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
@@ -500,7 +500,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                         <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)} className="text-zinc-400 hover:text-white hover:bg-white/5">
                             Annuler
                         </Button>
-                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all">
+                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8  transition-all">
                             Sauvegarder
                         </Button>
                     </DialogFooter>
@@ -509,7 +509,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
 
             {/* NOTIFY GOD MODAL */}
             <Dialog open={!!notifyIssue} onOpenChange={(v) => { if (!v) setNotifyIssue(null); }}>
-                <DialogContent className="sm:max-w-[480px] p-0 bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden rounded-2xl">
+                <DialogContent className="sm:max-w-[480px] p-0 bg-zinc-950 border border-white/10  overflow-hidden rounded-2xl">
                     <div className="px-6 py-5 border-b border-white/5 bg-zinc-900/20">
                         <DialogTitle className="text-xl font-black text-white flex items-center gap-3 tracking-tight">
                             <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
@@ -557,7 +557,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                         <Button type="button" variant="ghost" onClick={() => setNotifyIssue(null)} className="text-zinc-400 hover:text-white hover:bg-white/5">
                             Annuler
                         </Button>
-                        <Button onClick={handleNotify} disabled={isNotifying || !notifyMessage.trim()} className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6 shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all">
+                        <Button onClick={handleNotify} disabled={isNotifying || !notifyMessage.trim()} className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6  transition-all">
                             <Send className="w-3.5 h-3.5 mr-2" />
                             {isNotifying ? "Envoi…" : "Envoyer"}
                         </Button>
@@ -609,7 +609,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                                         </TableCell>
 
                                         <TableCell>
-                                            <Badge variant="outline" className={`${PRIORITY_COLORS[issue.priority] || "bg-secondary text-secondary-foreground shadow-none"} uppercase tracking-wider text-[10px] whitespace-nowrap border px-2 py-0 h-5`}>
+                                            <Badge variant="outline" className={`${PRIORITY_COLORS[issue.priority] || "bg-secondary text-secondary-foreground shadow-none"} uppercase tracking-wider text-caption whitespace-nowrap border px-2 py-0 h-5`}>
                                                 {issue.priority}
                                             </Badge>
                                         </TableCell>
@@ -620,7 +620,7 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                                                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                                                 )}
                                                 {issue.feedbackType && (
-                                                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[9px] shrink-0">
+                                                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-caption shrink-0">
                                                         Feedback membre
                                                     </Badge>
                                                 )}
@@ -637,18 +637,18 @@ export function BugsClient({ initialIssues, initialTicketParam }: { initialIssue
                                             {issue.feedbackType && (
                                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                     {issue.memberName && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-300">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-caption font-bold text-indigo-300">
                                                             👤 {issue.memberName}
                                                         </span>
                                                     )}
                                                     {issue.memberGuildName && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/60 border border-white/10 text-[10px] font-bold text-zinc-400">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/60 border border-white/10 text-caption font-bold text-zinc-400">
                                                             🏷️ {issue.memberGuildName}
                                                         </span>
                                                     )}
                                                 </div>
                                             )}
-                                            <div className="text-[10px] text-zinc-500 font-mono mt-1 opacity-60">
+                                            <div className="text-caption text-zinc-500 font-mono mt-1 opacity-60">
                                                 Créé le {format(new Date(issue.createdAt), "dd MMM yy", { locale: fr })}
                                                 {issue.sourcePage ? ` • ${issue.sourcePage}` : ""}
                                             </div>

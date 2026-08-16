@@ -136,14 +136,14 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 <div className="flex-1 text-center sm:text-left">
                     <div className="flex items-center gap-2 justify-center sm:justify-start mb-1 flex-wrap">
                         <span
-                            className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                            className="text-caption font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full"
                             style={{ background: `${color}20`, color, border: `1px solid ${color}44` }}
                         >
                             {dofus.isPrimordial ? "Primordial" : dofus.rarity}
                         </span>
                         {(dofus as any).isMeta && (
                             <span
-                                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-emerald-400"
+                                className="flex items-center gap-1 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-emerald-400"
                                 style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.35)" }}
                             >
                                 <TreePine className="w-2.5 h-2.5" /> Méta-Dofus
@@ -151,7 +151,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         )}
                         {(dofus as any).isSylvestreReq && !(dofus as any).isMeta && (
                             <span
-                                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full text-emerald-500/70"
+                                className="flex items-center gap-1 text-caption font-bold uppercase tracking-widest px-2 py-0.5 rounded-full text-emerald-500/70"
                                 style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}
                             >
                                 <Sparkles className="w-2.5 h-2.5" /> Requis Sylvestre
@@ -177,12 +177,12 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                     {/* Progress bar + stats */}
                     <div className="mt-4 flex flex-col gap-2 max-w-xl mx-auto sm:mx-0">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="font-black uppercase tracking-widest text-[10px]">Progression</span>
+                            <span className="font-black uppercase tracking-widest text-caption">Progression</span>
                             <span className="tabular-nums font-bold">{dofus.completedQuests}/{dofus.totalQuests} étapes</span>
                         </div>
                         <div className="h-2 rounded-full overflow-hidden bg-foreground/[0.08]">
                             <div
-                                className="h-full rounded-full transition-all duration-700 shadow-[0_0_15px_var(--primary)/30]"
+                                className="h-full rounded-full transition-all duration-300 "
                                 style={{
                                     width: `${dofus.progressPercent}%`,
                                     background: dofus.isObtained
@@ -216,13 +216,13 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
             {/* ── Special slug renderers ── */}
             {dofusSlug === "ocre" && (
                 <div
-                    className="rounded-3xl p-6 border transition-all duration-500"
+                    className="rounded-3xl p-6 border transition-all duration-300"
                     style={{
                         background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
                         border: `1px solid ${color}25`,
                     }}
                 >
-                    <div className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                    <div className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <span style={{ color }}>⬡</span> Progression Metamob
                     </div>
                     <DofusOcreMetamob
@@ -238,13 +238,13 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
             {dofusSlug === "dolmanax" && (
                 <div
-                    className="rounded-3xl p-6 border transition-all duration-500"
+                    className="rounded-3xl p-6 border transition-all duration-300"
                     style={{
                         background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
                         border: `1px solid ${color}25`,
                     }}
                 >
-                    <div className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                    <div className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <span style={{ color }}>📖</span> Progression Almanax
                     </div>
                     <DofusDolmanaxTracker

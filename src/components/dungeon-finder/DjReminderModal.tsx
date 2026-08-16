@@ -82,7 +82,7 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                             <Users className="w-4 h-4 text-indigo-400" />
                         </div>
                         <div>
-                            <p className="text-[11px] text-slate-500 uppercase tracking-widest font-bold">
+                            <p className="text-caption text-slate-500 uppercase tracking-widest font-bold">
                                 Participants à pinger
                             </p>
                             <p className="text-sm font-bold text-white mt-0.5">
@@ -107,10 +107,10 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                     {/* Message input */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                            <label className="text-caption text-slate-500 uppercase tracking-widest font-bold">
                                 Message libre
                             </label>
-                            <span className={`text-[10px] font-bold tabular-nums ${remaining < 50 ? "text-rose-400" : "text-slate-600"}`}>
+                            <span className={`text-caption font-bold tabular-nums ${remaining < 50 ? "text-rose-400" : "text-slate-600"}`}>
                                 {remaining}/{MAX_CHARS}
                             </span>
                         </div>
@@ -122,7 +122,7 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                             className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500/40 resize-none transition-all"
                             disabled={isPending || !canSend}
                         />
-                        <p className="text-[11px] text-slate-600">
+                        <p className="text-caption text-slate-600">
                             Ce message sera envoyé en embed Discord avec vos infos de leader.
                         </p>
                     </div>

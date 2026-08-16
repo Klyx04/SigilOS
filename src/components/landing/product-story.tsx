@@ -73,7 +73,7 @@ export function ProductStory() {
                 <div
                     role="tablist"
                     aria-label="Fonctionnalités SigilOS"
-                    className="flex gap-1 border-b border-white/10 mb-8 overflow-x-auto"
+                    className="flex gap-1 border-b border-white/10 mb-8 overflow-x-auto overflow-y-hidden no-scrollbar"
                 >
                     {STORIES.map((s, idx) => (
                         <button

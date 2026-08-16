@@ -105,8 +105,8 @@ export function ActivePollsWidget({
                                                 const pct = totalVotes > 0 ? Math.round(((opt._count?.votes || 0) / totalVotes) * 100) : 0;
                                                 return (
                                                     <div key={opt.id} className="space-y-1">
-                                                        <div className="flex items-center justify-between text-caption font-bold">
-                                                            <span className="text-zinc-400 truncate max-w-[160px]">
+                                                        <div className="flex items-center justify-between text-caption font-bold gap-3">
+                                                            <span className="text-zinc-400 break-words whitespace-normal min-w-0">
                                                                 {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
                                                                 {opt.label}
                                                             </span>

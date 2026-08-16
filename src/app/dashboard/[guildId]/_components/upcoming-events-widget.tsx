@@ -67,6 +67,12 @@ export function UpcomingEventsWidget({
         return map;
     }, [events]);
 
+    // #bugfix — la LISTE affiche les événements EN COURS ou à venir (un événement
+    // déjà terminé dans la semaine ne doit pas occuper une place). Le bandeau de
+    // jours, lui, garde toutes les pastilles de la semaine (passées incluses).
+    const nowTs = Date.now();
+    const activeEvents = events.filter((e) => new Date(e.endDate).getTime() >= nowTs);
+
     return (
         <Card className="glass-premium border-white/5 flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
@@ -74,9 +80,9 @@ export function UpcomingEventsWidget({
                     <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5" />
                         Agenda de Guilde
-                        {events.length > 0 && (
+                        {activeEvents.length > 0 && (
                             <span className="ml-1 px-1.5 py-0.5 rounded-md bg-guild/10 border border-guild/20 text-guild text-caption font-black tabular-nums">
-                                {events.length}
+                                {activeEvents.length}
                             </span>
                         )}
                     </CardTitle>
@@ -135,6 +141,10 @@ export function UpcomingEventsWidget({
                         {events.map((event) => {
                             const cfg = EVENT_CONFIG[event.type] ?? EVENT_CONFIG.OTHERS;
                             const Icon = cfg.icon;
+                            const startTs = new Date(event.startDate).getTime();
+                            const endTs = new Date(event.endDate).getTime();
+                            const isOngoing = startTs <= nowTs && endTs >= nowTs;
+                            const isPast = endTs < nowTs;
                             const when = getWhenLabel(new Date(event.startDate));
                             const participants = event._count?.participants ?? 0;
                             const maxParts = event.maxParticipants;
@@ -145,7 +155,12 @@ export function UpcomingEventsWidget({
                                 <Link
                                     key={event.id}
                                     href={`/dashboard/${guildId}/calendar?event=${event.id}`}
-                                    className="group flex items-start gap-3 p-3 rounded-2xl bg-zinc-950/40 hover:bg-zinc-900/60 border border-white/5 hover:border-emerald-500/20 transition-colors duration-200"
+                                    className={cn(
+                                        "group flex items-start gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-white/5 transition-colors duration-200",
+                                        isPast
+                                            ? "opacity-55 hover:opacity-80"
+                                            : "hover:bg-zinc-900/60 hover:border-emerald-500/20"
+                                    )}
                                 >
                                     {/* Type Icon */}
                                     <div className={cn("shrink-0 h-10 w-10 rounded-xl flex items-center justify-center border", cfg.bg, cfg.border)}>
@@ -159,11 +174,13 @@ export function UpcomingEventsWidget({
                                                 suppressHydrationWarning
                                                 className={cn(
                                                 "text-caption font-black uppercase px-1.5 py-0.5 rounded shrink-0",
-                                                when.urgent
-                                                    ? "bg-emerald-500 text-black"
-                                                    : "bg-zinc-800 text-zinc-400"
+                                                isPast
+                                                    ? "bg-zinc-800/60 text-zinc-500"
+                                                    : when.urgent || isOngoing
+                                                        ? "bg-emerald-500 text-black"
+                                                        : "bg-zinc-800 text-zinc-400"
                                             )}>
-                                                {when.label}
+                                                {isPast ? "Terminé" : isOngoing ? "En cours" : when.label}
                                             </span>
                                             <span className={cn("text-caption font-black uppercase px-1.5 py-0.5 rounded border shrink-0", cfg.bg, cfg.border, cfg.color)}>
                                                 {cfg.label}
@@ -233,7 +250,7 @@ export function UpcomingEventsWidget({
                         </div>
                         <div className="space-y-1">
                             <p className="text-caption text-zinc-500 font-black uppercase tracking-widest">
-                                Aucun événement cette semaine
+                                Aucun événement à venir
                             </p>
                             <p className="text-caption text-zinc-700 font-medium">
                                 Planifiez le prochain raid ou événement de guilde

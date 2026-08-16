@@ -419,7 +419,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
                                         <div className="min-w-0">
                                             <p className={cn(
-                                                "text-lg font-black transition-colors truncate",
+                                                "text-lg font-black transition-colors break-words whitespace-normal",
                                                 isVoted ? "text-white" : "text-zinc-300 group-hover:text-white"
                                             )}>
                                                 {option.label}

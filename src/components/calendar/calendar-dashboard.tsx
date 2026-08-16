@@ -217,6 +217,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     }, [currentDate, guildId, canManage]);
 
     const searchParams = useSearchParams();
+    // #91 — highlight=mine : surligne les événements auxquels l'utilisateur est inscrit
+    const highlightMine = searchParams.get("highlight") === "mine";
 
     // Auto-open event detail modal if ?event= ID parameter is present in URL
     useEffect(() => {
@@ -647,6 +649,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     canManage={canManage}
                     viewMode={gridType}
                     onViewModeChange={setGridType}
+                    currentUserId={currentUserId}
+                    highlightMine={highlightMine}
                 />
             )}
         </div>

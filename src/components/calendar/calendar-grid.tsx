@@ -135,6 +135,7 @@ interface CalendarEvent {
     endDate: Date | string;
     maxParticipants?: number | null;
     _count?: { participants: number };
+    participants?: { userId: string }[];
 }
 
 type ViewMode = "week" | "month";
@@ -149,6 +150,10 @@ interface CalendarGridProps {
     canManage?: boolean;
     viewMode: ViewMode;
     onViewModeChange: (mode: ViewMode) => void;
+    /** #91 — userId courant : permet de surligner les événements où l'utilisateur est inscrit. */
+    currentUserId?: string;
+    /** #91 — active le surlignage « mes inscriptions » (param `?highlight=mine`). */
+    highlightMine?: boolean;
 }
 
 // ============================================
@@ -164,7 +169,9 @@ export function CalendarGrid({
     onDayEventsClick,
     canManage = false,
     viewMode,
-    onViewModeChange
+    onViewModeChange,
+    currentUserId,
+    highlightMine = false
 }: CalendarGridProps) {
     // Calendar days
     const calendarDays = useMemo(() => {
@@ -307,6 +314,10 @@ export function CalendarGrid({
                                             const Icon = config.icon;
                                             const time = format(start, "HH:mm");
                                             const isCompleted = event.status === "COMPLETED";
+                                            // #91 — « ma ligne » : l'utilisateur courant est inscrit à cet événement
+                                            const isMine = highlightMine &&
+                                                !!currentUserId &&
+                                                !!event.participants?.some(p => p.userId === currentUserId);
 
                                             return (
                                                 <TooltipProvider key={event.id}>
@@ -324,7 +335,8 @@ export function CalendarGrid({
                                                                     "active:scale-[0.98] active:translate-y-0",
                                                                     isCompleted
                                                                         ? "border-white/[0.03] opacity-60 grayscale-[0.8] hover:border-white/10"
-                                                                        : "border-white/[0.06] hover:border-white/15"
+                                                                        : "border-white/[0.06] hover:border-white/15",
+                                                                    isMine && !isCompleted && "ring-1 ring-inset ring-emerald-400/70 border-emerald-500/40 bg-emerald-500/10"
                                                                 )}
                                                             >
                                                                 {/* Side Accent Line */}
@@ -352,6 +364,13 @@ export function CalendarGrid({
                                                                         {event.title}
                                                                     </span>
                                                                 </div>
+
+                                                                {/* #91 — badge « Vous » sur mes inscriptions (highlight=mine) */}
+                                                                {isMine && !isCompleted && (
+                                                                    <span className="ml-auto shrink-0 text-caption font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-1.5 py-0.5">
+                                                                        Vous
+                                                                    </span>
+                                                                )}
 
                                                                 {/* Completed watermark stamp */}
                                                                 {isCompleted && (

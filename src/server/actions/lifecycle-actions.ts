@@ -349,6 +349,8 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
         // Discord ; sans tombstone, _getUserContext recréait un profil → accès rétabli).
         if (targetDiscordId) {
             try {
+                // #105 — capturer le pseudo du membre exclu (affiché dans l'onglet « Exclus »).
+                const memberName = target.pseudoDofus || target.discordNickname || target.user?.name || null;
                 await db.guildMemberBan.upsert({
                     where: { guildId_discordId: { guildId: target.guildId, discordId: targetDiscordId } },
                     create: {
@@ -356,13 +358,15 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
                         discordId: targetDiscordId,
                         reason: "MEMBER_DELETED",
                         bannedBy: ctx.id ?? "system",
-                        bannedByName: ctx.name ?? "Un administrateur"
+                        bannedByName: ctx.name ?? "Un administrateur",
+                        memberName
                     },
                     update: {
                         reason: "MEMBER_DELETED",
                         liftedAt: null,
                         liftedBy: null,
-                        liftedByName: null
+                        liftedByName: null,
+                        memberName
                     }
                 });
             } catch (banErr) {
@@ -812,6 +816,8 @@ export async function syncGuildMembers(discordGuildId: string) {
 
                     // ── F-01 : tombstone guild-scopé (ban Discord détecté) ──
                     try {
+                        // #105 — pseudo du membre (pris AVANT l'anonymisation du profil).
+                        const memberName = profile.pseudoDofus || profile.discordNickname || null;
                         await db.guildMemberBan.upsert({
                             where: { guildId_discordId: { guildId: profile.guildId, discordId } },
                             create: {
@@ -819,13 +825,15 @@ export async function syncGuildMembers(discordGuildId: string) {
                                 discordId,
                                 reason: "BANNED (Discord)",
                                 bannedBy: "SYSTEM",
-                                bannedByName: "Sync System"
+                                bannedByName: "Sync System",
+                                memberName
                             },
                             update: {
                                 reason: "BANNED (Discord)",
                                 liftedAt: null,
                                 liftedBy: null,
-                                liftedByName: null
+                                liftedByName: null,
+                                memberName
                             }
                         });
                     } catch (banErr) {

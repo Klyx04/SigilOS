@@ -387,6 +387,34 @@ async function handleBan(guildId: string, userId: string, userMeta?: { username:
 
     if (!guild) return;
 
+    // ── #105 : un bannissement Discord = exclusion SigilOS dans TOUS LES CAS.
+    // Tombstone guild-scopé créé AVANT la recherche de compte : même si le membre
+    // n'a jamais eu de profil (ou qu'il a été purgé), il restera exclu du dashboard
+    // (anti-ré-provisionnement F-01) s'il tente de se reconnecter plus tard.
+    try {
+        const bannedName = userMeta ? (userMeta.global_name || userMeta.username || null) : null;
+        await db.guildMemberBan.upsert({
+            where: { guildId_discordId: { guildId: guild.id, discordId: userId } },
+            create: {
+                guildId: guild.id,
+                discordId: userId,
+                reason: "MEMBER_BANNED",
+                bannedBy: "SYSTEM",
+                bannedByName: "Discord Gateway Bot",
+                memberName: bannedName
+            },
+            update: {
+                reason: "MEMBER_BANNED",
+                liftedAt: null,
+                liftedBy: null,
+                liftedByName: null,
+                memberName: bannedName
+            }
+        });
+    } catch (banErr) {
+        logger.error("[Discord Webhook] GuildMemberBan tombstone on ban failed:", banErr);
+    }
+
     const account = await db.account.findFirst({
         where: { provider: "discord", providerAccountId: userId },
         select: { userId: true }

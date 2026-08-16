@@ -3,9 +3,11 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { LogOut, Home, Terminal } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -14,10 +16,59 @@ import { CONSOLE_PAGES, GOD_NAV_GROUPS, ALL_SCOPES_COUNT, type GodNavItem } from
 // 🔒 SECURITY (R3): les liens utilisent TOUJOURS godRoute (jamais "/god" en dur)
 // pour passer par le proxy anti-scout.
 
+// #106 — sidebar God redimensionnable : largeur persistée en localStorage.
+const SIDEBAR_STORAGE_KEY = "sigilos-god-sidebar-width";
+const DEFAULT_WIDTH = 288; // w-72
+const MIN_WIDTH = 264;
+const MAX_WIDTH = 520;
+const WIDE_THRESHOLD = 360;
+
 export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, activeScopes = [], accessibleBricks = [], godRoute = "/god" }: { className?: string; user: any; unreadCount?: number; ticketCount?: number; activeScopes?: string[]; accessibleBricks?: string[]; godRoute?: string }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const activeTab = searchParams.get("tab") || "overview";
+
+    // #106 — largeur custom + poignée de redimensionnement (persistance).
+    const [width, setWidth] = useState(DEFAULT_WIDTH);
+    const [isResizing, setIsResizing] = useState(false);
+    const sidebarRef = useRef<HTMLDivElement>(null);
+    const widthRef = useRef(width);
+    useEffect(() => { widthRef.current = width; }, [width]);
+    const isWide = width >= WIDE_THRESHOLD;
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+            if (saved) {
+                const parsed = parseInt(saved, 10);
+                if (!Number.isNaN(parsed)) setWidth(Math.min(Math.max(parsed, MIN_WIDTH), MAX_WIDTH));
+            }
+        } catch { /* localStorage indisponible — largeur par défaut */ }
+    }, []);
+
+    const startResize = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsResizing(true);
+    };
+
+    useEffect(() => {
+        if (!isResizing) return;
+        const onMove = (e: MouseEvent) => {
+            const left = sidebarRef.current?.getBoundingClientRect().left ?? 0;
+            setWidth(Math.min(Math.max(e.clientX - left, MIN_WIDTH), MAX_WIDTH));
+        };
+        const onUp = () => {
+            setIsResizing(false);
+            try { localStorage.setItem(SIDEBAR_STORAGE_KEY, String(widthRef.current)); } catch { /* ignore */ }
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        return () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+    }, [isResizing]);
 
     const isFullAdmin = activeScopes.length >= ALL_SCOPES_COUNT;
 
@@ -39,7 +90,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
     };
 
     return (
-        <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/10", className)}>
+        <div ref={sidebarRef} style={{ width }} className={cn("relative flex flex-col h-full bg-zinc-950 border-r border-white/10", className)}>
             <div className="p-6 lg:p-8 pb-4">
                 <Link href="/" className="flex items-center gap-4 px-2 group/brand hover:opacity-80 transition-opacity">
                     <div className="relative h-8 w-8 md:h-10 md:w-10 shrink-0">
@@ -69,14 +120,17 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                                         >
                                             {active && <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full" />}
                                             <page.icon className={cn("h-5 w-5 transition-colors duration-150", active ? "text-white" : "text-zinc-400 opacity-70 group-hover:opacity-100 group-hover:text-zinc-200")} />
-                                            <span className="text-body-sm font-medium truncate flex-1">{page.name}</span>
+                                            <span className="text-body-sm font-medium truncate flex-1" title={page.name}>{page.name}</span>
                                             {page.id === "notifications" && unreadCount > 0 && (
                                                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-caption font-bold leading-none">{unreadCount > 99 ? "99+" : unreadCount}</span>
                                             )}
                                             {page.id === "tickets" && ticketCount > 0 && (
                                                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-500 text-white text-caption font-bold leading-none">{ticketCount > 99 ? "99+" : ticketCount}</span>
                                             )}
-                                            <span className={cn("hidden md:inline-flex text-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border",
+                                            {/* #106 — badge scope affiché uniquement quand la sidebar est assez large
+                                                (évite de tronquer le libellé principal) */}
+                                            <span className={cn("text-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border shrink-0",
+                                                isWide ? "inline-flex" : "hidden",
                                                 page.scope === "all" ? "border-amber-500/30 text-amber-400/80 bg-amber-500/5" : "border-white/10 text-zinc-500 bg-white/5")}>
                                                 {page.scopeLabel || (page.scope === "all" ? "SU" : page.scope)}
                                             </span>
@@ -95,7 +149,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                         <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/10 group rounded-xl transition-colors">
                             <div className="flex items-center gap-3 w-full">
                                 <Avatar className="h-10 w-10 rounded-lg border-2 border-zinc-800">
-                                    <AvatarImage src={user.image} />
+                                    <DiscordAvatarImage src={user.image} />
                                     <AvatarFallback className="bg-zinc-800 text-xs font-bold text-amber-500">SU</AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col items-start min-w-0 flex-1 text-left">
@@ -118,6 +172,17 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+
+            {/* #106 — poignée de redimensionnement (largeur persistée en localStorage) */}
+            <div
+                className={cn(
+                    "absolute top-0 right-0 bottom-0 w-1 cursor-col-resize hover:bg-amber-500/60 transition-colors z-20",
+                    isResizing && "bg-amber-500 w-1.5"
+                )}
+                onMouseDown={startResize}
+                title="Élargir / rétrécir la sidebar — la largeur est sauvegardée"
+                aria-hidden="true"
+            />
         </div>
     );
 }

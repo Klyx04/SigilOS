@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         hostname: "cdn.discordapp.com",
       },
       {
+        // #23 — miroir CDN des avatars Discord (fallback `media.discordapp.net`)
+        protocol: "https",
+        hostname: "media.discordapp.net",
+      },
+      {
         protocol: "https",
         hostname: "metamob.fr",
       },

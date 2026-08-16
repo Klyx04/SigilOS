@@ -66,7 +66,8 @@ import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } f
 import { deleteProfileByAdmin, reactivateProfileByAdmin, getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
 import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ProbationGrantDialog } from "../../app/dashboard/[guildId]/admin/_components/probation-grant-dialog";
@@ -459,11 +460,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         </div>
                                         <div className="min-w-0">
                                             <div className="font-semibold text-sm md:text-base text-zinc-200 flex items-center gap-2 truncate">
-                                                <span className="text-zinc-400 font-mono text-xs md:text-sm">{ban.discordId}</span>
+                                                {/* #105 — nickname/pseudo du membre exclu (plus de simple ID Discord) */}
+                                                <span className="truncate">{ban.memberName || ban.discordId}</span>
                                             </div>
-                                            <div className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
-                                                {ban.reason} · {formatDistanceToNow(new Date(ban.createdAt), { addSuffix: true, locale: fr })}
-                                                {ban.bannedByName ? ` · par ${ban.bannedByName}` : ""}
+                                            <div className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-0.5 flex flex-wrap items-center gap-x-2">
+                                                <span className="text-zinc-600 font-mono normal-case">{ban.discordId}</span>
+                                                <span>{ban.reason} · {formatDistanceToNow(new Date(ban.createdAt), { addSuffix: true, locale: fr })}</span>
+                                                {ban.bannedByName ? <span>· par {ban.bannedByName}</span> : ""}
                                             </div>
                                         </div>
                                     </div>
@@ -523,7 +526,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 <TableCell className="pl-8 py-5">
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10 border border-white/5 group-hover:border-violet-500/40 transition-all rounded-2xl shadow-lg">
-                                            <AvatarImage src={member.user.image || ""} className="object-cover rounded-2xl" />
+                                            <DiscordAvatarImage src={member.user.image || ""} className="object-cover rounded-2xl" />
                                             <AvatarFallback className="bg-zinc-850 text-zinc-400 text-xs font-black uppercase rounded-2xl">
                                                 {getDisplayName(member)?.[0] || "?"}
                                             </AvatarFallback>

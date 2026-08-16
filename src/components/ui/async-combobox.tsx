@@ -108,14 +108,14 @@ export function AsyncCombobox({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    className={cn("justify-between bg-zinc-950 border-zinc-800 text-zinc-300 w-full hover:bg-zinc-900 hover:text-white", className)}
+                    className={cn("justify-between bg-background border-border text-foreground w-full hover:bg-surface hover:text-foreground", className)}
                     disabled={disabled}
                 >
                     {selectedLabel || value ? (selectedLabel || "Chargement...") : placeholder}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="p-0 bg-zinc-950 border-zinc-800 text-zinc-300" align="start">
+            <PopoverContent className="p-0 bg-background border-border text-foreground" align="start">
                 <Command shouldFilter={false}>
                     <CommandInput
                         placeholder={searchPlaceholder}
@@ -126,7 +126,7 @@ export function AsyncCombobox({
                     <CommandList>
                         {loading && (
                             <div className="flex items-center justify-center p-4">
-                                <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                         )}
                         {!loading && items.length === 0 && (
@@ -143,7 +143,7 @@ export function AsyncCombobox({
                                             setSelectedLabel(item.label)
                                             setOpen(false)
                                         }}
-                                        className="aria-selected:bg-zinc-900 aria-selected:text-white hover:bg-zinc-900 cursor-pointer"
+                                        className="aria-selected:bg-surface aria-selected:text-foreground hover:bg-surface cursor-pointer"
                                     >
                                         <Check
                                             className={cn(
@@ -154,7 +154,7 @@ export function AsyncCombobox({
                                         {renderItem ? renderItem(item) : (
                                             <div className="flex flex-col">
                                                 <span>{item.label}</span>
-                                                {item.subLabel && <span className="text-xs text-zinc-500">{item.subLabel}</span>}
+                                                {item.subLabel && <span className="text-xs text-muted-foreground">{item.subLabel}</span>}
                                             </div>
                                         )}
                                     </CommandItem>

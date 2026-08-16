@@ -46,11 +46,11 @@ export function AvailabilityReminderPopup({ guildId, enabled }: { guildId: strin
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="max-w-md border-white/10">
+            <DialogContent className="max-w-md border-border">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
-                        <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                            <CalendarClock className="w-4 h-4 text-emerald-400" />
+                        <span className="w-8 h-8 rounded-lg bg-success/10 border border-success/30 flex items-center justify-center shrink-0">
+                            <CalendarClock className="w-4 h-4 text-success" />
                         </span>
                         Votre semaine de disponibilités
                     </DialogTitle>
@@ -64,7 +64,7 @@ export function AvailabilityReminderPopup({ guildId, enabled }: { guildId: strin
                 <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                         asChild
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                        className="flex-1 bg-success hover:bg-success text-success-foreground font-semibold"
                     >
                         <Link href={`/dashboard/${guildId}/profile?tab=planning`}>
                             Remplir ma semaine

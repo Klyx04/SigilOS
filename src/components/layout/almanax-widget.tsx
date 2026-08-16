@@ -30,17 +30,17 @@ export async function AlmanaxWidget() {
                                     className="object-contain w-full h-full drop-shadow-md group- transition-transform"
                                 />
                             ) : (
-                                <Package className="h-full w-full p-2 text-zinc-500" />
+                                <Package className="h-full w-full p-2 text-muted-foreground" />
                             )}
                         </div>
 
                         {/* Text Info */}
                         <div className="flex flex-col min-w-0">
-                            <span className="text-caption text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5 leading-tight">
-                                <Calendar className="h-3 w-3 text-amber-500/80" />
+                            <span className="text-caption text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1.5 leading-tight">
+                                <Calendar className="h-3 w-3 text-warning/80" />
                                 Almanax
                             </span>
-                            <span className="text-label font-black text-zinc-200 truncate group-hover:text-amber-400 transition-colors leading-tight">
+                            <span className="text-label font-black text-foreground truncate group-hover:text-warning transition-colors leading-tight">
                                 {data.bonus.type.name}
                             </span>
                         </div>
@@ -48,11 +48,11 @@ export async function AlmanaxWidget() {
                 </TooltipTrigger>
 
                 {/* Detailed Tooltip */}
-                <TooltipContent side="bottom" className="p-4 w-80 bg-zinc-950/95 border-amber-500/20 shadow-xl shadow-black/50 backdrop-blur-xl">
+                <TooltipContent side="bottom" className="p-4 w-80 bg-background/95 border-warning/20 shadow-xl shadow-black/50 backdrop-blur-xl">
                     <div className="space-y-3">
-                        <div className="flex items-start gap-4 pb-3 border-b border-white/5">
+                        <div className="flex items-start gap-4 pb-3 border-b border-border">
                             {data.tribute.item.image_urls.icon && (
-                                <div className="h-12 w-12 bg-zinc-900 rounded-md border border-white/10 p-1 shrink-0">
+                                <div className="h-12 w-12 bg-surface rounded-md border border-border p-1 shrink-0">
                                     <Image
                                         src={data.tribute.item.image_urls.icon}
                                         alt={data.tribute.item.name}
@@ -63,15 +63,15 @@ export async function AlmanaxWidget() {
                                 </div>
                             )}
                             <div>
-                                <h4 className="font-bold text-amber-400 text-base">{data.bonus.type.name}</h4>
-                                <p className="text-xs text-zinc-400 mt-1">
-                                    Offrande : <span className="text-white font-medium">{data.tribute.quantity}x {data.tribute.item.name}</span>
+                                <h4 className="font-bold text-warning text-base">{data.bonus.type.name}</h4>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Offrande : <span className="text-foreground font-medium">{data.tribute.quantity}x {data.tribute.item.name}</span>
                                 </p>
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <p className="text-sm text-zinc-300 leading-relaxed">
+                            <p className="text-sm text-foreground leading-relaxed">
                                 {data.bonus.description}
                             </p>
                         </div>

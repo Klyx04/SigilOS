@@ -30,15 +30,15 @@ export function BonusCard({
             case "FORTUNE":
                 return "border-yellow-500/50 bg-yellow-500/5";
             case "GLADIATOR":
-                return "border-red-500/50 bg-red-500/5";
+                return "border-danger/50 bg-danger/5";
             case "HARVESTER":
                 return "border-green-500/50 bg-green-500/5";
             case "WISDOM":
-                return "border-blue-500/50 bg-blue-500/5";
+                return "border-info/50 bg-info/5";
             case "DIVINE":
-                return "border-purple-500/50 bg-purple-500/5";
+                return "border-info/50 bg-info/5";
             default:
-                return "border-slate-700 bg-slate-800/30";
+                return "border-border bg-elevated/30";
         }
     };
 
@@ -84,7 +84,7 @@ export function BonusCard({
 
             {/* Icon */}
             <div className="flex justify-center mb-3">
-                <div className="w-16 h-16 rounded-full bg-slate-900/50 p-2 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-surface/50 p-2 flex items-center justify-center">
                     <img src={iconPath} alt={name} className="w-full h-full object-contain" onError={(e) => {
                         e.currentTarget.src = "/game-data/bonuses/default.png";
                     }} />
@@ -92,20 +92,20 @@ export function BonusCard({
             </div>
 
             {/* Content */}
-            <h3 className="text-lg font-bold text-white text-center mb-2">{name}</h3>
-            <p className="text-sm text-slate-400 text-center mb-4 min-h-[40px]">{description}</p>
+            <h3 className="text-lg font-bold text-foreground text-center mb-2">{name}</h3>
+            <p className="text-sm text-muted-foreground text-center mb-4 min-h-[40px]">{description}</p>
 
             {/* Cost & Button */}
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1">
                     <span className="text-2xl font-bold text-yellow-400">{cost}</span>
-                    <span className="text-xs text-slate-400 uppercase">kamas</span>
+                    <span className="text-xs text-muted-foreground uppercase">kamas</span>
                 </div>
                 <Button
                     onClick={onPurchase}
                     disabled={isPurchased || isActive}
                     size="sm"
-                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                    className="bg-info hover:bg-info disabled:opacity-50"
                 >
                     {isPurchased || isActive ? "Indisponible" : "Acheter"}
                 </Button>

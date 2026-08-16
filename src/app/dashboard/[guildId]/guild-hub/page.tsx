@@ -55,7 +55,7 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
                 {/* --- Welcome Tab --- */}
                 {user.canViewWelcome && (
                     <TabsContent value="welcome" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
-                        <Suspense fallback={<div className="h-64 rounded-2xl bg-white/5 animate-pulse" />}>
+                        <Suspense fallback={<div className="h-64 rounded-2xl bg-surface animate-pulse" />}>
                             <WelcomeTabContent guildId={guildId} user={user} />
                         </Suspense>
                     </TabsContent>
@@ -64,7 +64,7 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
                 {/* --- Presentation Tab --- */}
                 {user.canViewPresentation && (
                     <TabsContent value="presentation" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
-                        <Suspense fallback={<div className="h-64 rounded-2xl bg-white/5 animate-pulse" />}>
+                        <Suspense fallback={<div className="h-64 rounded-2xl bg-surface animate-pulse" />}>
                             <PresentationTabContent guildId={guildId} user={user} />
                         </Suspense>
                     </TabsContent>
@@ -78,13 +78,13 @@ async function WelcomeTabContent({ guildId, user }: { guildId: string, user: any
     const { posts, reactorNames } = await getWelcomePosts(guildId);
     if (posts.length === 0) {
         return (
-            <div className="p-12 rounded-2xl border border-white/5 bg-zinc-900/40 text-center space-y-4 max-w-3xl mx-auto">
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto">
-                    <MessageSquare className="w-6 h-6 text-zinc-500" />
+            <div className="p-12 rounded-2xl border border-border bg-surface/40 text-center space-y-4 max-w-3xl mx-auto">
+                <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mx-auto">
+                    <MessageSquare className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div className="space-y-1">
-                    <p className="text-zinc-400 font-bold">Aucun message de bienvenue</p>
-                    <p className="text-xs text-zinc-600">Les nouveaux membres s'afficheront ici quand ils rejoindront la guilde.</p>
+                    <p className="text-muted-foreground font-bold">Aucun message de bienvenue</p>
+                    <p className="text-xs text-muted-foreground">Les nouveaux membres s'afficheront ici quand ils rejoindront la guilde.</p>
                 </div>
             </div>
         );

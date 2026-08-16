@@ -3,7 +3,6 @@ import animate from "tailwindcss-animate";
 import typography from "@tailwindcss/typography";
 
 const config: Config = {
-    darkMode: "class",
     content: [
         "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
         "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -54,72 +53,6 @@ const config: Config = {
                     "100%": { transform: "perspective(600px) rotateY(0deg)", opacity: "1" },
                 },
             },
-            colors: {
-                gartic: {
-                    lobby: "#2d1b69",
-                    drawing: "#c0392b",
-                    guessing: "#e67e22",
-                    reveal: "#1a6fb5",
-                    green: "#2ecc71",
-                    yellow: "#f1c40f",
-                    pink: "#e91e8c",
-                },
-                background: 'var(--background)',
-                foreground: 'var(--foreground)',
-                card: {
-                    DEFAULT: 'var(--card)',
-                    foreground: 'var(--card-foreground)'
-                },
-                popover: {
-                    DEFAULT: 'var(--popover)',
-                    foreground: 'var(--popover-foreground)'
-                },
-                primary: {
-                    DEFAULT: 'var(--primary)',
-                    foreground: 'var(--primary-foreground)'
-                },
-                secondary: {
-                    DEFAULT: 'var(--secondary)',
-                    foreground: 'var(--secondary-foreground)'
-                },
-                muted: {
-                    DEFAULT: 'var(--muted)',
-                    foreground: 'var(--muted-foreground)'
-                },
-                accent: {
-                    DEFAULT: 'var(--accent)',
-                    foreground: 'var(--accent-foreground)'
-                },
-                destructive: {
-                    DEFAULT: 'var(--destructive)',
-                    foreground: 'var(--destructive-foreground)'
-                },
-                border: 'var(--border)',
-                input: 'var(--input)',
-                ring: 'var(--ring)',
-                chart: {
-                    '1': 'var(--chart-1)',
-                    '2': 'var(--chart-2)',
-                    '3': 'var(--chart-3)',
-                    '4': 'var(--chart-4)',
-                    '5': 'var(--chart-5)'
-                },
-                sidebar: {
-                    DEFAULT: 'var(--sidebar)',
-                    foreground: 'var(--sidebar-foreground)',
-                    primary: 'var(--sidebar-primary)',
-                    'primary-foreground': 'var(--sidebar-primary-foreground)',
-                    accent: 'var(--sidebar-accent)',
-                    'accent-foreground': 'var(--sidebar-accent-foreground)',
-                    border: 'var(--sidebar-border)',
-                    ring: 'var(--sidebar-ring)'
-                }
-            },
-            borderRadius: {
-                lg: 'var(--radius)',
-                md: 'calc(var(--radius) - 2px)',
-                sm: 'calc(var(--radius) - 4px)'
-            }
         }
     },
     plugins: [animate, typography],

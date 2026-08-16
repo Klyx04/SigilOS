@@ -10,7 +10,7 @@ const MapWithNoSSR = dynamic<any>(
     {
         ssr: false,
         loading: () => (
-            <div className="w-full h-full flex items-center justify-center bg-[#111] rounded-xl border border-white/10">
+            <div className="w-full h-full flex items-center justify-center bg-[#111] rounded-xl border border-border">
                 <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
             </div>
         )
@@ -75,7 +75,7 @@ export function MapViewer({
 
     if (error) {
         return (
-            <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">
+            <div className="p-4 bg-danger/10 border border-danger/50 rounded-lg text-danger text-sm">
                 Erreur de chargement de la carte : {error}
             </div>
         );
@@ -83,9 +83,9 @@ export function MapViewer({
 
     if (loading || !data) {
         return (
-            <div className="w-full h-[70vh] flex flex-col items-center justify-center bg-[#111] rounded-xl border border-white/10">
+            <div className="w-full h-[70vh] flex flex-col items-center justify-center bg-[#111] rounded-xl border border-border">
                 <Loader2 className="h-8 w-8 animate-spin text-teal-500 mb-4" />
-                <p className="text-zinc-400 text-sm font-bold uppercase tracking-widest italic opacity-50">Synchronisation du Monde...</p>
+                <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest italic opacity-50">Synchronisation du Monde...</p>
             </div>
         );
     }

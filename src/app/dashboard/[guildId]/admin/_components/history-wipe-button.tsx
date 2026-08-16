@@ -38,7 +38,7 @@ export function HistoryWipeButton({ profileId, guildId, nickname }: HistoryWipeB
         <button
             onClick={handleWipe}
             disabled={isWiping}
-            className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all group"
+            className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg transition-all group"
             title="Nettoyer les données (Wipe RGPD)"
         >
             {isWiping ? (

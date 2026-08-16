@@ -81,16 +81,16 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                 <button
                     onClick={handleBadgeClick}
                     className={cn(
-                        "flex h-8 items-center gap-2 px-3 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-500/15 transition-colors shrink-0 cursor-pointer",
+                        "flex h-8 items-center gap-2 px-3 rounded-full bg-danger/10 border border-danger/20 hover:bg-danger/15 transition-colors shrink-0 cursor-pointer",
                         "animate-in fade-in duration-150"
                     )}
                 >
                     <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-danger"></span>
                     </span>
 
-                    <Tv className="w-3 h-3 text-red-500" />
+                    <Tv className="w-3 h-3 text-danger" />
 
                     <span className="text-caption font-semibold uppercase tracking-wider text-foreground leading-none whitespace-nowrap">
                         {text}
@@ -118,15 +118,15 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
 
             {/* Streamer Picker Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="w-[90vw] max-w-sm bg-zinc-950 border border-white/10 p-0 overflow-hidden shadow-2xl rounded-2xl">
-                    <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                <DialogContent className="w-[90vw] max-w-sm bg-background border border-border p-0 overflow-hidden shadow-2xl rounded-2xl">
+                    <div className="p-4 border-b border-border bg-surface">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
-                                <Tv className="h-4 w-4 text-red-400" />
+                            <div className="w-9 h-9 rounded-lg bg-danger/10 border border-danger/20 flex items-center justify-center shrink-0">
+                                <Tv className="h-4 w-4 text-danger" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <DialogTitle className="text-sm font-bold text-white uppercase tracking-wider truncate">Créateurs en LIVE</DialogTitle>
-                                <p className="text-caption text-zinc-400 font-medium">Choisis un streamer à regarder</p>
+                                <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider truncate">Créateurs en LIVE</DialogTitle>
+                                <p className="text-caption text-muted-foreground font-medium">Choisis un streamer à regarder</p>
                             </div>
                         </div>
                     </div>
@@ -138,28 +138,28 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                                 href={streamer.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/30 hover:bg-zinc-800/60 border border-white/5 hover:border-red-500/30 transition-all group"
+                                className="flex items-center gap-3 p-3 rounded-xl bg-elevated/30 hover:bg-elevated/60 border border-border hover:border-danger/30 transition-all group"
                             >
                                 <div className="relative shrink-0">
-                                    <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center">
+                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
                                         <Avatar className="h-10 w-10">
                                             <AvatarImage src={streamer.avatarUrl || undefined} className="object-cover" />
-                                            <AvatarFallback className="bg-red-600/20 text-red-400 text-xs font-black">
+                                            <AvatarFallback className="bg-danger/20 text-danger text-xs font-black">
                                                 {streamer.creatorId?.[0]?.toUpperCase() || "?"}
                                             </AvatarFallback>
                                         </Avatar>
                                     </div>
-                                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-red-500 border-2 border-zinc-900 animate-pulse" />
+                                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-danger border-2 border-zinc-900 animate-pulse" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-black text-zinc-100 group-hover:text-white uppercase tracking-tight truncate">
+                                    <p className="text-sm font-black text-foreground group-hover:text-foreground uppercase tracking-tight truncate">
                                         {streamer.creatorId}
                                     </p>
-                                    <p className="text-caption text-zinc-500 font-bold truncate mt-0.5">
+                                    <p className="text-caption text-muted-foreground font-bold truncate mt-0.5">
                                         {streamer.title || "En direct"}
                                     </p>
                                 </div>
-                                <ExternalLink className="h-4 w-4 text-red-400/50 group-hover:text-red-400 shrink-0 transition-colors" />
+                                <ExternalLink className="h-4 w-4 text-danger/50 group-hover:text-danger shrink-0 transition-colors" />
                             </a>
                         ))}
                     </div>
@@ -168,7 +168,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                         <div className="px-4 pb-4">
                             <a
                                 href={`/dashboard/${guildId}/ressources?tab=creators`}
-                                className="block w-full text-center py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all border border-white/5"
+                                className="block w-full text-center py-2.5 rounded-xl bg-surface hover:bg-surface text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-wider transition-all border border-border"
                             >
                                 Voir tous les créateurs
                             </a>

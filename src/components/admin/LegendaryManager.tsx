@@ -123,19 +123,19 @@ export default function LegendaryManager() {
     return (
         <div className="space-y-4">
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+            <div className="flex flex-col md:flex-row items-center gap-4 bg-surface/50 p-4 rounded-lg border border-border/50 backdrop-blur-sm">
                 <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Rechercher un objet légendaire..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500"
+                        className="pl-9 bg-elevated border-border text-foreground placeholder:text-muted-foreground"
                     />
                 </div>
                 <Button
                     onClick={() => { resetForm(); setIsDialogOpen(true); }}
-                    className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-900/20"
+                    className="w-full md:w-auto bg-info hover:bg-info shadow-lg shadow-purple-900/20"
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     Nouvel Objet
@@ -143,7 +143,7 @@ export default function LegendaryManager() {
             </div>
 
             {/* Stats bar */}
-            <div className="flex items-center gap-4 text-xs text-slate-500 px-1">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
                 <span className="font-mono">{items.length} objets légendaires</span>
                 <span>·</span>
                 <span>{items.reduce((acc, i) => acc + (i._count?.crafters ?? 0), 0)} artisans déclarés au total</span>
@@ -151,9 +151,9 @@ export default function LegendaryManager() {
 
             {/* Grid */}
             {loading ? (
-                <div className="p-12 text-center text-slate-400 animate-pulse">Chargement...</div>
+                <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement...</div>
             ) : filtered.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 bg-slate-900/30 rounded-lg border border-dashed border-slate-700">
+                <div className="p-12 text-center text-muted-foreground bg-surface/30 rounded-lg border border-dashed border-border">
                     Aucun objet légendaire trouvé
                 </div>
             ) : (
@@ -163,21 +163,21 @@ export default function LegendaryManager() {
                         return (
                             <div
                                 key={item.id}
-                                className="group relative bg-slate-900/40 border border-slate-800 rounded-xl p-4 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-900/10 transition-all duration-300"
+                                className="group relative bg-surface/40 border border-border rounded-xl p-4 hover:border-info/30 hover:shadow-lg hover:shadow-purple-900/10 transition-all duration-300"
                             >
                                 {/* Actions */}
                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 bg-slate-950/80 hover:bg-slate-800 text-slate-400">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 bg-background/80 hover:bg-elevated text-muted-foreground">
                                                 <MoreHorizontal className="w-3 h-3" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
-                                            <DropdownMenuItem onClick={() => startEdit(item)} className="text-slate-300 focus:bg-slate-800 cursor-pointer">
-                                                <Edit2 className="w-3 h-3 mr-2 text-purple-400" /> Modifier
+                                        <DropdownMenuContent align="end" className="bg-surface border-border">
+                                            <DropdownMenuItem onClick={() => startEdit(item)} className="text-foreground focus:bg-elevated cursor-pointer">
+                                                <Edit2 className="w-3 h-3 mr-2 text-info" /> Modifier
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-400 focus:bg-red-950/30 cursor-pointer">
+                                            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-danger focus:bg-danger/30 cursor-pointer">
                                                 <Trash2 className="w-3 h-3 mr-2" /> Supprimer
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -186,25 +186,25 @@ export default function LegendaryManager() {
 
                                 <div className="flex items-center gap-4">
                                     {/* Image */}
-                                    <div className="w-14 h-14 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 overflow-hidden p-1.5 group-hover:border-purple-500/50 transition-colors">
+                                    <div className="w-14 h-14 rounded-xl bg-elevated border border-border flex items-center justify-center shrink-0 overflow-hidden p-1.5 group-hover:border-info/50 transition-colors">
                                         {item.imageUrl ? (
                                             <Image src={item.imageUrl} alt={item.name} width={48} height={48} className="object-contain" />
                                         ) : (
-                                            <Sparkles className="w-7 h-7 text-slate-600" />
+                                            <Sparkles className="w-7 h-7 text-muted-foreground" />
                                         )}
                                     </div>
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0 space-y-1.5">
-                                        <h4 className="font-bold text-slate-200 text-sm truncate leading-none" title={item.name}>
+                                        <h4 className="font-bold text-foreground text-sm truncate leading-none" title={item.name}>
                                             {item.name}
                                         </h4>
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                            <Badge variant="outline" className="text-caption px-1.5 py-0 border-slate-700 text-slate-400 bg-slate-800/50">
+                                            <Badge variant="outline" className="text-caption px-1.5 py-0 border-border text-muted-foreground bg-elevated/50">
                                                 {item.category}
                                             </Badge>
                                         </div>
-                                        <div className="flex items-center gap-2 text-caption text-slate-500">
+                                        <div className="flex items-center gap-2 text-caption text-muted-foreground">
                                             {job && (
                                                 <div className="flex items-center gap-1">
                                                     <div className="relative w-3.5 h-3.5">
@@ -214,7 +214,7 @@ export default function LegendaryManager() {
                                                 </div>
                                             )}
                                             {item._count && (
-                                                <div className="flex items-center gap-1 ml-auto text-purple-400/70">
+                                                <div className="flex items-center gap-1 ml-auto text-info/70">
                                                     <Users className="w-3 h-3" />
                                                     <span>{item._count.crafters}</span>
                                                 </div>
@@ -230,14 +230,14 @@ export default function LegendaryManager() {
 
             {/* Edit / Create Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="w-[95vw] max-w-4xl bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-                    <div className="p-6 bg-slate-900/50 border-b border-slate-800 shrink-0">
+                <DialogContent className="w-[95vw] max-w-4xl bg-background border-border p-0 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                    <div className="p-6 bg-surface/50 border-b border-border shrink-0">
                         <DialogHeader>
-                            <DialogTitle className="text-2xl font-black text-white flex items-center gap-3">
-                                <Sparkles className="w-6 h-6 text-purple-400" />
+                            <DialogTitle className="text-2xl font-black text-foreground flex items-center gap-3">
+                                <Sparkles className="w-6 h-6 text-info" />
                                 {editing ? "Modifier l'objet légendaire" : "Nouvel Objet Légendaire"}
                             </DialogTitle>
-                            <DialogDescription className="text-slate-400">
+                            <DialogDescription className="text-muted-foreground">
                                 Configurez le nom, la catégorie, le métier requis et l'icône.
                             </DialogDescription>
                         </DialogHeader>
@@ -247,29 +247,29 @@ export default function LegendaryManager() {
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Left: Info */}
-                                <div className="space-y-5 bg-slate-900/30 p-5 rounded-2xl border border-slate-800/50">
-                                    <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest border-b border-slate-800 pb-3">
+                                <div className="space-y-5 bg-surface/30 p-5 rounded-2xl border border-border/50">
+                                    <h3 className="text-xs font-black text-info uppercase tracking-widest border-b border-border pb-3">
                                         Informations
                                     </h3>
 
                                     {/* Name */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                                            Nom <span className="text-rose-500">*</span>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                            Nom <span className="text-danger">*</span>
                                         </label>
                                         <Input
                                             value={formData.name}
                                             onChange={e => setFormData({ ...formData, name: e.target.value })}
                                             required
                                             placeholder="Ex: Noblesse de Jahash Jurgen"
-                                            className="bg-slate-950 border-slate-800 focus:border-purple-500/50 text-white"
+                                            className="bg-background border-border focus:border-info/50 text-foreground"
                                         />
                                     </div>
 
                                     {/* Category */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                                            Catégorie <span className="text-rose-500">*</span>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                            Catégorie <span className="text-danger">*</span>
                                         </label>
                                         <div className="grid grid-cols-4 gap-2">
                                             {CATEGORIES.map(cat => (
@@ -280,8 +280,8 @@ export default function LegendaryManager() {
                                                     className={cn(
                                                         "px-2 py-2 rounded-lg text-caption font-bold uppercase tracking-wide border transition-all",
                                                         formData.category === cat
-                                                            ? "bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/30"
-                                                            : "bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200"
+                                                            ? "bg-info border-info text-foreground shadow-lg shadow-purple-900/30"
+                                                            : "bg-surface border-border text-muted-foreground hover:border-border hover:text-foreground"
                                                     )}
                                                 >
                                                     {cat}
@@ -292,8 +292,8 @@ export default function LegendaryManager() {
 
                                     {/* Job Required */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                                            Métier Requis (niveau 200) <span className="text-rose-500">*</span>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                            Métier Requis (niveau 200) <span className="text-danger">*</span>
                                         </label>
                                         <div className="grid grid-cols-5 gap-2">
                                             {LEGENDARY_JOBS.map(job => (
@@ -304,8 +304,8 @@ export default function LegendaryManager() {
                                                     className={cn(
                                                         "flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all",
                                                         formData.jobRequired === job.id
-                                                            ? "bg-purple-600/20 border-purple-500/60 text-purple-200 shadow-lg shadow-purple-900/20"
-                                                            : "bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200"
+                                                            ? "bg-info/20 border-info/60 text-info shadow-lg shadow-purple-900/20"
+                                                            : "bg-surface border-border text-muted-foreground hover:border-border hover:text-foreground"
                                                     )}
                                                 >
                                                     <div className="relative w-8 h-8">
@@ -321,8 +321,8 @@ export default function LegendaryManager() {
                                 </div>
 
                                 {/* Right: Image */}
-                                <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800">
-                                    <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest border-b border-slate-800 pb-3 mb-4">
+                                <div className="bg-background/50 p-5 rounded-2xl border border-border">
+                                    <h3 className="text-xs font-black text-info uppercase tracking-widest border-b border-border pb-3 mb-4">
                                         Icône de l'Objet
                                     </h3>
                                     <ImageDownloader
@@ -336,10 +336,10 @@ export default function LegendaryManager() {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex gap-3 pt-4 border-t border-slate-800">
+                            <div className="flex gap-3 pt-4 border-t border-border">
                                 <Button
                                     type="submit"
-                                    className="flex-[3] bg-purple-600 hover:bg-purple-500 h-12 font-black uppercase tracking-widest shadow-xl shadow-purple-600/20 rounded-xl"
+                                    className="flex-[3] bg-info hover:bg-info h-12 font-black uppercase tracking-widest shadow-xl shadow-purple-600/20 rounded-xl"
                                 >
                                     {editing ? "💾 Enregistrer" : "✨ Créer l'Objet"}
                                 </Button>
@@ -347,7 +347,7 @@ export default function LegendaryManager() {
                                     type="button"
                                     variant="outline"
                                     onClick={() => { setIsDialogOpen(false); resetForm(); }}
-                                    className="flex-1 h-12 border-white/10 hover:bg-white/5 text-slate-300 font-bold uppercase tracking-widest rounded-xl"
+                                    className="flex-1 h-12 border-border hover:bg-surface text-foreground font-bold uppercase tracking-widest rounded-xl"
                                 >
                                     Annuler
                                 </Button>

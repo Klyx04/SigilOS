@@ -92,7 +92,7 @@ export function LadderTabs({ guildId }: Props) {
                     {/* Responsive Tabs Header */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         {/* Scrollable container for tabs */}
-                        <div className="relative w-full overflow-hidden border-b border-white/10">
+                        <div className="relative w-full overflow-hidden border-b border-border">
                             <TabsList className="flex w-full h-auto bg-transparent p-0 justify-start overflow-x-auto overflow-y-hidden no-scrollbar scroll-smooth rounded-none">
                                 {categories.map((cat) => (
                                     <TabsTrigger
@@ -100,7 +100,7 @@ export function LadderTabs({ guildId }: Props) {
                                         value={cat.id}
                                         className={`flex-shrink-0 gap-2 px-6 py-4 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-none border-b-2 border-transparent shadow-none
                                             data-[state=active]:border-${cat.color}-500 data-[state=active]:text-${cat.color}-400 data-[state=active]:bg-transparent
-                                            text-zinc-500 hover:text-white hover:bg-white/5 bg-transparent`}
+                                            text-muted-foreground hover:text-foreground hover:bg-surface bg-transparent`}
                                     >
                                         <cat.icon className="h-4 w-4" />
                                         {cat.label}
@@ -115,10 +115,10 @@ export function LadderTabs({ guildId }: Props) {
                         {activeTab === "activity" && (
                             <div className="flex justify-end">
                                 <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                                    <SelectTrigger className="w-full sm:w-[220px] bg-black/40 border-white/10 text-white rounded-xl backdrop-blur-md">
+                                    <SelectTrigger className="w-full sm:w-[220px] bg-black/40 border-border text-foreground rounded-xl backdrop-blur-md">
                                         <SelectValue placeholder="Période" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
+                                    <SelectContent className="bg-surface border-border text-foreground">
                                         <SelectItem value="weekly">📅 Hebdomadaire (RESET MARDI)</SelectItem>
                                         <SelectItem value="monthly">📅 Mensuel</SelectItem>
                                         <SelectItem value="alltime">🏆 Historique Global</SelectItem>

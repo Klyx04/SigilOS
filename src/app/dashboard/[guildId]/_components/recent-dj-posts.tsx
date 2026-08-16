@@ -26,14 +26,14 @@ export function RecentDjPosts({
     const displayGroups = (groups || []).slice(0, 5);
 
     return (
-        <Card className="glass-premium border-white/5 h-full flex flex-col overflow-hidden group">
+        <Card className="glass-premium border-border h-full flex flex-col overflow-hidden group">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Sword className="w-3 h-3" />
                         Groupes & Activités
                     </CardTitle>
-                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-zinc-600 hover:text-guild uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all">
+                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-all">
                         Voir tout
                     </Link>
                 </div>
@@ -50,8 +50,8 @@ export function RecentDjPosts({
 
                         return (
                             <Link key={group.id} href={href}>
-                                <div className={`p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all flex items-center gap-4 group/item ${isDream ? 'hover:border-emerald-500/20' : 'hover:border-emerald-500/20'}`}>
-                                    <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10 relative bg-zinc-900 flex items-center justify-center">
+                                <div className={`p-3 rounded-xl bg-surface border border-border hover:bg-surface transition-all flex items-center gap-4 group/item ${isDream ? 'hover:border-success/20' : 'hover:border-success/20'}`}>
+                                    <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-border relative bg-surface flex items-center justify-center">
                                         {group.imageUrl ? (
                                             <NextImage 
                                                 src={group.imageUrl} 
@@ -60,22 +60,22 @@ export function RecentDjPosts({
                                                 className="object-cover"
                                             />
                                         ) : (
-                                            <div className="text-indigo-400">
+                                            <div className="text-info">
                                                 {isQuest ? <ScrollText className="w-5 h-5" /> : <Search className="w-5 h-5" />}
                                             </div>
                                         )}
                                         {isDream && (
-                                            <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center backdrop-blur-[1px]">
-                                                <InfinityIcon className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                                            <div className="absolute inset-0 bg-success/20 flex items-center justify-center backdrop-blur-[1px]">
+                                                <InfinityIcon className="w-5 h-5 text-success drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <h4 className="text-body-sm font-black text-white truncate leading-none mb-1">
+                                            <h4 className="text-body-sm font-black text-foreground truncate leading-none mb-1">
                                                 {group.title}
                                             </h4>
-                                            <Badge variant="outline" className={`text-caption py-0 px-1 border-white/5 font-black h-3.5 ${isDream ? 'text-emerald-500 bg-emerald-500/5' : 'text-zinc-500'}`}>
+                                            <Badge variant="outline" className={`text-caption py-0 px-1 border-border font-black h-3.5 ${isDream ? 'text-success bg-success/5' : 'text-muted-foreground'}`}>
                                                 {isDream ? 'SONGES' : `Lvl ${group.level}`}
                                             </Badge>
                                         </div>
@@ -84,15 +84,15 @@ export function RecentDjPosts({
                                                 <AvatarImage src={group.authorImage ?? undefined} />
                                                 <AvatarFallback className="text-caption">{group.authorName[0]}</AvatarFallback>
                                             </Avatar>
-                                            <p className="text-caption text-zinc-500 font-bold truncate">par {group.authorName}</p>
+                                            <p className="text-caption text-muted-foreground font-bold truncate">par {group.authorName}</p>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                                        <div className={`flex items-center gap-1 text-caption font-black ${group.participantsCount >= group.maxMembers ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                        <div className={`flex items-center gap-1 text-caption font-black ${group.participantsCount >= group.maxMembers ? 'text-warning' : 'text-success'}`}>
                                             <Users className="w-3 h-3" />
                                             {group.participantsCount}/{group.maxMembers}
                                         </div>
-                                        <div className={`text-caption font-black uppercase tracking-tighter transition-colors ${isDream ? 'text-emerald-600 hover:text-emerald-400' : 'text-zinc-600 hover:text-indigo-400'}`}>
+                                        <div className={`text-caption font-black uppercase tracking-tighter transition-colors ${isDream ? 'text-success hover:text-success' : 'text-muted-foreground hover:text-info'}`}>
                                             {isDream ? 'REJOINDRE' : 'REJOINDRE'}
                                         </div>
                                     </div>
@@ -101,7 +101,7 @@ export function RecentDjPosts({
                         );
                     })
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-zinc-600 italic border border-dashed border-white/5 rounded-2xl">
+                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-muted-foreground italic border border-dashed border-border rounded-2xl">
                         <Search className="w-8 h-8 opacity-20 mb-2" />
                         <p className="text-caption uppercase font-black tracking-widest">Aucun groupe en cours</p>
                         <p className="text-caption mt-1 opacity-60">Soyez le premier à recruter !</p>
@@ -109,7 +109,7 @@ export function RecentDjPosts({
                 )}
                 
                 {displayGroups.length > 0 && (
-                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="flex items-center justify-center gap-2 text-caption font-black text-zinc-600 hover:text-white uppercase tracking-widest pt-2 group-hover:text-indigo-400 transition-colors">
+                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="flex items-center justify-center gap-2 text-caption font-black text-muted-foreground hover:text-foreground uppercase tracking-widest pt-2 group-hover:text-info transition-colors">
                         Rejoindre un groupe <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 )}

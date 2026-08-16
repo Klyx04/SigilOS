@@ -20,17 +20,17 @@ interface UpcomingEvent {
 }
 
 const EVENT_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string; border: string }> = {
-    RAID_OFFICIAL:    { label: "Raid Officiel",     icon: Swords,    color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
+    RAID_OFFICIAL:    { label: "Raid Officiel",     icon: Swords,    color: "text-danger",     bg: "bg-danger/10",     border: "border-danger/20" },
     EVENT_GUILD:      { label: "Événement",         icon: Star,      color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/20" },
-    SESSION_MISSIONS: { label: "Missions",          icon: Target,    color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/20" },
+    SESSION_MISSIONS: { label: "Missions",          icon: Target,    color: "text-info",    bg: "bg-info/10",    border: "border-info/20" },
     SORTIE_FARM:      { label: "Sortie Farm",       icon: Flame,     color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/20" },
-    SONGES_RUN:       { label: "Songes",            icon: Infinity,  color: "text-purple-400",  bg: "bg-purple-500/10",  border: "border-purple-500/20" },
-    DUNGEON_FARM:     { label: "Donjons",           icon: Flame,     color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20" },
+    SONGES_RUN:       { label: "Songes",            icon: Infinity,  color: "text-info",  bg: "bg-info/10",  border: "border-info/20" },
+    DUNGEON_FARM:     { label: "Donjons",           icon: Flame,     color: "text-warning",   bg: "bg-warning/10",   border: "border-warning/20" },
     SOCIAL:           { label: "Social",            icon: Coffee,    color: "text-pink-400",    bg: "bg-pink-500/10",    border: "border-pink-500/20" },
     GUILD_MISSION:    { label: "Mission Guilde",    icon: Target,    color: "text-teal-400",    bg: "bg-teal-500/10",    border: "border-teal-500/20" },
-    ALMANAX_BONUS:    { label: "Almanax",           icon: Star,      color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    OFFICIAL_RESET:   { label: "Reset Officiel",    icon: RefreshCw, color: "text-zinc-400",    bg: "bg-zinc-800/50",    border: "border-zinc-700/30" },
-    OTHERS:           { label: "Autre",             icon: Calendar,  color: "text-zinc-400",    bg: "bg-zinc-800/50",    border: "border-zinc-700/30" },
+    ALMANAX_BONUS:    { label: "Almanax",           icon: Star,      color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+    OFFICIAL_RESET:   { label: "Reset Officiel",    icon: RefreshCw, color: "text-muted-foreground",    bg: "bg-elevated/50",    border: "border-border/30" },
+    OTHERS:           { label: "Autre",             icon: Calendar,  color: "text-muted-foreground",    bg: "bg-elevated/50",    border: "border-border/30" },
 };
 
 function getWhenLabel(date: Date): { label: string; urgent: boolean } {
@@ -74,7 +74,7 @@ export function UpcomingEventsWidget({
     const activeEvents = events.filter((e) => new Date(e.endDate).getTime() >= nowTs);
 
     return (
-        <Card className="glass-premium border-white/5 flex flex-col h-full overflow-hidden">
+        <Card className="glass-premium border-border flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
@@ -90,14 +90,14 @@ export function UpcomingEventsWidget({
                         {/* #2 — Lien vers le planning perso du profil */}
                         <Link
                             href={`/dashboard/${guildId}/profile?tab=planning`}
-                            className="text-caption font-semibold text-zinc-500 hover:text-guild transition-colors"
+                            className="text-caption font-semibold text-muted-foreground hover:text-guild transition-colors"
                             title="Mon planning perso"
                         >
                             Mon planning
                         </Link>
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="text-caption font-black text-zinc-600 hover:text-guild uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-colors hover:border-guild/20"
+                            className="text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-colors hover:border-guild/20"
                         >
                             Calendrier →
                         </Link>
@@ -121,7 +121,7 @@ export function UpcomingEventsWidget({
                                     "flex flex-col items-center gap-0.5 rounded-lg py-2 border transition-colors",
                                     isCurrentDay
                                         ? "bg-guild/15 border-guild/40 text-guild"
-                                        : "bg-zinc-950/40 border-white/5 text-zinc-500 hover:bg-zinc-900/60 hover:text-white hover:border-white/10"
+                                        : "bg-background/40 border-border text-muted-foreground hover:bg-surface/60 hover:text-foreground hover:border-border"
                                 )}
                             >
                                 <span className="text-label font-semibold uppercase">
@@ -130,7 +130,7 @@ export function UpcomingEventsWidget({
                                 <span className="text-sm font-bold tabular-nums leading-none">
                                     {format(day, "d")}
                                 </span>
-                                <span className={cn("h-1 w-1 rounded-full", dayCount > 0 ? "bg-emerald-400" : "bg-transparent")} />
+                                <span className={cn("h-1 w-1 rounded-full", dayCount > 0 ? "bg-success" : "bg-transparent")} />
                             </Link>
                         );
                     })}
@@ -156,10 +156,10 @@ export function UpcomingEventsWidget({
                                     key={event.id}
                                     href={`/dashboard/${guildId}/calendar?event=${event.id}`}
                                     className={cn(
-                                        "group flex items-start gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-white/5 transition-colors duration-200",
+                                        "group flex items-start gap-3 p-3 rounded-2xl bg-background/40 border border-border transition-colors duration-200",
                                         isPast
                                             ? "opacity-55 hover:opacity-80"
-                                            : "hover:bg-zinc-900/60 hover:border-emerald-500/20"
+                                            : "hover:bg-surface/60 hover:border-success/20"
                                     )}
                                 >
                                     {/* Type Icon */}
@@ -175,10 +175,10 @@ export function UpcomingEventsWidget({
                                                 className={cn(
                                                 "text-caption font-black uppercase px-1.5 py-0.5 rounded shrink-0",
                                                 isPast
-                                                    ? "bg-zinc-800/60 text-zinc-500"
+                                                    ? "bg-elevated/60 text-muted-foreground"
                                                     : when.urgent || isOngoing
-                                                        ? "bg-emerald-500 text-black"
-                                                        : "bg-zinc-800 text-zinc-400"
+                                                        ? "bg-success text-success-foreground"
+                                                        : "bg-elevated text-muted-foreground"
                                             )}>
                                                 {isPast ? "Terminé" : isOngoing ? "En cours" : when.label}
                                             </span>
@@ -186,17 +186,17 @@ export function UpcomingEventsWidget({
                                                 {cfg.label}
                                             </span>
                                             {isFull && (
-                                                <span className="text-caption font-black uppercase px-1.5 py-0.5 rounded bg-red-950/40 border border-red-500/20 text-red-400 shrink-0">
+                                                <span className="text-caption font-black uppercase px-1.5 py-0.5 rounded bg-danger/40 border border-danger/20 text-danger shrink-0">
                                                     Complet
                                                 </span>
                                             )}
                                         </div>
 
-                                        <p className="text-caption font-black text-white/90 group-hover:text-guild transition-colors uppercase italic truncate">
+                                        <p className="text-caption font-black text-foreground/90 group-hover:text-guild transition-colors uppercase italic truncate">
                                             {event.title}
                                         </p>
 
-                                        <div className="flex items-center gap-3 text-caption text-zinc-500 font-bold uppercase tracking-tighter">
+                                        <div className="flex items-center gap-3 text-caption text-muted-foreground font-bold uppercase tracking-tighter">
                                             <span className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3" />
                                                 <span suppressHydrationWarning>{format(new Date(event.startDate), "HH:mm")}</span>
@@ -215,15 +215,15 @@ export function UpcomingEventsWidget({
 
                                         {/* Participation bar */}
                                         {fillPct !== null && (
-                                            <div className="h-1 bg-zinc-900 rounded-full overflow-hidden w-full mt-1">
+                                            <div className="h-1 bg-surface rounded-full overflow-hidden w-full mt-1">
                                                 <div
                                                     className={cn(
                                                         "h-full rounded-full transition-all duration-300",
                                                         fillPct >= 100
-                                                            ? "bg-red-500"
+                                                            ? "bg-danger"
                                                             : fillPct >= 75
                                                                 ? "bg-orange-500"
-                                                                : "bg-emerald-500"
+                                                                : "bg-success"
                                                     )}
                                                     style={{ width: `${fillPct}%` }}
                                                 />
@@ -231,28 +231,28 @@ export function UpcomingEventsWidget({
                                         )}
                                     </div>
 
-                                    <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-guild transition-colors shrink-0 mt-2" />
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-guild transition-colors shrink-0 mt-2" />
                                 </Link>
                             );
                         })}
 
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="flex items-center justify-center gap-2 text-caption font-black text-zinc-700 hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-white/5 mt-auto"
+                            className="flex items-center justify-center gap-2 text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-border mt-auto"
                         >
                             Voir tout le calendrier
                         </Link>
                     </>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-4 border border-dashed border-white/5 rounded-2xl">
-                        <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center">
-                            <Calendar className="w-6 h-6 text-zinc-700" />
+                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-4 border border-dashed border-border rounded-2xl">
+                        <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center">
+                            <Calendar className="w-6 h-6 text-muted-foreground" />
                         </div>
                         <div className="space-y-1">
-                            <p className="text-caption text-zinc-500 font-black uppercase tracking-widest">
+                            <p className="text-caption text-muted-foreground font-black uppercase tracking-widest">
                                 Aucun événement à venir
                             </p>
-                            <p className="text-caption text-zinc-700 font-medium">
+                            <p className="text-caption text-muted-foreground font-medium">
                                 Planifiez le prochain raid ou événement de guilde
                             </p>
                         </div>

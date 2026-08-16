@@ -313,15 +313,15 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     return (
         <div className="space-y-6">
             {!isDiscordConfigured && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-4 shadow-lg backdrop-blur-sm">
-                    <div className="p-2 bg-amber-500/20 rounded-lg text-amber-500">
+                <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-start gap-4 shadow-lg backdrop-blur-sm">
+                    <div className="p-2 bg-warning/20 rounded-lg text-warning">
                         <AlertTriangle className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                        <h4 className="text-sm font-black text-amber-500 uppercase tracking-widest mb-1">Configuration Discord Absente</h4>
-                        <p className="text-xs text-amber-200/70 leading-relaxed font-medium">
+                        <h4 className="text-sm font-black text-warning uppercase tracking-widest mb-1">Configuration Discord Absente</h4>
+                        <p className="text-xs text-warning/70 leading-relaxed font-medium">
                             Le salon de notification des missions n&apos;est pas configuré dans les paramètres de la guilde.
-                            <span className="text-amber-400 font-bold ml-1 italic text-caption sm:text-xs">
+                            <span className="text-warning font-bold ml-1 italic text-caption sm:text-xs">
                                 Le bouton d&apos;Annonce Discord est masqué pour éviter les pings invalides.
                             </span>
                         </p>
@@ -330,27 +330,27 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             )}
 
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-xl gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between bg-surface border border-border p-4 rounded-xl gap-4">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-zinc-400">Semaine</span>
-                        <span className="h-9 px-3 flex items-center bg-zinc-950 border border-zinc-800 rounded text-sm text-white font-mono font-bold">
+                        <span className="text-sm text-muted-foreground">Semaine</span>
+                        <span className="h-9 px-3 flex items-center bg-background border border-border rounded text-sm text-foreground font-mono font-bold">
                             {weekNumber}
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-zinc-400">Année</span>
-                        <span className="h-9 px-3 flex items-center bg-zinc-950 border border-zinc-800 rounded text-sm text-white font-mono">
+                        <span className="text-sm text-muted-foreground">Année</span>
+                        <span className="h-9 px-3 flex items-center bg-background border border-border rounded text-sm text-foreground font-mono">
                             {year}
                         </span>
                     </div>
 
-                    <div className="w-px h-8 bg-zinc-800 mx-2 hidden sm:block"></div>
+                    <div className="w-px h-8 bg-elevated mx-2 hidden sm:block"></div>
 
                     <div className="flex items-center gap-2">
-                        <label className="text-sm text-zinc-400 font-medium">Palier semaine</label>
+                        <label className="text-sm text-muted-foreground font-medium">Palier semaine</label>
                         <select
-                            className="h-9 w-32 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none disabled:opacity-50"
+                            className="h-9 w-32 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:ring-2 focus:ring-ring/50 outline-none disabled:opacity-50"
                             value={globalTier}
                             onChange={handleGlobalTierChange}
                             disabled={isLoading}
@@ -360,20 +360,20 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             ))}
                         </select>
                         {globalTier !== guildDefaultTier && (
-                            <span className="text-caption text-zinc-600 italic">Défaut guilde : {guildDefaultTier}</span>
+                            <span className="text-caption text-muted-foreground italic">Défaut guilde : {guildDefaultTier}</span>
                         )}
                         <GuidePulse description="Définit le nombre total de points requis par la guilde cette semaine pour débloquer les récompenses." />
                     </div>
 
-                    {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
+                    {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                 </div>
 
-                <div className="flex items-center gap-2 p-1 bg-black/40 border border-white/5 rounded-xl shadow-inner backdrop-blur-md">
+                <div className="flex items-center gap-2 p-1 bg-black/40 border border-border rounded-xl shadow-inner backdrop-blur-md">
                     <div data-tour="admin-missions-bonus">
                         <BonusMenuButton guildId={guildId} />
                     </div>
                     
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
 
                     {/* Guild Hall Config Button */}
                     <button
@@ -382,24 +382,24 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                         className={cn(
                             "h-9 px-3 flex items-center gap-1.5 rounded-lg text-xs font-bold transition-all",
                             hallPanelOpen
-                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                                : "text-zinc-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+                                ? "bg-info/20 text-info border border-info/30"
+                                : "text-muted-foreground hover:text-info hover:bg-info/10"
                         )}
                     >
                         <Home className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Hall</span>
                         {(hallPosX !== null && hallPosY !== null) && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-info animate-pulse" />
                         )}
                     </button>
 
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
 
                     <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-9 px-3 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10"
+                        className="h-9 px-3 text-muted-foreground hover:text-danger hover:bg-danger/10"
                         onClick={handleResetWeek}
                         disabled={isResetting || isLoading}
                     >
@@ -411,7 +411,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                         <span className="hidden sm:inline">Reset Semaine</span>
                     </Button>
 
-                    <div className="w-px h-6 bg-white/10 mx-1" />
+                    <div className="w-px h-6 bg-surface mx-1" />
 
                     <Button 
                         onClick={() => setConfirmPublishOpen(true)} 
@@ -428,62 +428,62 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Guild Hall Config Panel */}
             {hallPanelOpen && (
-                <div className="border border-cyan-500/20 bg-cyan-500/5 backdrop-blur-md rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="border border-info/20 bg-info/5 backdrop-blur-md rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                                <Home className="w-4 h-4 text-cyan-400" />
+                            <div className="p-1.5 rounded-lg bg-info/10 border border-info/20">
+                                <Home className="w-4 h-4 text-info" />
                             </div>
                             <div>
-                                <p className="text-sm font-black text-white">Hall de Guilde</p>
-                                <p className="text-caption text-zinc-500">Position du point de ralliement visible par tous les membres.</p>
+                                <p className="text-sm font-black text-foreground">Hall de Guilde</p>
+                                <p className="text-caption text-muted-foreground">Position du point de ralliement visible par tous les membres.</p>
                             </div>
                         </div>
-                        <button onClick={() => setHallPanelOpen(false)} className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-all">
+                        <button onClick={() => setHallPanelOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-all">
                             <X className="w-4 h-4" />
                         </button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
                         <div>
-                            <label className="text-caption font-black text-cyan-400 uppercase tracking-wider block mb-1">Position X</label>
+                            <label className="text-caption font-black text-info uppercase tracking-wider block mb-1">Position X</label>
                             <input
                                 type="number"
                                 value={hallPosX ?? ""}
                                 onChange={(e) => setHallPosX(e.target.value ? Number(e.target.value) : null)}
                                 placeholder="Ex: -3"
-                                className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm font-bold text-white text-center outline-none transition-all"
+                                className="w-full bg-background/60 border border-border hover:border-info/30 focus:border-info rounded-xl px-3 py-2 text-sm font-bold text-foreground text-center outline-none transition-all"
                             />
                         </div>
                         <div>
-                            <label className="text-caption font-black text-cyan-400 uppercase tracking-wider block mb-1">Position Y</label>
+                            <label className="text-caption font-black text-info uppercase tracking-wider block mb-1">Position Y</label>
                             <input
                                 type="number"
                                 value={hallPosY ?? ""}
                                 onChange={(e) => setHallPosY(e.target.value ? Number(e.target.value) : null)}
                                 placeholder="Ex: -56"
-                                className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm font-bold text-white text-center outline-none transition-all"
+                                className="w-full bg-background/60 border border-border hover:border-info/30 focus:border-info rounded-xl px-3 py-2 text-sm font-bold text-foreground text-center outline-none transition-all"
                             />
                         </div>
                         <div>
-                            <label className="text-caption font-black text-cyan-400 uppercase tracking-wider block mb-1">Monde</label>
+                            <label className="text-caption font-black text-info uppercase tracking-wider block mb-1">Monde</label>
                             <div className="relative">
                                 <select
                                     value={hallWorldId}
                                     onChange={(e) => setHallWorldId(Number(e.target.value))}
-                                    className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl pl-3 pr-7 py-2 text-caption font-bold text-white outline-none appearance-none transition-all cursor-pointer"
+                                    className="w-full bg-background/60 border border-border hover:border-info/30 focus:border-info rounded-xl pl-3 pr-7 py-2 text-caption font-bold text-foreground outline-none appearance-none transition-all cursor-pointer"
                                 >
                                     {DOFUS_WORLDS.map(w => (
-                                        <option key={w.id} value={w.id} className="bg-zinc-950 text-white text-xs">{w.name}</option>
+                                        <option key={w.id} value={w.id} className="bg-background text-foreground text-xs">{w.name}</option>
                                     ))}
                                 </select>
-                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
                             </div>
                         </div>
                     </div>
 
                     {hallPosX !== null && hallPosY !== null && (
-                        <p className="text-caption text-cyan-400/70 font-mono text-center">
+                        <p className="text-caption text-info/70 font-mono text-center">
                             /travel {hallPosX} {hallPosY}
                         </p>
                     )}
@@ -507,7 +507,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     toast.error(res.error || "Erreur");
                                 }
                             }}
-                            className="px-6 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/20"
+                            className="px-6 bg-info hover:bg-info text-info-foreground font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/20"
                         >
                             {isSavingHall ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             Sauvegarder
@@ -518,7 +518,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Pool Toggle — Dofus 3.5 Classiques / Spéciales */}
             <div className="flex items-center gap-3 flex-wrap w-full">
-                <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl sm:rounded-full shadow-lg flex-wrap sm:flex-nowrap w-full sm:w-auto">
+                <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-border rounded-2xl sm:rounded-full shadow-lg flex-wrap sm:flex-nowrap w-full sm:w-auto">
                     {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                         const isActive = missionPool === pool;
                         const count = pool === 'CLASSIQUES' ? missions.slice(0, 12).filter(m => m.title).length : missions.slice(12, 20).filter(m => m.title).length;
@@ -531,9 +531,9 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     "flex-1 sm:flex-none relative flex items-center justify-center gap-1.5 sm:gap-2 px-2 py-2 sm:px-5 text-caption sm:text-xs font-black rounded-full transition-all duration-300 uppercase tracking-widest min-w-0",
                                     isActive
                                         ? pool === 'CLASSIQUES'
-                                            ? "bg-indigo-500 text-white "
-                                            : "bg-yellow-500 text-black "
-                                        : "text-zinc-400 hover:text-white hover:bg-white/10"
+                                            ? "bg-info text-info-foreground "
+                                            : "bg-yellow-500 text-foreground "
+                                        : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                 )}
                             >
                                 {pool === 'CLASSIQUES' ? <Swords className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -541,8 +541,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 <span className={cn(
                                     "text-caption font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
                                     isActive
-                                        ? pool === 'CLASSIQUES' ? "bg-white/20 text-white" : "bg-black/20 text-black"
-                                        : "bg-zinc-700 text-zinc-300"
+                                        ? pool === 'CLASSIQUES' ? "bg-elevated text-foreground" : "bg-black/20 text-foreground"
+                                        : "bg-muted text-foreground"
                                 )}>
                                     {count}/{total}
                                 </span>
@@ -555,7 +555,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                         <Sparkles className="w-3 h-3" /> Missions spéciales — jusqu'à 8 missions (Dofus 3.5)
                     </span>
                 )}
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
             </div>
 
             {/* Grid */}
@@ -563,7 +563,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 {poolMissions.map((mission) => {
                     const isEmpty = !mission.title;
                     const config = CATEGORY_CONFIG[mission.category] || CATEGORY_CONFIG.DONJON;
-                    const borderColor = isEmpty ? "border-zinc-800" : config.borderColor;
+                    const borderColor = isEmpty ? "border-border" : config.borderColor;
                     const glowColor = isEmpty ? "rgba(255,255,255,0.1)" : config.glowColor;
                     const badgeStyle = isEmpty ? "" : `${config.color} ${config.borderColor} ${config.bgColor}`;
 
@@ -575,7 +575,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 const boss = payload.bossName;
                                 return name ? (
                                     <span className="text-violet-300 font-medium">
-                                        {name}{boss ? <span className="text-zinc-500 font-normal"> · {boss}</span> : null}
+                                        {name}{boss ? <span className="text-muted-foreground font-normal"> · {boss}</span> : null}
                                     </span>
                                 ) : null;
                             }
@@ -587,31 +587,31 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             case 'REGULATION': {
                                 const zone = payload.zoneName;
                                 const monster = payload.monsterName || payload.familyName;
-                                return <span className="text-amber-300">{[zone, monster].filter(Boolean).join(' · ')}</span>;
+                                return <span className="text-warning">{[zone, monster].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'SONGES': {
                                 const diff = payload.difficulty;
                                 const lvl = payload.level ? `Niv. ${payload.level}` : null;
-                                return <span className="text-cyan-300">{[diff, lvl].filter(Boolean).join(' ')}</span>;
+                                return <span className="text-info">{[diff, lvl].filter(Boolean).join(' ')}</span>;
                             }
                             case 'EXPEDITION': {
                                 const name = payload.dungeonName;
                                 const modeLabels: Record<string, string> = { bravoure: 'Bravoure', audace: 'Audace', aucun: 'Sans modif.' };
                                 const mode = payload.mode ? modeLabels[payload.mode] || payload.mode : null;
-                                return <span className="text-emerald-300">{[name, mode].filter(Boolean).join(' · ')}</span>;
+                                return <span className="text-success">{[name, mode].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'EVENT': {
                                 if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
                                     return <span className="text-fuchsia-300 font-medium">⚡ 20 Fragments d'anomalie</span>;
                                 }
                                 if (payload.eventType === 'OBJECTIF') {
-                                    return payload.description ? <span className="text-cyan-300 truncate font-medium">📜 {payload.description}</span> : null;
+                                    return payload.description ? <span className="text-info truncate font-medium">📜 {payload.description}</span> : null;
                                 }
-                                return payload.description ? <span className="text-rose-300 truncate">{payload.description}</span> : null;
+                                return payload.description ? <span className="text-danger truncate">{payload.description}</span> : null;
                             }
                             default: {
                                 const first = Object.values(payload).find(v => v && typeof v === 'string');
-                                return first ? <span className="text-zinc-400">{String(first)}</span> : null;
+                                return first ? <span className="text-muted-foreground">{String(first)}</span> : null;
                             }
                         }
                     };
@@ -622,9 +622,9 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             key={mission.slotIndex}
                             className={cn(
                                 "relative group transition-all duration-300 flex flex-col h-full",
-                                "bg-zinc-900 shadow-xl",
+                                "bg-surface shadow-xl",
                                 isEmpty
-                                    ? "bg-zinc-950/50 border-zinc-800/60 border-dashed hover:bg-zinc-900/80"
+                                    ? "bg-background/50 border-border/60 border-dashed hover:bg-surface/80"
                                     : cn("border ", borderColor)
                             )}
                             style={{ "--glow-color": glowColor } as React.CSSProperties}
@@ -633,7 +633,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
                                         "text-caption font-black px-1.5 py-0.5 rounded transition-colors",
-                                        isEmpty ? "bg-zinc-800 text-zinc-500" : "bg-white/10 text-white border border-white/10"
+                                        isEmpty ? "bg-elevated text-muted-foreground" : "bg-surface text-foreground border border-border"
                                     )}>
                                         #{mission.slotIndex + 1}
                                     </span>
@@ -645,7 +645,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     <Button
                                         size="icon"
                                         variant="ghost"
-                                        className="h-6 w-6 hover:bg-white/10"
+                                        className="h-6 w-6 hover:bg-surface"
                                         title={validateMission(mission) ?? "Sauvegarder"}
                                         onClick={() => {
                                             const err = validateMission(mission);
@@ -656,10 +656,10 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                             handleSaveSingle(mission.slotIndex);
                                         }}
                                     >
-                                        <Save className="w-3.5 h-3.5 text-indigo-400" />
+                                        <Save className="w-3.5 h-3.5 text-info" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-white/10" onClick={() => handleResetSingle(mission.slotIndex)} title="Effacer">
-                                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-surface" onClick={() => handleResetSingle(mission.slotIndex)} title="Effacer">
+                                        <Trash2 className="w-3.5 h-3.5 text-danger" />
                                     </Button>
                                 </div>
                             </CardHeader>
@@ -668,26 +668,26 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 <div className="h-full flex flex-col">
                                     {isEmpty ? (
                                         <div className="flex flex-col items-center justify-center h-20 gap-2.5">
-                                            <div className="w-10 h-10 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-center group- transition-transform duration-300 shadow-inner">
-                                                <Edit2 className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                                            <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border flex items-center justify-center group- transition-transform duration-300 shadow-inner">
+                                                <Edit2 className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                                             </div>
-                                            <span className="text-caption font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-200 transition-colors">Configurer</span>
+                                            <span className="text-caption font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">Configurer</span>
                                         </div>
                                     ) : (
                                         <>
-                                            <h4 className="text-base font-bold text-white truncate leading-tight transition-all">
+                                            <h4 className="text-base font-bold text-foreground truncate leading-tight transition-all">
                                                 {mission.title}
                                             </h4>
-                                            <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 mb-2">
-                                                <Badge variant="secondary" className="text-caption h-5 px-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 mb-2">
+                                                <Badge variant="secondary" className="text-caption h-5 px-1.5 bg-elevated hover:bg-muted text-foreground">
                                                     Rang {mission.rank}
                                                 </Badge>
-                                                <span className="w-0.5 h-3 bg-zinc-800" />
-                                                <span className="text-indigo-400 font-bold">{mission.xpReward} XP</span>
+                                                <span className="w-0.5 h-3 bg-elevated" />
+                                                <span className="text-info font-bold">{mission.xpReward} XP</span>
                                             </div>
 
                                             {payloadPreview && (
-                                                <div className="mt-auto flex items-center gap-1.5 text-caption px-2 py-1 bg-black/30 rounded border border-white/5 group-hover:border-white/10 transition-colors">
+                                                <div className="mt-auto flex items-center gap-1.5 text-caption px-2 py-1 bg-black/30 rounded border border-border group-hover:border-border transition-colors">
                                                     {payloadPreview}
                                                 </div>
                                             )}
@@ -702,7 +702,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Editing Dialog */}
             <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && setEditingSlot(null)}>
-                <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+                <DialogContent className="bg-surface border-border text-foreground sm:max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
                     <DialogHeader className="shrink-0">
                         <DialogTitle className="text-xl font-black flex items-center gap-2">
                             {editingSlot !== null && editingSlot >= 12
@@ -715,7 +715,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                         <div className="overflow-y-auto pr-1 flex-1 py-2 space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Catégorie</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Catégorie</label>
                                     {missionPool === 'SPECIALES' ? (
                                         // Special pool: locked to EVENT
                                         <div className="h-9 w-full rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 flex items-center gap-2 text-sm text-yellow-300 font-bold">
@@ -724,7 +724,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     ) : (
                                         // Classic pool: all categories except EVENT
                                         <select
-                                            className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                            className="h-9 w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
                                             value={currentMission.category}
                                             onChange={(e) => updateMission(currentMission.slotIndex, {
                                                 category: e.target.value as MissionCategoryType,
@@ -740,9 +740,9 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Rang (Difficulté)</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rang (Difficulté)</label>
                                     <select
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                        className="h-9 w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
                                         value={currentMission.rank}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { rank: parseInt(e.target.value) })}
                                     >
@@ -755,26 +755,26 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">XP Guilde</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">XP Guilde</label>
                                     <input
                                         type="number"
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                        className="h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
                                         value={currentMission.xpReward}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Guildatons</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Guildatons</label>
                                     <input
                                         type="number"
-                                        className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                        className="h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
                                         value={currentMission.guildatonsReward}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) || 0 })}
                                     />
                                 </div>
                             </div>
 
-                            <div className="pt-3 border-t border-zinc-800">
+                            <div className="pt-3 border-t border-border">
                                 {currentMission.category === 'DONJON' && (
                                     <DungeonForm
                                         payload={currentMission.payload}
@@ -801,7 +801,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 )}
                                 {currentMission.category === 'SONGES' && (
                                     <>
-                                        <div className="flex items-center gap-2 mb-4 bg-zinc-800/30 rounded-xl p-1">
+                                        <div className="flex items-center gap-2 mb-4 bg-elevated/30 rounded-xl p-1">
                                             <button
                                                 type="button"
                                                 onClick={() => updateMission(currentMission.slotIndex, { 
@@ -811,8 +811,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                                 className={cn(
                                                     "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
                                                     !currentMission.payload?.epreuve
-                                                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                                                        : "text-zinc-500 hover:text-zinc-300"
+                                                        ? "bg-info/20 text-info border border-info/30"
+                                                        : "text-muted-foreground hover:text-foreground"
                                                 )}
                                             >
                                                 Songes Classiques
@@ -826,8 +826,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                                 className={cn(
                                                     "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
                                                     currentMission.payload?.epreuve
-                                                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                                                        : "text-zinc-500 hover:text-zinc-300"
+                                                        ? "bg-info/20 text-info border border-info/30"
+                                                        : "text-muted-foreground hover:text-foreground"
                                                 )}
                                             >
                                                 Épreuve Songe
@@ -867,17 +867,17 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             </div>
                         </div>
                     )}
-                    <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row items-center pt-3 border-t border-zinc-800">
+                    <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row items-center pt-3 border-t border-border">
                         {currentMission && (() => {
                             const err = validateMission(currentMission);
                             return err ? (
-                                <p className="flex-1 text-xs text-rose-400 font-medium flex items-center gap-1.5 mr-auto">
-                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                <p className="flex-1 text-xs text-danger font-medium flex items-center gap-1.5 mr-auto">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
                                     {err}
                                 </p>
                             ) : null;
                         })()}
-                        <Button variant="ghost" onClick={() => setEditingSlot(null)} className="text-zinc-400 hover:text-white">Annuler</Button>
+                        <Button variant="ghost" onClick={() => setEditingSlot(null)} className="text-muted-foreground hover:text-foreground">Annuler</Button>
                         <Button
                             onClick={() => currentMission && handleSaveFromDialog(currentMission.slotIndex)}
                             disabled={!!currentMission && !!validateMission(currentMission)}

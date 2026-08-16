@@ -32,7 +32,7 @@ export function SolicitAction({
 
                     setIsOpen(true);
                 }}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold uppercase tracking-widest text-xs h-9 px-4 gap-2 transition-colors duration-150"
+                className="bg-info hover:bg-info text-info-foreground font-bold uppercase tracking-widest text-xs h-9 px-4 gap-2 transition-colors duration-150"
             >
                 <Send className="w-3.5 h-3.5" />
                 Solliciter ce membre

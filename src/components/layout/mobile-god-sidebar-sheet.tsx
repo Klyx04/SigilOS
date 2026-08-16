@@ -19,11 +19,11 @@ export function MobileGodSidebarSheet({ user, unreadCount, ticketCount = 0, acti
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <button className="flex p-2.5 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-colors">
+                <button className="flex p-2.5 items-center justify-center rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground transition-colors">
                     <Menu className="w-5 h-5" />
                 </button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 border-r border-white/10 bg-[#050505] w-[280px]">
+            <SheetContent side="left" className="p-0 border-r border-border bg-[#050505] w-[280px]">
                 <SheetTitle className="sr-only">Menu de Navigation Modérateur</SheetTitle>
                 {/* 
                   Passing the required props to the child sidebar component.

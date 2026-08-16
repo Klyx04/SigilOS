@@ -160,15 +160,15 @@ function buildSections(guildId: string): AdminSection[] {
 // Accent color map → Tailwind classes (static strings for purge safety)
 // #5 — Accent unique emerald (fini l'arc-en-ciel par carte admin)
 const ACCENT: Record<string, { border: string; hover: string; text: string; bg: string }> = {
-    violet: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    blue: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    slate: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    indigo: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    green: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    emerald: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    amber: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    rose: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
-    cyan: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    violet: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    blue: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    slate: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    indigo: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    green: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    emerald: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    amber: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    rose: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
+    cyan: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
 };
 
 // ============================================================================
@@ -264,14 +264,14 @@ export default async function AdminPage({
                         <div key={section.label} data-tour={sectionTourId} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-300">
                             {/* Section header: Industrial Tech Style */}
                             <div className="flex items-center gap-6">
-                                <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 ">
-                                    <SectionIcon className="w-5 h-5 text-rose-500" />
+                                <div className="p-2.5 rounded-2xl bg-danger/10 border border-danger/20 ">
+                                    <SectionIcon className="w-5 h-5 text-danger" />
                                 </div>
                                 <div className="space-y-1">
-                                    <h2 className="text-caption font-black uppercase tracking-widest text-rose-500/80">
+                                    <h2 className="text-caption font-black uppercase tracking-widest text-danger/80">
                                         {section.label}
                                     </h2>
-                                    <div className="h-0.5 w-24 bg-gradient-to-r from-rose-500 to-transparent" />
+                                    <div className="h-0.5 w-24 bg-gradient-to-r from-danger to-transparent" />
                                 </div>
                                 <div className="h-px flex-1 bg-gradient-to-r from-white/5 to-transparent" />
                             </div>
@@ -310,12 +310,12 @@ export default async function AdminPage({
 
             {/* Platform Terminal Status */}
             <div className="max-w-2xl mx-auto pt-20">
-                <div className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.01] backdrop-blur-sm relative overflow-hidden group">
+                <div className="p-8 rounded-[2rem] border border-border bg-surface backdrop-blur-sm relative overflow-hidden group">
                     <div className="flex flex-col items-center gap-6 text-center relative z-10">
-                        <div className="h-1 w-12 bg-rose-500/40 rounded-full" />
+                        <div className="h-1 w-12 bg-danger/40 rounded-full" />
                         <div className="space-y-2">
-                             <h4 className="text-caption font-black text-zinc-500 uppercase tracking-widest">SigilOS Command Center</h4>
-                             <p className="text-xs text-zinc-600 font-bold uppercase tracking-tight italic">Toutes les actions administratives sont tracées dans l'Audit Log.</p>
+                             <h4 className="text-caption font-black text-muted-foreground uppercase tracking-widest">SigilOS Command Center</h4>
+                             <p className="text-xs text-muted-foreground font-bold uppercase tracking-tight italic">Toutes les actions administratives sont tracées dans l'Audit Log.</p>
                         </div>
                     </div>
                 </div>

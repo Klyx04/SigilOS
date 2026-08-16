@@ -68,8 +68,8 @@ export default async function MemberProfilePage({
     return (
         <div className="p-6 space-y-6">
             {isOnVacation && (
-                <div className="flex items-center gap-3 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-300">
-                    <Palmtree className="h-5 w-5 text-cyan-400 flex-shrink-0" />
+                <div className="flex items-center gap-3 p-4 bg-info/10 border border-info/30 rounded-lg text-info">
+                    <Palmtree className="h-5 w-5 text-info flex-shrink-0" />
                     <span>
                         🏖️ <strong>{displayName}</strong> est absent
                         {vacationStart && ` du ${format(vacationStart, "d MMMM yyyy", { locale: fr })}`}
@@ -78,12 +78,12 @@ export default async function MemberProfilePage({
                 </div>
             )}
 
-            <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border border-white/5 rounded-lg">
-                <div className="flex items-center gap-2 text-caption text-zinc-500 uppercase font-black tracking-widest">
-                    <div className="w-1 h-1 rounded-full bg-zinc-600" />
+            <div className="flex items-center justify-between px-4 py-2 bg-surface border border-border rounded-lg">
+                <div className="flex items-center gap-2 text-caption text-muted-foreground uppercase font-black tracking-widest">
+                    <div className="w-1 h-1 rounded-full bg-muted" />
                     Dernière mise à jour du profil
                 </div>
-                <div className="text-caption font-bold text-zinc-400">
+                <div className="text-caption font-bold text-muted-foreground">
                     {profile.userUpdatedAt 
                         ? format(new Date(profile.userUpdatedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr }) 
                         : profile.updatedAt 
@@ -96,9 +96,9 @@ export default async function MemberProfilePage({
                 <div className="flex items-center gap-3">
                     <h1 className="text-2xl font-bold">Profil de {displayName}</h1>
                     {isOnline && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse " />
-                            <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">En ligne</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/10 border border-success/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse " />
+                            <span className="text-caption font-black text-success uppercase tracking-widest">En ligne</span>
                         </div>
                     )}
                 </div>

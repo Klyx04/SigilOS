@@ -99,8 +99,8 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                     <div className="text-caption font-black uppercase tracking-widest" style={{ color }}>
                         {dayOffset === 0 ? "✦ Aujourd'hui" : dayOffset === 1 ? "✦ Demain" : `✦ J+${dayOffset}`}
                     </div>
-                    <div className="text-6xl font-black text-white leading-none tracking-tight">{d.getUTCDate()}</div>
-                    <div className="text-sm font-medium text-zinc-400">
+                    <div className="text-6xl font-black text-foreground leading-none tracking-tight">{d.getUTCDate()}</div>
+                    <div className="text-sm font-medium text-muted-foreground">
                         {DAYS_FR[d.getUTCDay()]} {MONTHS_FULL[d.getUTCMonth()]}
                     </div>
                 </div>
@@ -115,7 +115,7 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                     )}
                     <div className="p-4 rounded-xl"
                         style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                        <p className="text-white/90 text-sm leading-relaxed">{item.bonus.description}</p>
+                        <p className="text-foreground/90 text-sm leading-relaxed">{item.bonus.description}</p>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-3">
@@ -126,15 +126,15 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                                     : <span className="text-lg">🎁</span>}
                             </div>
                             <div>
-                                <div className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Offrande</div>
-                                <div className="text-white text-sm font-semibold">
+                                <div className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Offrande</div>
+                                <div className="text-foreground text-sm font-semibold">
                                     <span style={{ color }}>{item.tribute.quantity}×</span> {item.tribute.item.name}
                                 </div>
                             </div>
                         </div>
                         {item.reward_kamas && (
                             <div className="ml-auto text-right">
-                                <div className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Récompense</div>
+                                <div className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Récompense</div>
                                 <div className="font-black text-lg" style={{ color }}>{formatKamas(item.reward_kamas)}</div>
                             </div>
                         )}
@@ -188,15 +188,15 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
                             boxShadow: selected ? `0 0 20px -6px ${color}40` : "none",
                         }}>
                         {selected && <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />}
-                        <div className="text-caption font-black uppercase tracking-widest text-zinc-500">{DAYS_FR[d.getUTCDay()]}</div>
-                        <div className="text-xl font-black text-white leading-none">{d.getUTCDate()}</div>
-                        <div className="text-caption text-zinc-600">{MONTHS_SHORT[d.getUTCMonth()]}</div>
+                        <div className="text-caption font-black uppercase tracking-widest text-muted-foreground">{DAYS_FR[d.getUTCDay()]}</div>
+                        <div className="text-xl font-black text-foreground leading-none">{d.getUTCDate()}</div>
+                        <div className="text-caption text-muted-foreground">{MONTHS_SHORT[d.getUTCMonth()]}</div>
                         <div className="w-9 h-9 flex items-center justify-center">
                             {icon
                                 ? <Image src={icon} alt={item.tribute.item.name} width={32} height={32} className="object-contain group- transition-transform" unoptimized />
                                 : <span className="text-base">🎁</span>}
                         </div>
-                        <div className="text-caption text-zinc-400 leading-tight line-clamp-2 w-full h-6">{item.tribute.item.name}</div>
+                        <div className="text-caption text-muted-foreground leading-tight line-clamp-2 w-full h-6">{item.tribute.item.name}</div>
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none"
                             style={{ background: `radial-gradient(circle at center, ${color}10, transparent)` }} />
                     </button>
@@ -231,10 +231,10 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
 
     if (!Array.isArray(items) || items.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-center bg-white/5 border border-white/10 rounded-2xl h-[300px]">
-                <Flame className="w-10 h-10 text-amber-500/50 mb-4 animate-pulse" />
-                <h3 className="text-lg font-bold text-white mb-2">Almanax momentanément indisponible</h3>
-                <p className="text-zinc-400 text-sm max-w-sm">
+            <div className="flex flex-col items-center justify-center p-8 text-center bg-surface border border-border rounded-2xl h-[300px]">
+                <Flame className="w-10 h-10 text-warning/50 mb-4 animate-pulse" />
+                <h3 className="text-lg font-bold text-foreground mb-2">Almanax momentanément indisponible</h3>
+                <p className="text-muted-foreground text-sm max-w-sm">
                     L'Oracle Temporel (API Dofusdu) semble en maintenance temporelle. Les données ne sont pas accessibles pour le moment.
                 </p>
             </div>
@@ -261,14 +261,14 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
         <div className="space-y-4">
             {/* ── Action bar (Filters) ───────────────────────────── */}
             <div className="flex items-center gap-2 pb-2 overflow-x-auto custom-scrollbar">
-                <span className="text-xs text-zinc-500 font-medium mr-1 whitespace-nowrap">Filtrer (30 jours) :</span>
+                <span className="text-xs text-muted-foreground font-medium mr-1 whitespace-nowrap">Filtrer (30 jours) :</span>
                 <button
                     onClick={() => handleFilterClick("Tous")}
                     className={cn(
                         "px-3 py-1 text-caption rounded-full transition-all border font-medium whitespace-nowrap",
                         activeFilter === "Tous"
-                            ? "bg-white/10 text-white border-white/20"
-                            : "bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
+                            ? "bg-surface text-foreground border-border-strong"
+                            : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
                     )}
                 >
                     Tous

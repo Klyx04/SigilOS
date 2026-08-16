@@ -70,20 +70,20 @@ export function CalendarDiscordDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xs sm:max-w-sm bg-zinc-950 border-white/10 shadow-2xl rounded-2xl p-0 overflow-hidden outline-none">
+            <DialogContent className="max-w-xs sm:max-w-sm bg-background border-border shadow-2xl rounded-2xl p-0 overflow-hidden outline-none">
                 {/* Header */}
-                <div className="px-5 pt-5 pb-4 border-b border-white/5">
+                <div className="px-5 pt-5 pb-4 border-b border-border">
                     <DialogHeader>
-                        <DialogTitle className="text-base font-black text-white flex items-center gap-2.5">
+                        <DialogTitle className="text-base font-black text-foreground flex items-center gap-2.5">
                             <div className={cn(
                                 "p-1.5 rounded-xl",
-                                isReminder ? "bg-amber-500/20 text-amber-400" : "bg-indigo-500/20 text-indigo-400"
+                                isReminder ? "bg-warning/20 text-warning" : "bg-info/20 text-info"
                             )}>
                                 {isReminder ? <Bell className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
                             </div>
                             {isReminder ? "Envoyer un rappel" : "Partager sur Discord"}
                         </DialogTitle>
-                        <DialogDescription className="text-zinc-500 text-xs mt-1">
+                        <DialogDescription className="text-muted-foreground text-xs mt-1">
                             {isReminder
                                 ? "Notifiez les participants avec un ping optionnel."
                                 : "Qui mentionner pour cette annonce d'événement ?"
@@ -102,17 +102,17 @@ export function CalendarDiscordDialog({
                                 "flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left",
                                 pingType === "NONE"
                                     ? isReminder
-                                        ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
-                                        : "bg-indigo-500/10 border-indigo-500/40 text-indigo-300"
-                                    : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                                        ? "bg-warning/10 border-warning/40 text-warning"
+                                        : "bg-info/10 border-info/40 text-info"
+                                    : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
                             )}
                         >
                             {isReminder ? <Users className="w-4 h-4 shrink-0" /> : <BellOff className="w-4 h-4 shrink-0" />}
                             <div>
                                 <div className="text-xs font-black">{isReminder ? "Participants" : "Sans ping"}</div>
-                                <div className="text-caption text-zinc-600 font-medium">{isReminder ? "App seulement" : "Discret"}</div>
+                                <div className="text-caption text-muted-foreground font-medium">{isReminder ? "App seulement" : "Discret"}</div>
                             </div>
-                            {pingType === "NONE" && <Check className={cn("w-3.5 h-3.5 ml-auto", isReminder ? "text-amber-400" : "text-indigo-400")} />}
+                            {pingType === "NONE" && <Check className={cn("w-3.5 h-3.5 ml-auto", isReminder ? "text-warning" : "text-info")} />}
                         </button>
 
                         {/* Option 2: @everyone — ONLY if whitelisted */}
@@ -122,16 +122,16 @@ export function CalendarDiscordDialog({
                                 className={cn(
                                     "flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left",
                                     pingType === "EVERYONE"
-                                        ? "bg-red-500/10 border-red-500/40 text-red-300"
-                                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                                        ? "bg-danger/10 border-danger/40 text-danger"
+                                        : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
                                 )}
                             >
                                 <AtSign className="w-4 h-4 shrink-0" />
                                 <div>
                                     <div className="text-xs font-black">@everyone</div>
-                                    <div className="text-caption text-zinc-600 font-medium">{isReminder ? "App + Discord" : "Toute la guilde"}</div>
+                                    <div className="text-caption text-muted-foreground font-medium">{isReminder ? "App + Discord" : "Toute la guilde"}</div>
                                 </div>
-                                {pingType === "EVERYONE" && <Check className="w-3.5 h-3.5 ml-auto text-red-400" />}
+                                {pingType === "EVERYONE" && <Check className="w-3.5 h-3.5 ml-auto text-danger" />}
                             </button>
                         )}
                     </div>
@@ -139,13 +139,13 @@ export function CalendarDiscordDialog({
                     {/* Role list */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-caption font-black uppercase tracking-wider text-zinc-500">Ou un rôle spécifique</span>
+                            <span className="text-caption font-black uppercase tracking-wider text-muted-foreground">Ou un rôle spécifique</span>
                             {selectedRoleId && (
                                 <button
                                     onClick={() => { setSelectedRoleId(null); if (pingType === "ROLE") setPingType("NONE"); }}
                                     className={cn(
                                         "text-caption font-bold transition-colors",
-                                        isReminder ? "text-amber-400 hover:text-amber-300" : "text-indigo-400 hover:text-indigo-300"
+                                        isReminder ? "text-warning hover:text-warning" : "text-info hover:text-info"
                                     )}
                                 >
                                     Effacer
@@ -153,9 +153,9 @@ export function CalendarDiscordDialog({
                             )}
                         </div>
 
-                        <div className="bg-zinc-900/80 border border-white/5 rounded-xl overflow-hidden max-h-40 overflow-y-auto custom-scrollbar">
+                        <div className="bg-surface/80 border border-border rounded-xl overflow-hidden max-h-40 overflow-y-auto custom-scrollbar">
                             {roles.length === 0 ? (
-                                <div className="py-6 text-center text-xs text-zinc-600">Aucun rôle trouvé</div>
+                                <div className="py-6 text-center text-xs text-muted-foreground">Aucun rôle trouvé</div>
                             ) : (
                                 <div className="p-1.5 space-y-0.5">
                                     {roles.map(role => {
@@ -169,15 +169,15 @@ export function CalendarDiscordDialog({
                                                     "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all",
                                                     isSelected
                                                         ? isReminder
-                                                            ? "bg-amber-500/10 text-amber-100"
-                                                            : "bg-indigo-500/10 text-indigo-100"
-                                                        : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                                                            ? "bg-warning/10 text-warning"
+                                                            : "bg-info/10 text-info"
+                                                        : "text-muted-foreground hover:bg-surface hover:text-foreground"
                                                 )}
                                             >
                                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
                                                 <span className="text-sm font-bold truncate flex-1">@{role.name}</span>
                                                 {isSelected && (
-                                                    <Check className={cn("w-3.5 h-3.5 shrink-0", isReminder ? "text-amber-400" : "text-indigo-400")} />
+                                                    <Check className={cn("w-3.5 h-3.5 shrink-0", isReminder ? "text-warning" : "text-info")} />
                                                 )}
                                             </button>
                                         );
@@ -196,10 +196,10 @@ export function CalendarDiscordDialog({
                         className={cn(
                             "w-full h-10 font-black text-sm transition-all",
                             pingType === "EVERYONE"
-                                ? "bg-red-600 hover:bg-red-500"
+                                ? "bg-danger hover:bg-danger"
                                 : isReminder
-                                    ? "bg-amber-600 hover:bg-amber-500"
-                                    : "bg-indigo-600 hover:bg-indigo-500"
+                                    ? "bg-warning hover:bg-warning"
+                                    : "bg-info hover:bg-info"
                         )}
                     >
                         {isPending

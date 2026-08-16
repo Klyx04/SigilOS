@@ -15,9 +15,9 @@ export function GlassPanel({
     ...props
 }: GlassPanelProps) {
     const variants = {
-        default: "bg-glass border-white/5",
-        "hover-glow": "bg-glass border-white/5 hover:border-neon-green/30  transition-all duration-300",
-        interactive: "bg-glass border-white/10 hover:bg-white/5 active:scale-[0.99] transition-all duration-200 cursor-pointer",
+        default: "bg-glass border-border",
+        "hover-glow": "bg-glass border-border hover:border-neon-green/30  transition-all duration-300",
+        interactive: "bg-glass border-border hover:bg-surface active:scale-[0.99] transition-all duration-200 cursor-pointer",
     };
 
     const intensities = {

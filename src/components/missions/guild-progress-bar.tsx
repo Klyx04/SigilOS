@@ -56,18 +56,18 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
             case 0: // Bronze
                 return {
                     icon: Medal,
-                    color: "text-amber-500",
-                    borderColor: "border-amber-600/50",
-                    bg: "bg-amber-950/80",
+                    color: "text-warning",
+                    borderColor: "border-warning/50",
+                    bg: "bg-warning/80",
                     glow: "",
                     label: "Bronze"
                 };
             case 1: // Silver
                 return {
                     icon: Medal,
-                    color: "text-slate-200",
+                    color: "text-foreground",
                     borderColor: "border-slate-400/50",
-                    bg: "bg-slate-900/80",
+                    bg: "bg-surface/80",
                     glow: "",
                     label: "Argent"
                 };
@@ -83,18 +83,18 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
             case 3: // Platinum/Diamond (Validé)
                 return {
                     icon: Trophy,
-                    color: "text-cyan-400",
-                    borderColor: "border-cyan-500/50",
-                    bg: "bg-cyan-950/80",
+                    color: "text-info",
+                    borderColor: "border-info/50",
+                    bg: "bg-info/80",
                     glow: "",
                     label: "Platine"
                 };
             default:
                 return {
                     icon: Target,
-                    color: "text-zinc-400",
-                    borderColor: "border-zinc-700",
-                    bg: "bg-zinc-900",
+                    color: "text-muted-foreground",
+                    borderColor: "border-border",
+                    bg: "bg-surface",
                     glow: "",
                     label: "Jalon"
                 };
@@ -107,7 +107,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
             <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
 
-            <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-info/5 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-fuchsia-500/5 rounded-full blur-[120px] pointer-events-none" />
 
             {/* MAIN LAYOUT CONTAINER */}
@@ -135,7 +135,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     {/* CENTER: Timer (Absolute on desktop, completely isolated) */}
                     <div className="relative md:absolute md:left-1/2 md:-translate-x-1/2 md:top-0 w-full md:w-auto flex justify-center z-20 order-first md:order-none mb-6 md:mb-0">
                         <div className="group/timer cursor-default transform scale-110 md:scale-125 origin-top transition-transform duration-300 hover:scale-[1.15] md:hover:scale-[1.3]">
-                            <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 blur-xl opacity-0 group-hover/timer:opacity-100 transition-opacity duration-300" />
+                            <div className="absolute -inset-6 bg-gradient-to-r from-info/0 via-info/10 to-info/0 blur-xl opacity-0 group-hover/timer:opacity-100 transition-opacity duration-300" />
                             <div className="relative">
                                 <ResetCountdown />
                             </div>
@@ -173,10 +173,10 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div
-                                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 transition-all duration-300 ease-out relative  cursor-help"
+                                            className="h-full rounded-full bg-gradient-to-r from-info via-info to-fuchsia-500 transition-all duration-300 ease-out relative  cursor-help"
                                             style={{ width: `${progress}%` }}
                                         >
-                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/50 blur-[2px]" />
+                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-elevated blur-[2px]" />
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="glass-premium border-border text-foreground font-mono font-bold">
@@ -209,8 +209,8 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                             <div className={cn(
                                                 "w-1 h-full transition-colors duration-300 z-20", // w-1 = 4px
                                                 isReached
-                                                    ? "bg-white "
-                                                    : "bg-white/30" // Thicker and white-ish even if not reached
+                                                    ? "bg-background "
+                                                    : "bg-elevated" // Thicker and white-ish even if not reached
                                             )} />
                                         )}
 
@@ -264,7 +264,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                     <span> À faire</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 " />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-info to-fuchsia-500 " />
                                     <span className="text-foreground">Complété</span>
                                 </div>
                             </div>
@@ -276,7 +276,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                 <span> À faire</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 " />
+                                <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-info to-fuchsia-500 " />
                                 <span className="text-foreground">Complété</span>
                             </div>
                         </div>
@@ -289,18 +289,18 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
 
                         {/* Raid / Kama Notice (only if toggle ON) */}
                         {raidRequireKamaDonation && (
-                            <div className="bg-amber-500/[0.03] border border-amber-500/20 rounded-2xl p-4 w-full md:max-w-md text-left md:text-right">
-                                <h4 className="text-caption font-black text-amber-400 uppercase tracking-widest flex items-center md:justify-end gap-2 mb-1">
-                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                            <div className="bg-warning/[0.03] border border-warning/20 rounded-2xl p-4 w-full md:max-w-md text-left md:text-right">
+                                <h4 className="text-caption font-black text-warning uppercase tracking-widest flex items-center md:justify-end gap-2 mb-1">
+                                    <Sparkles className="w-3.5 h-3.5 text-warning" />
                                     Financement des Raids
                                 </h4>
-                                <p className="text-caption text-zinc-400 leading-relaxed font-medium">
+                                <p className="text-caption text-muted-foreground leading-relaxed font-medium">
                                     Les contributions en Kamas sont indispensables pour le financement et la participation de la guilde aux **Raids de Guilde**. Donnez pour soutenir l'effort collectif !
                                 </p>
                                 <div className="mt-2.5">
                                     <Link
                                         href={`/dashboard/${guildId}/kamas/summary`}
-                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] hover:bg-amber-500/[0.08] hover:border-amber-500/25 text-amber-400/70 hover:text-amber-300 transition-all duration-200 text-caption font-black uppercase tracking-wider"
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-warning/15 bg-warning/[0.04] hover:bg-warning/[0.08] hover:border-warning/25 text-warning/70 hover:text-warning transition-all duration-200 text-caption font-black uppercase tracking-wider"
                                     >
                                         <BarChart3 className="w-3 h-3 shrink-0" />
                                         Récap kamas de la semaine

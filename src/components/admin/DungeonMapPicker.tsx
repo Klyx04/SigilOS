@@ -66,10 +66,10 @@ export function DungeonMapPicker({
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Donjon sur la carte</span>
+                <MapPin className="w-4 h-4 text-warning" />
+                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Donjon sur la carte</span>
                 {selectedName && (
-                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-caption font-black">
+                    <span className="px-2 py-0.5 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-black">
                         <Check className="inline w-3 h-3 mr-1" />
                         {selectedName} (#{value})
                     </span>
@@ -81,17 +81,17 @@ export function DungeonMapPicker({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Rechercher un donjon sur la carte..."
-                className="w-full h-10 bg-slate-950 border border-slate-800 rounded-xl px-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
+                className="w-full h-10 bg-background border border-border rounded-xl px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/50 focus:ring-2 focus:ring-warning/10"
             />
 
             {loading ? (
-                <div className="flex items-center gap-2 py-4 text-slate-500 text-sm">
+                <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
                     <Loader2 className="w-4 h-4 animate-spin" /> Chargement de la carte...
                 </div>
             ) : error ? (
-                <div className="py-2 text-rose-400 text-xs">{error}</div>
+                <div className="py-2 text-danger text-xs">{error}</div>
             ) : filtered.length === 0 ? (
-                <div className="py-4 text-slate-600 text-xs italic text-center">Aucun donjon trouvé.</div>
+                <div className="py-4 text-muted-foreground text-xs italic text-center">Aucun donjon trouvé.</div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
                     {filtered.map(d => {
@@ -106,14 +106,14 @@ export function DungeonMapPicker({
                                 onClick={() => onSelect(mapId, name)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs font-bold transition-all ${
                                     isSelected
-                                        ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
-                                        : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-amber-500/30 hover:bg-slate-800"
+                                        ? "bg-warning/15 border-warning/40 text-warning"
+                                        : "bg-surface/60 border-border text-foreground hover:border-warning/30 hover:bg-elevated"
                                 }`}
                                 title={`map #${mapId}`}
                             >
                                 <MapPin className="w-3 h-3 shrink-0 opacity-60" />
                                 <span className="truncate">{name}</span>
-                                <span className="ml-auto text-caption font-mono text-slate-600 shrink-0">#{mapId}</span>
+                                <span className="ml-auto text-caption font-mono text-muted-foreground shrink-0">#{mapId}</span>
                             </button>
                         );
                     })}

@@ -74,7 +74,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
-                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                <Card className="lg:col-span-2 bg-surface/60 border-border">
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2">
@@ -84,11 +84,11 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                                 Configuration du Salon
                             </CardTitle>
                             {isConfigured ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
+                                <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20">
                                     Actif
                                 </Badge>
                             ) : (
-                                <Badge variant="outline" className="text-zinc-500">
+                                <Badge variant="outline" className="text-muted-foreground">
                                     Inactif
                                 </Badge>
                             )}
@@ -100,20 +100,20 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
 
                     <CardContent className="space-y-6">
                         {/* Step 1 */}
-                        <div className="relative pl-6 border-l-2 border-white/5 pb-6 last:pb-0">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                        <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                 <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                             </div>
-                            <h3 className="text-sm font-medium text-white mb-2">1. Récupérer l'ID du salon</h3>
-                            <p className="text-xs text-zinc-500 mb-3">
-                                Activez le mode développeur Discord, puis faites <span className="text-zinc-300">Clic Droit</span> sur le salon voulu {'>'} <span className="text-zinc-300">Copier l'identifiant</span>.
+                            <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
+                            <p className="text-xs text-muted-foreground mb-3">
+                                Activez le mode développeur Discord, puis faites <span className="text-foreground">Clic Droit</span> sur le salon voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
                             </p>
                         </div>
 
                         {/* Step 2 */}
                         <div className="relative pl-6 border-l-2 border-primary/50">
                             <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-2 border-zinc-950 " />
-                            <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
+                            <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
 
                             <div className="space-y-4">
                                 <div className="flex gap-2">
@@ -121,7 +121,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                                         value={channelId}
                                         onChange={(e) => setChannelId(e.target.value)}
                                         placeholder="Ex: 123456789012345678"
-                                        className="font-mono bg-black/20 border-white/10"
+                                        className="font-mono bg-black/20 border-border"
                                     />
                                     <Button onClick={handleSave} disabled={isPending} className="min-w-[120px]">
                                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -131,7 +131,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                                 <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
-                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
                                             Désactiver l'intégration
                                         </Button>
                                     </div>
@@ -143,47 +143,47 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
 
                 {/* Preview Panel */}
                 <div className="space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4">
-                            <CardTitle className="text-sm text-zinc-300">Aperçu Visuel</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4">
+                            <CardTitle className="text-sm text-foreground">Aperçu Visuel</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative">
                             {/* Discord Message Mockup */}
                             <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
-                                    <span className="font-bold text-white text-xs">BOT</span>
+                                <div className="w-10 h-10 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <span className="font-bold text-foreground text-xs">BOT</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-indigo-400">SigilOS</span>
-                                        <span className="bg-indigo-500/20 text-indigo-300 text-caption px-1 rounded">BOT</span>
-                                        <span className="text-xs text-zinc-500">Aujourd'hui à 14:30</span>
+                                        <span className="font-medium text-info">SigilOS</span>
+                                        <span className="bg-info/20 text-info text-caption px-1 rounded">BOT</span>
+                                        <span className="text-xs text-muted-foreground">Aujourd'hui à 14:30</span>
                                     </div>
 
                                     {/* Embed */}
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-cyan-400 p-4 max-w-sm">
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-4 max-w-sm">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-lg">🏝️</span>
-                                            <h4 className="font-semibold text-white text-sm">Notification d'absence</h4>
+                                            <h4 className="font-semibold text-foreground text-sm">Notification d'absence</h4>
                                         </div>
 
-                                        <p className="text-zinc-300 text-sm mb-4">
-                                            <span className="text-cyan-400 font-medium hover:underline cursor-pointer">Wylan</span> sera absent(e).
+                                        <p className="text-foreground text-sm mb-4">
+                                            <span className="text-info font-medium hover:underline cursor-pointer">Wylan</span> sera absent(e).
                                         </p>
 
                                         <div className="flex gap-6">
                                             <div>
                                                 <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Début</div>
-                                                <div className="text-zinc-200 text-sm">21 janv. 2026</div>
+                                                <div className="text-foreground text-sm">21 janv. 2026</div>
                                             </div>
                                             <div>
                                                 <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Retour</div>
-                                                <div className="text-zinc-200 text-sm">Pas de date</div>
+                                                <div className="text-foreground text-sm">Pas de date</div>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
-                                            <div className="w-4 h-4 rounded-full bg-zinc-700" />
+                                            <div className="w-4 h-4 rounded-full bg-muted" />
                                             <span className="text-[#949ba4] text-xs">SigilOS • Mode Vacances</span>
                                         </div>
                                     </div>
@@ -192,14 +192,14 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-blue-500/5 border-blue-500/10">
+                    <Card className="bg-info/5 border-info/10">
                         <CardContent className="p-4 flex gap-3">
-                            <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
-                                <AlertTriangle className="w-4 h-4 text-blue-400" />
+                            <div className="p-2 bg-info/20 rounded-lg shrink-0 h-fit">
+                                <AlertTriangle className="w-4 h-4 text-info" />
                             </div>
                             <div className="space-y-1">
-                                <h4 className="text-sm font-medium text-blue-200">Attention aux permissions</h4>
-                                <p className="text-xs text-blue-300/70 leading-relaxed">
+                                <h4 className="text-sm font-medium text-info">Attention aux permissions</h4>
+                                <p className="text-xs text-info/70 leading-relaxed">
                                     Assurez-vous que le bot <strong>SigilOS</strong> dispose des droits "Voir le salon" et "Envoyer des messages" dans le salon cible.
                                 </p>
                             </div>

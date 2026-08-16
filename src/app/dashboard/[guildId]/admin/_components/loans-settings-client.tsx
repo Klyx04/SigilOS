@@ -120,19 +120,19 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                <Card className="lg:col-span-2 bg-surface/60 border-border">
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2 text-base">
-                                <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg">
+                                <span className="bg-success/20 text-success p-2 rounded-lg">
                                     <Hash className="w-4 h-4" />
                                 </span>
                                 Salon des prêts
                             </CardTitle>
                             {isConfigured ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Actif</Badge>
+                                <Badge className="bg-success/10 text-success border-success/20">Actif</Badge>
                             ) : (
-                                <Badge variant="outline" className="text-zinc-500">Inactif</Badge>
+                                <Badge variant="outline" className="text-muted-foreground">Inactif</Badge>
                             )}
                         </div>
                         <CardDescription>
@@ -141,17 +141,17 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <p className="text-xs text-zinc-500">
-                                Mode développeur Discord → Clic droit sur le salon → <span className="text-zinc-300">Copier l'identifiant</span>
+                            <p className="text-xs text-muted-foreground">
+                                Mode développeur Discord → Clic droit sur le salon → <span className="text-foreground">Copier l'identifiant</span>
                             </p>
                             <div className="flex gap-2">
                                 <Input
                                     value={channelId}
                                     onChange={(e) => setChannelId(e.target.value)}
                                     placeholder="Ex: 123456789012345678"
-                                    className="font-mono bg-black/20 border-white/10"
+                                    className="font-mono bg-black/20 border-border"
                                 />
-                                <Button onClick={handleSaveChannel} disabled={isPending} className="min-w-[120px] bg-emerald-600 hover:bg-emerald-500">
+                                <Button onClick={handleSaveChannel} disabled={isPending} className="min-w-[120px] bg-success hover:bg-success">
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                     Sauvegarder
                                 </Button>
@@ -163,7 +163,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                                         variant="ghost" size="sm"
                                         onClick={() => { setChannelId(""); handleSaveChannel(); }}
                                         disabled={isPending}
-                                        className="text-rose-400 hover:text-rose-300 hover:bg-rose-900/20 text-xs"
+                                        className="text-danger hover:text-danger hover:bg-danger/20 text-xs"
                                     >
                                         Désactiver
                                     </Button>
@@ -173,14 +173,14 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-blue-500/5 border-blue-500/10 h-fit">
+                <Card className="bg-info/5 border-info/10 h-fit">
                     <CardContent className="p-4 flex gap-3">
-                        <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
-                            <AlertTriangle className="w-4 h-4 text-blue-400" />
+                        <div className="p-2 bg-info/20 rounded-lg shrink-0 h-fit">
+                            <AlertTriangle className="w-4 h-4 text-info" />
                         </div>
                         <div className="space-y-1">
-                            <h4 className="text-sm font-medium text-blue-200">Permissions requises</h4>
-                            <p className="text-xs text-blue-300/70 leading-relaxed">
+                            <h4 className="text-sm font-medium text-info">Permissions requises</h4>
+                            <p className="text-xs text-info/70 leading-relaxed">
                                 Le bot <strong>SigilOS</strong> doit avoir les droits <em>Voir le salon</em> et <em>Envoyer des messages</em> dans le salon cible.
                             </p>
                         </div>
@@ -188,7 +188,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                 </Card>
 
                 {/* Salon du coffre (séparé) */}
-                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                <Card className="lg:col-span-2 bg-surface/60 border-border">
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2 text-base">
@@ -200,7 +200,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             {vaultIsConfigured ? (
                                 <Badge className="bg-teal-500/10 text-teal-400 border-teal-500/20">Actif</Badge>
                             ) : (
-                                <Badge variant="outline" className="text-zinc-500">Inactif</Badge>
+                                <Badge variant="outline" className="text-muted-foreground">Inactif</Badge>
                             )}
                         </div>
                         <CardDescription>
@@ -209,15 +209,15 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <p className="text-xs text-zinc-500">
-                                Mode développeur Discord → Clic droit sur le salon → <span className="text-zinc-300">Copier l'identifiant</span>
+                            <p className="text-xs text-muted-foreground">
+                                Mode développeur Discord → Clic droit sur le salon → <span className="text-foreground">Copier l'identifiant</span>
                             </p>
                             <div className="flex gap-2">
                                 <Input
                                     value={vaultChannelId}
                                     onChange={(e) => setVaultChannelId(e.target.value)}
                                     placeholder="Ex: 123456789012345678"
-                                    className="font-mono bg-black/20 border-white/10"
+                                    className="font-mono bg-black/20 border-border"
                                 />
                                 <Button onClick={handleSaveVaultChannel} disabled={isPending} className="min-w-[120px] bg-teal-600 hover:bg-teal-500">
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -231,7 +231,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                                         variant="ghost" size="sm"
                                         onClick={() => { setVaultChannelId(""); handleSaveVaultChannel(); }}
                                         disabled={isPending}
-                                        className="text-rose-400 hover:text-rose-300 hover:bg-rose-900/20 text-xs"
+                                        className="text-danger hover:text-danger hover:bg-danger/20 text-xs"
                                     >
                                         Désactiver
                                     </Button>
@@ -242,16 +242,16 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                 </Card>
             </div>
 
-            <Card className="bg-zinc-900/60 border-white/5 overflow-hidden relative">
+            <Card className="bg-surface/60 border-border overflow-hidden relative">
                 <div className="absolute top-0 right-0 p-4">
-                    <Button onClick={handleSaveMaintenance} disabled={isPending} className="bg-emerald-600 hover:bg-emerald-500">
+                    <Button onClick={handleSaveMaintenance} disabled={isPending} className="bg-success hover:bg-success">
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                         Enregistrer les statuts
                     </Button>
                 </div>
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        <AlertTriangle className="w-4 h-4 text-warning" />
                         Maintenance & Accès aux Services
                     </CardTitle>
                     <CardDescription>
@@ -265,7 +265,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-bold">Services (Marketplace)</Label>
-                                    <p className="text-caption text-zinc-500 uppercase tracking-widest">Onglet principal</p>
+                                    <p className="text-caption text-muted-foreground uppercase tracking-widest">Onglet principal</p>
                                 </div>
                                 <Switch
                                     checked={marketplaceEnabled}
@@ -274,12 +274,12 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!marketplaceEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-caption text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
+                                    <Label className="text-caption text-muted-foreground font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={marketplaceMessage}
                                         onChange={(e) => setMarketplaceMessage(e.target.value)}
                                         placeholder="Ex: Le marketplace est en maintenance..."
-                                        className="h-20 bg-black/40 border-white/10 text-xs resize-none"
+                                        className="h-20 bg-black/40 border-border text-xs resize-none"
                                     />
                                 </div>
                             )}
@@ -290,7 +290,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-bold">Prêts</Label>
-                                    <p className="text-caption text-zinc-500 uppercase tracking-widest">Emprunts & Retours</p>
+                                    <p className="text-caption text-muted-foreground uppercase tracking-widest">Emprunts & Retours</p>
                                 </div>
                                 <Switch
                                     checked={loansEnabled}
@@ -299,12 +299,12 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!loansEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-caption text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
+                                    <Label className="text-caption text-muted-foreground font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={loansMessage}
                                         onChange={(e) => setLoansMessage(e.target.value)}
                                         placeholder="Ex: Les prêts sont suspendus pour inventaire..."
-                                        className="h-20 bg-black/40 border-white/10 text-xs resize-none"
+                                        className="h-20 bg-black/40 border-border text-xs resize-none"
                                     />
                                 </div>
                             )}
@@ -315,7 +315,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-bold">Coffre</Label>
-                                    <p className="text-caption text-zinc-500 uppercase tracking-widest">Historique & Trésorerie</p>
+                                    <p className="text-caption text-muted-foreground uppercase tracking-widest">Historique & Trésorerie</p>
                                 </div>
                                 <Switch
                                     checked={vaultEnabled}
@@ -324,12 +324,12 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!vaultEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-caption text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
+                                    <Label className="text-caption text-muted-foreground font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={vaultMessage}
                                         onChange={(e) => setVaultMessage(e.target.value)}
                                         placeholder="Ex: Le coffre est inaccessible suite à une réorganisation..."
-                                        className="h-20 bg-black/40 border-white/10 text-xs resize-none"
+                                        className="h-20 bg-black/40 border-border text-xs resize-none"
                                     />
                                 </div>
                             )}

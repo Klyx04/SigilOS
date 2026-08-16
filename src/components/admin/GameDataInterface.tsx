@@ -19,34 +19,34 @@ export default function GameDataInterface() {
     const [activeTab, setActiveTab] = useState("families");
 
     return (
-        <div className="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-slate-700/50 p-6">
+        <div className="bg-surface/50 backdrop-blur-sm rounded-lg border border-border/50 p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="flex flex-wrap justify-start gap-1 w-full bg-slate-800/50 mb-6 p-2 rounded-xl h-auto">
-                    <TabsTrigger value="families" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                <TabsList className="flex flex-wrap justify-start gap-1 w-full bg-elevated/50 mb-6 p-2 rounded-xl h-auto">
+                    <TabsTrigger value="families" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         🦎 Familles
                     </TabsTrigger>
-                    <TabsTrigger value="zones" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="zones" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         🗺️ Zones
                     </TabsTrigger>
-                    <TabsTrigger value="challenges" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="challenges" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         ⚔️ Succès
                     </TabsTrigger>
-                    <TabsTrigger value="dungeons" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="dungeons" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         🏰 Donjons
                     </TabsTrigger>
-                    <TabsTrigger value="quests" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="quests" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         📜 Quêtes
                     </TabsTrigger>
-                    <TabsTrigger value="import-export" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="import-export" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         📦 Import/Export
                     </TabsTrigger>
-                    <TabsTrigger value="legendary" className="data-[state=active]:bg-purple-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="legendary" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         ✨ Légendaires
                     </TabsTrigger>
-                    <TabsTrigger value="archimonstres" className="data-[state=active]:bg-amber-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="archimonstres" className="data-[state=active]:bg-warning flex-1 min-w-[100px]">
                         🏹 Archimonstres
                     </TabsTrigger>
-                    <TabsTrigger value="monstres-speciaux" className="data-[state=active]:bg-purple-600 flex-1 min-w-[100px]">
+                    <TabsTrigger value="monstres-speciaux" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
                         💀 Monstres Spéciaux
                     </TabsTrigger>
                 </TabsList>

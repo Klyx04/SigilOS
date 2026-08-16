@@ -85,21 +85,21 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
-                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                <Card className="lg:col-span-2 bg-surface/60 border-border">
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2">
-                                <span className="bg-purple-500/20 text-purple-400 p-2 rounded-lg">
+                                <span className="bg-info/20 text-info p-2 rounded-lg">
                                     <Hash className="w-5 h-5" />
                                 </span>
                                 Salon Discord
                             </CardTitle>
                             {isConfigured ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
+                                <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20">
                                     Actif
                                 </Badge>
                             ) : (
-                                <Badge variant="outline" className="text-zinc-500">
+                                <Badge variant="outline" className="text-muted-foreground">
                                     Inactif
                                 </Badge>
                             )}
@@ -111,20 +111,20 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
 
                     <CardContent className="space-y-6">
                         {/* Step 1 */}
-                        <div className="relative pl-6 border-l-2 border-white/5 pb-6 last:pb-0">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                        <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                 <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                             </div>
-                            <h3 className="text-sm font-medium text-white mb-2">1. Récupérer l'ID du salon</h3>
-                            <p className="text-xs text-zinc-500 mb-3">
-                                Activez le mode développeur Discord, puis faites <span className="text-zinc-300">Clic Droit</span> sur le salon voulu {'>'} <span className="text-zinc-300">Copier l'identifiant</span>.
+                            <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
+                            <p className="text-xs text-muted-foreground mb-3">
+                                Activez le mode développeur Discord, puis faites <span className="text-foreground">Clic Droit</span> sur le salon voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
                             </p>
                         </div>
 
                         {/* Step 2 */}
-                        <div className="relative pl-6 border-l-2 border-purple-500/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-purple-500 border-2 border-zinc-950 " />
-                            <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
+                        <div className="relative pl-6 border-l-2 border-info/50">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-info border-2 border-zinc-950 " />
+                            <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
 
                             <div className="space-y-4">
                                 <div className="flex gap-2">
@@ -132,9 +132,9 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                         value={channelId}
                                         onChange={(e) => setChannelId(e.target.value)}
                                         placeholder="Ex: 123456789012345678"
-                                        className="font-mono bg-black/20 border-white/10"
+                                        className="font-mono bg-black/20 border-border"
                                     />
-                                    <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-purple-600 hover:bg-purple-500">
+                                    <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info">
                                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                         Sauvegarder
                                     </Button>
@@ -142,7 +142,7 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                 <ChannelPreview guildId={guildId} channelId={channelId} color="purple" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
-                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
                                             Désactiver l'intégration
                                         </Button>
                                     </div>
@@ -153,11 +153,11 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
 
                         {/* Step 3 - Pings */}
                         <div className="relative pl-6 border-l-2 border-transparent">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                 <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                             </div>
-                            <h3 className="text-sm font-medium text-white mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
-                            <p className="text-xs text-zinc-500 mb-4">
+                            <h3 className="text-sm font-medium text-foreground mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
+                            <p className="text-xs text-muted-foreground mb-4">
                                 Définissez quels rôles Discord les membres peuvent mentionner lors de la création d'événements Songes Infinis.
                             </p>
                             <PingRolesSelector 
@@ -172,47 +172,47 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
 
                 {/* Preview Panel */}
                 <div className="space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4">
-                            <CardTitle className="text-sm text-zinc-300">Aperçu du message</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4">
+                            <CardTitle className="text-sm text-foreground">Aperçu du message</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative">
                             {/* Discord Message Mockup */}
                             <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
-                                    <Moon className="w-5 h-5 text-white" />
+                                <div className="w-10 h-10 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <Moon className="w-5 h-5 text-foreground" />
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-purple-400">SigilOS</span>
-                                        <span className="bg-purple-500/20 text-purple-300 text-caption px-1 rounded">BOT</span>
-                                        <span className="text-xs text-zinc-500">Maintenant</span>
+                                        <span className="font-medium text-info">SigilOS</span>
+                                        <span className="bg-info/20 text-info text-caption px-1 rounded">BOT</span>
+                                        <span className="text-xs text-muted-foreground">Maintenant</span>
                                     </div>
 
                                     {/* Embed */}
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-purple-400 p-4 max-w-sm">
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-4 max-w-sm">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-lg">🌙</span>
-                                            <h4 className="font-semibold text-white text-sm">Nouvelle candidature</h4>
+                                            <h4 className="font-semibold text-foreground text-sm">Nouvelle candidature</h4>
                                         </div>
 
-                                        <p className="text-zinc-300 text-xs mb-3 leading-relaxed">
-                                            <span className="text-purple-400 font-medium hover:underline cursor-pointer">Wylan</span> veut rejoindre votre run <span className="text-amber-400">Rêve III</span>.
+                                        <p className="text-foreground text-xs mb-3 leading-relaxed">
+                                            <span className="text-info font-medium hover:underline cursor-pointer">Wylan</span> veut rejoindre votre run <span className="text-warning">Rêve III</span>.
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                                             <div>
                                                 <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Classe</div>
-                                                <div className="text-zinc-200 text-xs">Cra</div>
+                                                <div className="text-foreground text-xs">Cra</div>
                                             </div>
                                             <div>
                                                 <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Message</div>
-                                                <div className="text-zinc-200 text-xs">Opti dispo 21h</div>
+                                                <div className="text-foreground text-xs">Opti dispo 21h</div>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
-                                            <div className="w-4 h-4 rounded-full bg-zinc-700" />
+                                            <div className="w-4 h-4 rounded-full bg-muted" />
                                             <span className="text-[#949ba4] text-caption">SigilOS • Songes Infinis</span>
                                         </div>
                                     </div>
@@ -221,14 +221,14 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-blue-500/5 border-blue-500/10">
+                    <Card className="bg-info/5 border-info/10">
                         <CardContent className="p-4 flex gap-3 text-left">
-                            <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
-                                <AlertTriangle className="w-4 h-4 text-blue-400" />
+                            <div className="p-2 bg-info/20 rounded-lg shrink-0 h-fit">
+                                <AlertTriangle className="w-4 h-4 text-info" />
                             </div>
                             <div className="space-y-1">
-                                <h4 className="text-sm font-medium text-blue-200">Permissions requises</h4>
-                                <p className="text-xs text-blue-300/70 leading-relaxed">
+                                <h4 className="text-sm font-medium text-info">Permissions requises</h4>
+                                <p className="text-xs text-info/70 leading-relaxed">
                                     Le bot <strong>SigilOS</strong> doit avoir les droits "Voir le salon" et "Envoyer des messages".
                                 </p>
                             </div>

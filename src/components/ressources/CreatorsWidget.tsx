@@ -100,9 +100,9 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
     };
 
     if (loading) return (
-        <div className="w-full h-40 flex flex-col items-center justify-center bg-black/20 rounded-[2.5rem] border border-white/5 gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-red-500/50" />
-            <span className="text-caption font-black uppercase tracking-[0.2em] text-zinc-600 animate-pulse">Chargement du Hub Créateurs...</span>
+        <div className="w-full h-40 flex flex-col items-center justify-center bg-black/20 rounded-[2.5rem] border border-border gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-danger/50" />
+            <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground animate-pulse">Chargement du Hub Créateurs...</span>
         </div>
     );
 
@@ -110,15 +110,15 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
         <div className="w-full flex flex-col gap-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20 shadow-inner group">
-                        <Tv className="h-6 w-6 text-red-400 group- transition-transform" />
+                    <div className="w-12 h-12 rounded-2xl bg-danger/10 flex items-center justify-center border border-danger/20 shadow-inner group">
+                        <Tv className="h-6 w-6 text-danger group- transition-transform" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-black text-white tracking-tight">Elite Creators Hub</h3>
+                        <h3 className="text-xl font-black text-foreground tracking-tight">Elite Creators Hub</h3>
                         <div className="flex items-center gap-2">
-                            <span className="text-caption text-zinc-500 font-bold tracking-widest uppercase">Flux Communautaire SigilOS</span>
-                            <div className="h-1 w-1 rounded-full bg-zinc-700" />
-                            <span className="text-caption text-red-500/60 font-black uppercase tracking-widest">{creators.length} Créateurs</span>
+                            <span className="text-caption text-muted-foreground font-bold tracking-widest uppercase">Flux Communautaire SigilOS</span>
+                            <div className="h-1 w-1 rounded-full bg-muted" />
+                            <span className="text-caption text-danger/60 font-black uppercase tracking-widest">{creators.length} Créateurs</span>
                         </div>
                     </div>
                 </div>
@@ -127,13 +127,13 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsEditingMode(!isEditingMode)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all text-caption font-black uppercase tracking-widest ${isEditingMode ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white/10 text-zinc-500 hover:text-white hover:border-white/20'}`}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all text-caption font-black uppercase tracking-widest ${isEditingMode ? 'bg-danger/20 border-danger/40 text-danger' : 'bg-surface border-border text-muted-foreground hover:text-foreground hover:border-border-strong'}`}
                         >
                             <Settings2 className="h-4 w-4" /> {isEditingMode ? "Quitter l'édition" : "Gérer les slots"}
                         </button>
                         <button
                             onClick={() => { setEditingCreator({ name: "", role: "", color: "#ef4444", order: creators.length }); setIsModalOpen(true); }}
-                            className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white text-caption font-black uppercase tracking-widest transition-all shadow-xl shadow-red-600/20  active:scale-95 translate-y-[-1px]"
+                            className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-danger hover:bg-danger text-danger-foreground text-caption font-black uppercase tracking-widest transition-all shadow-xl shadow-red-600/20  active:scale-95 translate-y-[-1px]"
                         >
                             <Plus className="h-4 w-4" /> Ajouter un slot
                         </button>
@@ -144,8 +144,8 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
             {/* Grid display with scrollable container */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2 max-h-[700px] overflow-y-auto custom-scrollbar pb-6 px-1">
                 {creators.length === 0 ? (
-                    <div className="col-span-full py-20 text-center border border-dashed border-white/5 rounded-[2rem] bg-white/[0.02]">
-                        <p className="text-zinc-600 text-xs font-bold uppercase tracking-widest">Aucun créateur configuré</p>
+                    <div className="col-span-full py-20 text-center border border-dashed border-border rounded-[2rem] bg-surface">
+                        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Aucun créateur configuré</p>
                     </div>
                 ) : creators.map((c) => {
                     const activity = getCreatorActivity(c.handle ?? undefined);
@@ -165,7 +165,7 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                     return (
                         <div
                             key={c.id}
-                            className="group relative rounded-[2rem] p-6 border transition-all duration-300 hover:shadow-2xl hover:bg-white/[0.02]"
+                            className="group relative rounded-[2rem] p-6 border transition-all duration-300 hover:shadow-2xl hover:bg-surface"
                             style={{
                                 background: "rgba(10,10,12,0.4)",
                                 borderColor: isEditingMode ? `${c.color}60` : "rgba(255,255,255,0.06)",
@@ -177,13 +177,13 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                                 <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
                                     <button
                                         onClick={() => { setEditingCreator(c); setIsModalOpen(true); }}
-                                        className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all "
+                                        className="p-2.5 rounded-xl bg-surface hover:bg-elevated text-foreground transition-all "
                                     >
                                         <Edit2 className="h-3.5 w-3.5" />
                                     </button>
                                     <button
                                         onClick={() => c.id && handleDelete(c.id)}
-                                        className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all "
+                                        className="p-2.5 rounded-xl bg-danger/10 hover:bg-danger/20 text-danger transition-all "
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </button>
@@ -220,30 +220,30 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                                         <span>{c.name.substring(0, 2).toUpperCase()}</span>
                                     )}
                                     {status === "live" && (
-                                        <div className="absolute top-1 right-1 h-3.5 w-3.5 rounded-full bg-red-500 border-2 border-[#0a0a0c] animate-pulse  z-20" />
+                                        <div className="absolute top-1 right-1 h-3.5 w-3.5 rounded-full bg-danger border-2 border-[#0a0a0c] animate-pulse  z-20" />
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 pt-1">
-                                    <div className="text-lg font-black text-white group-hover:text-white/90 transition-colors truncate">
+                                    <div className="text-lg font-black text-foreground group-hover:text-foreground/90 transition-colors truncate">
                                         {c.name}
                                     </div>
-                                    <div className="text-caption font-black text-zinc-500 uppercase tracking-[0.2em] mt-1 truncate">{c.role}</div>
+                                    <div className="text-caption font-black text-muted-foreground uppercase tracking-[0.2em] mt-1 truncate">{c.role}</div>
                                 </div>
                             </div>
 
                             <div className="h-10 mb-6 flex items-center">
                                 {status === "live" ? (
-                                    <a href={activity.link || c.twitch || "#"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-red-500 bg-red-500/10 hover:bg-red-500/20 px-4 py-2 rounded-2xl border border-red-500/20 w-fit transition-colors group/live">
-                                        <div className="w-2 h-2 rounded-full bg-red-500 group-hover/live:animate-none animate-pulse " />
+                                    <a href={activity.link || c.twitch || "#"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-danger bg-danger/10 hover:bg-danger/20 px-4 py-2 rounded-2xl border border-danger/20 w-fit transition-colors group/live">
+                                        <div className="w-2 h-2 rounded-full bg-danger group-hover/live:animate-none animate-pulse " />
                                         <span className="text-caption font-black uppercase tracking-widest">En Direct</span>
                                     </a>
                                 ) : status === "video" ? (
-                                    <a href={activity.link || c.youtube || "#"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-4 py-2 rounded-2xl border border-blue-500/20 w-fit transition-all  active:scale-95  group/video">
-                                        <div className="w-2 h-2 rounded-full bg-blue-400 animate-ping group-hover/video:animate-none group-hover/video:w-3 group-hover/video:h-3 transition-all" />
+                                    <a href={activity.link || c.youtube || "#"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-info bg-info/10 hover:bg-info/20 px-4 py-2 rounded-2xl border border-info/20 w-fit transition-all  active:scale-95  group/video">
+                                        <div className="w-2 h-2 rounded-full bg-info animate-ping group-hover/video:animate-none group-hover/video:w-3 group-hover/video:h-3 transition-all" />
                                         <span className="text-caption font-black uppercase tracking-widest">Nouveau Contenu</span>
                                     </a>
                                 ) : (
-                                    <div className="text-zinc-600 text-caption font-black uppercase tracking-widest ml-1 opacity-30">Actuellement Offline</div>
+                                    <div className="text-muted-foreground text-caption font-black uppercase tracking-widest ml-1 opacity-30">Actuellement Offline</div>
                                 )}
                             </div>
 
@@ -267,97 +267,97 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
             {/* Modal Admin */}
             {isModalOpen && editingCreator && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-                    <div className="w-full max-w-xl bg-[#0a0a0c] rounded-[3rem] border border-white/10 p-10 shadow-3xl relative animate-in zoom-in-95 duration-200">
-                        <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-500 hover:text-white transition-all">
+                    <div className="w-full max-w-xl bg-[#0a0a0c] rounded-[3rem] border border-border p-10 shadow-3xl relative animate-in zoom-in-95 duration-200">
+                        <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 p-3 bg-surface hover:bg-surface rounded-2xl text-muted-foreground hover:text-foreground transition-all">
                             <X className="h-6 w-6" />
                         </button>
 
                         <div className="flex items-center gap-6 mb-10">
-                            <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center border border-red-500/20 shadow-inner">
-                                <Settings2 className="h-8 w-8 text-red-500" />
+                            <div className="w-16 h-16 rounded-3xl bg-danger/10 flex items-center justify-center border border-danger/20 shadow-inner">
+                                <Settings2 className="h-8 w-8 text-danger" />
                             </div>
                             <div>
-                                <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Nexus Creator Config</h3>
-                                <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">Plateforme Community Hub</p>
+                                <h3 className="text-3xl font-black text-foreground uppercase tracking-tighter">Nexus Creator Config</h3>
+                                <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Plateforme Community Hub</p>
                             </div>
                         </div>
 
                         <form onSubmit={handleSave} className="space-y-6">
                             <div className="grid grid-cols-5 gap-6">
                                 <div className="col-span-3 space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-2">Nom Public</label>
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground ml-2">Nom Public</label>
                                     <input
                                         required
                                         type="text"
                                         value={editingCreator.name}
                                         onChange={e => setEditingCreator({ ...editingCreator, name: e.target.value })}
-                                        className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-5 py-4 text-sm text-white outline-none focus:border-red-500/50"
+                                        className="w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm text-foreground outline-none focus:border-danger/50"
                                         placeholder="Ex: Huz"
                                     />
                                 </div>
                                 <div className="col-span-2 space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-2">Couleur Signature</label>
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground ml-2">Couleur Signature</label>
                                     <div className="flex gap-3">
                                         <input
                                             type="color"
                                             value={editingCreator.color}
                                             onChange={e => setEditingCreator({ ...editingCreator, color: e.target.value })}
-                                            className="h-12 w-12 rounded-xl border border-white/10 p-1 bg-black/40 cursor-pointer overflow-hidden"
+                                            className="h-12 w-12 rounded-xl border border-border p-1 bg-black/40 cursor-pointer overflow-hidden"
                                         />
                                         <input
                                             type="text"
                                             value={editingCreator.color}
                                             onChange={e => setEditingCreator({ ...editingCreator, color: e.target.value })}
-                                            className="flex-1 bg-white/[0.03] border border-white/5 rounded-2xl px-4 text-xs font-mono text-white/50 outline-none focus:border-red-500/50"
+                                            className="flex-1 bg-surface border border-border rounded-2xl px-4 text-xs font-mono text-foreground/50 outline-none focus:border-danger/50"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-2">Rôle / Bio courte</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground ml-2">Rôle / Bio courte</label>
                                 <input
                                     required
                                     type="text"
                                     value={editingCreator.role}
                                     onChange={e => setEditingCreator({ ...editingCreator, role: e.target.value })}
-                                    className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-5 py-4 text-sm text-white outline-none focus:border-red-500/50"
+                                    className="w-full bg-surface border border-border rounded-2xl px-5 py-4 text-sm text-foreground outline-none focus:border-danger/50"
                                     placeholder="Ex: Forgemagie & Statistiques"
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-2 flex items-center gap-2">
-                                    Handle de Détection <Sparkles className="h-3 w-3 text-amber-500" />
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground ml-2 flex items-center gap-2">
+                                    Handle de Détection <Sparkles className="h-3 w-3 text-warning" />
                                 </label>
                                 <input
                                     type="text"
                                     value={editingCreator.handle || ""}
                                     onChange={e => setEditingCreator({ ...editingCreator, handle: e.target.value })}
-                                    className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-5 py-3 text-sm text-amber-400 outline-none focus:border-red-500/50"
+                                    className="w-full bg-surface border border-border rounded-2xl px-5 py-3 text-sm text-warning outline-none focus:border-danger/50"
                                     placeholder="Ex: huzounet (Nom de chaine Twitch ou handle YT sans @)"
                                 />
-                                <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest ml-2 italic">C'est cet ID qui permet de savoir quand le créateur est en live.</p>
+                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest ml-2 italic">C'est cet ID qui permet de savoir quand le créateur est en live.</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-6 pt-2">
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-2">Canal YouTube</label>
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground ml-2">Canal YouTube</label>
                                     <input
                                         type="url"
                                         value={editingCreator.youtube || ""}
                                         onChange={e => setEditingCreator({ ...editingCreator, youtube: e.target.value })}
-                                        className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-5 py-3 text-xs text-red-400 outline-none focus:border-red-500/50"
+                                        className="w-full bg-surface border border-border rounded-2xl px-5 py-3 text-xs text-danger outline-none focus:border-danger/50"
                                         placeholder="URL Chaine"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-2">Canal Twitch</label>
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground ml-2">Canal Twitch</label>
                                     <input
                                         type="url"
                                         value={editingCreator.twitch || ""}
                                         onChange={e => setEditingCreator({ ...editingCreator, twitch: e.target.value })}
-                                        className="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-5 py-3 text-xs text-purple-400 outline-none focus:border-red-500/50"
+                                        className="w-full bg-surface border border-border rounded-2xl px-5 py-3 text-xs text-info outline-none focus:border-danger/50"
                                         placeholder="URL Stream"
                                     />
                                 </div>
@@ -367,14 +367,14 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 py-5 rounded-[1.5rem] bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-caption font-black uppercase tracking-widest transition-all"
+                                    className="flex-1 py-5 rounded-[1.5rem] bg-surface hover:bg-surface text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-widest transition-all"
                                 >
                                     Annuler
                                 </button>
                                 <button
                                     disabled={isPending}
                                     type="submit"
-                                    className="flex-[2] py-5 rounded-[1.5rem] bg-red-600 hover:bg-red-500 text-white text-caption font-black uppercase tracking-widest transition-all shadow-2xl shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-3"
+                                    className="flex-[2] py-5 rounded-[1.5rem] bg-danger hover:bg-danger text-danger-foreground text-caption font-black uppercase tracking-widest transition-all shadow-2xl shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-3"
                                 >
                                     {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sauvegarder"}
                                 </button>

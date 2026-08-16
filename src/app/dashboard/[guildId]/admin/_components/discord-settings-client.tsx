@@ -82,7 +82,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
+                <Loader2 className="w-8 h-8 animate-spin text-info/50" />
             </div>
         );
     }
@@ -93,68 +93,68 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* FLUX D'ACTUALITÉS */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <Card className="bg-surface/60 border-border overflow-hidden group relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-white font-black uppercase tracking-tighter">
-                                <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg">
+                            <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter">
+                                <span className="bg-success/20 text-success p-2 rounded-lg">
                                     <Megaphone className="w-5 h-5" />
                                 </span>
                                 Flux d'Actualités Dofus
                             </CardTitle>
-                            <CardDescription className="text-xs font-medium text-zinc-500">
+                            <CardDescription className="text-xs font-medium text-muted-foreground">
                                 Automatisation du partage des news officielles Ankama.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                            <div className="flex items-center justify-between p-4 rounded-xl bg-surface border border-border">
                                 <div className="space-y-1">
-                                    <h4 className="text-sm font-bold text-white">Partage manuel vers Discord</h4>
-                                    <p className="text-caption text-zinc-500 leading-relaxed max-w-sm">
+                                    <h4 className="text-sm font-bold text-foreground">Partage manuel vers Discord</h4>
+                                    <p className="text-caption text-muted-foreground leading-relaxed max-w-sm">
                                         Affiche un bouton sur chaque news du dashboard permettant de la poster instantanément.
                                     </p>
                                 </div>
                                 <Switch 
                                     checked={newsEnabled}
                                     onCheckedChange={setNewsEnabled}
-                                    className="data-[state=checked]:bg-emerald-500"
+                                    className="data-[state=checked]:bg-success"
                                 />
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* NOTIFICATIONS LIFECYCLE */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <Card className="bg-surface/60 border-border overflow-hidden group relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-info/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-white font-black uppercase tracking-tighter">
-                                <span className="bg-indigo-500/20 text-indigo-400 p-2 rounded-lg">
+                            <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter">
+                                <span className="bg-info/20 text-info p-2 rounded-lg">
                                     <Users className="w-5 h-5" />
                                 </span>
                                 Notifications Lifecycle
                             </CardTitle>
-                            <CardDescription className="text-xs font-medium text-zinc-500">
+                            <CardDescription className="text-xs font-medium text-muted-foreground">
                                 Suivi des départs et bannissements pour la gestion des archives.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-caption uppercase font-black text-zinc-500 ml-1">ID du Salon de Notification</Label>
+                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon de Notification</Label>
                                     <div className="relative group/input">
                                         <Input
                                             placeholder="ID du salon (ex: 123...)"
                                             value={lifecycleChannelId}
                                             onChange={(e) => setLifecycleChannelId(e.target.value)}
-                                            className="bg-zinc-950/50 border-white/10 h-11 pl-10 focus:border-indigo-500/50 transition-colors font-mono text-xs"
+                                            className="bg-background/50 border-border h-11 pl-10 focus:border-info/50 transition-colors font-mono text-xs"
                                         />
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-indigo-500 transition-colors" />
+                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-info transition-colors" />
                                     </div>
                                     <ChannelPreview guildId={guildId} channelId={lifecycleChannelId} color="indigo" />
                                 </div>
-                                <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-start gap-3">
-                                    <ShieldAlert className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
-                                    <p className="text-caption text-zinc-400 leading-relaxed italic">
+                                <div className="p-3 rounded-xl bg-info/5 border border-info/10 flex items-start gap-3">
+                                    <ShieldAlert className="w-3.5 h-3.5 text-info mt-0.5 shrink-0" />
+                                    <p className="text-caption text-muted-foreground leading-relaxed italic">
                                         Indispensable pour savoir quand archiver un profil ou purger les permissions d'un membre banni.
                                     </p>
                                 </div>
@@ -163,7 +163,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                     </Card>
 
                     <div className="flex justify-end pt-4">
-                        <Button onClick={handleSave} disabled={isPending} className="bg-indigo-600 hover:bg-indigo-500 text-white min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
+                        <Button onClick={handleSave} disabled={isPending} className="bg-info hover:bg-info text-info-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             SAUVEGARDER TOUT
                         </Button>
@@ -172,40 +172,40 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
 
                 {/* Preview Panel */}
                 <div className="space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Départ Membre</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Départ Membre</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative px-4">
                             <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
-                                    <Users className="w-4 h-4 text-white" />
+                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <Users className="w-4 h-4 text-foreground" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-indigo-400 text-xs">SigilOS</span>
-                                        <span className="text-caption text-zinc-500 uppercase font-black tracking-wider">LIFECYCLE</span>
+                                        <span className="font-medium text-info text-xs">SigilOS</span>
+                                        <span className="text-caption text-muted-foreground uppercase font-black tracking-wider">LIFECYCLE</span>
                                     </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-indigo-400 p-3 max-w-sm shadow-xl">
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm shadow-xl">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">👋</span>
-                                            <h4 className="font-semibold text-white text-caption">Membre Parti</h4>
+                                            <h4 className="font-semibold text-foreground text-caption">Membre Parti</h4>
                                         </div>
                                         <div className="space-y-2">
-                                            <p className="text-zinc-300 text-caption leading-relaxed">
-                                                <span className="text-indigo-400 font-medium">@Wylan</span> a quitté le serveur Discord.
+                                            <p className="text-foreground text-caption leading-relaxed">
+                                                <span className="text-info font-medium">@Wylan</span> a quitté le serveur Discord.
                                             </p>
-                                            <div className="bg-black/20 p-2 rounded border border-white/5 space-y-1">
+                                            <div className="bg-black/20 p-2 rounded border border-border space-y-1">
                                                 <div className="flex justify-between items-center text-caption">
-                                                    <span className="text-zinc-500 uppercase font-bold">Pseudo Dofus</span>
-                                                    <span className="text-zinc-200">Wylan-PvP</span>
+                                                    <span className="text-muted-foreground uppercase font-bold">Pseudo Dofus</span>
+                                                    <span className="text-foreground">Wylan-PvP</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-caption">
-                                                    <span className="text-zinc-500 uppercase font-bold">Statut</span>
-                                                    <span className="text-amber-400 font-bold">Archivage Requis</span>
+                                                    <span className="text-muted-foreground uppercase font-bold">Statut</span>
+                                                    <span className="text-warning font-bold">Archivage Requis</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full py-1 bg-zinc-700 text-white text-caption font-bold rounded flex items-center justify-center gap-1">
+                                            <div className="w-full py-1 bg-muted text-foreground text-caption font-bold rounded flex items-center justify-center gap-1">
                                                 VOIR LE PROFIL <ExternalLink className="w-2.5 h-2.5" />
                                             </div>
                                         </div>
@@ -215,31 +215,31 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Bannissement</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Bannissement</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative px-4 text-left">
                             <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center shrink-0 ">
-                                    <Trash2 className="w-4 h-4 text-white" />
+                                <div className="w-8 h-8 rounded-full bg-danger flex items-center justify-center shrink-0 ">
+                                    <Trash2 className="w-4 h-4 text-foreground" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-rose-400 text-xs">SigilOS</span>
-                                        <span className="text-caption text-zinc-500 uppercase font-black tracking-wider">SECURITY</span>
+                                        <span className="font-medium text-danger text-xs">SigilOS</span>
+                                        <span className="text-caption text-muted-foreground uppercase font-black tracking-wider">SECURITY</span>
                                     </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-rose-500 p-3 max-w-sm">
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-danger p-3 max-w-sm">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">🚫</span>
-                                            <h4 className="font-semibold text-white text-caption">Bannissement Détecté</h4>
+                                            <h4 className="font-semibold text-foreground text-caption">Bannissement Détecté</h4>
                                         </div>
-                                        <p className="text-zinc-300 text-caption leading-relaxed mb-3">
+                                        <p className="text-foreground text-caption leading-relaxed mb-3">
                                             Un utilisateur a été banni du serveur. Vérifiez s'il s'agit d'un membre de la guilde.
                                         </p>
-                                        <div className="flex items-center gap-2 p-2 bg-rose-500/5 border border-rose-500/10 rounded">
-                                            <div className="w-6 h-6 rounded-full bg-zinc-700" />
-                                            <span className="text-caption font-medium text-white">Xélor-Fou#0001</span>
+                                        <div className="flex items-center gap-2 p-2 bg-danger/5 border border-danger/10 rounded">
+                                            <div className="w-6 h-6 rounded-full bg-muted" />
+                                            <span className="text-caption font-medium text-foreground">Xélor-Fou#0001</span>
                                         </div>
                                     </div>
                                 </div>

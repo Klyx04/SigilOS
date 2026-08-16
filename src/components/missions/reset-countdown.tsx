@@ -50,17 +50,17 @@ export function ResetCountdown() {
     if (!mounted) return null;
 
     return (
-        <div className="flex items-center gap-4 bg-indigo-950/20 px-3 py-1.5 rounded-full border border-indigo-500/10 group hover:bg-indigo-950/40 transition-colors">
-            <div className="flex items-center gap-2 text-caption font-semibold text-indigo-300 uppercase tracking-widest">
+        <div className="flex items-center gap-4 bg-info/20 px-3 py-1.5 rounded-full border border-info/10 group hover:bg-info/40 transition-colors">
+            <div className="flex items-center gap-2 text-caption font-semibold text-info uppercase tracking-widest">
                 <Timer className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Prochain Reset</span>
             </div>
 
-            <div className="flex items-baseline gap-1.5 font-mono text-slate-200 text-xs">
+            <div className="flex items-baseline gap-1.5 font-mono text-foreground text-xs">
                 <span className="font-bold">{timeLeft.days}j</span>
                 <span className="opacity-60">{timeLeft.hours.toString().padStart(2, '0')}h</span>
                 <span className="opacity-60">{timeLeft.minutes.toString().padStart(2, '0')}m</span>
-                <span className="text-indigo-400 font-bold w-[18px] text-center animate-pulse">
+                <span className="text-info font-bold w-[18px] text-center animate-pulse">
                     {timeLeft.seconds.toString().padStart(2, '0')}s
                 </span>
             </div>

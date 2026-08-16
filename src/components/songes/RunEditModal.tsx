@@ -85,7 +85,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
 
     return (
         <Dialog open={isOpen} onOpenChange={(o) => { if (!o && !pending) onClose(); }}>
-            <DialogContent className="bg-[#09090b] border-white/10 text-white sm:max-w-md max-h-[85vh] overflow-y-auto">
+            <DialogContent className="bg-[#09090b] border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                         <Pencil className="w-5 h-5 text-purple-400" />
@@ -94,12 +94,12 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                 </DialogHeader>
                 <div className="py-4 space-y-5">
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Difficulté</label>
+                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Difficulté</label>
                         <Select value={difficulty} onValueChange={setDifficulty}>
-                            <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
+                            <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-zinc-950 border-white/10 z-[200]">
+                            <SelectContent className="bg-background border-border z-[200]">
                                 {Object.entries(DIFFICULTIES).map(([key, d]) => (
                                     <SelectItem key={key} value={key}>{d.label}</SelectItem>
                                 ))}
@@ -108,12 +108,12 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Épreuve (optionnel)</label>
                         <Select value={epreuveCode} onValueChange={setEpreuveCode}>
-                            <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
+                            <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue placeholder="Run standard" />
                             </SelectTrigger>
-                            <SelectContent className="bg-zinc-950 border-white/10 z-[200]">
+                            <SelectContent className="bg-background border-border z-[200]">
                                 <SelectItem value="">Run standard</SelectItem>
                                 {EPREUVES_SONGE.map((e) => (
                                     <SelectItem key={e.code} value={e.code}>{e.icon} {e.label}</SelectItem>
@@ -122,7 +122,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                         </Select>
                         {!epreuveCode && (
                             <div className="space-y-1.5">
-                                <label className="text-caption font-black text-white/40 uppercase tracking-widest">Objectifs</label>
+                                <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Objectifs</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {Object.entries(OBJECTIVES).map(([key, obj]) => (
                                         <button
@@ -131,8 +131,8 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                                             onClick={() => toggleObjective(key)}
                                             className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
                                                 objectives.includes(key)
-                                                    ? "bg-purple-500/10 border-purple-500/40 text-white"
-                                                    : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                    ? "bg-purple-500/10 border-purple-500/40 text-foreground"
+                                                    : "bg-surface border-border text-foreground/60 hover:border-border-strong"
                                             }`}
                                         >
                                             <span className="text-sm">{obj.icon}</span>
@@ -146,40 +146,40 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Date de départ</label>
+                            <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Date de départ</label>
                             <Input
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="bg-white/5 border-white/10 text-sm"
+                                className="bg-surface border-border text-sm"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Heure</label>
+                            <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Heure</label>
                             <Input
                                 type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="bg-white/5 border-white/10 text-sm"
+                                className="bg-surface border-border text-sm"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Étage actuel (0-26)</label>
                         <Input
                             type="number"
                             min={0}
                             max={26}
                             value={currentFloor}
                             onChange={(e) => setCurrentFloor(e.target.value)}
-                            className="bg-white/5 border-white/10 text-sm"
+                            className="bg-surface border-border text-sm"
                         />
                     </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
-                    <Button variant="ghost" onClick={onClose} disabled={pending} className="text-white/60 hover:text-white">Annuler</Button>
-                    <Button onClick={handleSubmit} disabled={pending} className="bg-purple-600 hover:bg-purple-500 text-white">
+                    <Button variant="ghost" onClick={onClose} disabled={pending} className="text-foreground/60 hover:text-foreground">Annuler</Button>
+                    <Button onClick={handleSubmit} disabled={pending} className="bg-purple-600 hover:bg-purple-500 text-foreground">
                         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
                         Enregistrer
                     </Button>

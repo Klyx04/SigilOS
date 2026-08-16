@@ -148,24 +148,24 @@ export default function ZoneManager() {
     return (
         <div className="space-y-4">
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+            <div className="flex flex-col md:flex-row items-center gap-4 bg-surface/50 p-4 rounded-lg border border-border/50 backdrop-blur-sm">
                 <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Rechercher une zone..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/50"
+                        className="pl-9 bg-elevated border-border text-foreground placeholder:text-muted-foreground focus:ring-ring/50"
                     />
                 </div>
 
                 {/* Level Filter */}
                 <div className="w-full md:w-48">
                     <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-200">
+                        <SelectTrigger className="bg-elevated border-border text-foreground">
                             <SelectValue placeholder="Filtrer par niveau" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-700">
+                        <SelectContent className="bg-surface border-border">
                             <SelectItem value="all">Tous les niveaux</SelectItem>
                             <SelectItem value="1-50">Niveau 1 - 50</SelectItem>
                             <SelectItem value="51-100">Niveau 51 - 100</SelectItem>
@@ -177,7 +177,7 @@ export default function ZoneManager() {
                 </div>
                 <Button
                     onClick={() => { resetForm(); setIsDialogOpen(true); }}
-                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
+                    className="w-full md:w-auto bg-info hover:bg-info shadow-lg shadow-indigo-900/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     Nouvelle Zone
@@ -186,9 +186,9 @@ export default function ZoneManager() {
 
             {/* Grid List */}
             {loading ? (
-                <div className="p-12 text-center text-slate-400 animate-pulse">Chargement des zones...</div>
+                <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement des zones...</div>
             ) : filteredZones.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 bg-slate-900/30 rounded-lg border border-dashed border-slate-700">
+                <div className="p-12 text-center text-muted-foreground bg-surface/30 rounded-lg border border-dashed border-border">
                     Aucune zone trouvée
                 </div>
             ) : (
@@ -196,20 +196,20 @@ export default function ZoneManager() {
                     {filteredZones.map((zone) => (
                         <div
                             key={zone.id}
-                            className="group relative bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-900/10 transition-all duration-300"
+                            className="group relative bg-surface/40 border border-border rounded-xl overflow-hidden hover:border-info/30 hover:shadow-lg hover:shadow-indigo-900/10 transition-all duration-300"
                         >
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-slate-950/50 hover:bg-slate-800 text-slate-400">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-background/50 hover:bg-elevated text-muted-foreground">
                                             <MoreHorizontal className="w-4 h-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
-                                        <DropdownMenuItem onClick={() => startEdit(zone)} className="text-slate-300 focus:bg-slate-800 cursor-pointer">
-                                            <Edit2 className="w-4 h-4 mr-2 text-indigo-400" /> Modifier
+                                    <DropdownMenuContent align="end" className="bg-surface border-border">
+                                        <DropdownMenuItem onClick={() => startEdit(zone)} className="text-foreground focus:bg-elevated cursor-pointer">
+                                            <Edit2 className="w-4 h-4 mr-2 text-info" /> Modifier
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleDelete(zone.id)} className="text-red-400 focus:bg-red-950/30 cursor-pointer">
+                                        <DropdownMenuItem onClick={() => handleDelete(zone.id)} className="text-danger focus:bg-danger/30 cursor-pointer">
                                             <Trash2 className="w-4 h-4 mr-2" /> Supprimer
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -222,10 +222,10 @@ export default function ZoneManager() {
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-200 truncate group-hover:text-green-300 transition-colors">
+                                    <h3 className="font-bold text-foreground truncate group-hover:text-green-300 transition-colors">
                                         {zone.name}
                                     </h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">
+                                    <p className="text-xs text-muted-foreground mt-0.5">
                                         Niveau {zone.level}
                                     </p>
                                 </div>
@@ -236,15 +236,15 @@ export default function ZoneManager() {
             )}
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent draggable className="w-[95vw] max-w-6xl bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col">
+                <DialogContent draggable className="w-[95vw] max-w-6xl bg-background border-border p-0 overflow-hidden shadow-2xl flex flex-col">
                     {/* Header Draggable */}
-                    <div className="p-8 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between shrink-0">
+                    <div className="p-8 bg-surface/50 border-b border-border flex items-center justify-between shrink-0">
                         <DialogHeader>
-                            <DialogTitle className="text-3xl font-black text-white flex items-center gap-4">
-                                <Plus className="w-8 h-8 text-indigo-500" />
+                            <DialogTitle className="text-3xl font-black text-foreground flex items-center gap-4">
+                                <Plus className="w-8 h-8 text-info" />
                                 {editing ? "Modifier la zone" : "Nouvelle zone"}
                             </DialogTitle>
-                            <DialogDescription className="text-slate-400 text-lg">
+                            <DialogDescription className="text-muted-foreground text-lg">
                                 Configurez les détails géographiques de la zone et son niveau recommandé.
                             </DialogDescription>
                         </DialogHeader>
@@ -252,37 +252,37 @@ export default function ZoneManager() {
 
                     <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
                         <form onSubmit={handleSubmit} className="space-y-10 pb-6">
-                            <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50">
-                                <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-2">Informations de Zone</h3>
+                            <div className="space-y-8 bg-surface/30 p-8 rounded-3xl border border-border/50">
+                                <h3 className="text-sm font-black text-info uppercase tracking-[0.2em] border-b border-border pb-4 mb-2">Informations de Zone</h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                                     <div className="md:col-span-3 space-y-3">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom de la Zone <span className="text-rose-500 text-lg">*</span></label>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom de la Zone <span className="text-danger text-lg">*</span></label>
                                         <Input
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             required
                                             placeholder="Ex: Pandala, Frigost, Saharach..."
-                                            className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                            className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
                                         />
                                     </div>
                                     <div className="space-y-3">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Niveau Max</label>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Niveau Max</label>
                                         <div className="relative">
                                             <Input
                                                 type="number"
                                                 value={formData.level || ""}
                                                 onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 0 })}
                                                 placeholder="200"
-                                                className="h-16 pl-12 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
+                                                className="h-16 pl-12 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
                                             />
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Lvl</span>
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Lvl</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-border">
                                     <div className="space-y-3">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Familles Associées</label>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Familles Associées</label>
                                         <div className="flex-1 overflow-visible">
                                             <MultiSelect
                                                 options={families.map(f => ({ label: f.name, value: f.id }))}
@@ -290,13 +290,13 @@ export default function ZoneManager() {
                                                 onChange={(val) => setFormData({ ...formData, familyIds: val })}
                                                 placeholder="Sélectionner les familles..."
                                             />
-                                            <p className="mt-3 text-caption text-slate-500 leading-relaxed font-medium italic">
+                                            <p className="mt-3 text-caption text-muted-foreground leading-relaxed font-medium italic">
                                                 Optionnel: lier des familles de monstres à cette zone.
                                             </p>
                                         </div>
                                     </div>
                                     <div className="space-y-3">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Donjons Associés</label>
+                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Donjons Associés</label>
                                         <div className="flex-1 overflow-visible">
                                             <MultiSelect
                                                 options={dungeons.map(d => ({ label: d.name, value: d.id }))}
@@ -304,7 +304,7 @@ export default function ZoneManager() {
                                                 onChange={(val) => setFormData({ ...formData, dungeonIds: val })}
                                                 placeholder="Sélectionner les donjons..."
                                             />
-                                            <p className="mt-3 text-caption text-slate-500 leading-relaxed font-medium italic">
+                                            <p className="mt-3 text-caption text-muted-foreground leading-relaxed font-medium italic">
                                                 Optionnel: lier des boss de donjon à cette zone.
                                             </p>
                                         </div>
@@ -312,15 +312,15 @@ export default function ZoneManager() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-6 border-t border-slate-800 shrink-0 sticky bottom-0 bg-slate-950 py-4">
-                                <Button type="submit" className="flex-[3] bg-indigo-600 hover:bg-indigo-700 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
+                            <div className="flex gap-4 pt-6 border-t border-border shrink-0 sticky bottom-0 bg-background py-4">
+                                <Button type="submit" className="flex-[3] bg-info hover:bg-info h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
                                     {editing ? "💾 Enregistrer" : "➕ Créer la Zone"}
                                 </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => setIsDialogOpen(false)}
-                                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-slate-300 text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                    className="flex-1 h-14 border-border hover:bg-surface text-foreground text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
                                 >
                                     Fermer
                                 </Button>

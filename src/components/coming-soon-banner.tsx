@@ -23,10 +23,10 @@ export function ComingSoonBanner({
 }: ComingSoonBannerProps) {
     const colorMap: Record<string, { text: string; bg: string; border: string; glow: string }> = {
         teal: { text: "text-teal-400", bg: "bg-teal-500/10", border: "border-teal-500/20", glow: "shadow-teal-500/20" },
-        amber: { text: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", glow: "shadow-amber-500/20" },
+        amber: { text: "text-warning", bg: "bg-warning/10", border: "border-warning/20", glow: "shadow-amber-500/20" },
         violet: { text: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/20", glow: "shadow-violet-500/20" },
-        cyan: { text: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", glow: "shadow-cyan-500/20" },
-        rose: { text: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", glow: "shadow-rose-500/20" },
+        cyan: { text: "text-info", bg: "bg-info/10", border: "border-info/20", glow: "shadow-cyan-500/20" },
+        rose: { text: "text-danger", bg: "bg-danger/10", border: "border-danger/20", glow: "shadow-rose-500/20" },
     };
 
     const colors = colorMap[accentColor] || colorMap.teal;
@@ -64,10 +64,10 @@ export function ComingSoonBanner({
                             <Icon className={cn("w-7 h-7", colors.text)} />
                         </div>
                         <div>
-                            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+                            <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
                                 {title}
                             </h2>
-                            <p className="text-sm text-zinc-400 mt-1 max-w-xl">
+                            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
                                 {description}
                             </p>
                         </div>
@@ -105,13 +105,13 @@ export function ComingSoonBanner({
                                     key={i}
                                     className={cn(
                                         "flex items-start gap-3 px-4 py-3 rounded-lg border",
-                                        "bg-white/[0.02]",
-                                        "border-white/5",
-                                        "hover:border-white/10 hover:bg-white/[0.04] transition-all duration-200"
+                                        "bg-surface",
+                                        "border-border",
+                                        "hover:border-border hover:bg-surface transition-all duration-200"
                                     )}
                                 >
                                     <Sparkles className={cn("w-4 h-4 shrink-0 mt-0.5", colors.text)} />
-                                    <span className="text-sm text-zinc-300 font-medium">{feature}</span>
+                                    <span className="text-sm text-foreground font-medium">{feature}</span>
                                 </div>
                             ))}
                         </div>
@@ -119,7 +119,7 @@ export function ComingSoonBanner({
 
                     {/* CTA / info */}
                     <div className="flex items-center justify-center pt-4">
-                        <p className="text-xs text-zinc-500 font-medium text-center max-w-md">
+                        <p className="text-xs text-muted-foreground font-medium text-center max-w-md">
                             Ce module est en cours de conception. Restez connecté pour suivre son avancement !
                             Vos retours sont précieux pour façonner cette fonctionnalité.
                         </p>

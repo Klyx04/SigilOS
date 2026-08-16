@@ -48,9 +48,9 @@ import { Input } from "@/components/ui/input";
 
 // Couleur selon difficulté
 function getDifficultyBadgeColor(diffKey: DifficultyKey) {
-    if (diffKey.startsWith("CAUCHEMAR")) return "text-red-400 bg-red-900/20 border-red-500/30";
-    if (diffKey.startsWith("PARADOXE")) return "text-amber-400 bg-amber-900/20 border-amber-500/30";
-    return "text-emerald-400 bg-emerald-900/20 border-emerald-500/30";
+    if (diffKey.startsWith("CAUCHEMAR")) return "text-danger bg-danger/20 border-danger/30";
+    if (diffKey.startsWith("PARADOXE")) return "text-warning bg-warning/20 border-warning/30";
+    return "text-success bg-success/20 border-success/30";
 }
 
 
@@ -274,15 +274,15 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="h-14 px-8 text-lg bg-purple-600 hover:bg-purple-500 text-white gap-3 font-black uppercase tracking-wider flex-1 min-w-[240px] transition-colors">
+                <Button className="h-14 px-8 text-lg bg-info hover:bg-info text-info-foreground gap-3 font-black uppercase tracking-wider flex-1 min-w-[240px] transition-colors">
                     <Plus className="w-6 h-6" />
                     Créer une Run
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/60 premium-scrollbar">
+            <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/60 premium-scrollbar">
                 <DialogHeader>
-                    <DialogTitle className="text-xl flex items-center gap-2 text-white">
+                    <DialogTitle className="text-xl flex items-center gap-2 text-foreground">
                         🌙 Nouvelle Run Songes
                     </DialogTitle>
                 </DialogHeader>
@@ -291,17 +291,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     {step === 1 && (
                         <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-4 pt-2">
                             <Tabs value={mode} onValueChange={(v) => { setMode(v as "standard" | "epreuve"); setError(null); }}>
-                    <TabsList className="w-full bg-white/5 border border-white/8 p-1 rounded-lg mb-4">
+                    <TabsList className="w-full bg-surface border border-white/8 p-1 rounded-lg mb-4">
                         <TabsTrigger
                             value="standard"
-                            className="flex-1 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]: text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-info data-[state=active]:text-foreground data-[state=active]: text-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Swords className="w-3.5 h-3.5" />
                             Run Standard
                         </TabsTrigger>
                         <TabsTrigger
                             value="epreuve"
-                            className="flex-1 gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]: text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]: text-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Trophy className="w-3.5 h-3.5" />
                             Épreuve de Songe
@@ -312,7 +312,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     <TabsContent value="standard" className="space-y-4 mt-0">
                         {/* Difficulty */}
                         <div className="space-y-2">
-                            <Label className="text-white/60 text-xs uppercase tracking-widest font-bold">Difficulté</Label>
+                            <Label className="text-foreground/60 text-xs uppercase tracking-widest font-bold">Difficulté</Label>
                             <Select value={difficulty} onValueChange={(v) => {
                                 setDifficulty(v as DifficultyKey);
                                 const isNewParadoxe = v.startsWith("PARADOXE") || v.startsWith("CAUCHEMAR");
@@ -320,16 +320,16 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                     setObjectives(prev => prev.filter(o => o !== "DROP_LEGENDE" && o !== "SUCCES_NO_ACHAT"));
                                 }
                             }}>
-                                <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/8 transition-colors">
+                                <SelectTrigger className="bg-surface border-border text-foreground hover:bg-white/8 transition-colors">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-zinc-950 border-white/10">
+                                <SelectContent className="bg-background border-border">
                                     {Object.entries(DIFFICULTIES).map(([key, value]) => (
-                                        <SelectItem key={key} value={key} className="text-white focus:bg-white/10">
+                                        <SelectItem key={key} value={key} className="text-foreground focus:bg-surface">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: value.couleur }} />
                                                 {value.label}
-                                                <span className="text-white/40 text-xs">({value.xpBonus}% XP/Butin)</span>
+                                                <span className="text-foreground/40 text-xs">({value.xpBonus}% XP/Butin)</span>
                                             </div>
                                         </SelectItem>
                                     ))}
@@ -339,7 +339,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                         {/* Objectives */}
                         <div className="space-y-2">
-                            <Label className="text-white/60 text-xs uppercase tracking-widest font-bold">Objectifs (Choix multiple)</Label>
+                            <Label className="text-foreground/60 text-xs uppercase tracking-widest font-bold">Objectifs (Choix multiple)</Label>
                             <div className="grid grid-cols-1 gap-1.5">
                                 {availableObjectives.map(([key, value]) => {
                                     const isSelected = objectives.includes(key as ObjectiveKey);
@@ -350,14 +350,14 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             className={cn(
                                                 "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                                                 isSelected
-                                                    ? "bg-indigo-600/25 border-indigo-500/60 text-indigo-100"
-                                                    : "bg-white/3 border-white/8 text-white/50 hover:bg-white/6 hover:text-white/70"
+                                                    ? "bg-info/25 border-info/60 text-info"
+                                                    : "bg-white/3 border-white/8 text-foreground/50 hover:bg-white/6 hover:text-foreground/70"
                                             )}
                                         >
                                             <div className="text-lg">{value.icon}</div>
                                             <div className="text-sm font-medium">{value.label}</div>
                                             {isSelected && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-indigo-400 " />
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-info " />
                                             )}
                                         </div>
                                     );
@@ -368,7 +368,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                     {/* ─── MODE ÉPREUVE ─── */}
                     <TabsContent value="epreuve" className="mt-0">
-                        <p className="text-xs text-white/30 mb-3 leading-relaxed">
+                        <p className="text-xs text-foreground/30 mb-3 leading-relaxed">
                             Parcours prédéfinis liés à des succès en jeu. La difficulté et le mode sont imposés par l'épreuve choisie.
                         </p>
                         <div className="space-y-2 max-h-72 overflow-y-auto pr-1 premium-scrollbar">
@@ -382,8 +382,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         className={cn(
                                             "relative flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group",
                                             isSelected
-                                                ? "border-amber-500/50 bg-amber-900/15 "
-                                                : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"
+                                                ? "border-warning/50 bg-warning/15 "
+                                                : "border-white/8 bg-white/3 hover:border-border-strong hover:bg-surface"
                                         )}
                                     >
                                         {/* Barre colorée latérale */}
@@ -398,7 +398,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         {/* Icône */}
                                         <div className={cn(
                                             "w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 transition-all",
-                                            isSelected ? "bg-amber-500/20 border border-amber-500/30" : "bg-white/5 border border-white/8"
+                                            isSelected ? "bg-warning/20 border border-warning/30" : "bg-surface border border-white/8"
                                         )}>
                                             {epreuve.icon}
                                         </div>
@@ -406,20 +406,20 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         {/* Content */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className={cn("text-sm font-bold", isSelected ? "text-amber-200" : "text-white/80")}>
+                                                <span className={cn("text-sm font-bold", isSelected ? "text-warning" : "text-foreground/80")}>
                                                     {epreuve.label}
                                                 </span>
                                                 <span className={cn("text-caption font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border", badgeColor)}>
                                                     {epreuve.difficultyLabel}
                                                 </span>
                                             </div>
-                                            <p className="text-caption text-white/35 leading-relaxed mt-0.5 line-clamp-2">
+                                            <p className="text-caption text-foreground/35 leading-relaxed mt-0.5 line-clamp-2">
                                                 {epreuve.description}
                                             </p>
                                             {/* Succès associé */}
                                             <div className="flex items-center gap-1.5 mt-1.5">
-                                                <Trophy className="w-3 h-3 text-amber-500/60" />
-                                                <span className="text-caption text-amber-500/50 font-semibold">
+                                                <Trophy className="w-3 h-3 text-warning/60" />
+                                                <span className="text-caption text-warning/50 font-semibold">
                                                     Succès : Épreuve {epreuve.code}
                                                 </span>
                                             </div>
@@ -427,7 +427,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                                         {/* Selected indicator */}
                                         {isSelected && (
-                                            <div className="w-2 h-2 rounded-full bg-amber-400  shrink-0 mt-1" />
+                                            <div className="w-2 h-2 rounded-full bg-warning  shrink-0 mt-1" />
                                         )}
                                     </div>
                                 );
@@ -441,58 +441,58 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
                             <div className="flex items-center gap-3">
-                                <CalendarIcon className="w-5 h-5 text-purple-400" />
+                                <CalendarIcon className="w-5 h-5 text-info" />
                                 <div>
-                                    <p className="text-sm font-medium text-white/80">Planifier la Run</p>
-                                    <p className="text-xs text-white/35">Définir une date et une heure</p>
+                                    <p className="text-sm font-medium text-foreground/80">Planifier la Run</p>
+                                    <p className="text-xs text-foreground/35">Définir une date et une heure</p>
                                 </div>
                             </div>
                             <Switch
                                 checked={isScheduled}
                                 onCheckedChange={setIsScheduled}
-                                className="data-[state=checked]:bg-purple-600"
+                                className="data-[state=checked]:bg-info"
                             />
                         </div>
 
                         {isScheduled && (
                             <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="space-y-1.5">
-                                    <Label className="text-caption text-white/40 uppercase font-bold ml-1">Date</Label>
+                                    <Label className="text-caption text-foreground/40 uppercase font-bold ml-1">Date</Label>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant="outline"
                                                 className={cn(
-                                                    "w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/8",
-                                                    !scheduledDate && "text-white/40"
+                                                    "w-full h-10 justify-start text-left font-normal bg-surface border-border text-foreground hover:bg-white/8",
+                                                    !scheduledDate && "text-foreground/40"
                                                 )}
                                             >
-                                                <CalendarIcon className="mr-2 h-4 w-4 text-purple-400" />
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-info" />
                                                 {scheduledDate ? format(scheduledDate, "d MMM yyyy", { locale: fr }) : "Choisir une date"}
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0 bg-zinc-950 border-white/10 z-[200]" align="center">
+                                        <PopoverContent className="w-auto p-0 bg-background border-border z-[200]" align="center">
                                             <Calendar
                                                 mode="single"
                                                 selected={scheduledDate}
                                                 onSelect={setScheduledDate}
                                                 disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
                                                 initialFocus
-                                                className="bg-transparent text-white"
+                                                className="bg-transparent text-foreground"
                                             />
                                         </PopoverContent>
                                     </Popover>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <Label className="text-caption text-white/40 uppercase font-bold ml-1">Heure</Label>
+                                    <Label className="text-caption text-foreground/40 uppercase font-bold ml-1">Heure</Label>
                                     <div className="relative">
-                                        <Clock className="absolute left-3 top-3 h-4 w-4 text-purple-400" />
+                                        <Clock className="absolute left-3 top-3 h-4 w-4 text-info" />
                                         <Input
                                             type="time"
                                             value={scheduledTime}
                                             onChange={(e) => setScheduledTime(e.target.value)}
-                                            className="h-10 pl-10 bg-white/5 border-white/10 text-white focus:border-purple-500/50"
+                                            className="h-10 pl-10 bg-surface border-border text-foreground focus:border-info/50"
                                         />
                                     </div>
                                 </div>
@@ -502,22 +502,22 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                     {/* Note épreuve */}
                     {mode === "epreuve" && selectedEpreuve && (
-                        <p className="text-caption text-white/25 flex items-center gap-1.5">
-                            <Trophy className="w-3 h-3 text-amber-500/40" />
+                        <p className="text-caption text-foreground/25 flex items-center gap-1.5">
+                            <Trophy className="w-3 h-3 text-warning/40" />
                             Pas de butin ni d&apos;expérience pour les Épreuves.
                         </p>
                     )}
 
                     {/* CLASS SELECTION (Lead) */}
-                    <div className="space-y-3 pt-2 border-t border-white/5">
-                        <Label className="text-sm font-bold text-white flex items-center gap-2">
+                    <div className="space-y-3 pt-2 border-t border-border">
+                        <Label className="text-sm font-bold text-foreground flex items-center gap-2">
                             ⚔️ Ta Classe pour cette Run
                         </Label>
 
                         {/* Mes Personnages (main + mules) */}
                         {(userMainClass || userMules.length > 0) && (
                             <div className="space-y-1.5">
-                                <p className="text-caption text-white/35 uppercase font-bold tracking-widest flex items-center gap-1.5">
+                                <p className="text-caption text-foreground/35 uppercase font-bold tracking-widest flex items-center gap-1.5">
                                     <User className="w-3 h-3" /> Mes Personnages
                                 </p>
                                 <div className="flex flex-wrap gap-2">
@@ -534,16 +534,16 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                 className={cn(
                                                     "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
                                                     isSelected
-                                                        ? "border-purple-500/60 bg-purple-500/15 text-purple-200 "
-                                                        : "border-white/8 bg-white/3 text-white/50 hover:border-white/20 hover:text-white/80"
+                                                        ? "border-info/60 bg-info/15 text-info "
+                                                        : "border-white/8 bg-white/3 text-foreground/50 hover:border-border-strong hover:text-foreground/80"
                                                 )}
                                             >
                                                 <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
                                                     <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
                                                 </div>
                                                 <span>{cls.name}</span>
-                                                <span className="text-caption text-white/25 uppercase">Main</span>
-                                                {isSelected && <Check className="w-3 h-3 text-purple-400" />}
+                                                <span className="text-caption text-foreground/25 uppercase">Main</span>
+                                                {isSelected && <Check className="w-3 h-3 text-info" />}
                                             </button>
                                         );
                                     })()}
@@ -560,15 +560,15 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                 className={cn(
                                                     "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
                                                     isSelected
-                                                        ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200 "
-                                                        : "border-white/8 bg-white/3 text-white/50 hover:border-white/20 hover:text-white/80"
+                                                        ? "border-info/60 bg-info/15 text-info "
+                                                        : "border-white/8 bg-white/3 text-foreground/50 hover:border-border-strong hover:text-foreground/80"
                                                 )}
                                             >
                                                 <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
                                                     <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
                                                 </div>
                                                 <span>{mule.pseudo}</span>
-                                                {isSelected && <Check className="w-3 h-3 text-indigo-400" />}
+                                                {isSelected && <Check className="w-3 h-3 text-info" />}
                                             </button>
                                         );
                                     })}
@@ -578,8 +578,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                         {/* Toutes les classes */}
                         <div className="space-y-1.5">
-                            <p className="text-caption text-white/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
-                            <div className="flex flex-wrap gap-1.5 bg-white/3 rounded-xl p-2 border border-white/5">
+                            <p className="text-caption text-foreground/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
+                            <div className="flex flex-wrap gap-1.5 bg-white/3 rounded-xl p-2 border border-border">
                                 {DOFUS_CLASSES.map((cls) => {
                                     const isSelected = leaderClass === cls.id;
                                     return (
@@ -591,8 +591,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             className={cn(
                                                 "w-9 h-9 rounded-lg flex items-center justify-center transition-all border shrink-0",
                                                 isSelected
-                                                    ? "border-white/30 scale-110 z-10"
-                                                    : "border-white/5 bg-black/20 opacity-50 hover:opacity-100 hover:bg-white/5"
+                                                    ? "border-border-strong scale-110 z-10"
+                                                    : "border-border bg-black/20 opacity-50 hover:opacity-100 hover:bg-surface"
                                             )}
                                             style={{
                                                 backgroundColor: isSelected ? `${cls.color}20` : undefined,
@@ -616,7 +616,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     </div>
 
                     {!countdown && error && (
-                        <div className="text-red-400 text-sm bg-red-900/15 p-3 rounded-lg border border-red-500/25">
+                        <div className="text-danger text-sm bg-danger/15 p-3 rounded-lg border border-danger/25">
                             {error}
                         </div>
                     )}
@@ -626,7 +626,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         <Button
                             variant="ghost"
                             onClick={() => setOpen(false)}
-                            className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                            className="h-12 px-8 rounded-xl text-caption font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-[0.2em] border border-border hover:bg-surface order-2 sm:order-1"
                         >
                             Annuler
                         </Button>
@@ -646,11 +646,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             className={cn(
                                 "flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
                                 mode === "epreuve"
-                                    ? "bg-amber-600 hover:bg-amber-500 text-zinc-950"
-                                    : "bg-purple-600 hover:bg-purple-500 text-white"
+                                    ? "bg-warning hover:bg-warning text-warning-foreground"
+                                    : "bg-info hover:bg-info text-info-foreground"
                             )}
                         >
-                            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                            <div className="absolute inset-0 bg-background opacity-0 group-hover:opacity-10 transition-opacity" />
                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
                                 <ChevronRight className="w-4 h-4" />
                                 SUIVANT
@@ -663,59 +663,59 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 {step === 2 && (
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                     <div className="text-center space-y-3 mb-8 pt-4">
-                        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto ">
-                            <Hash className="w-8 h-8 text-indigo-400" />
+                        <div className="w-16 h-16 rounded-3xl bg-info/10 border border-info/20 flex items-center justify-center mx-auto ">
+                            <Hash className="w-8 h-8 text-info" />
                         </div>
-                        <h3 className="text-xl font-black uppercase tracking-tight text-white">Configuration Discord</h3>
-                        <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">Notifier la guilde de votre run Songes ?</p>
+                        <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Configuration Discord</h3>
+                        <p className="text-sm text-muted-foreground max-w-xs mx-auto font-medium">Notifier la guilde de votre run Songes ?</p>
                     </div>
 
-                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
+                    <div className={`p-6 rounded-3xl border transition-all duration-300 ${publishToDiscord ? 'bg-info/10 border-info/30' : 'bg-surface/50 border-border'}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col">
-                                <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-indigo-400' : 'text-zinc-300'}`}>Synchro Automatique</span>
+                                <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-info' : 'text-foreground'}`}>Synchro Automatique</span>
                                 {publishToDiscord ? (
                                     <div className="flex items-center gap-1 mt-1 animate-in fade-in">
-                                        <Hash className="w-3 h-3 text-indigo-400/70" />
-                                        <span className="text-caption text-indigo-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                        <Hash className="w-3 h-3 text-info/70" />
+                                        <span className="text-caption text-info/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
+                                    <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">Désactivé</span>
                                 )}
                             </div>
                             <Switch
                                 checked={publishToDiscord && isDiscordConfigured}
                                 onCheckedChange={setPublishToDiscord}
                                 disabled={!isDiscordConfigured}
-                                className="data-[state=checked]:bg-indigo-500 scale-125 origin-right"
+                                className="data-[state=checked]:bg-info scale-125 origin-right"
                             />
                         </div>
 
                         {!isDiscordConfigured && (
-                            <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                                <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
+                            <div className="mt-4 p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-center gap-3">
+                                <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+                                <p className="text-caption text-warning/70 font-bold uppercase tracking-wider">
                                     Discord non configuré pour ce module. Contactez un admin.
                                 </p>
                             </div>
                         )}
 
                         {publishToDiscord && discordRoles.length > 0 && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-indigo-500/20 space-y-3">
-                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
-                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                    <p className="text-caption text-amber-300/80 font-medium leading-relaxed">
-                                        <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un rôle pour que ta run ait de la visibilité.
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-info/20 space-y-3">
+                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                                    <p className="text-caption text-warning/80 font-medium leading-relaxed">
+                                        <span className="font-bold text-warning">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un rôle pour que ta run ait de la visibilité.
                                     </p>
                                 </div>
-                                <span className="text-caption font-black text-indigo-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
+                                <span className="text-caption font-black text-info/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={roleOpen}
-                                            className="h-14 bg-zinc-950/50 border-white/10 text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-zinc-950 px-4"
+                                            className="h-14 bg-background/50 border-border text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-background px-4"
                                         >
                                             <div className="flex items-center gap-3 truncate">
                                                 {mentionRoleIds.length > 0 ? (
@@ -745,7 +745,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                             e.stopPropagation();
                                                                             setMentionRoleIds(prev => prev.filter(rid => rid !== id));
                                                                         }}
-                                                                        className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                                                        className="ml-0.5 hover:bg-elevated rounded-full p-0.5 transition-colors"
                                                                     >
                                                                         <X className="h-2.5 w-2.5" />
                                                                     </button>
@@ -753,20 +753,20 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                             );
                                                         })}
                                                         {mentionRoleIds.length > 3 && (
-                                                            <span className="text-caption font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                            <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide px-1.5">
                                                                 +{mentionRoleIds.length - 3} rôles
                                                             </span>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
+                                                    <span className="text-muted-foreground italic">Aucun ping (recommandé si petit besoin)</span>
                                                 )}
                                             </div>
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden z-[200]" align="center" sideOffset={8}>
-                                        <Command className="bg-transparent text-white">
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border shadow-2xl rounded-2xl overflow-hidden z-[200]" align="center" sideOffset={8}>
+                                        <Command className="bg-transparent text-foreground">
                                             <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
                                             <CommandList className="max-h-[320px] premium-scrollbar p-2">
                                                 <CommandEmpty>Aucun rôle.</CommandEmpty>
@@ -775,10 +775,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                         onSelect={() => {
                                                             setMentionRoleIds([]);
                                                         }}
-                                                        className="text-zinc-500 italic focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                        className="text-muted-foreground italic focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
                                                     >
                                                         <span className="font-bold uppercase tracking-widest">Aucun ping</span>
-                                                        {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-zinc-400" />}
+                                                        {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-muted-foreground" />}
                                                     </CommandItem>
                                                     {discordRoles.map((role) => (
                                                         <CommandItem
@@ -790,7 +790,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                         : [...prev, role.id]
                                                                 );
                                                             }}
-                                                            className="text-white focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
+                                                            className="text-foreground focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
                                                         >
                                                             <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
                                                                 <div 
@@ -802,7 +802,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                 />
                                                                 <span className="truncate group-hover:translate-x-1 transition-transform">{role.name}</span>
                                                             </div>
-                                                            {mentionRoleIds.includes(role.id) && <Check className="h-4 w-4 text-indigo-400 shrink-0" />}
+                                                            {mentionRoleIds.includes(role.id) && <Check className="h-4 w-4 text-info shrink-0" />}
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -815,12 +815,12 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         )}
                     </div>
 
-                    <div className="pt-8 border-t border-white/5 mt-4">
+                    <div className="pt-8 border-t border-border mt-4">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
                             <Button
                                 variant="ghost"
                                 onClick={() => setStep(1)}
-                                className="h-12 px-8 rounded-xl text-caption font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                className="h-12 px-8 rounded-xl text-caption font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-[0.2em] border border-border hover:bg-surface order-2 sm:order-1"
                             >
                                 Retour
                             </Button>
@@ -828,13 +828,13 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 className={cn(
                                     "flex-1 h-12 px-10 rounded-xl font-black text-caption tracking-[0.2em] transition-colors active:scale-95 relative group overflow-hidden order-1 sm:order-2",
                                     mode === "epreuve" 
-                                        ? "bg-amber-500 hover:bg-amber-400 text-zinc-950" 
-                                        : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
+                                        ? "bg-warning hover:bg-warning text-warning-foreground" 
+                                        : "bg-success hover:bg-success text-success-foreground"
                                 )}
                                 onClick={handleCreate}
                                 disabled={isPending}
                             >
-                                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                <div className="absolute inset-0 bg-background opacity-0 group-hover:opacity-10 transition-opacity" />
                                 <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
                                     {isPending ? (
                                         <div className="w-4 h-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />

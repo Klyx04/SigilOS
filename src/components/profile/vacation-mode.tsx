@@ -105,14 +105,14 @@ export function VacationMode({
     };
 
     return (
-        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-white/10">
+        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-border">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                    <Palmtree className="w-4 h-4 text-cyan-400" />
-                    <h3 className="text-sm font-medium text-zinc-400">Mode Vacances</h3>
+                    <Palmtree className="w-4 h-4 text-info" />
+                    <h3 className="text-sm font-medium text-muted-foreground">Mode Vacances</h3>
                 </div>
                 {isOnVacation && (
-                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 px-1.5 py-0 h-5 text-caption">
+                    <Badge variant="outline" className="bg-info/10 text-info border-info/30 px-1.5 py-0 h-5 text-caption">
                         Actif
                     </Badge>
                 )}
@@ -123,28 +123,28 @@ export function VacationMode({
                 <div className="space-y-1">
                     {isOnVacation ? (
                         <>
-                            <p className="text-sm text-zinc-300 flex items-center gap-2">
-                                <span className="text-zinc-500 text-xs w-16">Départ :</span>
+                            <p className="text-sm text-foreground flex items-center gap-2">
+                                <span className="text-muted-foreground text-xs w-16">Départ :</span>
                                 <span className="font-medium">
                                     {format(vacationStart!, "d MMM yyyy", { locale: fr })}
                                 </span>
                             </p>
                             {vacationEnd ? (
-                                <p className="text-sm text-zinc-300 flex items-center gap-2">
-                                    <span className="text-zinc-500 text-xs w-16">Retour :</span>
+                                <p className="text-sm text-foreground flex items-center gap-2">
+                                    <span className="text-muted-foreground text-xs w-16">Retour :</span>
                                     <span className="font-medium">
                                         {format(vacationEnd, "d MMM yyyy", { locale: fr })}
                                     </span>
                                 </p>
                             ) : (
-                                <p className="text-xs text-zinc-500 italic">Pas de date de retour prévue</p>
+                                <p className="text-xs text-muted-foreground italic">Pas de date de retour prévue</p>
                             )}
                             {vacationReason && (
-                                <p className="text-xs text-zinc-400 italic mt-1 break-words bg-black/20 p-2 rounded border border-white/5">Motif: {vacationReason}</p>
+                                <p className="text-xs text-muted-foreground italic mt-1 break-words bg-black/20 p-2 rounded border border-border">Motif: {vacationReason}</p>
                             )}
                         </>
                     ) : (
-                        <p className="text-xs text-zinc-500 italic">Pas de vacances prévues</p>
+                        <p className="text-xs text-muted-foreground italic">Pas de vacances prévues</p>
                     )}
                 </div>
             ) : (
@@ -153,7 +153,7 @@ export function VacationMode({
                     <div className="grid grid-cols-2 gap-3">
                         {/* Start Date */}
                         <div className="space-y-1">
-                            <Label className="text-xs text-zinc-500">Début</Label>
+                            <Label className="text-xs text-muted-foreground">Début</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -186,9 +186,9 @@ export function VacationMode({
 
                         {/* End Date */}
                         <div className="space-y-1">
-                            <Label className="text-xs text-zinc-500">Retour</Label>
+                            <Label className="text-xs text-muted-foreground">Retour</Label>
                             {noEndDate ? (
-                                <div className="h-8 flex items-center text-xs text-zinc-600 italic border border-transparent px-3">
+                                <div className="h-8 flex items-center text-xs text-muted-foreground italic border border-transparent px-3">
                                     Indéterminé
                                 </div>
                             ) : (
@@ -234,40 +234,40 @@ export function VacationMode({
                             onCheckedChange={setNoEndDate}
                             className="scale-75 origin-left"
                         />
-                        <Label htmlFor="no-end-date" className="text-xs text-zinc-400">
+                        <Label htmlFor="no-end-date" className="text-xs text-muted-foreground">
                             Durée indéterminée
                         </Label>
                     </div>
 
                     {/* Quick Presets */}
                     <div className="flex items-center gap-1.5 pt-1">
-                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(2)} className="h-6 text-caption px-2 border-white/10 hover:bg-white/10">Weekend</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(7)} className="h-6 text-caption px-2 border-white/10 hover:bg-white/10">1 Semaine</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(30)} className="h-6 text-caption px-2 border-white/10 hover:bg-white/10">1 Mois</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(2)} className="h-6 text-caption px-2 border-border hover:bg-surface">Weekend</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(7)} className="h-6 text-caption px-2 border-border hover:bg-surface">1 Semaine</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(30)} className="h-6 text-caption px-2 border-border hover:bg-surface">1 Mois</Button>
                     </div>
 
                     {/* Reason */}
                     <div className="space-y-1">
-                        <Label className="text-xs text-zinc-500">Motif (Optionnel)</Label>
+                        <Label className="text-xs text-muted-foreground">Motif (Optionnel)</Label>
                         <Input 
                             value={reason} 
                             onChange={(e) => setReason(e.target.value)} 
                             placeholder="Ex: Déplacement pro, Vacances d'été..." 
-                            className="h-8 text-xs bg-white/5 border-white/10"
+                            className="h-8 text-xs bg-surface border-border"
                         />
                     </div>
 
                     {isOnVacation && (
                         <div className="pt-2">
-                            <Button onClick={handleClear} size="sm" className="w-full h-8 text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30">
+                            <Button onClick={handleClear} size="sm" className="w-full h-8 text-xs bg-success/20 hover:bg-success/40 text-success border border-success/30">
                                 Je suis de retour !
                             </Button>
                         </div>
                     )}
 
                     {/* Actions */}
-                    <div className="flex gap-2 border-t border-white/5 pt-2">
-                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                    <div className="flex gap-2 border-t border-border pt-2">
+                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs bg-info hover:bg-info text-info-foreground font-semibold">
                             Enregistrer
                         </Button>
                         {(startDate || endDate) && (
@@ -285,7 +285,7 @@ export function VacationMode({
                                 size="sm"
                                 onClick={handleSendNotification}
                                 disabled={isSending}
-                                className="w-full h-7 text-xs border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
+                                className="w-full h-7 text-xs border border-info/20 text-info hover:bg-info/10 hover:text-info"
                             >
                                 {isSending ? (
                                     <Loader2 className="w-3 h-3 mr-2 animate-spin" />
@@ -295,7 +295,7 @@ export function VacationMode({
                                 Notifier sur Discord
                             </Button>
                         ) : (
-                            <div className="w-full h-7 flex items-center justify-center text-caption text-zinc-500 italic bg-black/20 rounded border border-white/5">
+                            <div className="w-full h-7 flex items-center justify-center text-caption text-muted-foreground italic bg-black/20 rounded border border-border">
                                 Salon Discord non configuré
                             </div>
                         )

@@ -8,9 +8,9 @@ interface StatProgressProps {
     glowColor?: string;
 }
 
-export function StatProgress({ value, color = "bg-purple-500", glowColor = "rgba(168,85,247,0.5)" }: StatProgressProps) {
+export function StatProgress({ value, color = "bg-info", glowColor = "rgba(168,85,247,0.5)" }: StatProgressProps) {
     return (
-        <div className="mt-2 h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+        <div className="mt-2 h-1.5 w-full bg-surface rounded-full overflow-hidden">
             <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${value}%` }}

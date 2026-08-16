@@ -45,26 +45,26 @@ const TYPE_CONFIG: Record<RequestType, {
     job: {
         icon: Hammer,
         label: "Métier",
-        gradient: "from-amber-500/20 via-amber-600/5 to-transparent",
-        border: "border-amber-500/40",
+        gradient: "from-warning/20 via-warning/5 to-transparent",
+        border: "border-warning/40",
         glow: "shadow-amber-500/20",
-        badge: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        badge: "bg-warning/15 text-warning border-warning/30",
     },
     order: {
         icon: Shield,
         label: "Ordre",
-        gradient: "from-indigo-500/20 via-indigo-600/5 to-transparent",
-        border: "border-indigo-500/40",
+        gradient: "from-info/20 via-info/5 to-transparent",
+        border: "border-info/40",
         glow: "shadow-indigo-500/20",
-        badge: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+        badge: "bg-info/15 text-info border-info/30",
     },
     legendary: {
         icon: Sparkles,
         label: "Légendaire",
-        gradient: "from-purple-500/20 via-purple-600/5 to-transparent",
-        border: "border-purple-500/40",
+        gradient: "from-info/20 via-info/5 to-transparent",
+        border: "border-info/40",
         glow: "shadow-purple-500/20",
-        badge: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+        badge: "bg-info/15 text-info border-info/30",
     },
 };
 
@@ -94,8 +94,8 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
             className={cn(
                 "relative group flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all duration-300 outline-none",
                 isActive
-                    ? [cfg.border, cfg.glow, "bg-zinc-900/80 scale-[1.02]"].join(" ")
-                    : "border-zinc-800/40 bg-zinc-900/30 hover:border-zinc-700/60 hover:bg-zinc-900/50",
+                    ? [cfg.border, cfg.glow, "bg-surface/80 scale-[1.02]"].join(" ")
+                    : "border-border/40 bg-surface/30 hover:border-border/60 hover:bg-surface/50",
                 disabled && "opacity-25 cursor-not-allowed pointer-events-none"
             )}
         >
@@ -108,19 +108,19 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
             <div className={cn(
                 "relative z-10 w-11 h-11 rounded-xl flex items-center justify-center border-2 transition-all duration-300",
                 isActive
-                    ? [cfg.border, "bg-zinc-800/80"].join(" ")
-                    : "border-zinc-700/30 bg-zinc-800/40 group-hover:border-zinc-600/50"
+                    ? [cfg.border, "bg-elevated/80"].join(" ")
+                    : "border-border/30 bg-elevated/40 group-hover:border-border/50"
             )}>
                 <Icon className={cn(
                     "w-5 h-5 transition-all duration-300",
-                    isActive ? "scale-110" : "text-zinc-400 group-hover:text-zinc-200"
+                    isActive ? "scale-110" : "text-muted-foreground group-hover:text-foreground"
                 )} />
             </div>
 
             {/* Label */}
             <span className={cn(
                 "relative z-10 text-caption font-black uppercase tracking-widest transition-colors duration-300",
-                isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"
+                isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
             )}>
                 {cfg.label}
             </span>
@@ -130,12 +130,12 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
                 <span className={cn(
                     "relative z-10 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
                     type === "job" && jobsCount
-                        ? "bg-amber-500/10 text-amber-400/70 border-amber-500/20"
+                        ? "bg-warning/10 text-warning/70 border-warning/20"
                         : type === "legendary" && hasLegendary
-                            ? "bg-purple-500/10 text-purple-400/70 border-purple-500/20"
+                            ? "bg-info/10 text-info/70 border-info/20"
                             : type === "order"
-                                ? "bg-indigo-500/10 text-indigo-400/70 border-indigo-500/20"
-                                : "bg-zinc-800/60 text-zinc-600 border-zinc-700/30"
+                                ? "bg-info/10 text-info/70 border-info/20"
+                                : "bg-elevated/60 text-muted-foreground border-border/30"
                 )}>
                     {availability}
                 </span>
@@ -143,8 +143,8 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
 
             {/* Active checkmark */}
             {isActive && (
-                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/40 z-20">
-                    <Check className="w-3 h-3 text-white" />
+                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-success flex items-center justify-center shadow-lg shadow-emerald-500/40 z-20">
+                    <Check className="w-3 h-3 text-foreground" />
                 </div>
             )}
         </button>
@@ -164,23 +164,23 @@ function ValueCard({ label, icon, isSelected, onClick }: {
             className={cn(
                 "flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all duration-200 text-left group",
                 isSelected
-                    ? "bg-emerald-500/10 border-emerald-500/40 shadow-sm shadow-emerald-500/10"
-                    : "bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700/50 hover:bg-zinc-900/80"
+                    ? "bg-success/10 border-success/40 shadow-sm shadow-emerald-500/10"
+                    : "bg-surface/50 border-border/30 hover:border-border/50 hover:bg-surface/80"
             )}
         >
             {icon && (
-                <div className="w-9 h-9 rounded-lg bg-zinc-800/80 border border-zinc-700/40 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-9 h-9 rounded-lg bg-elevated/80 border border-border/40 flex items-center justify-center shrink-0 overflow-hidden">
                     <img src={icon} alt="" className="w-6 h-6 object-contain" />
                 </div>
             )}
             <span className={cn(
                 "flex-1 text-sm font-bold transition-colors",
-                isSelected ? "text-emerald-300" : "text-zinc-300 group-hover:text-white"
+                isSelected ? "text-success" : "text-foreground group-hover:text-foreground"
             )}>
                 {label}
             </span>
-            {isSelected && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
-            {!isSelected && <ArrowRight className="w-3.5 h-3.5 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
+            {isSelected && <Check className="w-4 h-4 text-success shrink-0" />}
+            {!isSelected && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
         </button>
     );
 }
@@ -241,35 +241,35 @@ export function UserRequestModal({
         <Dialog open={isOpen} onOpenChange={(val) => {
             if (!val) { resetModal(); onClose(); }
         }}>
-            <DialogContent className="sm:max-w-[520px] bg-zinc-950 border-zinc-800/60 shadow-2xl text-white p-0 gap-0 overflow-hidden rounded-3xl">
+            <DialogContent className="sm:max-w-[520px] bg-background border-border/60 shadow-2xl text-foreground p-0 gap-0 overflow-hidden rounded-3xl">
                 {/* Header with gradient accent */}
                 <div className="relative overflow-hidden">
                     <div className={cn(
                         "absolute inset-0 opacity-20",
-                        type === "job" ? "bg-gradient-to-br from-amber-500/30 via-transparent to-transparent" :
-                        type === "order" ? "bg-gradient-to-br from-indigo-500/30 via-transparent to-transparent" :
-                        "bg-gradient-to-br from-purple-500/30 via-transparent to-transparent"
+                        type === "job" ? "bg-gradient-to-br from-warning/30 via-transparent to-transparent" :
+                        type === "order" ? "bg-gradient-to-br from-info/30 via-transparent to-transparent" :
+                        "bg-gradient-to-br from-info/30 via-transparent to-transparent"
                     )} />
-                    <DialogHeader className="relative p-6 pb-4 border-b border-white/5">
+                    <DialogHeader className="relative p-6 pb-4 border-b border-border">
                         <div className="flex items-center gap-3">
                             <div className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center border",
-                                type === "job" ? "bg-amber-500/10 border-amber-500/30" :
-                                type === "order" ? "bg-indigo-500/10 border-indigo-500/30" :
-                                "bg-purple-500/10 border-purple-500/30"
+                                type === "job" ? "bg-warning/10 border-warning/30" :
+                                type === "order" ? "bg-info/10 border-info/30" :
+                                "bg-info/10 border-info/30"
                             )}>
                                 <Send className={cn(
                                     "w-4 h-4",
-                                    type === "job" ? "text-amber-400" :
-                                    type === "order" ? "text-indigo-400" :
-                                    "text-purple-400"
+                                    type === "job" ? "text-warning" :
+                                    type === "order" ? "text-info" :
+                                    "text-info"
                                 )} />
                             </div>
                             <div>
                                 <DialogTitle className="text-base font-black tracking-wide">
-                                    Solliciter <span className="text-emerald-400">{targetName}</span>
+                                    Solliciter <span className="text-success">{targetName}</span>
                                 </DialogTitle>
-                                <p className="text-caption text-zinc-500 font-medium mt-0.5">
+                                <p className="text-caption text-muted-foreground font-medium mt-0.5">
                                     Envoyez une demande de service à ce membre
                                 </p>
                             </div>
@@ -286,11 +286,11 @@ export function UserRequestModal({
                                             "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest border transition-all",
                                             isDone
                                                 ? [activeCfg.border, activeCfg.badge, "shadow-sm"].join(" ")
-                                                : "border-zinc-800 text-zinc-600 bg-zinc-900/50"
+                                                : "border-border text-muted-foreground bg-surface/50"
                                         )}>
                                             <span className={cn(
                                                 "w-3.5 h-3.5 rounded-full flex items-center justify-center text-caption font-black",
-                                                isDone ? "bg-current" : "bg-zinc-700"
+                                                isDone ? "bg-current" : "bg-muted"
                                             )}>
                                                 {isDone ? "✓" : i + 1}
                                             </span>
@@ -300,7 +300,7 @@ export function UserRequestModal({
                                         </div>
                                         {i < 2 && <div className={cn(
                                             "flex-1 h-px",
-                                            isDone ? "bg-current opacity-30" : "bg-zinc-800"
+                                            isDone ? "bg-current opacity-30" : "bg-elevated"
                                         )} />}
                                     </div>
                                 );
@@ -321,8 +321,8 @@ export function UserRequestModal({
                                 className="space-y-4"
                             >
                                 <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-1 h-1 rounded-full bg-amber-400/60" />
-                                    <Label className="text-caption uppercase font-black text-zinc-500 tracking-widest">
+                                    <div className="w-1 h-1 rounded-full bg-warning/60" />
+                                    <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest">
                                         Choisissez le type de service
                                     </Label>
                                 </div>
@@ -349,8 +349,8 @@ export function UserRequestModal({
                                 </div>
 
                                 {type === "order" && !orderData && (
-                                    <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/40">
-                                        <p className="text-caption text-zinc-500 font-medium text-center">
+                                    <div className="p-3 rounded-xl bg-surface/60 border border-border/40">
+                                        <p className="text-caption text-muted-foreground font-medium text-center">
                                             Ce membre n'a pas d'ordre configuré sur son profil
                                         </p>
                                     </div>
@@ -361,9 +361,9 @@ export function UserRequestModal({
                                         onClick={() => setStep("value")}
                                         className={cn(
                                             "w-full h-11 rounded-xl font-black text-caption uppercase tracking-widest shadow-lg transition-all",
-                                            type === "job" ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30" :
-                                            type === "order" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30" :
-                                            "bg-purple-600 hover:bg-purple-500 shadow-purple-600/30"
+                                            type === "job" ? "bg-warning hover:bg-warning shadow-amber-600/30" :
+                                            type === "order" ? "bg-info hover:bg-info shadow-indigo-600/30" :
+                                            "bg-info hover:bg-info shadow-purple-600/30"
                                         )}
                                     >
                                         Suivant
@@ -386,7 +386,7 @@ export function UserRequestModal({
                                     <div className="w-1 h-1 rounded-full" style={{
                                         backgroundColor: type === "job" ? "#f59e0b" : type === "order" ? "#6366f1" : "#a855f7"
                                     }} />
-                                    <Label className="text-caption uppercase font-black text-zinc-500 tracking-widest">
+                                    <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest">
                                         {type === "job" ? "Métier recherché" : type === "order" ? "Ordre d'alignement" : "Légendaire à crafter"}
                                     </Label>
                                 </div>
@@ -425,7 +425,7 @@ export function UserRequestModal({
                                 </div>
 
                                 {!value && (
-                                    <p className="text-caption text-zinc-600 text-center font-medium">
+                                    <p className="text-caption text-muted-foreground text-center font-medium">
                                         Sélectionnez un élément ci-dessus
                                     </p>
                                 )}
@@ -434,7 +434,7 @@ export function UserRequestModal({
                                     <Button
                                         variant="ghost"
                                         onClick={() => setStep("type")}
-                                        className="text-zinc-500 hover:text-zinc-300 text-caption font-black uppercase tracking-widest h-9"
+                                        className="text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-widest h-9"
                                     >
                                         ← Retour
                                     </Button>
@@ -443,9 +443,9 @@ export function UserRequestModal({
                                         disabled={!value}
                                         className={cn(
                                             "flex-1 h-10 rounded-xl font-black text-caption uppercase tracking-widest shadow-lg transition-all",
-                                            type === "job" ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30" :
-                                            type === "order" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30" :
-                                            "bg-purple-600 hover:bg-purple-500 shadow-purple-600/30"
+                                            type === "job" ? "bg-warning hover:bg-warning shadow-amber-600/30" :
+                                            type === "order" ? "bg-info hover:bg-info shadow-indigo-600/30" :
+                                            "bg-info hover:bg-info shadow-purple-600/30"
                                         )}
                                     >
                                         Suivant
@@ -467,9 +467,9 @@ export function UserRequestModal({
                                 {/* Selected item recap */}
                                 <div className={cn(
                                     "flex items-center gap-3 p-3 rounded-xl border",
-                                    type === "job" ? "bg-amber-500/5 border-amber-500/20" :
-                                    type === "order" ? "bg-indigo-500/5 border-indigo-500/20" :
-                                    "bg-purple-500/5 border-purple-500/20"
+                                    type === "job" ? "bg-warning/5 border-warning/20" :
+                                    type === "order" ? "bg-info/5 border-info/20" :
+                                    "bg-info/5 border-info/20"
                                 )}>
                                     {(() => {
                                         let icon = "";
@@ -490,13 +490,13 @@ export function UserRequestModal({
                                             <>
                                                 {icon && <img src={icon} alt="" className="w-8 h-8 object-contain shrink-0" />}
                                                 <div>
-                                                    <p className="text-caption font-black uppercase tracking-widest text-zinc-500">Objet de la demande</p>
-                                                    <p className="text-sm font-bold text-white">{label}</p>
+                                                    <p className="text-caption font-black uppercase tracking-widest text-muted-foreground">Objet de la demande</p>
+                                                    <p className="text-sm font-bold text-foreground">{label}</p>
                                                 </div>
                                                 <Button
                                                     variant="ghost"
                                                     onClick={() => setStep("value")}
-                                                    className="ml-auto text-caption text-zinc-500 hover:text-zinc-300 font-black uppercase tracking-widest h-7 px-2"
+                                                    className="ml-auto text-caption text-muted-foreground hover:text-foreground font-black uppercase tracking-widest h-7 px-2"
                                                 >
                                                     Modifier
                                                 </Button>
@@ -508,20 +508,20 @@ export function UserRequestModal({
                                 {/* Message */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <Label className="text-caption uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
-                                            <span className="w-1 h-1 rounded-full bg-zinc-600" />
+                                        <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest flex items-center gap-2">
+                                            <span className="w-1 h-1 rounded-full bg-muted" />
                                             Message (optionnel)
                                         </Label>
                                         <span className={cn(
                                             "text-caption font-bold transition-colors",
-                                            message.length > 450 ? "text-amber-500" : "text-zinc-600"
+                                            message.length > 450 ? "text-warning" : "text-muted-foreground"
                                         )}>
                                             {message.length} / 500
                                         </span>
                                     </div>
                                     <Textarea
                                         placeholder="Ajoutez un message personnalisé à votre demande..."
-                                        className="bg-zinc-900/60 border-zinc-800/50 focus-visible:border-emerald-500/30 focus-visible:ring-emerald-500/10 min-h-[90px] rounded-xl text-sm placeholder:text-zinc-600 resize-none"
+                                        className="bg-surface/60 border-border/50 focus-visible:border-success/30 focus-visible:ring-success/10 min-h-[90px] rounded-xl text-sm placeholder:text-muted-foreground resize-none"
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value.slice(0, 500))}
                                         maxLength={500}
@@ -532,14 +532,14 @@ export function UserRequestModal({
                                     <Button
                                         variant="ghost"
                                         onClick={() => setStep("value")}
-                                        className="text-zinc-500 hover:text-zinc-300 text-caption font-black uppercase tracking-widest h-9"
+                                        className="text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-widest h-9"
                                     >
                                         ← Retour
                                     </Button>
                                     <Button
                                         onClick={handleSubmit}
                                         disabled={isPending}
-                                        className="flex-1 h-11 rounded-xl font-black text-caption uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        className="flex-1 h-11 rounded-xl font-black text-caption uppercase tracking-widest bg-success hover:bg-success text-success-foreground shadow-lg shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                                     >
                                         {isPending ? (
                                             <span className="flex items-center gap-2">
@@ -559,12 +559,12 @@ export function UserRequestModal({
                     </AnimatePresence>
                 </div>
 
-                <DialogFooter className="p-4 border-t border-white/5">
+                <DialogFooter className="p-4 border-t border-border">
                     <Button
                         variant="ghost"
                         onClick={() => { resetModal(); onClose(); }}
                         disabled={isPending}
-                        className="text-zinc-600 hover:text-zinc-400 text-caption font-black uppercase tracking-widest h-8 w-full"
+                        className="text-muted-foreground hover:text-muted-foreground text-caption font-black uppercase tracking-widest h-8 w-full"
                     >
                         Annuler
                     </Button>

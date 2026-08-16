@@ -185,17 +185,17 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-white/10 overflow-hidden  bg-zinc-950/80 backdrop-blur-2xl"
+                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-border overflow-hidden  bg-background/80 backdrop-blur-2xl"
                     >
                         {/* Decorative background glows */}
                         <div className="absolute -top-24 -left-24 w-64 h-64 bg-violet-600/20 rounded-full blur-[100px]" />
-                        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-[100px]" />
+                        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-info/10 rounded-full blur-[100px]" />
 
                         <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
                             {/* Step indicators — nombre de points = étapes du flux (pseudo/classe + activités) */}
                             <div className="flex items-center gap-3">
                                 {flowSteps.map(s => (
-                                    <div key={s} className={cn("w-2 h-2 rounded-full transition-all duration-300", step === s ? "bg-violet-500 scale-125 " : "bg-white/20")} />
+                                    <div key={s} className={cn("w-2 h-2 rounded-full transition-all duration-300", step === s ? "bg-violet-500 scale-125 " : "bg-elevated")} />
                                 ))}
                             </div>
 
@@ -206,33 +206,33 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                     className="w-full space-y-6"
                                 >
                                     <div className="space-y-2">
-                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-xl">
-                                            <User className="w-8 h-8 text-white" />
-                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-400" />
+                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-info flex items-center justify-center shadow-xl">
+                                            <User className="w-8 h-8 text-foreground" />
+                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-warning" />
                                         </div>
-                                        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">
+                                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
                                             Identifie ton <span className="text-violet-400">Personnage</span>
                                         </h2>
-                                        <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-sm mx-auto">
+                                        <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-sm mx-auto">
                                             Renseigne ton pseudo exact en jeu. Le site l'utilisera pour synchroniser tes succès et ton activité sur le Ladder !
                                         </p>
                                     </div>
 
                                     <form onSubmit={handlePseudoSubmit} className="space-y-4 text-left max-w-md mx-auto">
                                         <div className="space-y-2">
-                                            <label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 pl-1">Pseudo Dofus Exact</label>
+                                            <label className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground pl-1">Pseudo Dofus Exact</label>
                                             <Input
                                                 placeholder="Ex: Dark-Iop"
                                                 value={pseudo}
                                                 onChange={(e) => setPseudo(e.target.value)}
-                                                className="bg-black/50 border-white/10 h-12 text-sm font-medium rounded-xl focus-visible:ring-violet-500/30 text-white"
+                                                className="bg-black/50 border-border h-12 text-sm font-medium rounded-xl focus-visible:ring-violet-500/30 text-foreground"
                                                 disabled={loading}
                                                 autoFocus
                                             />
                                         </div>
 
                                         {error && (
-                                            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
+                                            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs font-medium">
                                                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                                                 <span>{error}</span>
                                             </div>
@@ -240,7 +240,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
 
                                         <Button
                                             type="submit"
-                                            className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
+                                            className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-foreground gap-2"
                                             disabled={loading}
                                         >
                                             {loading ? (
@@ -266,13 +266,13 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                     className="w-full space-y-6"
                                 >
                                     <div className="space-y-2">
-                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-xl">
-                                            <Sword className="w-8 h-8 text-white" />
+                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-info flex items-center justify-center shadow-xl">
+                                            <Sword className="w-8 h-8 text-foreground" />
                                         </div>
-                                        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">
+                                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
                                             Choisis ta <span className="text-violet-400">Classe</span>
                                         </h2>
-                                        <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-sm mx-auto">
+                                        <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-sm mx-auto">
                                             Sélectionne la classe de ton personnage principal pour compléter ton badge de guilde.
                                         </p>
                                     </div>
@@ -290,16 +290,16 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                                         "flex flex-col items-center justify-center p-2 rounded-xl border transition-all relative group",
                                                         isSelected 
                                                             ? "bg-violet-500/20 border-violet-500 " 
-                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/15"
+                                                            : "bg-surface border-border hover:bg-surface hover:border-border-strong"
                                                     )}
                                                 >
                                                     <div className="w-10 h-10 relative flex items-center justify-center">
                                                         <img src={cls.icon} alt={cls.name} className="w-8 h-8 object-contain" />
                                                     </div>
-                                                    <span className="text-caption font-black uppercase tracking-tight text-zinc-400 mt-1 truncate w-full group-hover:text-white transition-colors">{cls.name}</span>
+                                                    <span className="text-caption font-black uppercase tracking-tight text-muted-foreground mt-1 truncate w-full group-hover:text-foreground transition-colors">{cls.name}</span>
                                                     {isSelected && (
                                                         <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5 shadow-md">
-                                                            <Check className="w-2.5 h-2.5 text-white" />
+                                                            <Check className="w-2.5 h-2.5 text-foreground" />
                                                         </div>
                                                     )}
                                                 </button>
@@ -313,7 +313,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                                 type="button"
                                                 variant="outline"
                                                 onClick={() => setStep(1)}
-                                                className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                                                className="h-12 border-border bg-surface hover:bg-surface text-xs font-black uppercase tracking-widest rounded-xl transition-all"
                                                 disabled={loading}
                                             >
                                                 Retour
@@ -322,7 +322,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                         <Button
                                             type="button"
                                             onClick={handleClassSubmit}
-                                            className="flex-1 h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
+                                            className="flex-1 h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-foreground gap-2"
                                             disabled={loading || !selectedClass}
                                         >
                                             {loading ? (
@@ -342,14 +342,14 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                     className="w-full space-y-6"
                                 >
                                     <div className="space-y-2">
-                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl">
-                                            <Compass className="w-8 h-8 text-white" />
-                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-400" />
+                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-success to-teal-600 flex items-center justify-center shadow-xl">
+                                            <Compass className="w-8 h-8 text-foreground" />
+                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-warning" />
                                         </div>
-                                        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">
-                                            Activités <span className="text-emerald-400">& Contenu préféré</span>
+                                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
+                                            Activités <span className="text-success">& Contenu préféré</span>
                                         </h2>
-                                        <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-sm mx-auto">
+                                        <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-sm mx-auto">
                                             Coche au moins une activité pour indiquer tes préférences à la guilde. Tu pourras les modifier plus tard depuis ton profil.
                                         </p>
                                     </div>
@@ -366,7 +366,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                                         "flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-150",
                                                         isSelected
                                                             ? act.color
-                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/15 text-zinc-400"
+                                                            : "bg-surface border-border hover:bg-surface hover:border-border-strong text-muted-foreground"
                                                     )}
                                                 >
                                                     <span className="text-base leading-none">{act.icon}</span>
@@ -383,7 +383,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                                 type="button"
                                                 variant="outline"
                                                 onClick={() => setStep(2)}
-                                                className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                                                className="h-12 border-border bg-surface hover:bg-surface text-xs font-black uppercase tracking-widest rounded-xl transition-all"
                                                 disabled={loading}
                                             >
                                                 Retour
@@ -392,7 +392,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                         <Button
                                             type="button"
                                             onClick={handleActivitiesSubmit}
-                                            className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-500 font-black uppercase tracking-widest text-xs rounded-xl transition-all active:scale-95 text-white gap-2"
+                                            className="flex-1 h-12 bg-success hover:bg-success font-black uppercase tracking-widest text-xs rounded-xl transition-all active:scale-95 text-foreground gap-2"
                                             disabled={loading || selectedActivities.length === 0}
                                         >
                                             {loading ? (
@@ -407,7 +407,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                         </div>
 
                         {/* Bottom decorative bar */}
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-purple-500" />
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-info to-info" />
                     </motion.div>
                 </div>
             )}

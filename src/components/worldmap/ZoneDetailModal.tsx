@@ -91,14 +91,14 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent 
                 showCloseButton={false} 
-                className="w-[95vw] max-w-6xl bg-[#080a10] border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[2.5rem] md:rounded-[3rem] text-white p-0 overflow-hidden flex flex-col h-[min(850px,90vh)]"
+                className="w-[95vw] max-w-6xl bg-[#080a10] border border-border shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[2.5rem] md:rounded-[3rem] text-foreground p-0 overflow-hidden flex flex-col h-[min(850px,90vh)]"
             >
                 {/* Header */}
-                <div className="relative h-32 md:h-44 bg-white/5 border-b border-white/5 shrink-0 overflow-hidden">
+                <div className="relative h-32 md:h-44 bg-surface border-b border-border shrink-0 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-amber-500/10" />
                     <button 
                         onClick={onClose}
-                        className="absolute top-6 right-6 md:top-8 md:right-8 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 hover:text-white transition-all z-20"
+                        className="absolute top-6 right-6 md:top-8 md:right-8 p-3 rounded-2xl bg-surface hover:bg-surface border border-border text-foreground/50 hover:text-foreground transition-all z-20"
                     >
                         <X size={24} />
                     </button>
@@ -113,7 +113,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                     GPS [{position.displayX}, {position.displayY}]
                                 </span>
                             </div>
-                            <h2 className="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tighter leading-none drop-shadow-2xl">
+                            <h2 className="text-2xl md:text-3xl font-black text-foreground uppercase italic tracking-tighter leading-none drop-shadow-2xl">
                                 {zoneName}
                             </h2>
                         </div>
@@ -125,23 +125,23 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                     {loading ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-6 opacity-40">
                              <div className="relative">
-                                 <Swords size={64} className="text-white animate-pulse" />
+                                 <Swords size={64} className="text-foreground animate-pulse" />
                                  <div className="absolute -inset-8 bg-emerald-500/20 blur-3xl rounded-full animate-pulse" />
                              </div>
-                             <p className="text-body font-black uppercase tracking-widest text-white italic">Analyse de la faune locale...</p>
+                             <p className="text-body font-black uppercase tracking-widest text-foreground italic">Analyse de la faune locale...</p>
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 pt-6">
                             <Tabs defaultValue="archis" className="w-full flex flex-col gap-8">
-                                <div className="flex items-center justify-between border-b border-white/10 pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
-                                    <TabsList className="bg-white/5 p-1.5 rounded-2xl gap-1">
-                                        <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                <div className="flex items-center justify-between border-b border-border pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
+                                    <TabsList className="bg-surface p-1.5 rounded-2xl gap-1">
+                                        <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-foreground transition-all">
                                                 ✦ Archimonstres
                                             </TabsTrigger>
-                                        <TabsTrigger value="bounties" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-white transition-all">
+                                        <TabsTrigger value="bounties" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-foreground transition-all">
                                             ⚔ Avis de Recherche
                                         </TabsTrigger>
-                                        <TabsTrigger value="families" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all">
+                                        <TabsTrigger value="families" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-foreground transition-all">
                                             🦇 Familles
                                         </TabsTrigger>
 
@@ -149,7 +149,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
                                     {/* Capture Stats (Only relevant for Archis, but can show generally) */}
                                     <div className="flex items-center gap-3">
-                                            <span className="text-caption font-black text-white/20 uppercase tracking-[0.2em]">Archis Capturés :</span>
+                                            <span className="text-caption font-black text-foreground/20 uppercase tracking-[0.2em]">Archis Capturés :</span>
                                             <span className="text-caption font-black text-amber-500/80 uppercase tracking-widest bg-amber-500/5 px-3 py-1 rounded-full border border-amber-500/10 italic">
                                                 {archis.filter(a => a.state !== 'MANQUANT').length} / {archis.length}
                                             </span>
@@ -174,20 +174,20 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                         : 'bg-emerald-500/5 border-emerald-500/10 hover:border-emerald-500/30'
                                                                 }`}
                                                             >
-                                                                <div className="w-12 h-12 rounded-xl bg-[#020408] border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
+                                                                <div className="w-12 h-12 rounded-xl bg-[#020408] border border-border overflow-hidden flex items-center justify-center shrink-0">
                                                                     <img src={archi.image} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className={`text-sm font-black truncate leading-tight mb-1 uppercase italic tracking-tight ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
                                                                         {archi.name}
                                                                     </p>
-                                                                    <p className="text-caption font-bold text-white/20 uppercase tracking-[0.1em] italic line-clamp-2 leading-relaxed">
+                                                                    <p className="text-caption font-bold text-foreground/20 uppercase tracking-[0.1em] italic line-clamp-2 leading-relaxed">
                                                                         {archi.subzone || archi.zone || "Zone inconnue"}
                                                                     </p>
                                                                 </div>
                                                                 <div className="shrink-0">
                                                                     {isMissing ? (
-                                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500 text-white text-caption font-black uppercase italic shadow-lg shadow-rose-500/20">
+                                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500 text-foreground text-caption font-black uppercase italic shadow-lg shadow-rose-500/20">
                                                                             <XCircle size={12} /> Manquant
                                                                         </div>
                                                                     ) : (
@@ -201,9 +201,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                     })}
                                                 </div>
                                             ) : (
-                                                <div className="py-20 flex flex-col items-center justify-center gap-4 bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem] px-10 text-center">
-                                                    <Ghost className="text-white/10" size={40} />
-                                                    <p className="text-caption font-black text-white/15 uppercase tracking-widest italic">
+                                                <div className="py-20 flex flex-col items-center justify-center gap-4 bg-surface border border-dashed border-border rounded-[2rem] px-10 text-center">
+                                                    <Ghost className="text-foreground/10" size={40} />
+                                                    <p className="text-caption font-black text-foreground/15 uppercase tracking-widest italic">
                                                         {error === "Compte non lié" 
                                                             ? "Liez votre compte Metamob pour voir vos archimonstres"
                                                             : "Aucun archi-monstre détecté dans ce secteur"}
@@ -211,7 +211,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                     {error === "Compte non lié" && (
                                                         <a 
                                                             href={`/dashboard/${guildId}/profile`}
-                                                            className="mt-4 px-8 py-3 rounded-2xl bg-amber-500 text-black text-caption font-black uppercase italic shadow-2xl shadow-amber-500/40  active:scale-95 transition-all flex items-center gap-3"
+                                                            className="mt-4 px-8 py-3 rounded-2xl bg-amber-500 text-foreground text-caption font-black uppercase italic shadow-2xl shadow-amber-500/40  active:scale-95 transition-all flex items-center gap-3"
                                                         >
                                                             <Sparkles size={16} /> Lier mon compte Metamob
                                                         </a>
@@ -235,7 +235,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                 key={dj.id} 
                                                                 className="group relative flex items-center gap-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 hover:border-amber-500/40 transition-all shadow-lg shadow-amber-500/5 cursor-default"
                                                             >
-                                                                <div className="w-12 h-12 rounded-xl bg-[#020408] border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
+                                                                <div className="w-12 h-12 rounded-xl bg-[#020408] border border-border overflow-hidden flex items-center justify-center shrink-0">
                                                                     {dj.imageUrl ? (
                                                                         <img src={dj.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
                                                                     ) : (
@@ -243,11 +243,11 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                     )}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-sm font-black text-white truncate leading-none mb-1 uppercase italic tracking-tight">{dj.name}</p>
+                                                                    <p className="text-sm font-black text-foreground truncate leading-none mb-1 uppercase italic tracking-tight">{dj.name}</p>
                                                                     <p className="text-caption font-bold text-amber-500/60 uppercase tracking-[0.1em] italic">Niveau {dj.level}</p>
                                                                 </div>
                                                                 <div className="shrink-0 flex items-center gap-2">
-                                                                    <span className="text-caption font-black text-white/30 uppercase tracking-widest italic">{dj.bossName}</span>
+                                                                    <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">{dj.bossName}</span>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -257,13 +257,13 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
                                             {monsters?.normalMonsters?.length > 0 && (
                                                 <section className="space-y-6">
-                                                    <h3 className="text-white/40 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
+                                                    <h3 className="text-foreground/40 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
                                                         <ChevronDown size={20} /> Faune Standard
                                                     </h3>
                                                     
                                                     <div className="flex flex-wrap gap-2">
                                                         {monsters.normalMonsters.map((m: any) => (
-                                                            <div key={m.id} className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-caption font-black text-white/40 hover:text-white hover:bg-white/10 transition-all cursor-default uppercase italic tracking-tighter">
+                                                            <div key={m.id} className="px-4 py-2 rounded-xl bg-surface border border-border text-caption font-black text-foreground/40 hover:text-foreground hover:bg-surface transition-all cursor-default uppercase italic tracking-tighter">
                                                                 {m.name}
                                                             </div>
                                                         ))}
@@ -280,7 +280,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                         {bounties.length > 0 ? (
                                             <div className="grid grid-cols-1 gap-8">
                                                 {bounties.map((bounty) => (
-                                                    <div key={bounty.id} className="group relative overflow-hidden flex flex-col rounded-[2.5rem] bg-gradient-to-br from-[#0a0a0f] to-[#12121a] border border-white/10 hover:border-rose-500/30 transition-all shadow-2xl">
+                                                    <div key={bounty.id} className="group relative overflow-hidden flex flex-col rounded-[2.5rem] bg-gradient-to-br from-[#0a0a0f] to-[#12121a] border border-border hover:border-rose-500/30 transition-all shadow-2xl">
 
                                                         {/* 1. NOM + BADGES */}
                                                         <div className="px-8 pt-8 pb-5">
@@ -288,7 +288,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                 {bounty.name}
                                                             </h4>
                                                             <div className="flex flex-wrap items-center gap-2">
-                                                                <span className="px-3 py-1 rounded-xl bg-white/5 border border-white/10 text-caption font-black text-white uppercase tracking-widest italic">
+                                                                <span className="px-3 py-1 rounded-xl bg-surface border border-border text-caption font-black text-foreground uppercase tracking-widest italic">
                                                                     Niv. {bounty.level}
                                                                 </span>
                                                                 {bounty.milice && bounty.milice !== 'Inconnu' && (
@@ -297,7 +297,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                     </span>
                                                                 )}
                                                                 {bounty.subarea && (
-                                                                    <span className="px-3 py-1 rounded-xl bg-white/5 border border-white/10 text-caption font-black text-white/40 uppercase tracking-widest italic">
+                                                                    <span className="px-3 py-1 rounded-xl bg-surface border border-border text-caption font-black text-foreground/40 uppercase tracking-widest italic">
                                                                         {bounty.subarea}
                                                                     </span>
                                                                 )}
@@ -307,7 +307,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                             e.stopPropagation();
                                                                             navigator.clipboard.writeText(`/travel ${bounty.position}`);
                                                                         }}
-                                                                        className="px-3 py-1 rounded-xl bg-amber-500 text-black text-caption font-black uppercase tracking-widest italic  active:scale-95 transition-all flex items-center gap-1.5"
+                                                                        className="px-3 py-1 rounded-xl bg-amber-500 text-foreground text-caption font-black uppercase tracking-widest italic  active:scale-95 transition-all flex items-center gap-1.5"
                                                                     >
                                                                         <MapPin size={10} /> {bounty.position}
                                                                     </button>
@@ -317,23 +317,23 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
                                                         {/* 2. IMAGES CÔTE À CÔTE */}
                                                         <div className="px-8 grid grid-cols-2 gap-4">
-                                                            <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-white/5 flex items-center justify-center">
+                                                            <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-border flex items-center justify-center">
                                                                 <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent" />
                                                                 <img src={bounty.imageUrl} alt={bounty.name} className="h-48 w-auto object-contain drop-shadow-[0_0_24px_rgba(244,63,94,0.5)] group- transition-transform duration-300" />
                                                             </div>
                                                             {bounty.mapUrl ? (
-                                                                <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-white/5">
+                                                                <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-border">
                                                                     <img src={bounty.mapUrl} alt="Zone de spawn" className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-all duration-300" />
                                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                                                                     <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
                                                                         <MapPin size={11} className="text-rose-500" />
-                                                                        <span className="text-caption font-black text-white/60 uppercase italic tracking-widest">Zone de Spawn</span>
+                                                                        <span className="text-caption font-black text-foreground/60 uppercase italic tracking-widest">Zone de Spawn</span>
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                <div className="h-56 rounded-2xl bg-black/40 border border-dashed border-white/10 flex flex-col items-center justify-center gap-2">
-                                                                    <MapPin size={22} className="text-white/20" />
-                                                                    <span className="text-caption text-white/20 uppercase italic font-black tracking-widest">Carte indisponible</span>
+                                                                <div className="h-56 rounded-2xl bg-black/40 border border-dashed border-border flex flex-col items-center justify-center gap-2">
+                                                                    <MapPin size={22} className="text-foreground/20" />
+                                                                    <span className="text-caption text-foreground/20 uppercase italic font-black tracking-widest">Carte indisponible</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -349,15 +349,15 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                         else if (typeLower.includes('dofus des glaces')) iconSrc = 'https://static.dofusdb.fr/items/11756.png';
                                                                         
                                                                         return (
-                                                                            <div key={ridx} className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                                                                            <div key={ridx} className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-surface border border-border hover:bg-surface transition-all">
                                                                                 <img src={iconSrc} className="w-7 h-7 object-contain" alt={reward.type} />
-                                                                                <span className="text-base font-black text-white">{reward.amount}</span>
-                                                                                <span className="text-caption text-white/40 uppercase italic">{reward.type}</span>
+                                                                                <span className="text-base font-black text-foreground">{reward.amount}</span>
+                                                                                <span className="text-caption text-foreground/40 uppercase italic">{reward.type}</span>
                                                                             </div>
                                                                         );
                                                                     })
                                                                 ) : bounty.doplons > 0 ? (
-                                                                    <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10">
+                                                                    <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-surface border border-border">
                                                                         <img
                                                                             src={
                                                                                 (bounty.rewardType || '').toLowerCase().includes('aliton') ? '/assets/avis/aliton.png' : 
@@ -367,8 +367,8 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                             }
                                                                             className="w-7 h-7 object-contain" alt={bounty.rewardType || 'Aviton'}
                                                                         />
-                                                                        <span className="text-base font-black text-white">{bounty.doplons}</span>
-                                                                        <span className="text-caption text-white/40 uppercase italic">{bounty.rewardType || 'Aviton'}</span>
+                                                                        <span className="text-base font-black text-foreground">{bounty.doplons}</span>
+                                                                        <span className="text-caption text-foreground/40 uppercase italic">{bounty.rewardType || 'Aviton'}</span>
                                                                     </div>
                                                                 ) : null}
                                                             </div>
@@ -391,7 +391,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                          </>
                                                                      )}
                                                                  </div>
-                                                                 <div className="prose prose-invert prose-sm max-w-none text-body-sm text-white/80 leading-relaxed prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
+                                                                 <div className="prose prose-invert prose-sm max-w-none text-body-sm text-foreground/80 leading-relaxed prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
                                                                      <DocContent content={bounty.mechanics || "Aucun résumé tactique disponible pour le moment."} />
                                                                  </div>
                                                             </div>
@@ -402,13 +402,13 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="py-24 rounded-[3rem] bg-white/[0.02] border border-dashed border-white/10 flex flex-col items-center justify-center gap-6">
+                                            <div className="py-24 rounded-[3rem] bg-surface border border-dashed border-border flex flex-col items-center justify-center gap-6">
                                                 <div className="w-20 h-20 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20 shadow-inner">
                                                     <ShieldAlert className="text-rose-500" size={32} />
                                                 </div>
                                                 <div className="text-center space-y-2">
-                                                    <h3 className="text-xl font-black text-white uppercase italic tracking-widest">Zone Sécurisée</h3>
-                                                    <p className="text-caption font-black text-white/30 uppercase tracking-widest italic max-w-md mx-auto">
+                                                    <h3 className="text-xl font-black text-foreground uppercase italic tracking-widest">Zone Sécurisée</h3>
+                                                    <p className="text-caption font-black text-foreground/30 uppercase tracking-widest italic max-w-md mx-auto">
                                                         Pas d'avis de recherche signalé dans cette zone.
                                                     </p>
                                                 </div>
@@ -449,11 +449,11 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                 <div className="flex-1 text-center lg:text-left space-y-8">
                                                                     <div>
                                                                         <div className="flex items-center justify-center lg:justify-start gap-4 mb-4">
-                                                                            <span className="px-4 py-1.5 rounded-full bg-purple-500 text-white text-caption font-black uppercase tracking-widest italic shadow-lg shadow-purple-500/20">
+                                                                            <span className="px-4 py-1.5 rounded-full bg-purple-500 text-foreground text-caption font-black uppercase tracking-widest italic shadow-lg shadow-purple-500/20">
                                                                                 Famille de Monstres
                                                                             </span>
                                                                         </div>
-                                                                        <h4 className="text-5xl md:text-7xl font-black text-white uppercase italic tracking-tighter leading-none mb-4 drop-shadow-2xl">
+                                                                        <h4 className="text-5xl md:text-7xl font-black text-foreground uppercase italic tracking-tighter leading-none mb-4 drop-shadow-2xl">
                                                                             {family.name}
                                                                         </h4>
                                                                         {familyMonsters.length > 0 && (
@@ -466,23 +466,23 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                     {/* Monstres List - PREMIUM GRID */}
                                                                     {familyMonsters.length > 0 && (
                                                                         <div className="space-y-6">
-                                                                            <h5 className="text-caption font-black text-white/30 uppercase tracking-widest italic flex items-center gap-4 justify-center lg:justify-start">
-                                                                                <div className="h-[1px] w-8 bg-white/10" />
+                                                                            <h5 className="text-caption font-black text-foreground/30 uppercase tracking-widest italic flex items-center gap-4 justify-center lg:justify-start">
+                                                                                <div className="h-[1px] w-8 bg-surface" />
                                                                                 Membres de la famille
-                                                                                <div className="h-[1px] w-8 bg-white/10" />
+                                                                                <div className="h-[1px] w-8 bg-surface" />
                                                                             </h5>
                                                                             
                                                                             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                                                                                 {familyMonsters.map((m: any) => (
-                                                                                    <div key={m.id} className="group/monster flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-default">
-                                                                                        <div className="w-10 h-10 rounded-xl bg-black/40 flex items-center justify-center p-1 border border-white/5 group-hover/monster:border-purple-500/20 transition-colors">
+                                                                                    <div key={m.id} className="group/monster flex items-center gap-3 p-4 rounded-2xl bg-surface border border-border hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-default">
+                                                                                        <div className="w-10 h-10 rounded-xl bg-black/40 flex items-center justify-center p-1 border border-border group-hover/monster:border-purple-500/20 transition-colors">
                                                                                             {m.imageUrl ? (
                                                                                                 <img src={m.imageUrl} alt={m.name} className="w-full h-full object-contain group-hover/monster:scale-110 transition-transform" />
                                                                                             ) : (
-                                                                                                <Ghost size={16} className="text-white/10" />
+                                                                                                <Ghost size={16} className="text-foreground/10" />
                                                                                             )}
                                                                                         </div>
-                                                                                        <span className="text-caption font-bold text-white/60 group-hover/monster:text-white transition-colors uppercase italic truncate">
+                                                                                        <span className="text-caption font-bold text-foreground/60 group-hover/monster:text-foreground transition-colors uppercase italic truncate">
                                                                                             {m.name}
                                                                                         </span>
                                                                                     </div>
@@ -497,13 +497,13 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                 })}
                                             </div>
                                         ) : (
-                                            <div className="py-24 rounded-[3rem] bg-white/[0.02] border border-dashed border-white/10 flex flex-col items-center justify-center gap-6">
+                                            <div className="py-24 rounded-[3rem] bg-surface border border-dashed border-border flex flex-col items-center justify-center gap-6">
                                                 <div className="w-20 h-20 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-inner">
                                                     <Ghost className="text-purple-500" size={32} />
                                                 </div>
                                                 <div className="text-center space-y-2">
-                                                    <h3 className="text-xl font-black text-white uppercase italic tracking-widest">Aucune Famille</h3>
-                                                    <p className="text-caption font-black text-white/30 uppercase tracking-widest italic max-w-md mx-auto">
+                                                    <h3 className="text-xl font-black text-foreground uppercase italic tracking-widest">Aucune Famille</h3>
+                                                    <p className="text-caption font-black text-foreground/30 uppercase tracking-widest italic max-w-md mx-auto">
                                                         Aucune famille de monstre n'est référencée pour cette zone dans la base de données GOD.
                                                     </p>
                                                 </div>
@@ -519,7 +519,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 bg-black/40 border-t border-white/5 flex items-center justify-between shrink-0 px-10 gap-6">
+                <div className="p-6 bg-black/40 border-t border-border flex items-center justify-between shrink-0 px-10 gap-6">
                     {/* Trades Ocre */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
@@ -530,15 +530,15 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                             {tradesLoading && <Loader2 size={11} className="animate-spin text-amber-400/50" />}
                         </div>
                         {tradesLoading ? (
-                            <p className="text-caption text-white/40 italic">Chargement des échanges…</p>
+                            <p className="text-caption text-foreground/40 italic">Chargement des échanges…</p>
                         ) : trades.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
                                 {trades.slice(0, 4).map((t) => (
-                                    <div key={t.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
+                                    <div key={t.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-surface border border-border">
                                         {t.monsterImageUrl && (
                                             <img src={t.monsterImageUrl} alt="" className="w-5 h-5 object-contain rounded bg-black/40 shrink-0" />
                                         )}
-                                        <span className="text-caption font-bold text-white truncate max-w-[140px]">{t.monsterName}</span>
+                                        <span className="text-caption font-bold text-foreground truncate max-w-[140px]">{t.monsterName}</span>
                                         <span className="text-caption font-black uppercase tracking-widest italic">
                                             {t.status === "ACCEPTED" ? (
                                                 <span className="text-emerald-400">Accepté</span>
@@ -549,11 +549,11 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                     </div>
                                 ))}
                                 {trades.length > 4 && (
-                                    <span className="text-caption font-black text-white/30 uppercase tracking-widest italic self-center">+{trades.length - 4}</span>
+                                    <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic self-center">+{trades.length - 4}</span>
                                 )}
                             </div>
                         ) : (
-                            <p className="text-caption text-white/25 italic">Aucun échange actif sur cette zone.</p>
+                            <p className="text-caption text-foreground/25 italic">Aucun échange actif sur cette zone.</p>
                         )}
                     </div>
 
@@ -563,14 +563,14 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                             href={`https://www.metamob.fr`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-5 py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 hover:text-black border border-emerald-500/30 text-emerald-400 text-caption font-black uppercase tracking-widest italic transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/5"
+                            className="px-5 py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 hover:text-foreground border border-emerald-500/30 text-emerald-400 text-caption font-black uppercase tracking-widest italic transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/5"
                         >
                             <Sparkles size={14} />
                             Metamob
                         </a>
                         <div className="flex items-center gap-4">
                             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500  animate-pulse" />
-                            <span className="text-caption font-black text-white/30 uppercase tracking-widest italic">Analyseur de Zone v4.2 - SigilOS</span>
+                            <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">Analyseur de Zone v4.2 - SigilOS</span>
                         </div>
                     </div>
                 </div>

@@ -26,10 +26,10 @@ type Issue = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-    "Très important": "bg-red-500/10 text-red-500 border-red-500/20",
+    "Très important": "bg-danger/10 text-danger border-danger/20",
     "Important": "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    "Normal": "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    "Faible": "bg-slate-500/10 text-zinc-500 border-white/5",
+    "Normal": "bg-info/10 text-info border-info/20",
+    "Faible": "bg-muted/10 text-muted-foreground border-border",
 };
 
 const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
@@ -37,23 +37,23 @@ const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
     let label = status.replace("_", " ");
     
     if (status === "A_FAIRE") {
-        sc = "bg-zinc-800 text-zinc-400 border-zinc-700";
+        sc = "bg-elevated text-muted-foreground border-border";
         label = "À FAIRE";
     }
     if (status === "A_INVESTIGUER") {
-        sc = "bg-red-500/10 text-red-400 border-red-500/20";
+        sc = "bg-danger/10 text-danger border-danger/20";
         label = "INVESTIGATION";
     }
     if (status === "EN_COURS") {
-        sc = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+        sc = "bg-warning/10 text-warning border-warning/20";
         label = "EN COURS";
     }
     if (status === "TERMINE") {
-        sc = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+        sc = "bg-success/10 text-success border-success/20";
         label = "RÉSOLU / PRÊT";
     }
     if (status === "IGNORE") {
-        sc = "bg-transparent text-zinc-600 border border-zinc-800";
+        sc = "bg-transparent text-muted-foreground border border-border";
         label = "REPORTÉ";
     }
 
@@ -78,51 +78,51 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
     return (
         <div className="space-y-6">
             {/* Filters Bar */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-zinc-950/40 p-4 rounded-2xl border border-white/5 backdrop-blur-3xl">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-background/40 p-4 rounded-2xl border border-border backdrop-blur-3xl">
                 <div className="flex flex-wrap gap-3 w-full">
                     <div className="relative flex-1 min-w-[240px]">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Filtrer par description ou catégorie..."
-                            className="pl-11 h-12 bg-zinc-900/50 border-white/5 focus-visible:ring-emerald-500/20 text-zinc-200 rounded-xl"
+                            className="pl-11 h-12 bg-surface/50 border-border focus-visible:ring-success/20 text-foreground rounded-xl"
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                         />
                     </div>
                     <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-                        <SelectTrigger className="w-[200px] h-12 bg-zinc-900/50 border-white/5 text-zinc-300 rounded-xl">
+                        <SelectTrigger className="w-[200px] h-12 bg-surface/50 border-border text-foreground rounded-xl">
                             <SelectValue placeholder="Tous les types" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-white/10 rounded-xl">
-                            <SelectItem value="ALL" className="focus:bg-zinc-800 cursor-pointer py-2.5">Tous les types</SelectItem>
-                            <SelectItem value="BUG" className="focus:bg-zinc-800 cursor-pointer text-red-400 py-2.5">Bugs uniquement</SelectItem>
-                            <SelectItem value="AMELIORATION" className="focus:bg-zinc-800 cursor-pointer text-blue-400 py-2.5">Améliorations</SelectItem>
+                        <SelectContent className="bg-surface border-border rounded-xl">
+                            <SelectItem value="ALL" className="focus:bg-elevated cursor-pointer py-2.5">Tous les types</SelectItem>
+                            <SelectItem value="BUG" className="focus:bg-elevated cursor-pointer text-danger py-2.5">Bugs uniquement</SelectItem>
+                            <SelectItem value="AMELIORATION" className="focus:bg-elevated cursor-pointer text-info py-2.5">Améliorations</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
             </div>
 
             {/* Main Table */}
-            <Card className="border-0 bg-zinc-950/40 backdrop-blur-xl shadow-2xl relative overflow-hidden ring-1 ring-white/5 rounded-3xl">
+            <Card className="border-0 bg-background/40 backdrop-blur-xl shadow-2xl relative overflow-hidden ring-1 ring-white/5 rounded-3xl">
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/5 hover:bg-transparent bg-white/[0.02]">
-                                    <TableHead className="w-[100px] text-zinc-500 font-black uppercase tracking-widest text-caption px-6 py-5">Ticket</TableHead>
-                                    <TableHead className="w-[140px] text-zinc-500 font-black uppercase tracking-widest text-caption">Type / Cat</TableHead>
-                                    <TableHead className="w-[130px] text-zinc-500 font-black uppercase tracking-widest text-caption">Priorité</TableHead>
-                                    <TableHead className="text-zinc-500 font-black uppercase tracking-widest text-caption">Description</TableHead>
-                                    <TableHead className="w-[160px] text-zinc-500 font-black uppercase tracking-widest text-caption">État actuel</TableHead>
-                                    <TableHead className="w-[120px] text-right text-zinc-500 font-black uppercase tracking-widest text-caption px-6">Détails</TableHead>
+                                <TableRow className="border-border hover:bg-transparent bg-surface">
+                                    <TableHead className="w-[100px] text-muted-foreground font-black uppercase tracking-widest text-caption px-6 py-5">Ticket</TableHead>
+                                    <TableHead className="w-[140px] text-muted-foreground font-black uppercase tracking-widest text-caption">Type / Cat</TableHead>
+                                    <TableHead className="w-[130px] text-muted-foreground font-black uppercase tracking-widest text-caption">Priorité</TableHead>
+                                    <TableHead className="text-muted-foreground font-black uppercase tracking-widest text-caption">Description</TableHead>
+                                    <TableHead className="w-[160px] text-muted-foreground font-black uppercase tracking-widest text-caption">État actuel</TableHead>
+                                    <TableHead className="w-[120px] text-right text-muted-foreground font-black uppercase tracking-widest text-caption px-6">Détails</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredIssues.length === 0 ? (
-                                    <TableRow className="border-white/5 hover:bg-transparent">
-                                        <TableCell colSpan={6} className="text-center h-64 text-zinc-500">
+                                    <TableRow className="border-border hover:bg-transparent">
+                                        <TableCell colSpan={6} className="text-center h-64 text-muted-foreground">
                                             <div className="flex flex-col items-center justify-center gap-4">
-                                                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+                                                <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center border border-border">
                                                     <BugIcon className="h-8 w-8 opacity-20" />
                                                 </div>
                                                 <p className="font-bold tracking-tight">Aucun ticket ne correspond à votre recherche.</p>
@@ -132,22 +132,22 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                 ) : (
                                     filteredIssues.map(issue => (
                                         <TableRow key={issue.id} className={cn(
-                                            "border-white/5 hover:bg-white/[0.03] transition-all duration-300 group",
+                                            "border-border hover:bg-surface transition-all duration-300 group",
                                             issue.status === "TERMINE" && "opacity-60 grayscale-[0.5]"
                                         )}>
-                                            <TableCell className="px-6 font-mono text-zinc-500 text-caption font-black italic">
+                                            <TableCell className="px-6 font-mono text-muted-foreground text-caption font-black italic">
                                                 SIG-{issue.id}
                                             </TableCell>
                                             
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-2">
-                                                        {issue.type === "BUG" ? <BugIcon className="h-3.5 w-3.5 text-red-500" /> : <LightbulbIcon className="h-3.5 w-3.5 text-blue-500" />}
-                                                        <span className={cn("text-caption font-black uppercase tracking-widest", issue.type === "BUG" ? "text-red-500/80" : "text-blue-500/80")}>
+                                                        {issue.type === "BUG" ? <BugIcon className="h-3.5 w-3.5 text-danger" /> : <LightbulbIcon className="h-3.5 w-3.5 text-info" />}
+                                                        <span className={cn("text-caption font-black uppercase tracking-widest", issue.type === "BUG" ? "text-danger/80" : "text-info/80")}>
                                                             {issue.type}
                                                         </span>
                                                     </div>
-                                                    <span className="text-caption font-bold text-zinc-400 pl-5">
+                                                    <span className="text-caption font-bold text-muted-foreground pl-5">
                                                         {issue.category}
                                                     </span>
                                                 </div>
@@ -163,13 +163,13 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex items-start gap-3">
                                                         {issue.status === 'EN_COURS' && (
-                                                            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0 mt-1.5 " />
+                                                            <div className="h-2 w-2 rounded-full bg-warning animate-pulse shrink-0 mt-1.5 " />
                                                         )}
-                                                        <p className="text-body-sm text-zinc-200 font-medium leading-relaxed">
+                                                        <p className="text-body-sm text-foreground font-medium leading-relaxed">
                                                             {issue.description}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-caption text-zinc-600 font-bold uppercase tracking-widest">
+                                                    <div className="flex items-center gap-4 text-caption text-muted-foreground font-bold uppercase tracking-widest">
                                                         <span className="flex items-center gap-1.5">
                                                             <History className="w-3 h-3" />
                                                             Signalé le {format(new Date(issue.createdAt), "dd MMMM yyyy", { locale: fr })}
@@ -190,7 +190,7 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
                                                         href={issue.forumLink} 
                                                         target="_blank" 
                                                         rel="noreferrer" 
-                                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-blue-500/10 hover:border-blue-500/50 hover:text-blue-400 text-zinc-500 transition-all group/link"
+                                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface border border-border hover:bg-info/10 hover:border-info/50 hover:text-info text-muted-foreground transition-all group/link"
                                                     >
                                                         <span className="text-caption font-black uppercase tracking-widest hidden group-hover/link:inline">Détails</span>
                                                         <LinkIcon className="h-3.5 w-3.5" />
@@ -207,13 +207,13 @@ export function SystemTrackerView({ initialIssues }: { initialIssues: Issue[] })
             </Card>
 
             {/* Help Note */}
-            <div className="p-6 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 flex items-start gap-4">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+            <div className="p-6 rounded-3xl bg-success/5 border border-success/10 flex items-start gap-4">
+                <div className="p-2 rounded-xl bg-success/10 text-success shrink-0">
                     <LightbulbIcon className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
-                    <h4 className="text-sm font-black text-emerald-400 uppercase tracking-widest">Contrôle de Qualité</h4>
-                    <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+                    <h4 className="text-sm font-black text-success uppercase tracking-widest">Contrôle de Qualité</h4>
+                    <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                         Cette liste est synchronisée en temps réel avec le tracker interne de SigilOS. Si vous rencontrez un bug non listé ici, veuillez le signaler via le bouton de support en bas de votre dashboard.
                     </p>
                 </div>

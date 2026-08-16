@@ -14,6 +14,20 @@ interface KamaDonationFormProps {
     onSuccess?: () => void;
 }
 
+/**
+ * Sécurité (CodeQL js/xss-through-dom) : seules les URLs blob: (aperçu fichier local)
+ * ou data:image/* sont acceptées en src d'image — jamais de javascript:/autre protocole.
+ */
+function safePreviewSrc(url: string | null): string | null {
+    if (!url) return null;
+    try {
+        const u = new URL(url);
+        return u.protocol === "blob:" || (u.protocol === "data:" && u.pathname.startsWith("image/")) ? u.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
 export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) {
     const [tranches, setTranches] = useState(1);
     const [note, setNote] = useState("");
@@ -22,6 +36,8 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
     const [submitting, setSubmitting] = useState(false);
     const [done, setDone] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+
+    const previewSrc = safePreviewSrc(preview);
 
     const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
@@ -172,10 +188,10 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
             <div className="space-y-1.5">
                 <label className="text-caption font-bold text-zinc-400 uppercase tracking-widest">Screenshot de preuve *</label>
 
-                {preview ? (
+                {previewSrc ? (
                     <div className="relative rounded-xl overflow-hidden border border-white/10 bg-zinc-800/50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={preview} alt="Preuve" className="w-full max-h-64 object-contain" />
+                        <img src={previewSrc} alt="Preuve" className="w-full max-h-64 object-contain" />
                         <button
                             onClick={() => { setPreview(null); setFile(null); }}
                             className="absolute top-2 right-2 p-1.5 rounded-full bg-zinc-900/80 border border-white/10 text-zinc-300 hover:text-red-400 hover:border-red-500/30 transition-colors"

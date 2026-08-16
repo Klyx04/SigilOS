@@ -132,8 +132,19 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
         }
 
         const timer = setTimeout(async () => {
-            const isSupported = newSkinUrl.includes("barbofus.com") || 
-                              newSkinUrl.includes("dofusskinmanga.com");
+            // Sécurité (CodeQL js/incomplete-url-substring-sanitization) : on parse l'URL
+            // et on compare le hostname exactement (ou sous-domaine) — plus d'includes() naïf.
+            const SUPPORTED_SKIN_HOSTS = ["barbofus.com", "dofusskinmanga.com"];
+            const isSupported = (() => {
+                try {
+                    const hostname = new URL(newSkinUrl.trim()).hostname.toLowerCase();
+                    return SUPPORTED_SKIN_HOSTS.some(
+                        (h) => hostname === h || hostname.endsWith(`.${h}`)
+                    );
+                } catch {
+                    return false;
+                }
+            })();
             
             if (!isSupported) return;
 

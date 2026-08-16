@@ -66,8 +66,13 @@ export function renderInlineContent(
     } else if (match[5] !== undefined) {
       // Bare URL
       let label = match[5];
-      if (label.includes("dofusdb.fr")) label = "Lien DofusDB ↗";
-      else if (label.includes("dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
+      // Sécurité (CodeQL js/incomplete-url-substring-sanitization) : hostname parsé,
+      // pas d'includes() naïf — l'URL reste toujours du https?:// (regex) → href sûr.
+      const bareHost = (() => {
+        try { return new URL(match[5]).hostname.replace(/^www\./i, "").toLowerCase(); } catch { return ""; }
+      })();
+      if (bareHost === "dofusdb.fr" || bareHost.endsWith(".dofusdb.fr")) label = "Lien DofusDB ↗";
+      else if (bareHost === "dofuspourlesnoobs.com" || bareHost.endsWith(".dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
       parts.push(
         <a
           key={`url-${match.index}`}

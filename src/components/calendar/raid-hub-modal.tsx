@@ -80,9 +80,20 @@ function LinkPreviewCard({
         }
     })();
 
+    // Sécurité (CodeQL js/xss-through-dom) : on n'autorise que http/https dans le href
+    // (URL fournie par un membre via l'éditeur de tips) — jamais javascript:/data:/vbscript:.
+    const safeHref = (() => {
+        try {
+            const u = new URL(link.url);
+            return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : "#";
+        } catch {
+            return "#";
+        }
+    })();
+
     return (
         <a
-            href={link.url}
+            href={safeHref}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => {

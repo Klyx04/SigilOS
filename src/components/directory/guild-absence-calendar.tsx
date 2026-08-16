@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { DAYS_OF_WEEK, TIME_SLOTS, type GlobalAvailability, type DayOfWeek, type TimeSlot } from "@/lib/dofus-assets";
 import { format, addWeeks, startOfWeek, endOfWeek, getISOWeek, getYear } from "date-fns";
@@ -22,13 +22,26 @@ const SLOT_INFO: Record<TimeSlot, { icon: any, label: string, color: string, bg:
 interface GuildAbsenceCalendarProps {
     members: any[];
     guildId: string;
+    /** #91 — met en évidence la ligne de ce membre (l'utilisateur courant). */
+    highlightProfileId?: string;
 }
 
 // Removed TIME_SLOT_COLORS as we use SLOT_INFO now
 
-export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarProps) {
+export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: GuildAbsenceCalendarProps) {
     const [weekOffset, setWeekOffset] = useState(0);
     const [search, setSearch] = useState("");
+
+    // #91 — recentre la vue sur la ligne de l'utilisateur courant
+    const highlightRowRef = useRef<HTMLTableRowElement>(null);
+    useEffect(() => {
+        if (highlightProfileId) {
+            const t = setTimeout(() => {
+                highlightRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 250);
+            return () => clearTimeout(t);
+        }
+    }, [highlightProfileId]);
 
     const currentMonday = useMemo(() => {
         const now = new Date();
@@ -277,8 +290,19 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {filteredMembers.map((member) => (
-                                <tr key={member.id} className="group hover:bg-white/[0.02] transition-colors">
+                            {filteredMembers.map((member) => {
+                                const isHighlighted = !!highlightProfileId && member.id === highlightProfileId;
+                                return (
+                                <tr
+                                    key={member.id}
+                                    ref={isHighlighted ? highlightRowRef : undefined}
+                                    className={cn(
+                                        "group transition-colors",
+                                        isHighlighted
+                                            ? "bg-emerald-500/[0.06] ring-1 ring-inset ring-emerald-500/40"
+                                            : "hover:bg-white/[0.02]"
+                                    )}
+                                >
                                     <td className="p-4">
                                         <Link 
                                             href={`/dashboard/${guildId}/members/${encodeURIComponent(member.pseudoDofus || member.id)}`}
@@ -294,9 +318,16 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                                 <div className="absolute inset-0 rounded-full bg-indigo-500/0 group-hover/member:bg-indigo-500/10 blur-xl transition-all duration-300 -z-10" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="font-black text-zinc-200 text-body-sm uppercase tracking-wider transition-colors duration-300 group-hover/member:text-indigo-400 truncate max-w-[150px]">
-                                                    {member.pseudoDofus || member.discordNickname || member.user?.name}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-black text-zinc-200 text-body-sm uppercase tracking-wider transition-colors duration-300 group-hover/member:text-indigo-400 truncate max-w-[150px]">
+                                                        {member.pseudoDofus || member.discordNickname || member.user?.name}
+                                                    </span>
+                                                    {isHighlighted && (
+                                                        <span className="shrink-0 text-caption font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-1.5 py-0.5">
+                                                            Vous
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <span className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic group-hover/member:text-zinc-500 transition-colors">
                                                     {member.roleName || "Membre"}
                                                 </span>
@@ -343,7 +374,8 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                         );
                                     })}
                                 </tr>
-                            ))}
+                                );
+                            })}
                             {filteredMembers.length === 0 && (
                                 <tr>
                                     <td colSpan={8} className="p-8 text-center text-zinc-500">

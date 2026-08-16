@@ -27,7 +27,7 @@
 
 > **✅ #80 Refonte TOTALE LANDING MERGÉE dans dev (18/08)** — PR **#478** merged (`a13e89184`,
 > `origin/dev` à jour ; les 12 commits landing + merge dev sont dans dev).
-> **#5 design system — slice 1 FAIT** (branche `feat/design-system-polices`, 2 commits poussés,
+> **#5 design system — slice 1 FAIT** (branche `feat/design-system-polices`, 3 commits poussés,
 > PR à ouvrir) : fonts consolidées 6→4 (**Space Grotesk** en display, Geist Sans + Rajdhani morts
 > retirés), type scale sémantique `text-display-xl → text-caption` (micro <11px interdit), dé-slop des
 > points d'entrée (welcome-modal, access-denied, no-guild-message, global-error, god quêtes, roadmap).

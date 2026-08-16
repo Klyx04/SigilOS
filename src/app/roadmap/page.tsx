@@ -79,10 +79,9 @@ export default async function PublicRoadmapPage() {
                     </div>
 
                     {/* Hero Header */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-900/30 via-orange-900/20 to-zinc-900/30 border border-amber-500/20 p-8 sm:p-12 mb-12 shadow-xl">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent" />
+                    <div className="relative rounded-2xl bg-zinc-900/40 border border-white/10 p-8 sm:p-12 mb-12">
                         <div className="relative z-10">
-                            <h1 className="text-3xl sm:text-4xl font-black text-white font-heading mb-4 flex items-center gap-3">
+                            <h1 className="text-display-lg sm:text-display-xl font-bold text-white font-heading mb-4 flex items-center gap-3">
                                 <Rocket className="h-8 w-8 text-amber-500" />
                                 Roadmap SigilOS
                             </h1>
@@ -111,7 +110,7 @@ export default async function PublicRoadmapPage() {
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex items-center gap-3">
                                                         <h3 className="font-semibold text-zinc-100 flex items-center gap-2">
-                                                            {item.priority === "HIGH" && <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Haut</span>}
+                                                            {item.priority === "HIGH" && <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider">Haut</span>}
                                                             {item.title}
                                                         </h3>
                                                     </div>

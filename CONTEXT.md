@@ -23,7 +23,17 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 16/08 sur `feat/rbac-audit-2026-08-16`
+## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 — landing MERGÉE + #5 slice 1
+
+> **✅ #80 Refonte TOTALE LANDING MERGÉE dans dev (18/08)** — PR **#478** merged (`a13e89184`,
+> `origin/dev` à jour ; les 12 commits landing + merge dev sont dans dev).
+> **#5 design system — slice 1 FAIT** (branche `feat/design-system-polices`, 3 commits poussés,
+> PR à ouvrir) : fonts consolidées 6→4 (**Space Grotesk** en display, Geist Sans + Rajdhani morts
+> retirés), type scale sémantique `text-display-xl → text-caption` (micro <11px interdit), dé-slop des
+> points d'entrée (welcome-modal, access-denied, no-guild-message, global-error, god quêtes, roadmap).
+> Vérifs : tsc 0 · lint 0 erreur · test:run **187/187** · build OK.
+> Détail : `src/temp/memo-2026-08-13-chantier-global.md` (section 18/08) + `src/temp/chantier.md` (#5).
+> Historique des sessions précédentes (16/08 → PR #470-477) ci-dessous.
 
 > PR #469 (feat/chantier-2026-08-13 → dev) **mergée + déployée en beta** (WS recréé, auth ACTIVÉE,
 > migrations 201 à jour, Sondages `polls=t`). **PR #470 (session 14/08) MERGÉE dans dev**

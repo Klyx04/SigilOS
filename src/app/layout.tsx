@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playfair_Display, Inter, Cinzel, Rajdhani } from "next/font/google";
+import { Geist_Mono, Space_Grotesk, Inter, Cinzel } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -7,18 +7,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { getAppBaseUrl } from "@/lib/utils";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
   subsets: ["latin"],
 });
 
@@ -31,12 +26,6 @@ const cinzel = Cinzel({
   variable: "--font-cinzel",
   subsets: ["latin"],
   weight: ["400", "700", "900"],
-});
-
-const rajdhani = Rajdhani({
-  variable: "--font-rajdhani",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -117,7 +106,7 @@ export default async function RootLayout({
 
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} ${cinzel.variable} ${rajdhani.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} antialiased`}>
         <ThemeProvider>
           <AuthProvider session={session}>
             <TooltipProvider>

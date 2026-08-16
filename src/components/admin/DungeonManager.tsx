@@ -313,7 +313,7 @@ export default function DungeonManager() {
                                             </div>
                                         )}
                                         {dungeon.isExpedition && (
-                                            <div className="absolute bottom-0 inset-x-0 bg-info/90 text-caption text-center text-foreground py-0.5 font-bold uppercase tracking-wider">
+                                            <div className="absolute bottom-0 inset-x-0 bg-info/90 text-caption text-center text-info-foreground py-0.5 font-bold uppercase tracking-wider">
                                                 Expé
                                             </div>
                                         )}
@@ -325,7 +325,7 @@ export default function DungeonManager() {
                                                 {dungeon.name}
                                             </h3>
                                             {dungeon.isOcreQuest && (
-                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-caption h-5 gap-1 shrink-0" title="Donjon de la Quête Ocre">
+                                                <Badge variant="outline" className="bg-warning/20 border-warning/30 text-warning text-caption h-5 gap-1 shrink-0" title="Donjon de la Quête Ocre">
                                                     <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
                                                     Quête Ocre
                                                 </Badge>
@@ -340,7 +340,7 @@ export default function DungeonManager() {
                                                 Lvl {dungeon.level}
                                             </Badge>
                                             {dungeon.achievements.length > 0 && (
-                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-caption h-5 gap-1">
+                                                <Badge variant="outline" className="bg-warning/20 border-warning/30 text-warning text-caption h-5 gap-1">
                                                     <Trophy className="w-3 h-3" />
                                                     {dungeon.achievements.length}
                                                 </Badge>

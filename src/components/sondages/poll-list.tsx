@@ -209,7 +209,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                 <Mic2 className="w-7 h-7 text-info" />
                             </div>
                             {microStatus?.holder && (
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-info border-2 border-zinc-900 animate-pulse" />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-info border-2 border-border animate-pulse" />
                             )}
                         </div>
                         <div className="space-y-1">
@@ -432,7 +432,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                             transition={{ duration: 0.2 }}
                             className="overflow-hidden"
                         >
-                            <div className="p-6 rounded-2xl bg-[#0a0a0f] border border-border space-y-8">
+                            <div className="p-6 rounded-2xl bg-surface border border-border space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
                                         <div className="flex items-center gap-2 mb-4">

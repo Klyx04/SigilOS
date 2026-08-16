@@ -122,7 +122,7 @@ export function ProductStory() {
                     </div>
                     <div
                         className={cn(
-                            "relative w-full overflow-hidden rounded-xl border border-border bg-[#101313]",
+                            "relative w-full overflow-hidden rounded-xl border border-border bg-surface",
                             active.ratio
                         )}
                     >

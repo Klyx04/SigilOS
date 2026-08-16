@@ -160,7 +160,7 @@ export function ServerTimersPanel() {
             </div>
 
             {/* Note en bas */}
-            <div className="px-5 py-3 border-t border-border text-caption text-muted-foreground flex items-center justify-center gap-1.5 bg-black/20">
+            <div className="px-5 py-3 border-t border-border text-caption text-muted-foreground flex items-center justify-center gap-1.5 bg-muted/20">
                 <ShieldAlert className="w-3 h-3 text-muted-foreground" />
                 Les durées de maintenance sont approximatives selon Ankama.
             </div>

@@ -115,7 +115,7 @@ export function PermissionCard({
             <div className="grid gap-4 relative z-10">
                 <div className="space-y-2">
                     <label className="text-xs font-semibold text-foreground/60 uppercase tracking-wide ml-1 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted" />
                         Rôles Discord
                     </label>
                     <MultiSelect
@@ -123,13 +123,13 @@ export function PermissionCard({
                         selected={selectedRoleIds}
                         onChange={locked ? () => {} : onRolesChange}
                         placeholder="Public (Tous les membres)"
-                        className="bg-black/50 border-border hover:border-border-strong transition-colors text-foreground"
+                        className="bg-muted/50 border-border hover:border-border-strong transition-colors text-foreground"
                     />
                 </div>
                 {!hideUsers && (
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-foreground/60 uppercase tracking-wide ml-1 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-muted" />
                             Membres Spécifiques
                         </label>
                         <MultiSelect
@@ -137,7 +137,7 @@ export function PermissionCard({
                             selected={selectedUserIds}
                             onChange={locked ? () => {} : onUsersChange}
                             placeholder="Aucun membre assigné"
-                            className="bg-black/50 border-border hover:border-border-strong transition-colors text-foreground"
+                            className="bg-muted/50 border-border hover:border-border-strong transition-colors text-foreground"
                         />
                     </div>
                 )}

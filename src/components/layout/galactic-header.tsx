@@ -76,10 +76,10 @@ export function GalacticHeader({
 
     // Group 1: Core / Management
     const NAV_GROUP_CORE = [
-        { name: "Tableau de bord", href: `/dashboard/${guildId}`, icon: LayoutDashboard, color: "text-blue-400", exact: true, visible: true },
+        { name: "Tableau de bord", href: `/dashboard/${guildId}`, icon: LayoutDashboard, color: "text-info", exact: true, visible: true },
         { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: true },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember || user.canViewCalendar },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-indigo-400", visible: user.canViewRoster },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-success", visible: user.isMember || user.canViewCalendar },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-info", visible: user.canViewRoster },
     ];
 
 
@@ -87,16 +87,16 @@ export function GalacticHeader({
     // Group 2: Features / Gameplay
     // Colors are explicit to help identification
     const NAV_GROUP_FEATURES = [
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", shadow: "shadow-emerald-500/50", visible: user.canViewMissions },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-success", shadow: "shadow-emerald-500/50", visible: user.canViewMissions },
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-fuchsia-400", shadow: "shadow-fuchsia-500/50", visible: user.canViewSonges },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-amber-400", shadow: "shadow-amber-500/50", visible: user.canViewOcre },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-warning", shadow: "shadow-amber-500/50", visible: user.canViewOcre },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-yellow-400", shadow: "shadow-yellow-500/50", visible: user.canViewLadder },
     ];
 
     // Group 3: Tools
     const NAV_GROUP_TOOLS = [
         { name: "Services", href: `/dashboard/${guildId}/services`, icon: Key, color: "text-orange-400", visible: true },
-        { name: "Recherche", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-zinc-400", visible: true },
+        { name: "Recherche", href: `/dashboard/${guildId}/finder`, icon: Compass, color: "text-muted-foreground", visible: true },
     ];
 
     const ADMIN_ITEMS = [
@@ -152,7 +152,7 @@ export function GalacticHeader({
                                 title="Changer de guilde"
                             >
                                 {/* Glow effect for guild branding */}
-                                <div className="absolute -inset-1 bg-white/5 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition duration-300"></div>
+                                <div className="absolute -inset-1 bg-surface rounded-xl blur-md opacity-0 group-hover:opacity-100 transition duration-300"></div>
 
                                 <div className="relative">
                                     <Avatar className="h-10 w-10 border-2 border-border group-hover:border-primary/50 transition-all shadow-lg rounded-xl">
@@ -162,7 +162,7 @@ export function GalacticHeader({
                                         </AvatarFallback>
                                     </Avatar>
                                     {userGuilds.length > 1 && (
-                                        <div className="absolute -bottom-1 -right-1 bg-primary text-caption font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#030304] shadow-lg">
+                                        <div className="absolute -bottom-1 -right-1 bg-primary text-caption font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-background shadow-lg">
                                             {userGuilds.length}
                                         </div>
                                     )}
@@ -182,7 +182,7 @@ export function GalacticHeader({
                             <DropdownMenuLabel className="text-caption font-black uppercase tracking-widest text-muted-foreground px-2 py-2">
                                 Vos Guildes SigilOS
                             </DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-white/5 mx-1 mb-2" />
+                            <DropdownMenuSeparator className="bg-surface mx-1 mb-2" />
                             <div className="grid gap-1">
                                 {userGuilds.map((g) => (
                                     <DropdownMenuItem key={g.id} asChild>
@@ -192,19 +192,19 @@ export function GalacticHeader({
                                                 "flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border border-transparent",
                                                 g.id === guildId
                                                     ? "bg-primary/10 border-primary/20"
-                                                    : "hover:bg-white/5 hover:border-white/10"
+                                                    : "hover:bg-surface hover:border-border"
                                             )}
                                         >
-                                            <Avatar className="h-9 w-9 border border-white/10 rounded-lg">
+                                            <Avatar className="h-9 w-9 border border-border rounded-lg">
                                                 <AvatarImage src={g.iconUrl || undefined} />
-                                                <AvatarFallback className="bg-zinc-900 text-caption font-bold">
+                                                <AvatarFallback className="bg-surface text-caption font-bold">
                                                     {g.name?.substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex flex-col">
                                                 <span className={cn(
                                                     "text-sm font-bold",
-                                                    g.id === guildId ? "text-primary" : "text-white"
+                                                    g.id === guildId ? "text-primary" : "text-foreground"
                                                 )}>
                                                     {g.name}
                                                 </span>
@@ -232,13 +232,13 @@ export function GalacticHeader({
                                 <NavIcon key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
                             ))}
 
-                            <div className="w-px h-6 bg-white/10 mx-3" />
+                            <div className="w-px h-6 bg-elevated mx-3" />
 
                             {NAV_GROUP_FEATURES.filter(i => i.visible).map(item => (
                                 <NavIcon key={item.href} item={item} isActive={isActive(item.href)} />
                             ))}
 
-                            <div className="w-px h-6 bg-white/10 mx-3" />
+                            <div className="w-px h-6 bg-elevated mx-3" />
 
                             {NAV_GROUP_TOOLS.filter(i => i.visible).map(item => (
                                 <NavIcon key={item.href} item={item} isActive={isActive(item.href)} />
@@ -260,10 +260,10 @@ export function GalacticHeader({
                                     <button className={cn(
                                         "h-10 px-4 flex items-center gap-2.5 rounded-xl transition-all duration-300 outline-none font-black text-caption uppercase tracking-[0.15em] border",
                                         isActive(`/dashboard/${guildId}/admin`)
-                                            ? "bg-amber-500/10 text-amber-500 border-amber-500/30 "
+                                            ? "bg-warning/10 text-warning border-warning/30 "
                                             : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                                     )}>
-                                        <Shield className={cn("w-4 h-4", isActive(`/dashboard/${guildId}/admin`) ? "text-amber-500" : "text-zinc-500")} />
+                                        <Shield className={cn("w-4 h-4", isActive(`/dashboard/${guildId}/admin`) ? "text-warning" : "text-muted-foreground")} />
                                         <span className="hidden xl:inline">Administration</span>
                                     </button>
                                 </DropdownMenuTrigger>
@@ -271,14 +271,14 @@ export function GalacticHeader({
                                     <div className="px-2 py-1.5 text-caption font-black uppercase tracking-widest text-muted-foreground">
                                         Administration
                                     </div>
-                                    <DropdownMenuSeparator className="bg-white/5" />
+                                    <DropdownMenuSeparator className="bg-surface" />
                                     {ADMIN_ITEMS.filter(i => i.visible).map(item => (
                                         <DropdownMenuItem key={item.href} asChild>
-                                            <Link href={item.href} className="flex items-center gap-3 px-2 py-2 rounded hover:bg-white/5 cursor-pointer group">
-                                                <div className="p-1 rounded bg-white/5 group-hover:bg-amber-500/20 transition-colors">
-                                                    <item.icon className="w-3.5 h-3.5 text-zinc-400 group-hover:text-amber-500" />
+                                            <Link href={item.href} className="flex items-center gap-3 px-2 py-2 rounded hover:bg-surface cursor-pointer group">
+                                                <div className="p-1 rounded bg-surface group-hover:bg-warning/20 transition-colors">
+                                                    <item.icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-warning" />
                                                 </div>
-                                                <span className="text-xs font-bold text-zinc-300 group-hover:text-white">{item.name}</span>
+                                                <span className="text-xs font-bold text-foreground group-hover:text-foreground">{item.name}</span>
                                             </Link>
                                         </DropdownMenuItem>
                                     ))}
@@ -294,7 +294,7 @@ export function GalacticHeader({
                                     "h-9 w-9 flex items-center justify-center rounded-lg transition-all duration-300",
                                     isActive('notifications')
                                         ? "text-primary bg-primary/10 border border-primary/20"
-                                        : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-surface border border-transparent hover:border-border"
                                 )}
                             >
                                 <NotificationBell userId={user.id} guildId={guildId} mode="simple" />
@@ -316,7 +316,7 @@ export function GalacticHeader({
                                 <div className="flex flex-col items-start min-w-[70px]">
                                     <span className="text-xs font-black text-foreground leading-none tracking-tight group-hover:text-primary transition-colors">{user.name}</span>
                                     {user.isAdmin ? (
-                                        <span className="text-caption font-black uppercase tracking-[0.1em] text-purple-600 dark:text-purple-400 mt-1 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                                        <span className="text-caption font-black uppercase tracking-[0.1em] text-info dark:text-info mt-1 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
                                             Admin
                                         </span>
                                     ) : (
@@ -341,7 +341,7 @@ export function GalacticHeader({
                                         <div className="text-caption font-black uppercase tracking-[0.1em] text-muted-foreground">En ligne</div>
                                     </div>
                                     {user.isAdmin && (
-                                        <div className="mt-2 text-caption font-black uppercase tracking-widest bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded border border-purple-500/30 w-fit">
+                                        <div className="mt-2 text-caption font-black uppercase tracking-widest bg-info/20 text-info dark:text-info px-2 py-0.5 rounded border border-info/30 w-fit">
                                             Staff {guildData.name}
                                         </div>
                                     )}
@@ -365,9 +365,9 @@ export function GalacticHeader({
 
                             <DropdownMenuSeparator className="bg-border mx-1 my-1" />
 
-                            <DropdownMenuItem onClick={() => signOut()} className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-red-500/10 group focus:bg-red-500/10">
-                                <LogOut className="w-4 h-4 text-red-500 group-hover:text-red-400 transition-colors" />
-                                <span className="font-bold text-xs text-red-500 group-hover:text-red-400">Déconnexion</span>
+                            <DropdownMenuItem onClick={() => signOut()} className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-danger/10 group focus:bg-danger/10">
+                                <LogOut className="w-4 h-4 text-danger group-hover:text-danger transition-colors" />
+                                <span className="font-bold text-xs text-danger group-hover:text-danger">Déconnexion</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -391,14 +391,14 @@ function NavIcon({ item, isActive }: { item: any, isActive: boolean }) {
                     className={cn(
                         "relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 group", // Square-ish rounded for "App" feel
                         isActive
-                            ? "bg-white/10"
-                            : "hover:bg-white/5"
+                            ? "bg-elevated"
+                            : "hover:bg-surface"
                     )}
                 >
                     <item.icon
                         className={cn(
                             "w-6 h-6 transition-all duration-300 stroke-[2px]", // Bigger, bolder
-                            isActive ? item.color || "text-white" : "text-zinc-500 group-hover:text-zinc-300",
+                            isActive ? item.color || "text-foreground" : "text-muted-foreground group-hover:text-foreground",
                             // Use color hint on hover even if not active?
                             !isActive && "group-",
                             !isActive && item.color ? `group-hover:${item.color.replace('text-', 'text-opacity-80 text-')}` : "" // Trick to apply color on hover
@@ -416,12 +416,12 @@ function NavIcon({ item, isActive }: { item: any, isActive: boolean }) {
                     {isActive && (
                         <span className={cn(
                             "absolute -bottom-1 w-5 h-0.5 rounded-full ",
-                            item.color ? item.color.replace('text-', 'bg-') : "bg-white"
+                            item.color ? item.color.replace('text-', 'bg-') : "bg-background"
                         )} />
                     )}
                 </Link>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-caption font-bold uppercase tracking-wider bg-black/90 border-white/10 text-white shadow-xl">
+            <TooltipContent side="bottom" className="text-caption font-bold uppercase tracking-wider bg-popover/95 border-border text-foreground shadow-xl">
                 {item.name}
             </TooltipContent>
         </Tooltip>

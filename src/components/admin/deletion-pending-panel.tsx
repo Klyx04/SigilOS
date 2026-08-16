@@ -88,7 +88,7 @@ export async function DeletionPendingPanel() {
                                             </span>
                                         )}
                                         {user.scheduledDeletion && (
-                                            <span className={`flex items-center gap-1 text-xs font-semibold ${isPast ? "text-danger" : "text-orange-400"}`}>
+                                            <span className={`flex items-center gap-1 text-xs font-semibold ${isPast ? "text-danger" : "text-warning"}`}>
                                                 <Clock className="w-3 h-3 shrink-0" />
                                                 {isPast
                                                     ? `Janitor en attente — dépassé ${formatDistanceToNow(new Date(user.scheduledDeletion), { addSuffix: true, locale: fr })}`

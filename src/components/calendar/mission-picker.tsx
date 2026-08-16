@@ -56,9 +56,9 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
     },
     EVENT: {
         icon: Sparkles,
-        color: "text-yellow-300",
-        bgColor: "bg-yellow-500/10",
-        borderColor: "border-yellow-500/20",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
+        borderColor: "border-warning/20",
         fallbackImage: "/assets/missions/event.png",
         label: "Événement"
     },

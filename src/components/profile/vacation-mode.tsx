@@ -140,7 +140,7 @@ export function VacationMode({
                                 <p className="text-xs text-muted-foreground italic">Pas de date de retour prévue</p>
                             )}
                             {vacationReason && (
-                                <p className="text-xs text-muted-foreground italic mt-1 break-words bg-black/20 p-2 rounded border border-border">Motif: {vacationReason}</p>
+                                <p className="text-xs text-muted-foreground italic mt-1 break-words bg-muted/20 p-2 rounded border border-border">Motif: {vacationReason}</p>
                             )}
                         </>
                     ) : (
@@ -295,7 +295,7 @@ export function VacationMode({
                                 Notifier sur Discord
                             </Button>
                         ) : (
-                            <div className="w-full h-7 flex items-center justify-center text-caption text-muted-foreground italic bg-black/20 rounded border border-border">
+                            <div className="w-full h-7 flex items-center justify-center text-caption text-muted-foreground italic bg-muted/20 rounded border border-border">
                                 Salon Discord non configuré
                             </div>
                         )

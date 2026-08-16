@@ -23,8 +23,8 @@ import {
 
 const PRESET_ZONES = [
     { key: 'VULKANIA', label: 'Vulkania', emoji: '🦕', period: 'Été', color: 'text-green-300', border: 'border-green-500/30 bg-green-500/5' },
-    { key: 'PWAK', label: 'Île de Pwâk', emoji: '🐣', period: 'Pâques', color: 'text-yellow-300', border: 'border-yellow-500/30 bg-yellow-500/5' },
-    { key: 'HALOUINE', label: 'Halouine', emoji: '🎃', period: 'Halloween', color: 'text-orange-300', border: 'border-orange-500/30 bg-orange-500/5' },
+    { key: 'PWAK', label: 'Île de Pwâk', emoji: '🐣', period: 'Pâques', color: 'text-warning', border: 'border-warning/30 bg-warning/5' },
+    { key: 'HALOUINE', label: 'Halouine', emoji: '🎃', period: 'Halloween', color: 'text-warning', border: 'border-warning/30 bg-warning/5' },
     { key: 'NOWEL', label: 'Île de Nowel', emoji: '🎄', period: 'Noël', color: 'text-danger', border: 'border-danger/30 bg-danger/5' },
 ] as const;
 
@@ -154,8 +154,8 @@ export function EventZoneManager() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                        <Sparkles className="w-5 h-5 text-yellow-400" />
+                    <div className="p-2.5 rounded-xl bg-warning/10 border border-warning/20">
+                        <Sparkles className="w-5 h-5 text-warning" />
                     </div>
                     <div>
                         <h2 className="text-lg font-black text-foreground">Zones Événements</h2>

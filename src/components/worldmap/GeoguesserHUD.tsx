@@ -1,4 +1,5 @@
 'use client';
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
 import React from 'react';
 import { Clock, Trophy, Flag } from 'lucide-react';

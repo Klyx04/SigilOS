@@ -40,11 +40,11 @@ export default async function GuildSelectorPage() {
     const isEmpty = active.length === 0 && pending.length === 0;
 
     return (
-        <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-zinc-950 font-sans selection:bg-accent-teal/30 landing-theme">
+        <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-background font-sans selection:bg-accent-teal/30 landing-theme">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-success/10 rounded-full blur-[120px] animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-warning/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
             </div>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_50% )] pointer-events-none" />
 
@@ -64,14 +64,14 @@ export default async function GuildSelectorPage() {
 
                         {/* Hero Section */}
                         <div className="text-center space-y-4">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-bold uppercase tracking-widest text-emerald-400 backdrop-blur-md">
-                                <LayoutDashboard className="w-3.5 h-3.5 text-emerald-400" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20 text-caption font-bold uppercase tracking-widest text-success backdrop-blur-md">
+                                <LayoutDashboard className="w-3.5 h-3.5 text-success" />
                                 <span>Portail Unifié</span>
                             </div>
-                            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white mb-2 font-heading">
-                                Votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-emerald-400 to-emerald-200">QG Galactique</span>
+                            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-foreground mb-2 font-heading">
+                                Votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-success to-success">QG Galactique</span>
                             </h1>
-                            <p className="text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed font-medium">
+                            <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
                                 Accédez à vos guildes actives ou déployez SigilOS si votre serveur est autorisé.
                             </p>
                         </div>
@@ -87,13 +87,13 @@ export default async function GuildSelectorPage() {
                                 pending.length > 0 ? "lg:col-span-7" : "lg:col-span-12"
                             )}>
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                            <Shield className="w-5 h-5 text-emerald-400" />
+                                    <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-success/10 border border-success/20">
+                                            <Shield className="w-5 h-5 text-success" />
                                         </div>
                                         Guildes Actives
                                     </h2>
-                                    <span className="text-xs font-medium px-2 py-1 rounded-md bg-zinc-900 border border-white/5 text-zinc-500">
+                                    <span className="text-xs font-medium px-2 py-1 rounded-md bg-surface border border-white/5 text-muted-foreground">
                                         {active.length} disponible{active.length > 1 ? 's' : ''}
                                     </span>
                                 </div>
@@ -102,34 +102,34 @@ export default async function GuildSelectorPage() {
                                     <div className="grid gap-4">
                                         {active.map((guild) => (
                                             <Link key={guild.id} href={`/dashboard/${guild.id}`} className="group block">
-                                                <GlassPanel className="p-0 hover:border-indigo-500/50 transition-all duration-300  group-hover:scale-[1.01]">
+                                                <GlassPanel className="p-0 hover:border-info/50 transition-all duration-300  group-hover:scale-[1.01]">
                                                     <div className="p-5 flex items-center gap-5">
                                                         <div className="relative">
-                                                            <Avatar className="h-14 w-14 rounded-2xl border-2 border-white/10 group-hover:border-indigo-400/50 transition-colors shadow-lg">
+                                                            <Avatar className="h-14 w-14 rounded-2xl border-2 border-white/10 group-hover:border-info/50 transition-colors shadow-lg">
                                                                 <AvatarImage src={guild.icon || ""} alt={guild.name} className="object-cover" />
-                                                                <AvatarFallback className="bg-zinc-800 text-zinc-400 font-bold rounded-2xl">
+                                                                <AvatarFallback className="bg-elevated text-muted-foreground font-bold rounded-2xl">
                                                                     {guild.name.substring(0, 2).toUpperCase()}
                                                                 </AvatarFallback>
                                                             </Avatar>
-                                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800">
-                                                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse "></div>
+                                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-surface rounded-full flex items-center justify-center border border-border">
+                                                                <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse "></div>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex-1 min-w-0">
-                                                            <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
+                                                            <h3 className="text-lg font-bold text-foreground group-hover:text-info transition-colors truncate">
                                                                 {guild.name}
                                                             </h3>
-                                                            <p className="text-sm text-zinc-500 flex items-center gap-2 mt-0.5">
-                                                                <span className="text-emerald-400 font-medium text-xs uppercase tracking-wider">Opérationnel</span>
-                                                                <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
-                                                                <span className={cn("truncate", guild.isAdmin ? "text-indigo-400" : guild.hasAccess ? "text-zinc-500" : "text-amber-500")}>
+                                                            <p className="text-sm text-muted-foreground flex items-center gap-2 mt-0.5">
+                                                                <span className="text-success font-medium text-xs uppercase tracking-wider">Opérationnel</span>
+                                                                <span className="w-1 h-1 rounded-full bg-muted"></span>
+                                                                <span className={cn("truncate", guild.isAdmin ? "text-info" : guild.hasAccess ? "text-muted-foreground" : "text-warning")}>
                                                                     {guild.accessLabel}
                                                                 </span>
                                                             </p>
                                                         </div>
 
-                                                        <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+                                                        <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-info group-hover:text-info-foreground transition-all duration-300">
                                                             <ChevronRight className="w-5 h-5" />
                                                         </div>
                                                     </div>
@@ -139,7 +139,7 @@ export default async function GuildSelectorPage() {
                                     </div>
                                 ) : (
                                     <GlassPanel className="p-8 text-center border-dashed border-white/10">
-                                        <p className="text-zinc-500 italic">Aucune guilde active trouvée.</p>
+                                        <p className="text-muted-foreground italic">Aucune guilde active trouvée.</p>
                                     </GlassPanel>
                                 )}
                             </div>
@@ -148,20 +148,20 @@ export default async function GuildSelectorPage() {
                             {pending.length > 0 && (
                                 <div className="lg:col-span-5 space-y-6">
                                     <div className="flex items-center justify-between">
-                                        <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                                            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                                <PlusCircle className="w-5 h-5 text-amber-400" />
+                                        <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-warning/10 border border-warning/20">
+                                                <PlusCircle className="w-5 h-5 text-warning" />
                                             </div>
                                             Déploiement
                                         </h2>
-                                        <span className="text-xs font-medium px-2 py-1 rounded-md bg-zinc-900 border border-white/5 text-zinc-500">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-md bg-surface border border-white/5 text-muted-foreground">
                                             Admin requis
                                         </span>
                                     </div>
 
-                                    <GlassPanel className="min-h-[200px] border-white/5 bg-zinc-900/40">
+                                    <GlassPanel className="min-h-[200px] border-white/5 bg-surface/40">
                                         <div className="p-4 border-b border-white/5 bg-white/5 rounded-t-xl mb-2">
-                                            <p className="text-xs text-zinc-400 leading-relaxed">
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
                                                 Les serveurs ci-dessous sont éligibles pour l'installation de SigilOS car vous y disposez des droits d'administrateur.
                                             </p>
                                         </div>
@@ -173,11 +173,11 @@ export default async function GuildSelectorPage() {
                                                 ))
                                             ) : (
                                                 <div className="py-12 px-6 text-center">
-                                                    <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mx-auto mb-3">
-                                                        <Crown className="w-6 h-6 text-zinc-600" />
+                                                    <div className="w-12 h-12 rounded-full bg-elevated/50 flex items-center justify-center mx-auto mb-3">
+                                                        <Crown className="w-6 h-6 text-muted-foreground" />
                                                     </div>
-                                                    <p className="text-sm font-medium text-zinc-300">Aucun serveur éligible</p>
-                                                    <p className="text-xs text-zinc-500 mt-1 max-w-[250px] mx-auto">
+                                                    <p className="text-sm font-medium text-foreground">Aucun serveur éligible</p>
+                                                    <p className="text-xs text-muted-foreground mt-1 max-w-[250px] mx-auto">
                                                         Aucun nouveau serveur éligible trouvé. Assurez-vous d'être proprétaire ou administrateur.
                                                     </p>
                                                 </div>

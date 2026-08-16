@@ -120,25 +120,25 @@ export function JobsGrid({
                                     <TabsList className="grid w-full grid-cols-4 mb-6 bg-surface border border-border p-1 h-12 rounded-xl">
                                         <TabsTrigger 
                                             value="Récolte"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Récolte
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Artisanat"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Artisanat
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Forgemagie"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Forgemagie
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Élevage"
-                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-foreground data-[state=active]:font-black data-[state=active]:"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/50 data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:font-black data-[state=active]:"
                                         >
                                             Élevage
                                         </TabsTrigger>
@@ -202,7 +202,7 @@ export function JobsGrid({
             </div>
 
             {jobs.length > 0 ? (
-                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-zinc-900 to-black p-6 mb-6 group-hover:border-border transition-colors">
+                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface to-black p-6 mb-6 group-hover:border-border transition-colors">
                     <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] bg-warning/10 pointer-events-none" />
                     <div className="relative flex items-center gap-5">
                         <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-background border border-border shadow-xl shrink-0">

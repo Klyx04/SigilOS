@@ -37,7 +37,7 @@ export function ThreePillars() {
                     {PILLARS.map((pillar) => (
                         <div
                             key={pillar.title}
-                            className="rounded-2xl border border-border bg-[#101313] p-6"
+                            className="rounded-2xl border border-border bg-surface p-6"
                         >
                             <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center mb-4">
                                 <pillar.icon className="w-5 h-5 text-success" aria-hidden="true" />

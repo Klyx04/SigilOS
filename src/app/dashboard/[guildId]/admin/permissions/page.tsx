@@ -65,7 +65,7 @@ export default async function PermissionsPage({
                     <li><code>DISCORD_BOT_TOKEN</code> is correct in .env</li>
                     <li>Bot is invited to the server</li>
                 </ul>
-                <pre className="bg-neutral-900 text-neutral-100 p-4 rounded mt-4 overflow-auto">
+                <pre className="bg-surface text-foreground p-4 rounded mt-4 overflow-auto">
                     {String(e)}
                 </pre>
             </div>

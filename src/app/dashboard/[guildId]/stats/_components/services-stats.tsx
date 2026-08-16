@@ -95,9 +95,9 @@ export default function ServicesStats({ services, loansEnabled = true, vaultEnab
                             <p className="text-xl font-black text-success">{vault.totalDeposits}</p>
                             <p className="text-caption text-muted-foreground uppercase tracking-wider mt-0.5">Dépôts</p>
                         </div>
-                        <div className="rounded-lg bg-orange-500/5 border border-orange-500/15 p-3 text-center">
-                            <ArrowUpCircle className="w-4 h-4 text-orange-400 mx-auto mb-1" />
-                            <p className="text-xl font-black text-orange-400">{vault.totalWithdrawals}</p>
+                        <div className="rounded-lg bg-warning/5 border border-warning/15 p-3 text-center">
+                            <ArrowUpCircle className="w-4 h-4 text-warning mx-auto mb-1" />
+                            <p className="text-xl font-black text-warning">{vault.totalWithdrawals}</p>
                             <p className="text-caption text-muted-foreground uppercase tracking-wider mt-0.5">Retraits</p>
                         </div>
                     </div>

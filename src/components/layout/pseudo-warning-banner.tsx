@@ -16,7 +16,7 @@ export function PseudoWarningBanner({ guildId, pseudoDofus }: PseudoWarningBanne
     return (
         <div className="relative group overflow-hidden mb-6">
             {/* Background Glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-warning/10 via-orange-500/5 to-warning/10 animate-pulse group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-r from-warning/10 via-warning/5 to-warning/10 animate-pulse group-hover:opacity-100 transition-opacity" />
             
             <div className={cn(
                 "relative flex flex-col md:flex-row items-center justify-between gap-4 p-4 md:p-5 rounded-2xl border-2 backdrop-blur-md transition-all duration-300",

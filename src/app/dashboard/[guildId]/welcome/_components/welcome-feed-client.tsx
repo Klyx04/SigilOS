@@ -103,10 +103,10 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                         className="group relative"
                     >
                         {/* Timeline dot */}
-                        <div className="absolute left-[19px] top-6 w-2 h-2 rounded-full bg-warning  border-2 border-zinc-950 z-10 hidden md:block" />
+                        <div className="absolute left-[19px] top-6 w-2 h-2 rounded-full bg-warning  border-2 border-border z-10 hidden md:block" />
 
                         <div className="md:pl-16">
-                            <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-[#030303]/80 hover:bg-[#050505] hover:border-warning/20 transition-all duration-300 p-6 md:p-8 shadow-xl">
+                            <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-background/80 hover:bg-muted hover:border-warning/20 transition-all duration-300 p-6 md:p-8 shadow-xl">
                                 {/* Visual Accent */}
                                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-warning/10 rounded-full group-hover:bg-warning/20 transition-colors duration-300 pointer-events-none" />
 

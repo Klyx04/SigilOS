@@ -164,7 +164,7 @@ export default async function FeatureSettingsPage({
                     "flex lg:flex-col items-center lg:items-stretch overflow-x-auto lg:overflow-visible no-scrollbar hide-scrollbar"
                 )}>
                     {/* Shadow indicators for mobile horizontal scroll (Standard 2026) */}
-                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-950/50 to-transparent pointer-events-none lg:hidden z-30" />
+                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background/50 to-transparent pointer-events-none lg:hidden z-30" />
                     
                     {navGroups.map((group, idx) => (
                         <div key={idx} className="flex flex-row lg:flex-col items-center lg:items-stretch mb-0 lg:mb-4 lg:last:mb-0 shrink-0">

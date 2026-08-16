@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /**
  * EventDetailModal V3 - 4 Types + Native ClassIcon
@@ -97,7 +97,7 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         icon: Target,
         color: "text-warning",
         bgColor: "bg-warning/10 border-warning/30",
-        gradient: "from-warning to-orange-600"
+        gradient: "from-warning to-warning"
     },
     SORTIE_FARM: {
         label: "Sortie Farm",
@@ -155,7 +155,7 @@ const MISSION_CATEGORY_CONFIG: Record<string, { icon: any; color: string; fallba
     },
     EVENT: {
         icon: SparklesIcon,
-        color: "text-yellow-300",
+        color: "text-warning",
         fallbackImage: "/assets/missions/event.png",
         label: "Événement"
     },
@@ -405,7 +405,7 @@ export function EventDetailModal({
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
                     draggable
-                    className="w-[95vw] sm:max-w-2xl bg-surface/98 backdrop-blur-xl border border-border ring-1 ring-orange-500/25 p-0 overflow-hidden max-h-[90vh] flex flex-col  fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    className="w-[95vw] sm:max-w-2xl bg-surface/98 backdrop-blur-xl border border-border ring-1 ring- p-0 overflow-hidden max-h-[90vh] flex flex-col  fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
                     {/* Header */}
                     <div className={cn("relative px-8 pt-12 pb-10 border-b border-border/50 overflow-hidden", typeConfig.bgColor)}>
@@ -429,7 +429,7 @@ export function EventDetailModal({
                             <div className="flex gap-5">
                                 <div className={cn(
                                     "p-3 rounded-2xl shadow-inner shrink-0",
-                                    "bg-black/20 text-foreground backdrop-blur-sm border border-border"
+                                    "bg-muted/20 text-foreground backdrop-blur-sm border border-border"
                                 )}>
                                     <TypeIcon className="w-6 h-6" />
                                 </div>
@@ -488,7 +488,7 @@ export function EventDetailModal({
                                             className={cn(
                                                 "transition-all",
                                                 isDeleteConfirming
-                                                    ? "bg-danger hover:bg-danger text-foreground"
+                                                    ? "bg-danger hover:bg-danger text-danger-foreground"
                                                     : "text-muted-foreground hover:text-danger hover:bg-danger/20"
                                             )}
                                         >
@@ -515,7 +515,7 @@ export function EventDetailModal({
                                             className={cn(
                                                 "transition-all",
                                                 isDeleteConfirming
-                                                    ? "bg-danger hover:bg-danger text-foreground"
+                                                    ? "bg-danger hover:bg-danger text-danger-foreground"
                                                     : "text-muted-foreground hover:text-danger hover:bg-danger/20"
                                             )}
                                         >
@@ -613,7 +613,7 @@ export function EventDetailModal({
                                     }
                                 />
                                 <InfoCard
-                                    icon={<Crown className="h-4 w-4 text-yellow-500" />}
+                                    icon={<Crown className="h-4 w-4 text-warning" />}
                                     label="Organisateur"
                                     value={
                                         (isDirectKralamoure || isImportedKralamoure) && metamobCreator ? (
@@ -677,9 +677,9 @@ export function EventDetailModal({
                                     {/* Captain */}
                                     {raidMeta.raidCaptain && (
                                         <div className="flex items-center gap-2 text-sm">
-                                            <Crown className="h-4 w-4 text-yellow-500 shrink-0" />
+                                            <Crown className="h-4 w-4 text-warning shrink-0" />
                                             <span className="text-muted-foreground text-xs uppercase tracking-wider">Capitaine :</span>
-                                            <span className="font-black text-yellow-300 uppercase tracking-tight">{raidMeta.raidCaptain}</span>
+                                            <span className="font-black text-warning uppercase tracking-tight">{raidMeta.raidCaptain}</span>
                                         </div>
                                     )}
 
@@ -868,7 +868,7 @@ export function EventDetailModal({
                                                                 #{i + 1}
                                                             </div>
                                                             <Avatar className="h-10 w-10 border border-border shadow-xl group- transition-transform">
-                                                                <AvatarFallback className="bg-gradient-to-br from-zinc-800 to-zinc-900 text-muted-foreground text-xs font-bold">
+                                                                <AvatarFallback className="bg-gradient-to-br from-elevated to-surface text-muted-foreground text-xs font-bold">
                                                                     {p.username?.[0] || "?"}
                                                                 </AvatarFallback>
                                                             </Avatar>
@@ -1041,8 +1041,8 @@ export function EventDetailModal({
                                                     className={cn(
                                                         "h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-border px-8",
                                                         isFull
-                                                            ? "bg-warning hover:bg-warning shadow-amber-600/30 text-foreground"
-                                                            : "bg-info hover:bg-info shadow-indigo-600/30 text-foreground"
+                                                            ? "bg-warning hover:bg-warning shadow-amber-600/30 text-warning-foreground"
+                                                            : "bg-info hover:bg-info shadow-indigo-600/30 text-info-foreground"
                                                     )}
                                                 >
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1115,7 +1115,7 @@ export function EventDetailModal({
                             {/* Score */}
                             <div className="space-y-1.5">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                                    <Star className="h-3.5 w-3.5 text-yellow-500" />
+                                    <Star className="h-3.5 w-3.5 text-warning" />
                                     Score du Raid
                                 </label>
                                 <input
@@ -1413,7 +1413,7 @@ function ParticipantRow({
                                                 {isRaid && !isCurrentUser && onTransferCaptaincy && (
                     <>
                         {isTransferConfirming && (
-                            <span className="text-caption font-bold text-yellow-500/90 italic max-w-[180px] leading-tight inline-block align-middle">
+                            <span className="text-caption font-bold text-warning/90 italic max-w-[180px] leading-tight inline-block align-middle">
                                 Le capitanat passera à ce joueur — tu perdras les contrôles d'organisateur de ce raid.
                             </span>
                         )}
@@ -1436,8 +1436,8 @@ function ParticipantRow({
                             className={cn(
                                 "shrink-0 transition-all",
                                 isTransferConfirming
-                                    ? "h-8 px-3 text-xs font-medium bg-yellow-600 hover:bg-yellow-500 text-foreground"
-                                    : "h-8 px-2 text-caption font-black uppercase tracking-wider text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                                    ? "h-8 px-3 text-xs font-medium bg-warning hover:bg-warning text-warning-foreground"
+                                    : "h-8 px-2 text-caption font-black uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10"
                             )}
                             title={
                                 isTransferConfirming

@@ -213,9 +213,9 @@ export function CalendarGrid({
     return (
         <div className="space-y-6">
             {/* ============ CALENDAR GRID ============ */}
-            <div className="rounded-2xl border border-border bg-[#0d1214] overflow-hidden relative">
+            <div className="rounded-2xl border border-border bg-surface overflow-hidden relative">
                 {/* Days Header - CONTRASTE ÉPURÉ (plus de glow ambre) */}
-                <div className="grid grid-cols-7 bg-[#1c262a] border-b border-border">
+                <div className="grid grid-cols-7 bg-muted border-b border-border">
                     {weekDays.map((day, i) => (
                         <div key={day} className={cn(
                             "py-3.5 text-center text-xs font-semibold tracking-wide uppercase",
@@ -227,7 +227,7 @@ export function CalendarGrid({
                 </div>
 
                 {/* Days Grid */}
-                <div className="grid grid-cols-7 bg-[#0b0e10]">
+                <div className="grid grid-cols-7 bg-surface">
                     {calendarDays.map((day, index) => {
                         const dayKey = format(day, "yyyy-MM-dd");
                         const dayEvents = eventsByDay.get(dayKey) || [];
@@ -247,8 +247,8 @@ export function CalendarGrid({
                                     minHeight,
                                     canManage && !isPastDay ? "cursor-pointer" : "cursor-default",
                                     isWeekend
-                                        ? "bg-[#111618] hover:bg-[#161c1f]"
-                                        : "bg-[#151c1f] hover:bg-[#1a2327]",
+                                        ? "bg-muted hover:bg-elevated"
+                                        : "bg-muted hover:bg-elevated",
                                     index % 7 === 6 && "border-r-0"
                                 )}
                                 onClick={(e) => {
@@ -281,7 +281,7 @@ export function CalendarGrid({
                                                     onDayEventsClick?.(day, dayEvents);
                                                 }}
                                                 className={cn(
-                                                    "text-xs font-semibold bg-[#0d1214] border px-2 py-0.5 rounded-full transition-colors",
+                                                    "text-xs font-semibold bg-surface border px-2 py-0.5 rounded-full transition-colors",
                                                     "border-border text-foreground hover:border-success/50 hover:text-success "
                                                 )}
                                                 title={`Voir les ${dayEvents.length} événements de ce jour`}
@@ -317,7 +317,7 @@ export function CalendarGrid({
                                                                 className={cn(
                                                                     "w-full group/btn relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left",
                                                                     "bg-background/70 border",
-                                                                    "hover:bg-[#1c262a]",
+                                                                    "hover:bg-muted",
                                                                     isCompleted
                                                                         ? "border-border opacity-60 grayscale-[0.8] hover:border-border"
                                                                         : "border-border hover:border-border-strong"
@@ -361,7 +361,7 @@ export function CalendarGrid({
                                                         </TooltipTrigger>
                                                         <TooltipContent
                                                             side="right"
-                                                            className="bg-[#0e1417] border-border p-3.5 max-w-[240px] rounded-xl"
+                                                            className="bg-popover border-border p-3.5 max-w-[240px] rounded-xl"
                                                         >
                                                             <p className="font-bold text-foreground text-sm">{event.title}</p>
                                                             <p className="text-xs text-muted-foreground mt-1 font-medium">

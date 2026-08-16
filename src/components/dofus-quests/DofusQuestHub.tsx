@@ -182,7 +182,7 @@ export function DofusQuestHub({
                 {activeTab !== "menu" ? (
                     <button
                         onClick={() => handleTabChange("menu")}
-                        className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-success/30 bg-gradient-to-r from-success/10 to-zinc-900/90 hover:border-success/60 hover:from-success/20 text-xs font-black uppercase tracking-[0.18em] text-success hover:text-foreground transition-all shadow-lg shadow-black/30 group backdrop-blur-md cursor-pointer"
+                        className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-success/30 bg-gradient-to-r from-success/10 to-surface/90 hover:border-success/60 hover:from-success/20 text-xs font-black uppercase tracking-[0.18em] text-success hover:text-foreground transition-all shadow-lg shadow-black/30 group backdrop-blur-md cursor-pointer"
                     >
                         <div className="w-6 h-6 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center group- transition-transform">
                             <ChevronLeft className="w-4 h-4 text-success group-hover:-translate-x-0.5 transition-transform" />
@@ -345,7 +345,7 @@ export function DofusQuestHub({
                                                     {guildStats.topMembers.slice(0, 6).map((m: any, i: number) => (
                                                         <div
                                                             key={m.profileId || i}
-                                                            className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-elevated flex items-center justify-center overflow-hidden ring-1 ring-success/20"
+                                                            className="w-9 h-9 rounded-full border-2 border-border bg-elevated flex items-center justify-center overflow-hidden ring-1 ring-success/20"
                                                             style={{ zIndex: 10 - i }}
                                                             title={m.pseudo || m.userName}
                                                         >
@@ -358,7 +358,7 @@ export function DofusQuestHub({
                                                         </div>
                                                     ))}
                                                     {guildStats.totalMembers > 6 && (
-                                                        <div className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-elevated flex items-center justify-center ring-1 ring-white/10">
+                                                        <div className="w-9 h-9 rounded-full border-2 border-border bg-elevated flex items-center justify-center ring-1 ring-white/10">
                                                             <span className="text-caption font-semibold text-muted-foreground">+{guildStats.totalMembers - 6}</span>
                                                         </div>
                                                     )}
@@ -423,7 +423,7 @@ export function DofusQuestHub({
                                             placeholder="Filtrer les Dofus..."
                                             value={search}
                                             onChange={(e) => setSearch(e.target.value)}
-                                            className="bg-black/60 border border-border rounded-2xl pl-12 pr-6 py-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 focus:ring-1 focus:ring-ring/20 w-full md:w-64 transition-all shadow-2xl shadow-black/40"
+                                            className="bg-muted/60 border border-border rounded-2xl pl-12 pr-6 py-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 focus:ring-1 focus:ring-ring/20 w-full md:w-64 transition-all shadow-2xl shadow-black/40"
                                         />
                                     </div>
                                     <div className="flex items-center gap-1.5 p-1.5 bg-black/60 border border-border rounded-2xl shadow-2xl">

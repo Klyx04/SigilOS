@@ -280,7 +280,7 @@ export default function LegendaryManager() {
                                                     className={cn(
                                                         "px-2 py-2 rounded-lg text-caption font-bold uppercase tracking-wide border transition-all",
                                                         formData.category === cat
-                                                            ? "bg-info border-info text-foreground shadow-lg shadow-purple-900/30"
+                                                            ? "bg-info border-info text-info-foreground shadow-lg shadow-purple-900/30"
                                                             : "bg-surface border-border text-muted-foreground hover:border-border hover:text-foreground"
                                                     )}
                                                 >

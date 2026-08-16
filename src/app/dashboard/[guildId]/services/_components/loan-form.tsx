@@ -397,7 +397,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                             <span className="text-caption font-black text-foreground uppercase tracking-widest">Analyse sécurité…</span>
                                         </div>
                                     )}
-                                    <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-foreground">
+                                    <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-muted/60 hover:bg-muted/80 text-foreground">
                                         <X className="h-3.5 w-3.5" />
                                     </Button>
                                 </div>

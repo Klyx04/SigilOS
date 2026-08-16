@@ -42,7 +42,7 @@ export function DiscordOwnershipModal({ isOpen, onClose, guildName }: DiscordOwn
             desc: "Choisissez votre successeur, passez la souris sur son nom et cliquez sur les trois petits points."
         },
         {
-            icon: <Crown className="w-5 h-5 text-amber-400" />,
+            icon: <Crown className="w-5 h-5 text-warning" />,
             title: "Transférer la propriété",
             desc: "Activez le transfert. Une fois fait, vous pourrez supprimer votre compte SigilOS."
         }
@@ -50,15 +50,15 @@ export function DiscordOwnershipModal({ isOpen, onClose, guildName }: DiscordOwn
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-md bg-[#0a0a0a] border-border text-foreground p-0 overflow-hidden rounded-[2rem]">
+            <DialogContent className="max-w-md bg-background border-border text-foreground p-0 overflow-hidden rounded-[2rem]">
                 <div className="relative p-6 space-y-6">
                     {/* Header with Icon */}
                     <DialogHeader className="space-y-4">
                         <div className="flex justify-center">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-red-500/20 blur-2xl rounded-full" />
-                                <div className="relative p-4 bg-red-500/10 border border-red-500/20 rounded-full">
-                                    <ShieldAlert className="w-10 h-10 text-red-500 animate-pulse" />
+                                <div className="absolute inset-0 bg-danger/20 blur-2xl rounded-full" />
+                                <div className="relative p-4 bg-danger/10 border border-danger/20 rounded-full">
+                                    <ShieldAlert className="w-10 h-10 text-danger animate-pulse" />
                                 </div>
                             </div>
                         </div>
@@ -121,7 +121,7 @@ export function DiscordOwnershipModal({ isOpen, onClose, guildName }: DiscordOwn
                 </div>
 
                 {/* Bottom decorative bar */}
-                <div className="h-1.5 bg-gradient-to-r from-red-500 via-amber-500 to-red-500 opacity-50" />
+                <div className="h-1.5 bg-gradient-to-r from-danger via-warning to-danger opacity-50" />
             </DialogContent>
         </Dialog>
     );

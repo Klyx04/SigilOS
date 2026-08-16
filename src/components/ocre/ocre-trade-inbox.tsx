@@ -211,7 +211,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                                  {(getDisplayName(req.requester) || "U")[0]}
                                              </AvatarFallback>
                                          </Avatar>
-                                         <div className="absolute -bottom-1 -right-1 bg-success p-1 rounded-full border-2 border-zinc-950 shadow-lg z-20">
+                                         <div className="absolute -bottom-1 -right-1 bg-success p-1 rounded-full border-2 border-border shadow-lg z-20">
                                              <Handshake className="w-2.5 h-2.5 text-foreground" />
                                          </div>
                                      </div>

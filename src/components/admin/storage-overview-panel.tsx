@@ -373,7 +373,7 @@ export function StorageOverviewPanel() {
                         <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Fichiers</span>
                         <span className="text-sm font-black font-mono text-foreground">{overview?.totalFiles || 0}</span>
                     </div>
-                    <button onClick={() => setOrphansOpen(true)} className={cn("flex items-center gap-2 rounded-2xl border px-4 py-2.5 transition-all", (overview?.orphanFiles.length || 0) > 0 ? "bg-danger/10 border-danger/25 text-danger hover:bg-danger/15" : "bg-surface/60 border-border text-muted-foreground hover:text-foreground")}>
+                    <button onClick={() => setOrphansOpen(true)} className={cn("flex items-center gap-2 rounded-2xl border px-4 py-2.5 transition-all", (overview?.orphanFiles.length || 0) > 0 ? "bg-danger/10 border-danger/25 text-danger hover:bg-danger/15" : "bg-surface/60 border-border text-muted-foreground hover:text-danger-foreground")}>
                         <AlertTriangle className="w-4 h-4" />
                         <span className="text-caption font-black uppercase tracking-widest">{overview?.orphanFiles.length || 0} orphelin(s)</span>
                     </button>
@@ -423,7 +423,7 @@ export function StorageOverviewPanel() {
                                 <div className="flex items-center gap-1 p-1 bg-surface/40 border border-border rounded-xl">
                                     <span className="px-2 text-caption font-black text-muted-foreground uppercase tracking-widest">Tri</span>
                                     {([['size', 'Taille'], ['name', 'Nom'], ['files', 'Fichiers']] as const).map(([key, label]) => (
-                                        <button key={key} onClick={() => setSortBy(key)} className={cn("px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all", sortBy === key ? "bg-info text-info-foreground" : "text-muted-foreground hover:text-foreground")}>
+                                        <button key={key} onClick={() => setSortBy(key)} className={cn("px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all", sortBy === key ? "bg-info text-info-foreground" : "text-muted-foreground hover:text-info-foreground")}>
                                             {label}
                                         </button>
                                     ))}
@@ -480,7 +480,7 @@ export function StorageOverviewPanel() {
                                 <Trash2 className="w-4 h-4" /> Tout nettoyer
                             </button>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-black/30 border border-border px-4 py-3 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/30 border border-border px-4 py-3 text-sm text-muted-foreground">
                             <span className="font-black text-foreground text-2xl">{overview?.orphanFiles.length || 0}</span>
                             <span>fichier(s) orphelin(s) détecté(s)</span>
                             <button onClick={() => setOrphansOpen(true)} className="ml-auto underline decoration-dotted underline-offset-4 hover:text-foreground transition-colors">Voir la liste</button>

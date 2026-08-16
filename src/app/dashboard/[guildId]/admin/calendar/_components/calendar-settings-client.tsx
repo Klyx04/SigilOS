@@ -201,10 +201,10 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     return (
         <Tabs defaultValue="calendar" className="w-full space-y-6">
             <TabsList className="bg-surface border border-border p-1 rounded-xl">
-                <TabsTrigger value="calendar" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-warning data-[state=active]:text-foreground">
+                <TabsTrigger value="calendar" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-warning data-[state=active]:text-warning-foreground">
                     Calendrier Général
                 </TabsTrigger>
-                <TabsTrigger value="raid" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-danger data-[state=active]:text-foreground">
+                <TabsTrigger value="raid" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-danger data-[state=active]:text-danger-foreground">
                     Raids Officiels
                 </TabsTrigger>
             </TabsList>
@@ -238,8 +238,8 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                         <CardContent className="space-y-6">
                             <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                 </div>
                                 <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
                                 <p className="text-xs text-muted-foreground mb-3">
@@ -248,7 +248,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-warning/50 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-warning border-2 border-zinc-950 " />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-warning border-2 border-border " />
                                 <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
 
                                 <div className="space-y-4">
@@ -257,7 +257,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={channelId}
                                             onChange={(e) => setChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678"
-                                            className="font-mono bg-black/20 border-border text-foreground"
+                                            className="font-mono bg-muted/20 border-border text-foreground"
                                         />
                                         <Button onClick={handleSaveCalendar} disabled={isPending} className="min-w-[120px] bg-warning hover:bg-warning text-warning-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -276,8 +276,8 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                 </div>
                                 <h3 className="text-sm font-medium text-foreground mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
                                 <p className="text-xs text-muted-foreground mb-4">
@@ -392,8 +392,8 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                         <CardContent className="space-y-6">
                             <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                 </div>
                                 <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
                                 <p className="text-xs text-muted-foreground mb-3">
@@ -402,7 +402,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-danger/50 space-y-8 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-zinc-950 " />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-border " />
                                 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
@@ -418,7 +418,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={raidGigalodonChannelId}
                                             onChange={(e) => setRaidGigalodonChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678 (Spécifique Gigalodon)"
-                                            className="font-mono bg-black/20 border-border text-foreground"
+                                            className="font-mono bg-muted/20 border-border text-foreground"
                                         />
                                         <Button onClick={handleSaveRaidGigalodon} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -449,7 +449,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={raidSanctuaireChannelId}
                                             onChange={(e) => setRaidSanctuaireChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678 (Spécifique Sanctuaire)"
-                                            className="font-mono bg-black/20 border-border text-foreground"
+                                            className="font-mono bg-muted/20 border-border text-foreground"
                                         />
                                         <Button onClick={handleSaveRaidSanctuaire} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -480,7 +480,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={raidChannelId}
                                             onChange={(e) => setRaidChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678 (optionnel)"
-                                            className="font-mono bg-black/20 border-border text-foreground"
+                                            className="font-mono bg-muted/20 border-border text-foreground"
                                         />
                                         <Button onClick={handleSaveRaid} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -499,8 +499,8 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                 </div>
                                 <h3 className="text-sm font-medium text-foreground mb-2">3. Don de Kamas</h3>
                                 <p className="text-xs text-muted-foreground mb-4">
@@ -597,9 +597,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                 )}
 
                                 {!raidRequireKamaDonation && (
-                                    <div className="mt-3 flex items-start gap-2 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-                                        <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                                        <p className="text-xs text-orange-300/80 leading-relaxed">
+                                    <div className="mt-3 flex items-start gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                                        <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                                        <p className="text-xs text-warning/80 leading-relaxed">
                                             Le don de kamas est <strong>fortement recommandé</strong> pour financer les raids et faire progresser la guilde. Pensez à réactiver ce toggle pour que le widget d'upload de don réapparaisse sur la page Missions.
                                         </p>
                                     </div>
@@ -607,8 +607,8 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                 </div>
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-foreground">3. Rôles de Ping Autorisés (Raids)</h3>
@@ -634,7 +634,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-zinc-950 " />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-border " />
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-foreground">4. Whitelist des Rôles d'Inscription (Raid Guilde)</h3>
                                     <Button 

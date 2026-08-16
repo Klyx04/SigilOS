@@ -118,7 +118,7 @@ export function LoanCard({ loan, guildId, currentProfileId, isAdmin }: LoanCardP
 
             {/* Lender → Borrower */}
             <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-border relative overflow-hidden group/flow">
-                <div className="absolute inset-0 bg-gradient-to-r from-success/5 via-transparent to-orange-500/5 opacity-0 group-hover/flow:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-r from-success/5 via-transparent to-warning/5 opacity-0 group-hover/flow:opacity-100 transition-opacity duration-300" />
                 
                 <div className="flex flex-col items-center gap-2 flex-1 z-10">
                     <Avatar className="h-10 w-10 rounded-xl border border-success/20 shadow-lg group- transition-transform">
@@ -136,11 +136,11 @@ export function LoanCard({ loan, guildId, currentProfileId, isAdmin }: LoanCardP
                 </div>
 
                 <div className="flex flex-col items-center gap-2 flex-1 z-10">
-                    <Avatar className="h-10 w-10 rounded-xl border border-orange-500/20 shadow-lg group- transition-transform">
+                    <Avatar className="h-10 w-10 rounded-xl border border-warning/20 shadow-lg group- transition-transform">
                         <AvatarImage src={loan.borrower.user?.image || undefined} />
-                        <AvatarFallback className="text-xs bg-orange-500/10 text-orange-400 font-black">{borrowerName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="text-xs bg-warning/10 text-warning font-black">{borrowerName.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <span className="text-caption font-black uppercase tracking-widest text-orange-400">{borrowerName}</span>
+                    <span className="text-caption font-black uppercase tracking-widest text-warning">{borrowerName}</span>
                 </div>
             </div>
 

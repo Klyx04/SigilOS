@@ -83,7 +83,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
             <div className={cn("relative flex items-center justify-center w-full h-full", className)}>
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-caption font-black text-foreground ring-2 ring-zinc-950 animate-in zoom-in duration-300">
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-caption font-black text-danger-foreground ring-2 ring-border animate-in zoom-in duration-300">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
@@ -115,14 +115,14 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                 <Button variant="ghost" size="icon" className={cn("relative text-muted-foreground hover:text-foreground transition-colors", className)}>
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-caption font-black text-foreground ring-2 ring-zinc-950 animate-in zoom-in duration-300">
+                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-caption font-black text-danger-foreground ring-2 ring-border animate-in zoom-in duration-300">
                             {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                     )}
                     <span className="sr-only">Notifications</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 overflow-hidden rounded-2xl border-border bg-[#0d0f11]/95 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.7)]" align="end">
+            <PopoverContent className="w-80 p-0 overflow-hidden rounded-2xl border-border bg-popover/95 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.7)]" align="end">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
                     <h4 className="font-bold text-xs uppercase tracking-widest text-foreground">Notifications</h4>
                     {unreadCount > 0 && (

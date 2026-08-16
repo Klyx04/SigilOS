@@ -16,9 +16,9 @@ const accentColors = {
     rose: { glow: "rgba(244,63,94,0.4)", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
     emerald: { glow: "rgba(16,185,129,0.4)", text: "text-success", bg: "bg-success/10", border: "border-success/20" },
     blue: { glow: "rgba(59,130,246,0.4)", text: "text-info", bg: "bg-info/10", border: "border-info/20" },
-    orange: { glow: "rgba(249,115,22,0.4)", text: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" },
+    orange: { glow: "rgba(249,115,22,0.4)", text: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
     pink: { glow: "rgba(236,72,153,0.4)", text: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20" },
-    yellow: { glow: "rgba(234,179,8,0.4)", text: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20" },
+    yellow: { glow: "rgba(234,179,8,0.4)", text: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
     sky: { glow: "rgba(14,165,233,0.4)", text: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20" },
 };
 

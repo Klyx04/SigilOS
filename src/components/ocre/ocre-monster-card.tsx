@@ -167,7 +167,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
             <Card
                 className={cn(
                     "group relative overflow-hidden transition-all duration-300",
-                    "backdrop-blur-xl bg-[#141b1e]/90 hover:bg-[#1a2327]/95",
+                    "backdrop-blur-xl bg-surface/90 hover:bg-elevated/95",
                     "border border-border hover:border-warning/40 shadow-[0_12px_32px_rgba(0,0,0,0.4)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.6)]",
                     "hover:-translate-y-1 hover:scale-[1.03]",
                     isSelected && isSelectionMode

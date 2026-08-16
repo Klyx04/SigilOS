@@ -108,14 +108,14 @@ export function LadderTabs({ guildId }: Props) {
                                 ))}
                             </TabsList>
                             {/* Mobile visual hint for scrolling */}
-                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0a0a0a] to-transparent pointer-events-none lg:hidden" />
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none lg:hidden" />
                         </div>
 
                         {/* View Toggle for Activity */}
                         {activeTab === "activity" && (
                             <div className="flex justify-end">
                                 <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                                    <SelectTrigger className="w-full sm:w-[220px] bg-black/40 border-border text-foreground rounded-xl backdrop-blur-md">
+                                    <SelectTrigger className="w-full sm:w-[220px] bg-muted/40 border-border text-foreground rounded-xl backdrop-blur-md">
                                         <SelectValue placeholder="Période" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-surface border-border text-foreground">

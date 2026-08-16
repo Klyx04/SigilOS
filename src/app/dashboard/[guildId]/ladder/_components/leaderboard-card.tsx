@@ -55,12 +55,12 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             highlight: "bg-success/10 border-success/20 ring-1 ring-success/20"
         },
         yellow: {
-            border: "group-hover:border-yellow-500/30 border-border",
-            bg: "hover:bg-yellow-500/[0.03]",
-            rankText: "text-yellow-400",
-            valueText: "text-yellow-300",
-            glow: "bg-yellow-400/10",
-            highlight: "bg-yellow-500/10 border-yellow-500/20 ring-1 ring-yellow-500/20"
+            border: "group-hover:border-warning/30 border-border",
+            bg: "hover:bg-warning/[0.03]",
+            rankText: "text-warning",
+            valueText: "text-warning",
+            glow: "bg-warning/10",
+            highlight: "bg-warning/10 border-warning/20 ring-1 ring-warning/20"
         },
         indigo: {
             border: "group-hover:border-info/30 border-border",

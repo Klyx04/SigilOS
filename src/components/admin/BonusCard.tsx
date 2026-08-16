@@ -28,7 +28,7 @@ export function BonusCard({
     const getTypeColor = (type: BonusType) => {
         switch (type) {
             case "FORTUNE":
-                return "border-yellow-500/50 bg-yellow-500/5";
+                return "border-warning/50 bg-warning/5";
             case "GLADIATOR":
                 return "border-danger/50 bg-danger/5";
             case "HARVESTER":
@@ -76,9 +76,9 @@ export function BonusCard({
                 </div>
             )}
             {isPurchased && !isActive && (
-                <div className="absolute top-2 right-2 flex items-center gap-1 bg-orange-500/20 border border-orange-500/50 rounded-full px-2 py-0.5">
-                    <Clock className="w-3 h-3 text-orange-400" />
-                    <span className="text-xs font-bold text-orange-400">EN ATTENTE</span>
+                <div className="absolute top-2 right-2 flex items-center gap-1 bg-warning/20 border border-warning/50 rounded-full px-2 py-0.5">
+                    <Clock className="w-3 h-3 text-warning" />
+                    <span className="text-xs font-bold text-warning">EN ATTENTE</span>
                 </div>
             )}
 
@@ -98,7 +98,7 @@ export function BonusCard({
             {/* Cost & Button */}
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1">
-                    <span className="text-2xl font-bold text-yellow-400">{cost}</span>
+                    <span className="text-2xl font-bold text-warning">{cost}</span>
                     <span className="text-xs text-muted-foreground uppercase">kamas</span>
                 </div>
                 <Button

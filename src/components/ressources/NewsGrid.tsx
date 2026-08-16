@@ -111,7 +111,7 @@ function NewsActions({
                     className={cn(
                         "rounded-lg transition-all disabled:opacity-50",
                         variant === "default" 
-                            ? "p-2 bg-warning/10 border border-warning/20 text-warning hover:bg-warning hover:text-foreground"
+                            ? "p-2 bg-warning/10 border border-warning/20 text-warning hover:bg-warning hover:text-warning-foreground"
                             : "p-1.5 bg-surface border border-border text-muted-foreground hover:text-warning hover:border-warning/30"
                     )}
                     title="Diffuser à toutes les guildes (GOD MODE)"

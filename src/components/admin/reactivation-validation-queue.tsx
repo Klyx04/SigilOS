@@ -106,7 +106,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                                 <AvatarImage src={req.user.image} />
                                                 <AvatarFallback>{(getGameDisplayName(req) || "?")[0]}</AvatarFallback>
                                             </Avatar>
-                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-success border-2 border-zinc-900 flex items-center justify-center">
+                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-success border-2 border-border flex items-center justify-center">
                                                 <RefreshCcw className="w-3 h-3 text-foreground" />
                                             </div>
                                         </div>
@@ -164,7 +164,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                         placeholder="Ex: Bon retour parmi nous ! ou Précise ton pseudo..."
                                         value={adminMessages[req.id] || ""}
                                         onChange={(e) => setAdminMessages(prev => ({ ...prev, [req.id]: e.target.value }))}
-                                        className="w-full bg-black/20 border border-border rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-success/50 transition-colors placeholder:text-muted-foreground resize-none h-20"
+                                        className="w-full bg-muted/20 border border-border rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-success/50 transition-colors placeholder:text-muted-foreground resize-none h-20"
                                     />
                                 </div>
 

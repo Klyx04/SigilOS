@@ -257,7 +257,7 @@ export function DofusTagManager() {
                                         placeholder="Ex: Forgelave"
                                         value={newItem.name}
                                         onChange={e => setNewItem({...newItem, name: e.target.value})}
-                                        className="w-full bg-black/40 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-info/50"
+                                        className="w-full bg-muted/40 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-info/50"
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -267,7 +267,7 @@ export function DofusTagManager() {
                                         placeholder="ex: forgelave"
                                         value={newItem.slug}
                                         onChange={e => setNewItem({...newItem, slug: e.target.value})}
-                                        className="w-full bg-black/40 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-info/50"
+                                        className="w-full bg-muted/40 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-info/50"
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -278,7 +278,7 @@ export function DofusTagManager() {
                                         placeholder="Primordial, Rare..."
                                         value={newItem.rarity}
                                         onChange={e => setNewItem({...newItem, rarity: e.target.value})}
-                                        className="w-full bg-black/40 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-info/50"
+                                        className="w-full bg-muted/40 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-info/50"
                                     />
                                 </div>
                                 <div className="flex items-end pb-0.5">
@@ -395,7 +395,7 @@ export function DofusTagManager() {
                                                 type="text"
                                                 defaultValue={item.rarity}
                                                 onBlur={(e) => handleFieldUpdate(item, "rarity", e.target.value)}
-                                                className="w-full max-w-[120px] mx-auto block bg-black/40 border border-border rounded-lg px-2 py-1 text-caption font-black uppercase tracking-widest text-foreground text-center focus:outline-none focus:border-border-strong"
+                                                className="w-full max-w-[120px] mx-auto block bg-muted/40 border border-border rounded-lg px-2 py-1 text-caption font-black uppercase tracking-widest text-foreground text-center focus:outline-none focus:border-border-strong"
                                             />
                                         </td>
 
@@ -430,7 +430,7 @@ export function DofusTagManager() {
                                                 type="text"
                                                 defaultValue={item.filterCategory}
                                                 onBlur={(e) => handleFieldUpdate(item, "filterCategory", e.target.value)}
-                                                className="w-full max-w-[100px] mx-auto block bg-black/40 border border-border rounded-lg px-2 py-1 text-caption font-black uppercase tracking-widest text-muted-foreground text-center focus:outline-none focus:border-border-strong"
+                                                className="w-full max-w-[100px] mx-auto block bg-muted/40 border border-border rounded-lg px-2 py-1 text-caption font-black uppercase tracking-widest text-muted-foreground text-center focus:outline-none focus:border-border-strong"
                                             />
                                         </td>
 

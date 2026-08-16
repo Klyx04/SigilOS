@@ -28,9 +28,9 @@ const CATEGORY_COLORS: Record<ServiceCategory, { badge: string; glow: string; ho
     FORGEMAGIE: { badge: "border-warning/40 bg-warning/10 text-warning", glow: "hover:border-warning/40", hover: "hover:bg-warning/[0.03]", icon: "text-warning", bg: "from-warning/5 to-transparent" },
     METIER: { badge: "border-success/40 bg-success/10 text-success", glow: "hover:border-success/40", hover: "hover:bg-success/[0.03]", icon: "text-success", bg: "from-success/5 to-transparent" },
     QUETE: { badge: "border-violet-500/40 bg-violet-500/10 text-violet-400", glow: "hover:border-violet-500/40", hover: "hover:bg-violet-500/[0.03]", icon: "text-violet-400", bg: "from-violet-500/5 to-transparent" },
-    OCRE: { badge: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", glow: "hover:border-yellow-500/40", hover: "hover:bg-yellow-500/[0.03]", icon: "text-yellow-400", bg: "from-yellow-500/5 to-transparent" },
+    OCRE: { badge: "border-warning/40 bg-warning/10 text-warning", glow: "hover:border-warning/40", hover: "hover:bg-warning/[0.03]", icon: "text-warning", bg: "from-warning/5 to-transparent" },
     TUTORAT: { badge: "border-info/40 bg-info/10 text-info", glow: "hover:border-info/40", hover: "hover:bg-info/[0.03]", icon: "text-info", bg: "from-info/5 to-transparent" },
-    AUTRE: { badge: "border-border/40 bg-muted/10 text-muted-foreground", glow: "hover:border-border/40", hover: "hover:bg-muted/[0.03]", icon: "text-muted-foreground", bg: "from-zinc-500/5 to-transparent" },
+    AUTRE: { badge: "border-border/40 bg-muted/10 text-muted-foreground", glow: "hover:border-border/40", hover: "hover:bg-muted/[0.03]", icon: "text-muted-foreground", bg: "from-muted/5 to-transparent" },
 };
 
 // ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ const JOUR_ABBR: Record<string, string> = {
     vendredi: "Ven", samedi: "Sam", dimanche: "Dim",
 };
 const SLOT_COLORS: Record<string, string> = {
-    matin: "bg-orange-500/70",
+    matin: "bg-warning/70",
     midi: "bg-warning/70",
     soir: "bg-violet-500/70",
     nuit: "bg-info/70",
@@ -132,19 +132,19 @@ function PriceLine({ tier }: { tier: { label: string; price: string } }) {
 // ---------------------------------------------------------------------------
 
 const PACK_CONFIG: Record<string, { emoji: string; color: string; glow: string; label: string }> = {
-    "pack boss": { emoji: "🐉", color: "from-orange-500/20 to-yellow-500/10 border-orange-500/30", glow: "text-orange-300", label: "Pack Boss" },
-    "pack boss + archi": { emoji: "👑", color: "from-yellow-500/25 to-warning/10 border-yellow-500/35", glow: "text-yellow-200", label: "Pack Boss + Archi" },
-    "pack archi": { emoji: "⚜️", color: "from-warning/25 to-yellow-500/10 border-warning/40", glow: "text-warning", label: "Pack Archi" },
+    "pack boss": { emoji: "🐉", color: "from-warning/20 to-warning/10 border-warning/30", glow: "text-warning", label: "Pack Boss" },
+    "pack boss + archi": { emoji: "👑", color: "from-warning/25 to-warning/10 border-warning/35", glow: "text-warning", label: "Pack Boss + Archi" },
+    "pack archi": { emoji: "⚜️", color: "from-warning/25 to-warning/10 border-warning/40", glow: "text-warning", label: "Pack Archi" },
 };
 
 function OcrePackBadge({ packLabel, price }: { packLabel: string; price: string | null }) {
     const key = packLabel.toLowerCase().trim();
-    const config = PACK_CONFIG[key] ?? { emoji: "👑", color: "from-yellow-500/20 to-warning/10 border-yellow-500/30", glow: "text-yellow-200", label: packLabel };
+    const config = PACK_CONFIG[key] ?? { emoji: "👑", color: "from-warning/20 to-warning/10 border-warning/30", glow: "text-warning", label: packLabel };
     return (
         <div className={`relative flex items-center gap-3 rounded-xl border bg-gradient-to-r ${config.color} px-4 py-3 overflow-hidden`}>
             {/* subtle shimmer */}
             <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent pointer-events-none" />
-            <div className="relative shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+            <div className="relative shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-warning/10 border border-warning/20">
                 <span className="text-2xl leading-none">{config.emoji}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -158,7 +158,7 @@ function OcrePackBadge({ packLabel, price }: { packLabel: string; price: string 
                 </div>
             )}
             {!price && (
-                <Crown className="h-5 w-5 text-yellow-500/60 shrink-0" />
+                <Crown className="h-5 w-5 text-warning/60 shrink-0" />
             )}
         </div>
     );
@@ -469,7 +469,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
                             <AvatarImage src={listing.profile.user?.image || undefined} />
                             <AvatarFallback className="text-xs bg-elevated font-black text-muted-foreground">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-success border-2 border-zinc-900 shadow-glow" />
+                        <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-success border-2 border-border shadow-glow" />
                     </div>
                     <div className="flex flex-col">
                         <span className="text-sm font-black text-foreground tracking-tight leading-none">{name}</span>

@@ -291,7 +291,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Rechercher une permission..."
-                            className="pl-11 bg-black/40 border-border h-12 rounded-xl text-sm focus-visible:ring-primary/40 w-full placeholder:text-muted-foreground text-foreground"
+                            className="pl-11 bg-muted/40 border-border h-12 rounded-xl text-sm focus-visible:ring-primary/40 w-full placeholder:text-muted-foreground text-foreground"
                         />
                     </div>
                     <Button

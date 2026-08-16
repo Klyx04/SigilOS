@@ -67,7 +67,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#080a10]">
+        <div className="flex-1 flex flex-col h-full bg-background">
             {/* Header */}
             <header className="p-8 border-b border-border flex items-center justify-between bg-black/20 backdrop-blur-xl">
                 <div>
@@ -107,7 +107,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                                     : 'bg-surface border border-border hover:bg-surface'
                             }`}
                         >
-                            <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center overflow-hidden border border-border">
+                            <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center overflow-hidden border border-border">
                                 <img src={b.imageUrl} alt="" className="w-10 h-10 object-contain" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -125,7 +125,7 @@ export default function BountiesAdminPage({ params }: { params: { guildId: strin
                             {/* Visual Preview */}
                             <div className="grid grid-cols-2 gap-12">
                                 <div className="space-y-6">
-                                    <div className="aspect-video rounded-[2rem] bg-black border border-border flex items-center justify-center overflow-hidden relative group">
+                                    <div className="aspect-video rounded-[2rem] bg-background border border-border flex items-center justify-center overflow-hidden relative group">
                                         <img src={selectedBounty.imageUrl} alt="" className="w-full h-full object-contain" />
                                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Button variant="outline" className="gap-2 bg-surface border-border-strong">

@@ -408,7 +408,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                     {TYPES.map(t => (
                         <div key={t.value} className={cn(
                             "flex items-center space-x-2 p-3 rounded-xl border cursor-pointer transition-all",
-                            anomalieType === t.value ? "bg-fuchsia-500/10 border-fuchsia-500/50 shadow-lg shadow-fuchsia-500/10" : "bg-background border-zinc-900"
+                            anomalieType === t.value ? "bg-fuchsia-500/10 border-fuchsia-500/50 shadow-lg shadow-fuchsia-500/10" : "bg-background border-border"
                         )}>
                             <RadioGroupItem value={t.value} id={t.value} />
                             <Label htmlFor={t.value} className="cursor-pointer text-sm">
@@ -424,7 +424,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Tranche de niveau</Label>
                     <Select value={levelRange} onValueChange={handleLevelChange}>
-                        <SelectTrigger className="bg-background border-zinc-900 rounded-xl">
+                        <SelectTrigger className="bg-background border-border rounded-xl">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-background border-border">
@@ -440,7 +440,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 <div className="space-y-2 animate-in fade-in duration-300">
                     <Label className="text-xs text-muted-foreground">Choix de l'élixir</Label>
                     <Select value={elixir} onValueChange={handleElixirChange}>
-                        <SelectTrigger className="bg-background border-zinc-900 rounded-xl">
+                        <SelectTrigger className="bg-background border-border rounded-xl">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-background border-border">
@@ -543,7 +543,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                                 onClick={() => updatePayload(diff, level, tier)}
                                 className={cn(
                                     "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
-                                    isActive ? getDifficultyColor() : "bg-background border-zinc-900 text-muted-foreground"
+                                    isActive ? getDifficultyColor() : "bg-background border-border text-muted-foreground"
                                 )}
                             >
                                 {diff}
@@ -563,7 +563,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                             onClick={() => updatePayload(difficulty, lvl, tier)}
                             className={cn(
                                 "flex-1 py-2 rounded-xl border text-caption font-black transition-all",
-                                level === lvl ? "bg-elevated border-border-strong text-foreground shadow-xl" : "bg-background border-zinc-900 text-muted-foreground"
+                                level === lvl ? "bg-elevated border-border-strong text-foreground shadow-xl" : "bg-background border-border text-muted-foreground"
                             )}
                         >
                             {lvl}
@@ -574,7 +574,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
 
             <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Palier de réussite</Label>
-                <div className="flex gap-1.5 p-1 bg-background border border-zinc-900 rounded-2xl">
+                <div className="flex gap-1.5 p-1 bg-background border border-border rounded-2xl">
                     {SONGES_CONFIG.tiers.map(t => (
                         <button
                             key={t}
@@ -763,7 +763,7 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                                 "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
                                 mode === m.value
                                     ? "bg-warning/20 border-warning/50 text-warning shadow-xl shadow-amber-500/10"
-                                    : "bg-background border-zinc-900 text-muted-foreground hover:border-border"
+                                    : "bg-background border-border text-muted-foreground hover:border-border"
                             )}
                         >
                             {m.label}
@@ -1080,8 +1080,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
-                            <span className="text-caption font-black text-yellow-400">1</span>
+                        <div className="w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border border-warning/30">
+                            <span className="text-caption font-black text-warning">1</span>
                         </div>
                         <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Contexte</span>
                     </div>
@@ -1096,8 +1096,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                             className={cn(
                                 "flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center transition-all duration-300 relative overflow-hidden group",
                                 contextPreset === ctx.value
-                                    ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-200 shadow-lg shadow-yellow-500/5"
-                                    : "bg-background border-zinc-900 hover:border-border text-muted-foreground"
+                                    ? "border-warning/50 bg-warning/10 text-warning shadow-lg shadow-yellow-500/5"
+                                    : "bg-background border-border hover:border-border text-muted-foreground"
                             )}
                         >
                             <span className={cn("text-2xl transition-transform duration-300", contextPreset === ctx.value ? "scale-110" : "group-")}>{ctx.emoji}</span>
@@ -1105,14 +1105,14 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                 <div className="text-caption font-black leading-tight uppercase tracking-tighter">{ctx.label}</div>
                                 <div className="text-caption opacity-60 font-bold">{ctx.period}</div>
                             </div>
-                            {contextPreset === ctx.value && <div className="absolute inset-0 bg-yellow-500/5 animate-pulse pointer-events-none" />}
+                            {contextPreset === ctx.value && <div className="absolute inset-0 bg-warning/5 animate-pulse pointer-events-none" />}
                         </button>
                     ))}
                 </div>
 
                 {contextPreset === 'AUTRE' && (
                     <Input
-                        className="bg-background border-border rounded-xl placeholder:text-muted-foreground text-xs mt-2 focus:border-yellow-500/50 transition-all"
+                        className="bg-background border-border rounded-xl placeholder:text-muted-foreground text-xs mt-2 focus:border-warning/50 transition-all"
                         placeholder="Nom de l'événement personnalisé..."
                         value={payload.contextManual || ''}
                         onChange={e => handleContextManual(e.target.value)}
@@ -1139,7 +1139,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                 "flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center transition-all duration-300",
                                 eventType === st.value 
                                     ? st.border + " shadow-lg" 
-                                    : "bg-background border-zinc-900 hover:border-border text-muted-foreground"
+                                    : "bg-background border-border hover:border-border text-muted-foreground"
                             )}
                         >
                             <span className="text-xl">{st.emoji}</span>
@@ -1184,7 +1184,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                 <div className="flex-1">
                                     <div className="text-caption font-black text-danger uppercase tracking-widest mb-1">Cible Événement</div>
                                     <h4 className="text-foreground font-black uppercase text-sm leading-tight">{payload.bossName}</h4>
-                                    {contextLabel && <div className="text-caption text-yellow-400 font-bold mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {contextLabel}</div>}
+                                    {contextLabel && <div className="text-caption text-warning font-bold mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {contextLabel}</div>}
                                 </div>
                             </div>
                         )}
@@ -1311,7 +1311,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         {/* Nombre de cibles */}
                         <div className="space-y-2">
                             <Label className="text-xs text-muted-foreground">Nombre de spécimens à vaincre</Label>
-                            <div className="flex gap-1.5 p-1 bg-background border border-zinc-900 rounded-2xl">
+                            <div className="flex gap-1.5 p-1 bg-background border border-border rounded-2xl">
                                 {[1, 10, 25, 50, 100].map(count => (
                                     <button
                                         key={count}

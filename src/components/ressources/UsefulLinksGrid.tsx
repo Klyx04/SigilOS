@@ -216,7 +216,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                         <div className="absolute top-1/2 -translate-y-1/2 right-10 flex gap-1 opacity-0 group-hover/link-container:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => setEditingLinkId(link.id)}
-                                                className="p-1 px-2 bg-black/60 hover:bg-black/80 text-muted-foreground hover:text-foreground rounded border border-border text-caption transition-colors"
+                                                className="p-1 px-2 bg-muted/60 hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded border border-border text-caption transition-colors"
                                             >
                                                 Edit
                                             </button>
@@ -276,7 +276,7 @@ function CategoryModal({ guildId, category, onClose, onSuccess }: any) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="w-full max-w-md bg-[#0f1113] border border-border rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-md bg-popover border border-border rounded-2xl p-6 shadow-2xl relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors">
                     <X className="h-5 w-5" />
                 </button>
@@ -312,7 +312,7 @@ function CategoryModal({ guildId, category, onClose, onSuccess }: any) {
                     <button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-success hover:bg-success disabled:opacity-50 text-foreground rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-success hover:bg-success disabled:opacity-50 text-success-foreground rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
                     >
                         {isPending ? <Loader2 className="h-4 w-4 animate-spin text-foreground" /> : <Save className="h-4 w-4" />}
                         {category ? "Enregistrer" : "Créer"}
@@ -360,7 +360,7 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="w-full max-w-md bg-[#0f1113] border border-border rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-md bg-popover border border-border rounded-2xl p-6 shadow-2xl relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors">
                     <X className="h-5 w-5" />
                 </button>
@@ -417,7 +417,7 @@ function LinkModal({ guildId, categoryId, link, onClose, onSuccess }: any) {
                     <button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-success hover:bg-success disabled:opacity-50 text-foreground rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                        className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-success hover:bg-success disabled:opacity-50 text-success-foreground rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
                     >
                         {isPending ? <Loader2 className="h-4 w-4 animate-spin text-foreground" /> : <Save className="h-4 w-4" />}
                         {link ? "Mettre à jour" : "Ajouter"}

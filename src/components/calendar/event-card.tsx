@@ -49,10 +49,10 @@ interface EventCardProps {
 const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; border: string; icon: any; gradient: string }> = {
     RAID_OFFICIAL: { label: "Raid 3.6", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", icon: Swords, gradient: "from-danger to-danger" },
     EVENT_GUILD: { label: "Event Guilde", color: "text-info", bg: "bg-info/10", border: "border-info/20", icon: PartyPopper, gradient: "from-info to-fuchsia-600" },
-    SESSION_MISSIONS: { label: "Missions Guilde", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: Target, gradient: "from-warning to-orange-600" },
+    SESSION_MISSIONS: { label: "Missions Guilde", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: Target, gradient: "from-warning to-warning" },
     SORTIE_FARM: { label: "Sortie Farm", color: "text-success", bg: "bg-success/10", border: "border-success/20", icon: Wheat, gradient: "from-success to-green-600" },
     KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-danger" },
-    OTHERS: { label: "Autres", color: "text-muted-foreground", bg: "bg-muted/10", border: "border-border/20", icon: Diamond, gradient: "from-slate-600 to-zinc-600" },
+    OTHERS: { label: "Autres", color: "text-muted-foreground", bg: "bg-muted/10", border: "border-border/20", icon: Diamond, gradient: "from-muted to-muted" },
 };
 
 const EVENT_IMAGES: Record<string, string> = {
@@ -159,7 +159,7 @@ export function EventCard({
                     {event.attendees?.slice(0, 4).map((a: any) => {
                         const attendeeName = getDisplayName(a.user.profiles?.[0]) || a.user.name || "?";
                         return (
-                            <div key={a.id} className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-elevated overflow-hidden" title={attendeeName}>
+                            <div key={a.id} className="h-8 w-8 rounded-full border-2 border-border bg-elevated overflow-hidden" title={attendeeName}>
                                 {a.user.image ? (
                                     <img src={a.user.image} alt={attendeeName} className="h-full w-full object-cover" />
                                 ) : (
@@ -169,7 +169,7 @@ export function EventCard({
                         );
                     })}
                     {attendeeCount > 4 && (
-                        <div className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-elevated flex items-center justify-center text-caption font-bold text-muted-foreground">
+                        <div className="h-8 w-8 rounded-full border-2 border-border bg-elevated flex items-center justify-center text-caption font-bold text-muted-foreground">
                             +{attendeeCount - 4}
                         </div>
                     )}
@@ -199,7 +199,7 @@ export function EventCard({
         )}>
             {/* Top Image Background */}
             <div className="absolute top-0 left-0 right-0 h-32 overflow-hidden opacity-40 mask-image-gradient">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-zinc-900/90 z-10" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-surface/90 z-10" />
                 <img
                     src={EVENT_IMAGES[event.type] || EVENT_IMAGES["EVENT_GUILD"]}
                     alt="Event type"
@@ -251,7 +251,7 @@ export function EventCard({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div className={cn(
-                                        "h-3 w-3 rounded-full ring-2 ring-zinc-950 shadow-lg",
+                                        "h-3 w-3 rounded-full ring-2 ring-border shadow-lg",
                                         myAttendance.status === "REGISTERED" && "bg-green-500 shadow-green-500/50",
                                         myAttendance.status === "MAYBE" && "bg-warning shadow-amber-500/50",
                                         myAttendance.status === "DECLINED" && "bg-danger shadow-red-500/50"
@@ -300,7 +300,7 @@ export function EventCard({
                 {/* Creator */}
                 {event.creator && (
                     <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 ring-1 ring-zinc-800">
+                        <Avatar className="h-8 w-8 ring-1 ring-border">
                             <AvatarImage src={event.creator.image} />
                             <AvatarFallback className="text-xs bg-elevated text-muted-foreground">
                                 {event.creator.name?.[0]?.toUpperCase() || "?"}

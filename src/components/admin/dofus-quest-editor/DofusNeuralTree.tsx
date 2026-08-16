@@ -45,7 +45,7 @@ export function DofusNeuralTree({ dofusId, chains, onClose }: DofusNeuralTreePro
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
             {/* HUD / Header */}
             <div className="h-20 border-b border-border flex items-center justify-between px-8 bg-background/80 backdrop-blur-3xl">
                 <div className="flex items-center gap-6">

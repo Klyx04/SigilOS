@@ -34,7 +34,7 @@ function DeltaBadge({ delta }: { delta: number | null | undefined }) {
         <span
             className={cn(
                 "inline-flex items-center gap-1 text-caption font-semibold tabular-nums",
-                up ? "text-emerald-400" : "text-rose-400"
+                up ? "text-success" : "text-danger"
             )}
         >
             {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}

@@ -23,20 +23,20 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
     const [showAccessModal, setShowAccessModal] = useState(false);
 
     return (
-        <section className="relative w-full border-b border-white/5 overflow-hidden">
+        <section className="relative w-full border-b border-border overflow-hidden">
             <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 pt-32 pb-16 lg:pt-36 lg:pb-24">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
                     {/* Copy */}
                     <div className="max-w-xl">
-                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-5">
+                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-5">
                             SigilOS · Dofus Unity
                         </p>
-                        <h1 className="text-[clamp(2.1rem,4.6vw,3.5rem)] font-bold tracking-tight text-white leading-[1.08] mb-5">
+                        <h1 className="text-[clamp(2.1rem,4.6vw,3.5rem)] font-bold tracking-tight text-foreground leading-[1.08] mb-5">
                             Votre guilde mérite mieux
-                            qu&apos;un <span className="text-emerald-400">tableur Discord.</span>
+                            qu&apos;un <span className="text-success">tableur Discord.</span>
                         </h1>
-                        <p className="text-[15px] md:text-base text-zinc-400 leading-relaxed mb-8 max-w-md">
+                        <p className="text-[15px] md:text-base text-muted-foreground leading-relaxed mb-8 max-w-md">
                             Quêtes, sorties, membres et progression Dofus réunis dans un espace partagé, relié à Discord.
                         </p>
 
@@ -45,7 +45,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             <div className="flex flex-col items-start gap-3">
                                 <Link
                                     href="/dashboard"
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#06241a] font-bold text-sm transition-colors"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
                                 >
                                     Accéder au Dashboard
                                     <ChevronRight className="w-4 h-4" />
@@ -55,7 +55,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             <div className="flex flex-col items-start gap-3">
                                 <button
                                     onClick={() => setShowAccessModal(true)}
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#06241a] font-bold text-sm transition-colors"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
                                 >
                                     Demander l&apos;accès pour ma guilde
                                     <ChevronRight className="w-4 h-4" />
@@ -65,7 +65,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             <div className="flex flex-col items-start gap-4">
                                 <button
                                     onClick={() => setShowAccessModal(true)}
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#06241a] font-bold text-sm transition-colors"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-[#06241a] font-bold text-sm transition-colors"
                                 >
                                     Créer l&apos;espace de ma guilde
                                     <ChevronRight className="w-4 h-4" />
@@ -73,7 +73,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                 <form action={loginWithDiscord}>
                                     <button
                                         type="submit"
-                                        className="inline-flex items-center gap-2 text-body-sm text-zinc-400 hover:text-emerald-400 font-medium transition-colors"
+                                        className="inline-flex items-center gap-2 text-body-sm text-muted-foreground hover:text-success font-medium transition-colors"
                                     >
                                         <DiscordIcon className="w-4 h-4" />
                                         Déjà membre ? Se connecter avec Discord
@@ -85,11 +85,11 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
 
                     {/* Product visual */}
                     <div className="relative">
-                        <div className="rounded-2xl border border-white/10 bg-[#101313] overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
-                            <div className="h-9 border-b border-white/10 flex items-center gap-1.5 px-4">
-                                <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                                <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
+                        <div className="rounded-2xl border border-border bg-[#101313] overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
+                            <div className="h-9 border-b border-border flex items-center gap-1.5 px-4">
+                                <span className="w-2.5 h-2.5 rounded-full bg-muted" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-muted" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
                             </div>
                             <div className="relative aspect-[16/10]">
                                 <Image

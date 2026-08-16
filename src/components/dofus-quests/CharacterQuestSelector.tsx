@@ -56,7 +56,7 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
 
     return (
         <div className="flex flex-col gap-1.5">
-            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">
+            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">
                 Personnage Actif
             </span>
             <DropdownMenu>
@@ -65,58 +65,58 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
                         variant="outline" 
                         role="combobox"
                         aria-expanded={false}
-                        className="bg-zinc-950/60 border-white/5 hover:border-emerald-500/20 text-white justify-between min-w-[200px] transition-all rounded-xl h-10 px-3 cursor-pointer"
+                        className="bg-background/60 border-border hover:border-success/20 text-foreground justify-between min-w-[200px] transition-all rounded-xl h-10 px-3 cursor-pointer"
                         disabled={isPending}
                     >
                         <div className="flex items-center gap-2 truncate">
                             {selectedCharClass ? (
                                 <ClassIcon classId={selectedCharClass as DofusClass} size={18} />
                             ) : selectedCharacter === "PRINCIPAL" ? (
-                                <Crown className="w-3.5 h-3.5 text-amber-500" />
+                                <Crown className="w-3.5 h-3.5 text-warning" />
                             ) : (
-                                <Users className="w-3.5 h-3.5 text-blue-400" />
+                                <Users className="w-3.5 h-3.5 text-info" />
                             )}
                             <span className="truncate font-bold tracking-wide text-xs">{currentLabel}</span>
                         </div>
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform opacity-30 ${isPending ? 'animate-pulse' : ''}`} />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-zinc-950/95 border-white/5 text-white min-w-[200px] rounded-xl p-1.5 shadow-2xl z-[100]">
+                <DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[200px] rounded-xl p-1.5 shadow-2xl z-[100]">
                     <DropdownMenuItem 
                         onClick={() => handleSelect("PRINCIPAL")}
-                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter === "PRINCIPAL" ? "bg-white/5 text-emerald-400" : "hover:bg-white/5"}`}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter === "PRINCIPAL" ? "bg-surface text-success" : "hover:bg-surface"}`}
                     >
-                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                        <div className="w-7 h-7 rounded-lg bg-warning/10 flex items-center justify-center border border-warning/20">
                             {mainCharacter.classe ? (
                                 <ClassIcon classId={mainCharacter.classe as DofusClass} size={16} />
                             ) : (
-                                <Crown className="w-3.5 h-3.5 text-amber-500" />
+                                <Crown className="w-3.5 h-3.5 text-warning" />
                             )}
                         </div>
                         <div className="flex flex-col text-left">
                             <span className="text-xs font-bold">{mainCharacter.pseudo}</span>
-                            <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{mainCharacter.classe || "Principal"}</span>
+                            <span className="text-caption text-muted-foreground font-medium uppercase tracking-widest">{mainCharacter.classe || "Principal"}</span>
                         </div>
                     </DropdownMenuItem>
                     
-                    {mules.length > 0 && <div className="h-px bg-white/5 my-1" />}
+                    {mules.length > 0 && <div className="h-px bg-surface my-1" />}
                     
                     {mules.map((mule) => (
                         <DropdownMenuItem 
                             key={mule.pseudo}
                             onClick={() => handleSelect(mule.pseudo)}
-                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter === mule.pseudo ? "bg-white/5 text-emerald-400" : "hover:bg-white/5"}`}
+                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter === mule.pseudo ? "bg-surface text-success" : "hover:bg-surface"}`}
                         >
-                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                            <div className="w-7 h-7 rounded-lg bg-info/10 flex items-center justify-center border border-info/20">
                                 {mule.classe ? (
                                     <ClassIcon classId={mule.classe as DofusClass} size={16} />
                                 ) : (
-                                    <Users className="w-3.5 h-3.5 text-blue-400" />
+                                    <Users className="w-3.5 h-3.5 text-info" />
                                 )}
                             </div>
                             <div className="flex flex-col text-left">
                                 <span className="text-xs font-bold">{mule.pseudo}</span>
-                                <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">
+                                <span className="text-caption text-muted-foreground font-medium uppercase tracking-widest">
                                     Niv. {mule.level || 200} {mule.classe ? `• ${mule.classe}` : ""}
                                 </span>
                             </div>

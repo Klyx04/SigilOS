@@ -42,7 +42,7 @@ export function OcreSyncButton({ guildId, lastSync }: OcreSyncButtonProps) {
             {lastSync && (
                 <div className="hidden md:flex flex-col items-end opacity-50 hover:opacity-100 transition-opacity">
                     <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mb-1.5">Dernière MAJ</span>
-                    <span className="text-caption font-bold text-white tabular-nums leading-none">
+                    <span className="text-caption font-bold text-foreground tabular-nums leading-none">
                         {new Date(lastSync).toLocaleString("fr-FR", {
                             day: "2-digit",
                             month: "2-digit",
@@ -57,9 +57,9 @@ export function OcreSyncButton({ guildId, lastSync }: OcreSyncButtonProps) {
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 variant="outline"
-                className="h-12 px-6 border-white/5 bg-zinc-900/40 backdrop-blur-md rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-all hover:border-amber-500/30 shadow-lg group shrink-0"
+                className="h-12 px-6 border-border bg-surface/40 backdrop-blur-md rounded-xl font-bold flex items-center gap-2 hover:bg-elevated transition-all hover:border-warning/30 shadow-lg group shrink-0"
             >
-                <RefreshCw className={cn("h-5 w-5", isRefreshing ? "animate-spin text-amber-500" : "group-hover:text-amber-500 transition-colors")} />
+                <RefreshCw className={cn("h-5 w-5", isRefreshing ? "animate-spin text-warning" : "group-hover:text-warning transition-colors")} />
                 <span className="hidden sm:inline">
                     {isRefreshing ? "Synchronisation..." : "Synchroniser mon profil"}
                 </span>

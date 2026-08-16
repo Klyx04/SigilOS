@@ -59,13 +59,13 @@ export function ProductStory() {
     };
 
     return (
-        <section id="produit" className="w-full border-t border-white/5 py-20">
+        <section id="produit" className="w-full border-t border-border py-20">
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
                 <div className="max-w-2xl mb-10">
-                    <p className="text-caption font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-4">
+                    <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-4">
                         Produit
                     </p>
-                    <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
+                    <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">
                         Conçu pour que la guilde joue ensemble.
                     </h2>
                 </div>
@@ -73,7 +73,7 @@ export function ProductStory() {
                 <div
                     role="tablist"
                     aria-label="Fonctionnalités SigilOS"
-                    className="flex gap-1 border-b border-white/10 mb-8 overflow-x-auto overflow-y-hidden no-scrollbar"
+                    className="flex gap-1 border-b border-border mb-8 overflow-x-auto overflow-y-hidden no-scrollbar"
                 >
                     {STORIES.map((s, idx) => (
                         <button
@@ -87,8 +87,8 @@ export function ProductStory() {
                             className={cn(
                                 "px-4 py-2.5 rounded-t-lg text-body-sm font-semibold whitespace-nowrap border-b-2 transition-colors -mb-px",
                                 activeId === s.id
-                                    ? "text-white border-emerald-400"
-                                    : "text-zinc-500 border-transparent hover:text-white"
+                                    ? "text-foreground border-success"
+                                    : "text-muted-foreground border-transparent hover:text-foreground"
                             )}
                         >
                             {s.label}
@@ -103,17 +103,17 @@ export function ProductStory() {
                     className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
                 >
                     <div>
-                        <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight mb-3">
+                        <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight mb-3">
                             {active.title}
                         </h3>
-                        <p className="text-zinc-400 text-[15px] leading-relaxed mb-5">
+                        <p className="text-muted-foreground text-[15px] leading-relaxed mb-5">
                             {active.description}
                         </p>
                         <ul className="flex flex-wrap gap-2">
                             {active.bullets.map((b) => (
                                 <li
                                     key={b}
-                                    className="text-caption font-semibold text-zinc-300 bg-white/5 border border-white/10 px-3 py-1 rounded-full"
+                                    className="text-caption font-semibold text-foreground bg-surface border border-border px-3 py-1 rounded-full"
                                 >
                                     {b}
                                 </li>
@@ -122,7 +122,7 @@ export function ProductStory() {
                     </div>
                     <div
                         className={cn(
-                            "relative w-full overflow-hidden rounded-xl border border-white/10 bg-[#101313]",
+                            "relative w-full overflow-hidden rounded-xl border border-border bg-[#101313]",
                             active.ratio
                         )}
                     >

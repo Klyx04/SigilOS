@@ -27,7 +27,7 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
     if (!stuffRes.success || !stuffRes.data || !skinRes.success || !skinRes.data) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500">
+                <div className="p-8 bg-danger/10 border border-danger/20 rounded-2xl text-danger">
                     Erreur lors du chargement de la galerie.
                 </div>
             </div>

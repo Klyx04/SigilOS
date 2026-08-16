@@ -26,7 +26,7 @@ export function DocContent({ content, className }: DocContentProps) {
             if (!h.querySelector('.anchor-link')) {
                 const anchor = document.createElement('a');
                 anchor.href = `#${h.id}`;
-                anchor.className = 'anchor-link opacity-0 group-hover:opacity-100 ml-2 text-zinc-600 hover:text-indigo-400 p-1 transition-all';
+                anchor.className = 'anchor-link opacity-0 group-hover:opacity-100 ml-2 text-muted-foreground hover:text-info p-1 transition-all';
                 anchor.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
                 h.classList.add('group', 'flex', 'items-center');
                 h.appendChild(anchor);
@@ -106,7 +106,7 @@ export function DocContent({ content, className }: DocContentProps) {
             pre.classList.add('group');
 
             const button = document.createElement('button');
-            button.className = 'copy-button absolute top-4 right-4 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-xl backdrop-blur-md';
+            button.className = 'copy-button absolute top-4 right-4 p-2 rounded-xl bg-surface border border-border hover:bg-surface text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-xl backdrop-blur-md';
             button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 
             button.onclick = (e) => {
@@ -114,7 +114,7 @@ export function DocContent({ content, className }: DocContentProps) {
                 const code = pre.querySelector('code')?.innerText || pre.innerText;
                 navigator.clipboard.writeText(code);
                 toast.success("Code copié !");
-                button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check text-emerald-400"><polyline points="20 6 9 17 4 12"/></svg>';
+                button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check text-success"><polyline points="20 6 9 17 4 12"/></svg>';
                 setTimeout(() => {
                     button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
                 }, 2000);
@@ -136,56 +136,56 @@ export function DocContent({ content, className }: DocContentProps) {
                 "doc-preview-content prose prose-zinc dark:prose-invert max-w-none break-words min-w-0",
                 // Headers - Modern & Gradient
                 "prose-headings:font-black prose-headings:tracking-tight prose-headings:mb-6 prose-headings:mt-10",
-                "prose-h1:text-4xl prose-h1:text-white prose-h1:mb-8",
-                "prose-h2:text-2xl prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-3 prose-h2:text-teal-400 prose-h2:tracking-wide",
-                "prose-h3:text-xl prose-h3:text-amber-400 prose-h3:tracking-tight",
+                "prose-h1:text-4xl prose-h1:text-foreground prose-h1:mb-8",
+                "prose-h2:text-2xl prose-h2:border-b prose-h2:border-border prose-h2:pb-3 prose-h2:text-teal-400 prose-h2:tracking-wide",
+                "prose-h3:text-xl prose-h3:text-warning prose-h3:tracking-tight",
 
                 // Text & Layout
-                "prose-p:leading-relaxed prose-p:text-zinc-300 prose-p:mb-6 prose-p:text-[15px]",
-                "prose-strong:text-white prose-strong:font-black",
+                "prose-p:leading-relaxed prose-p:text-foreground prose-p:mb-6 prose-p:text-[15px]",
+                "prose-strong:text-foreground prose-strong:font-black",
 
                 // Lists
                 "prose-ul:list-disc prose-ul:ml-6 prose-ul:marker:text-teal-500",
-                "prose-ol:list-decimal prose-ol:ml-6 prose-ol:marker:text-amber-500",
+                "prose-ol:list-decimal prose-ol:ml-6 prose-ol:marker:text-warning",
                 "prose-li:pl-2 prose-li:my-3",
 
                 // Links
                 "prose-a:text-teal-400 prose-a:font-bold prose-a:no-underline hover:prose-a:text-teal-300 hover:prose-a:underline hover:prose-a:decoration-2 hover:prose-a:underline-offset-4 transition-all",
 
                 // Code Blocks
-                "prose-code:text-emerald-300 prose-code:bg-emerald-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
-                "prose-pre:bg-[#050505] prose-pre:border prose-pre:border-white/5 prose-pre:rounded-2xl prose-pre:p-6 prose-pre:shadow-2xl",
+                "prose-code:text-success prose-code:bg-success/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
+                "prose-pre:bg-[#050505] prose-pre:border prose-pre:border-border prose-pre:rounded-2xl prose-pre:p-6 prose-pre:shadow-2xl",
 
                 // Callouts / Alerts - Elite Standard (GitHub Flavor)
-                "[&_.callout]:my-10 [&_.callout]:p-6 [&_.callout]:rounded-2xl [&_.callout]:border-l-[6px] [&_.callout]:bg-white/[0.03] [&_.callout]:backdrop-blur-xl [&_.callout]:shadow-2xl [&_.callout]:transition-all [&_.callout]:relative [&_.callout]:overflow-hidden",
-                "[&_.callout:hover]:bg-white/[0.05] [&_.callout:hover]:scale-[1.01]",
+                "[&_.callout]:my-10 [&_.callout]:p-6 [&_.callout]:rounded-2xl [&_.callout]:border-l-[6px] [&_.callout]:bg-surface [&_.callout]:backdrop-blur-xl [&_.callout]:shadow-2xl [&_.callout]:transition-all [&_.callout]:relative [&_.callout]:overflow-hidden",
+                "[&_.callout:hover]:bg-surface [&_.callout:hover]:scale-[1.01]",
 
-                "[&_.callout-info]:border-blue-500 [&_.callout-info]:text-blue-100/90",
-                "[&_.callout-tip]:border-emerald-500 [&_.callout-tip]:text-emerald-100/90",
-                "[&_.callout-success]:border-emerald-500 [&_.callout-success]:text-emerald-100/90",
-                "[&_.callout-warning]:border-amber-500 [&_.callout-warning]:text-amber-100/90",
-                "[&_.callout-caution]:border-red-500 [&_.callout-caution]:text-red-100/90",
-                "[&_.callout-danger]:border-red-500 [&_.callout-danger]:text-red-100/90",
-                "[&_.callout-error]:border-red-500 [&_.callout-error]:text-red-100/90",
+                "[&_.callout-info]:border-info [&_.callout-info]:text-info/90",
+                "[&_.callout-tip]:border-success [&_.callout-tip]:text-success/90",
+                "[&_.callout-success]:border-success [&_.callout-success]:text-success/90",
+                "[&_.callout-warning]:border-warning [&_.callout-warning]:text-warning/90",
+                "[&_.callout-caution]:border-danger [&_.callout-caution]:text-danger/90",
+                "[&_.callout-danger]:border-danger [&_.callout-danger]:text-danger/90",
+                "[&_.callout-error]:border-danger [&_.callout-error]:text-danger/90",
                 "[&_.callout-important]:border-teal-500 [&_.callout-important]:text-teal-100/90",
-                "[&_.callout-note]:border-zinc-500 [&_.callout-note]:text-zinc-200/90",
-                "[&_.callout-abstract]:border-cyan-500 [&_.callout-abstract]:text-cyan-100/90",
-                "[&_.callout-question]:border-indigo-500 [&_.callout-question]:text-indigo-100/90",
-                "[&_.callout-bug]:border-rose-500 [&_.callout-bug]:text-rose-100/90",
-                "[&_.callout-todo]:border-emerald-500 [&_.callout-todo]:text-emerald-100/90",
+                "[&_.callout-note]:border-border [&_.callout-note]:text-foreground/90",
+                "[&_.callout-abstract]:border-info [&_.callout-abstract]:text-info/90",
+                "[&_.callout-question]:border-info [&_.callout-question]:text-info/90",
+                "[&_.callout-bug]:border-danger [&_.callout-bug]:text-danger/90",
+                "[&_.callout-todo]:border-success [&_.callout-todo]:text-success/90",
 
-                "[&_.callout\ strong]:text-white [&_.callout\ strong]:font-black [&_.callout\ strong]:uppercase [&_.callout\ strong]:tracking-widest [&_.callout\ strong]:text-caption [&_.callout\ strong]:mb-2",
+                "[&_.callout\ strong]:text-foreground [&_.callout\ strong]:font-black [&_.callout\ strong]:uppercase [&_.callout\ strong]:tracking-widest [&_.callout\ strong]:text-caption [&_.callout\ strong]:mb-2",
 
                 // Steps Component (Auto-styling for tutorials)
-                "[&_.steps]:relative [&_.steps]:ml-4 [&_.steps]:pl-8 [&_.steps]:border-l-2 [&_.steps]:border-white/5 [&_.steps]:space-y-12 [&_.steps]:py-4",
+                "[&_.steps]:relative [&_.steps]:ml-4 [&_.steps]:pl-8 [&_.steps]:border-l-2 [&_.steps]:border-border [&_.steps]:space-y-12 [&_.steps]:py-4",
                 "[&_.step-item]:relative",
-                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-white [&_.step-number]:",
+                "[&_.step-number]:absolute [&_.step-number]:-left-[49px] [&_.step-number]:top-0 [&_.step-number]:w-8 [&_.step-number]:h-8 [&_.step-number]:bg-black [&_.step-number]:border-2 [&_.step-number]:border-teal-500 [&_.step-number]:rounded-full [&_.step-number]:flex [&_.step-number]:items-center [&_.step-number]:justify-center [&_.step-number]:text-xs [&_.step-number]:font-black [&_.step-number]:text-foreground [&_.step-number]:",
 
                 // Accordions / Details
-                "prose-details:bg-white/[0.03] prose-details:border prose-details:border-white/5 prose-details:rounded-2xl prose-details:overflow-hidden prose-details:my-6 prose-details:transition-all",
-                "prose-summary:px-6 prose-summary:py-4 prose-summary:font-bold prose-summary:cursor-pointer prose-summary:hover:bg-white/5 prose-summary:list-none prose-summary:flex prose-summary:items-center prose-summary:justify-between prose-summary:after:content-['+'] open:prose-summary:after:content-['-']",
-                "[&_details[open]]:bg-white/[0.05]",
-                "[&_details_>_div]:p-6 [&_details_>_div]:border-t [&_details_>_div]:border-white/5",
+                "prose-details:bg-surface prose-details:border prose-details:border-border prose-details:rounded-2xl prose-details:overflow-hidden prose-details:my-6 prose-details:transition-all",
+                "prose-summary:px-6 prose-summary:py-4 prose-summary:font-bold prose-summary:cursor-pointer prose-summary:hover:bg-surface prose-summary:list-none prose-summary:flex prose-summary:items-center prose-summary:justify-between prose-summary:after:content-['+'] open:prose-summary:after:content-['-']",
+                "[&_details[open]]:bg-surface",
+                "[&_details_>_div]:p-6 [&_details_>_div]:border-t [&_details_>_div]:border-border",
 
                 // Table of Contents anchoring
                 "scroll-mt-32",

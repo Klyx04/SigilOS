@@ -53,16 +53,16 @@ export function ShareRoomButton({ roomId, className }: ShareRoomButtonProps) {
         <button
             onClick={handleShare}
             className={cn(
-                "group relative flex items-center gap-3 px-6 py-3 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 hover:border-indigo-500/50 hover:bg-black/60 transition-all active:scale-95",
+                "group relative flex items-center gap-3 px-6 py-3 rounded-2xl bg-black/40 backdrop-blur-xl border border-border hover:border-info/50 hover:bg-black/60 transition-all active:scale-95",
                 className
             )}
         >
             <div className="flex flex-col items-start leading-none pointer-events-none">
-                <span className="text-caption font-black text-white/20 uppercase tracking-widest italic mb-1">Partager</span>
-                <span className="text-sm font-black text-white italic tracking-tighter uppercase">{roomId}</span>
+                <span className="text-caption font-black text-foreground/20 uppercase tracking-widest italic mb-1">Partager</span>
+                <span className="text-sm font-black text-foreground italic tracking-tighter uppercase">{roomId}</span>
             </div>
             
-            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
+            <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center group-hover:bg-info group-hover:text-foreground transition-all">
                 <AnimatePresence mode="wait">
                     {copied ? (
                         <motion.div

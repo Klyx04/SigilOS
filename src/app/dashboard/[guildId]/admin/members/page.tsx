@@ -52,7 +52,7 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
             <div className="flex items-start justify-between gap-4 mb-6" data-tour="admin-members-header">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight uppercase">Gestion des Membres</h1>
-                    <p className="text-sm text-zinc-400 mt-1">Annuaire admin, synchronisation des pseudos, archivage et relances Discord.</p>
+                    <p className="text-sm text-muted-foreground mt-1">Annuaire admin, synchronisation des pseudos, archivage et relances Discord.</p>
                 </div>
                 <AdminTourReplay phase="adminMembers" />
             </div>
@@ -80,18 +80,18 @@ function AdminMembersSkeleton() {
     return (
         <div className="space-y-8 animate-pulse">
             <div className="space-y-4">
-                <div className="h-12 w-[400px] bg-zinc-900/50 rounded-2xl" />
-                <div className="h-4 w-[600px] bg-zinc-900/40 rounded-lg" />
+                <div className="h-12 w-[400px] bg-surface/50 rounded-2xl" />
+                <div className="h-4 w-[600px] bg-surface/40 rounded-lg" />
             </div>
-            <div className="h-14 w-[500px] bg-zinc-900/50 rounded-2xl" />
+            <div className="h-14 w-[500px] bg-surface/50 rounded-2xl" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-32 w-full bg-zinc-900/40 rounded-2xl border border-white/5" />
+                    <div key={i} className="h-32 w-full bg-surface/40 rounded-2xl border border-border" />
                 ))}
             </div>
             <div className="space-y-4">
-                <div className="h-16 w-full bg-zinc-900/40 rounded-2xl border border-white/5" />
-                <div className="h-[400px] w-full bg-zinc-900/20 rounded-2xl border border-white/5" />
+                <div className="h-16 w-full bg-surface/40 rounded-2xl border border-border" />
+                <div className="h-[400px] w-full bg-surface/20 rounded-2xl border border-border" />
             </div>
         </div>
     );

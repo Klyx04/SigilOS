@@ -77,7 +77,7 @@ export function MultiSelect({
                                         )}
                                         {option?.label || itemValue}
                                         <div
-                                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer p-0.5 hover:bg-slate-700/50"
+                                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer p-0.5 hover:bg-muted/50"
                                             onKeyDown={(e) => {
                                                 if (e.key === "Enter") {
                                                     handleUnselect(itemValue);
@@ -105,9 +105,9 @@ export function MultiSelect({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 z-[10000] shadow-2xl border-slate-700 bg-slate-900" align="start" sideOffset={5}>
-                <Command className="bg-slate-900 text-slate-200">
-                    <CommandInput placeholder="Rechercher..." className="border-none focus:ring-0 text-white" />
+            <PopoverContent className="w-[300px] p-0 z-[10000] shadow-2xl border-border bg-surface" align="start" sideOffset={5}>
+                <Command className="bg-surface text-foreground">
+                    <CommandInput placeholder="Rechercher..." className="border-none focus:ring-0 text-foreground" />
                     <CommandList>
                         <CommandEmpty>Aucun résultat.</CommandEmpty>
                         <CommandGroup className="max-h-64 overflow-auto">
@@ -122,7 +122,7 @@ export function MultiSelect({
                                                 : [...selected, option.value]
                                         );
                                     }}
-                                    className="data-[selected=true]:bg-slate-800 text-slate-200 cursor-pointer"
+                                    className="data-[selected=true]:bg-elevated text-foreground cursor-pointer"
                                 >
                                     <Check
                                         className={cn(
@@ -131,7 +131,7 @@ export function MultiSelect({
                                         )}
                                     />
                                     {option.icon ? (
-                                        <img src={option.icon} alt="" className="w-5 h-5 mr-2 object-contain bg-slate-800 rounded p-0.5" />
+                                        <img src={option.icon} alt="" className="w-5 h-5 mr-2 object-contain bg-elevated rounded p-0.5" />
                                     ) : (
                                         <span
                                             className="w-2 h-2 rounded-full mr-2"

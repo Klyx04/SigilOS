@@ -133,10 +133,10 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
 
     // Progress Calculation Helpers
     const getProgressColor = (current: number, total: number) => {
-        if (current === total) return "bg-emerald-500";
-        if (current > total * 0.7) return "bg-emerald-400";
-        if (current > total * 0.3) return "bg-amber-400";
-        return "bg-red-400";
+        if (current === total) return "bg-success";
+        if (current > total * 0.7) return "bg-success";
+        if (current > total * 0.3) return "bg-warning";
+        return "bg-danger";
     };
 
     const renderProgressBar = (label: string, category: { total: number; gathered: number }, max: number) => {
@@ -146,7 +146,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
                 <div className="flex items-center justify-between text-xs">
                     <span className="font-medium text-muted-foreground">{label}</span>
                     <span className="text-muted-foreground">
-                        <span className={category.gathered === max ? "text-emerald-500 font-bold" : "text-foreground"}>
+                        <span className={category.gathered === max ? "text-success font-bold" : "text-foreground"}>
                             {category.gathered}
                         </span>
                         /{max}
@@ -163,7 +163,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
             <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
                 <CardContent className="p-6 space-y-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-full bg-amber-500/10 text-amber-500">
+                        <div className="p-2 rounded-full bg-warning/10 text-warning">
                             <span className="text-xl">🏆</span>
                         </div>
                         <div>
@@ -191,24 +191,24 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
                     label="Manquants"
                     value={manquants.length}
                     icon={<AlertTriangle className="h-5 w-5" />}
-                    color="text-red-500"
+                    color="text-danger"
                     subValue={!doublonsLoading && monstersWithExchanges > 0
                         ? `${monstersWithExchanges} échangeables`
                         : undefined
                     }
-                    subColor="text-emerald-500"
+                    subColor="text-success"
                 />
                 <StatCard
                     label="Possédés"
                     value={possedes.length}
                     icon={<Package className="h-5 w-5" />}
-                    color="text-emerald-500"
+                    color="text-success"
                 />
                 <StatCard
                     label="Doublons"
                     value={doublons.length}
                     icon={<Gift className="h-5 w-5" />}
-                    color="text-amber-500"
+                    color="text-warning"
                 />
             </div>
 
@@ -245,7 +245,7 @@ export function ArchiHub({ data, guildId }: ArchiHubProps) {
                 <Toggle
                     pressed={showExchangeableOnly}
                     onPressedChange={setShowExchangeableOnly}
-                    className="gap-2 data-[state=on]:bg-emerald-600 data-[state=on]:text-white"
+                    className="gap-2 data-[state=on]:bg-success data-[state=on]:text-foreground"
                     disabled={doublonsLoading || monstersWithExchanges === 0}
                 >
                     <Sparkles className="h-4 w-4" />

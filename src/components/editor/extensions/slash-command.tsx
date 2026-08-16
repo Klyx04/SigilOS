@@ -122,7 +122,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Note (Info)",
             description: "Information générale ou neutre.",
             searchTerms: ["info", "callout", "note"],
-            icon: <Type size={18} className="text-blue-400" />,
+            icon: <Type size={18} className="text-info" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "info" }).run();
             },
@@ -131,7 +131,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Astuce (Tip)",
             description: "Conseils et bonnes pratiques.",
             searchTerms: ["tip", "hint", "astuce"],
-            icon: <Type size={18} className="text-emerald-400" />,
+            icon: <Type size={18} className="text-success" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "tip" }).run();
             },
@@ -140,7 +140,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Succès (Success)",
             description: "Confirmation ou réussite.",
             searchTerms: ["success", "done", "ok"],
-            icon: <CheckSquare size={18} className="text-emerald-500" />,
+            icon: <CheckSquare size={18} className="text-success" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "success" }).run();
             },
@@ -149,7 +149,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Question (FAQ)",
             description: "Interrogations ou FAQ.",
             searchTerms: ["question", "help", "faq"],
-            icon: <MessageSquareQuote size={18} className="text-indigo-400" />,
+            icon: <MessageSquareQuote size={18} className="text-info" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "question" }).run();
             },
@@ -158,7 +158,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Important",
             description: "Point critique à ne pas manquer.",
             searchTerms: ["important", "alert", "must"],
-            icon: <Heading1 size={18} className="text-purple-400" />,
+            icon: <Heading1 size={18} className="text-info" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "important" }).run();
             },
@@ -167,7 +167,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Avertissement (Warning)",
             description: "Attention particulière requise.",
             searchTerms: ["warning", "warn", "attention"],
-            icon: <Heading2 size={18} className="text-amber-500" />,
+            icon: <Heading2 size={18} className="text-warning" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "warning" }).run();
             },
@@ -176,7 +176,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Danger / Erreur",
             description: "Risques élevés ou erreurs.",
             searchTerms: ["danger", "error", "stop"],
-            icon: <Heading3 size={18} className="text-red-500" />,
+            icon: <Heading3 size={18} className="text-danger" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "danger" }).run();
             },
@@ -185,7 +185,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Bug",
             description: "Signalement d'un problème technique.",
             searchTerms: ["bug", "issue", "fix"],
-            icon: <Code size={18} className="text-rose-400" />,
+            icon: <Code size={18} className="text-danger" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "bug" }).run();
             },
@@ -203,7 +203,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             title: "Résumé (Abstract)",
             description: "Introduction ou résumé global.",
             searchTerms: ["abstract", "summary", "intro"],
-            icon: <MessageSquareQuote size={18} className="text-cyan-400" />,
+            icon: <MessageSquareQuote size={18} className="text-info" />,
             command: ({ editor, range }: any) => {
                 editor.chain().focus().deleteRange(range).setCallout({ type: "abstract" }).run();
             },
@@ -350,26 +350,26 @@ export const CommandList = forwardRef((props: any, ref) => {
     }));
 
     return (
-        <div className="z-50 h-auto max-h-[330px] w-72 overflow-y-auto rounded-md border border-white/10 bg-zinc-950 p-1 shadow-md transition-all">
+        <div className="z-50 h-auto max-h-[330px] w-72 overflow-y-auto rounded-md border border-border bg-background p-1 shadow-md transition-all">
             {props.items.length ? (
                 props.items.map((item: any, index: number) => (
                     <button
-                        className={`flex w-full items-center space-x-2 rounded-md px-2 py-1 text-left text-sm text-zinc-100 hover:bg-zinc-800 ${index === selectedIndex ? "bg-zinc-800" : ""
+                        className={`flex w-full items-center space-x-2 rounded-md px-2 py-1 text-left text-sm text-foreground hover:bg-elevated ${index === selectedIndex ? "bg-elevated" : ""
                             }`}
                         key={index}
                         onClick={() => selectItem(index)}
                     >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-zinc-900">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface">
                             {item.icon}
                         </div>
                         <div>
                             <p className="font-medium">{item.title}</p>
-                            <p className="text-xs text-zinc-400">{item.description}</p>
+                            <p className="text-xs text-muted-foreground">{item.description}</p>
                         </div>
                     </button>
                 ))
             ) : (
-                <div className="p-2 text-zinc-500 text-sm">Aucun résultat</div>
+                <div className="p-2 text-muted-foreground text-sm">Aucun résultat</div>
             )}
         </div>
     );

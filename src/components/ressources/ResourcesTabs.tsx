@@ -41,25 +41,25 @@ export function ResourcesTabs({
     };
 
     const TABS = [
-        { value: "almanax", label: "Almanax", icon: Flame, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20", tourKey: "ressources-almanax-tab" },
-        { value: "news", label: "Actualités", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20", tourKey: "ressources-news-tab" },
-        { value: "encyclopedia", label: "Encyclopédie", icon: Library, color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", tourKey: null },
-        { value: "creators", label: "Créateurs", icon: Tv, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", tourKey: null },
-        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", tourKey: "ressources-links-tab" }
+        { value: "almanax", label: "Almanax", icon: Flame, color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", tourKey: "ressources-almanax-tab" },
+        { value: "news", label: "Actualités", icon: BookOpen, color: "text-info", bg: "bg-info/10", border: "border-info/20", tourKey: "ressources-news-tab" },
+        { value: "encyclopedia", label: "Encyclopédie", icon: Library, color: "text-info", bg: "bg-info/10", border: "border-info/20", tourKey: null },
+        { value: "creators", label: "Créateurs", icon: Tv, color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", tourKey: null },
+        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-success", bg: "bg-success/10", border: "border-success/20", tourKey: "ressources-links-tab" }
     ];
 
     return (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <div className="flex justify-center mb-10" data-tour="ressources-tabs">
-                <TabsList className="relative h-auto p-2 bg-zinc-900/40 backdrop-blur-2xl border border-white/10 rounded-3xl gap-2 shadow-2xl flex-wrap justify-center">
+                <TabsList className="relative h-auto p-2 bg-surface/40 backdrop-blur-2xl border border-border rounded-3xl gap-2 shadow-2xl flex-wrap justify-center">
                     {TABS.map((t) => (
                         <TabsTrigger
                             key={t.value}
                             value={t.value}
                             {...(t.tourKey ? { "data-tour": t.tourKey } : {})}
                             className="relative px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 
-                                     data-[state=inactive]:text-zinc-500 data-[state=inactive]:hover:text-zinc-300 data-[state=inactive]:hover:bg-white/5
-                                     data-[state=active]:text-white z-10 border border-transparent data-[state=active]:border-white/10 overflow-hidden"
+                                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-surface
+                                     data-[state=active]:text-foreground z-10 border border-transparent data-[state=active]:border-border overflow-hidden"
                         >
                             <div className="flex items-center gap-3 relative z-20">
                                 <t.icon className={cn("w-4 h-4 transition-transform duration-300 group-data-[state=active]:scale-110", t.color)} />

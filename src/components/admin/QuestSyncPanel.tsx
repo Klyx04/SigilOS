@@ -87,14 +87,14 @@ export default function QuestSyncPanel() {
     }
 
     return (
-        <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-6 backdrop-blur-md space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div className="bg-background/40 border border-border rounded-2xl p-6 backdrop-blur-md space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
                 <div className="space-y-1">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Database className="w-5 h-5 text-indigo-400" />
+                    <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <Database className="w-5 h-5 text-info" />
                         Synchronisation DofusDB Quêtes
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                         Détectez et synchronisez en temps réel les nouveautés et les modifications de DofusDB.
                     </p>
                 </div>
@@ -103,7 +103,7 @@ export default function QuestSyncPanel() {
                         onClick={handleCheckDeltas}
                         disabled={loading || syncing}
                         variant="outline"
-                        className="border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/10 font-semibold"
+                        className="border-info/20 text-info hover:bg-info/10 font-semibold"
                     >
                         {loading ? (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -117,23 +117,23 @@ export default function QuestSyncPanel() {
 
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">Quêtes Locales</div>
-                        <div className="text-2xl font-black text-white">{stats.totalLocal}</div>
+                    <div className="bg-surface/50 border border-border/80 p-4 rounded-xl space-y-1">
+                        <div className="text-caption uppercase font-black tracking-widest text-muted-foreground">Quêtes Locales</div>
+                        <div className="text-2xl font-black text-foreground">{stats.totalLocal}</div>
                     </div>
-                    <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">DofusDB Remote</div>
-                        <div className="text-2xl font-black text-indigo-400">{stats.totalRemote}</div>
+                    <div className="bg-surface/50 border border-border/80 p-4 rounded-xl space-y-1">
+                        <div className="text-caption uppercase font-black tracking-widest text-muted-foreground">DofusDB Remote</div>
+                        <div className="text-2xl font-black text-info">{stats.totalRemote}</div>
                     </div>
-                    <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">Nouveautés détectées</div>
-                        <div className="text-2xl font-black text-emerald-400">
+                    <div className="bg-surface/50 border border-border/80 p-4 rounded-xl space-y-1">
+                        <div className="text-caption uppercase font-black tracking-widest text-muted-foreground">Nouveautés détectées</div>
+                        <div className="text-2xl font-black text-success">
                             {stats.deltas.filter(d => d.type === "NEW").length}
                         </div>
                     </div>
-                    <div className="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl space-y-1">
-                        <div className="text-caption uppercase font-black tracking-widest text-slate-500">Modifications</div>
-                        <div className="text-2xl font-black text-amber-400">
+                    <div className="bg-surface/50 border border-border/80 p-4 rounded-xl space-y-1">
+                        <div className="text-caption uppercase font-black tracking-widest text-muted-foreground">Modifications</div>
+                        <div className="text-2xl font-black text-warning">
                             {stats.deltas.filter(d => d.type === "MODIFIED").length}
                         </div>
                     </div>
@@ -141,11 +141,11 @@ export default function QuestSyncPanel() {
             )}
 
             {checked && stats && stats.deltas.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-emerald-500/20 rounded-xl bg-emerald-500/5 text-center space-y-3">
-                    <CheckCircle2 className="w-12 h-12 text-emerald-400" />
+                <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-success/20 rounded-xl bg-success/5 text-center space-y-3">
+                    <CheckCircle2 className="w-12 h-12 text-success" />
                     <div className="space-y-1">
-                        <h4 className="font-bold text-white text-base">Base de données à jour !</h4>
-                        <p className="text-xs text-slate-400 max-w-sm">
+                        <h4 className="font-bold text-foreground text-base">Base de données à jour !</h4>
+                        <p className="text-xs text-muted-foreground max-w-sm">
                             Toutes les quêtes locales correspondent à 100% avec les données de DofusDB.
                         </p>
                     </div>
@@ -160,16 +160,16 @@ export default function QuestSyncPanel() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={toggleSelectAll}
-                                className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 p-0 hover:bg-transparent"
+                                className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1.5 p-0 hover:bg-transparent"
                             >
                                 {selectedIds.length === stats.deltas.length ? (
-                                    <CheckSquare className="w-4 h-4 text-indigo-400" />
+                                    <CheckSquare className="w-4 h-4 text-info" />
                                 ) : (
                                     <Square className="w-4 h-4" />
                                 )}
                                 {selectedIds.length === stats.deltas.length ? "Tout désélectionner" : "Tout sélectionner"}
                             </Button>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-muted-foreground">
                                 ({selectedIds.length} sélectionnée{selectedIds.length > 1 ? "s" : ""})
                             </span>
                         </div>
@@ -177,7 +177,7 @@ export default function QuestSyncPanel() {
                             onClick={handleSync}
                             disabled={syncing || selectedIds.length === 0}
                             size="sm"
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                            className="bg-info hover:bg-info text-info-foreground font-bold"
                         >
                             {syncing ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -188,7 +188,7 @@ export default function QuestSyncPanel() {
                         </Button>
                     </div>
 
-                    <div className="max-h-[350px] overflow-y-auto border border-slate-800 rounded-xl divide-y divide-slate-800 bg-slate-950/20 pr-1">
+                    <div className="max-h-[350px] overflow-y-auto border border-border rounded-xl divide-y divide-border bg-background/20 pr-1">
                         {stats.deltas.map(delta => {
                             const isSelected = selectedIds.includes(delta.dofusDbId);
                             const isNew = delta.type === "NEW";
@@ -197,13 +197,13 @@ export default function QuestSyncPanel() {
                                 <div
                                     key={delta.dofusDbId}
                                     onClick={() => toggleSelect(delta.dofusDbId)}
-                                    className={`flex items-center gap-4 p-3 hover:bg-slate-900/30 transition-colors cursor-pointer ${
-                                        isSelected ? "bg-indigo-500/5" : ""
+                                    className={`flex items-center gap-4 p-3 hover:bg-surface/30 transition-colors cursor-pointer ${
+                                        isSelected ? "bg-info/5" : ""
                                     }`}
                                 >
-                                    <div className="shrink-0 text-slate-500 hover:text-indigo-400 transition-colors">
+                                    <div className="shrink-0 text-muted-foreground hover:text-info transition-colors">
                                         {isSelected ? (
-                                            <CheckSquare className="w-4 h-4 text-indigo-400" />
+                                            <CheckSquare className="w-4 h-4 text-info" />
                                         ) : (
                                             <Square className="w-4 h-4" />
                                         )}
@@ -211,24 +211,24 @@ export default function QuestSyncPanel() {
                                     
                                     <div className="flex-1 min-w-0 space-y-0.5">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-bold text-slate-200 text-sm truncate">
+                                            <span className="font-bold text-foreground text-sm truncate">
                                                 {delta.name}
                                             </span>
-                                            <Badge className="bg-slate-800 text-caption text-slate-400 border border-slate-700">
+                                            <Badge className="bg-elevated text-caption text-muted-foreground border border-border">
                                                 ID: {delta.dofusDbId}
                                             </Badge>
                                             {delta.levelMin && (
-                                                <Badge variant="outline" className="text-caption border-slate-800 text-slate-400">
+                                                <Badge variant="outline" className="text-caption border-border text-muted-foreground">
                                                     Niv. {delta.levelMin}
                                                 </Badge>
                                             )}
                                         </div>
                                         {!isNew && delta.localName && (
-                                            <div className="flex items-center gap-2 text-xs text-amber-500/80">
+                                            <div className="flex items-center gap-2 text-xs text-warning/80">
                                                 <AlertTriangle className="w-3 h-3 shrink-0" />
                                                 <span className="truncate">Local: "{delta.localName}"</span>
                                                 <ArrowRight className="w-3 h-3 shrink-0" />
-                                                <span className="font-semibold text-slate-400">Restaurer</span>
+                                                <span className="font-semibold text-muted-foreground">Restaurer</span>
                                             </div>
                                         )}
                                     </div>
@@ -236,8 +236,8 @@ export default function QuestSyncPanel() {
                                     <div className="shrink-0">
                                         <Badge className={
                                             isNew 
-                                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                                                : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                                ? "bg-success/10 text-success border border-success/20" 
+                                                : "bg-warning/10 text-warning border border-warning/20"
                                         }>
                                             {isNew ? "Nouveau" : "Modifié"}
                                         </Badge>

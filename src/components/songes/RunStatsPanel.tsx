@@ -123,7 +123,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
 
     return (
         <div className="rounded-xl bg-gradient-to-b from-[#1a0933] to-[#0d0520] border border-purple-500/30 p-4">
-            <h3 className="text-lg font-semibold text-white mb-4">📊 Statistiques</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">📊 Statistiques</h3>
 
             {/* Progress */}
             <div className="mb-4">
@@ -173,7 +173,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-white truncate">{displayName}</div>
+                                    <div className="text-sm text-foreground truncate">{displayName}</div>
                                     <div className="text-xs text-purple-300/70">
                                         {classe && <span className="mr-2">{classe}</span>}
                                         {memberIsLeader ? "👑 Leader" : "Membre"}
@@ -184,10 +184,10 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                             href={member.linkedStuffUrl || "#"} 
                                             target="_blank" 
                                             rel="noopener noreferrer"
-                                            className="mt-1.5 flex items-center gap-1.5 p-1 rounded bg-white/5 border border-white/5 hover:bg-white/10 transition-colors w-fit group"
+                                            className="mt-1.5 flex items-center gap-1.5 p-1 rounded bg-surface border border-border hover:bg-surface transition-colors w-fit group"
                                         >
                                             {member.linkedStuffThumbnail && (
-                                                <img src={member.linkedStuffThumbnail} className="w-5 h-5 rounded object-cover border border-white/10" alt="" />
+                                                <img src={member.linkedStuffThumbnail} className="w-5 h-5 rounded object-cover border border-border" alt="" />
                                             )}
                                             <span className="text-caption font-bold text-indigo-300 group-hover:text-indigo-200 truncate max-w-[120px]">
                                                 {member.linkedStuffName || "Voir le stuff"}
@@ -213,7 +213,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                     </div>
                                                 </Button>
                                             </DialogTrigger>
-                                            <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white">
+                                            <DialogContent className="bg-[#1a0933] border-purple-500/30 text-foreground">
                                                 <DialogHeader>
                                                     <DialogTitle>🛡️ Modifier mon Stuff</DialogTitle>
                                                 </DialogHeader>
@@ -225,9 +225,9 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                                 <SelectValue placeholder="Choisir un stuff..." />
                                                             </SelectTrigger>
                                                             <SelectContent className="bg-[#1a0933] border-purple-500/30">
-                                                                <SelectItem value="none" className="text-zinc-500 italic">Aucun stuff</SelectItem>
+                                                                <SelectItem value="none" className="text-muted-foreground italic">Aucun stuff</SelectItem>
                                                                 {stuffs.map((stuff) => (
-                                                                    <SelectItem key={stuff.id} value={stuff.id} className="text-white">
+                                                                    <SelectItem key={stuff.id} value={stuff.id} className="text-foreground">
                                                                         <div className="flex items-center gap-2">
                                                                             {stuff.previewData?.thumbnail && (
                                                                                 <img src={stuff.previewData.thumbnail} className="w-5 h-5 rounded object-cover" alt="" />
@@ -246,7 +246,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                             placeholder="Ex: Stuff Terre/Feu"
                                                             value={customStuffName}
                                                             onChange={(e) => setCustomStuffName(e.target.value)}
-                                                            className="w-full bg-purple-900/30 border border-purple-500/30 rounded-md px-3 py-2 text-sm text-white focus:outline-none"
+                                                            className="w-full bg-purple-900/30 border border-purple-500/30 rounded-md px-3 py-2 text-sm text-foreground focus:outline-none"
                                                         />
                                                     </div>
                                                     <Button onClick={handleUpdateStuff} disabled={loadingAction === "updateStuff"} className="w-full bg-indigo-600 hover:bg-indigo-500">

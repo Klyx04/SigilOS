@@ -77,12 +77,12 @@ function LadderSkeleton() {
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-32 bg-white/5 border border-white/5 rounded-2xl animate-pulse" />
+                    <div key={i} className="h-32 bg-surface border border-border rounded-2xl animate-pulse" />
                 ))}
             </div>
             <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-12 bg-white/5 border border-white/5 rounded-lg animate-pulse" />
+                    <div key={i} className="h-12 bg-surface border border-border rounded-lg animate-pulse" />
                 ))}
             </div>
         </div>

@@ -49,21 +49,21 @@ const OCRE_PACKS: { value: OcrePack; label: string }[] = [
 
 // Catégories affichées (AUTRE supprimé per spec)
 const VISIBLE_CATEGORIES: { key: ServiceCategory; label: string; icon: React.ReactNode; color: string; accent: string }[] = [
-    { key: "PASSAGE_DONJON", label: "Donjon", icon: <Sword className="h-5 w-5" />, color: "from-cyan-500/20 to-transparent", accent: "border-cyan-500/60 bg-cyan-500/15 text-cyan-300" },
-    { key: "FORGEMAGIE", label: "Forgemagie", icon: <Hammer className="h-5 w-5" />, color: "from-amber-500/20 to-transparent", accent: "border-amber-500/60 bg-amber-500/15 text-amber-300" },
-    { key: "METIER", label: "Métier", icon: <Wrench className="h-5 w-5" />, color: "from-emerald-500/20 to-transparent", accent: "border-emerald-500/60 bg-emerald-500/15 text-emerald-300" },
+    { key: "PASSAGE_DONJON", label: "Donjon", icon: <Sword className="h-5 w-5" />, color: "from-info/20 to-transparent", accent: "border-info/60 bg-info/15 text-info" },
+    { key: "FORGEMAGIE", label: "Forgemagie", icon: <Hammer className="h-5 w-5" />, color: "from-warning/20 to-transparent", accent: "border-warning/60 bg-warning/15 text-warning" },
+    { key: "METIER", label: "Métier", icon: <Wrench className="h-5 w-5" />, color: "from-success/20 to-transparent", accent: "border-success/60 bg-success/15 text-success" },
     { key: "QUETE", label: "Quête", icon: <ScrollText className="h-5 w-5" />, color: "from-violet-500/20 to-transparent", accent: "border-violet-500/60 bg-violet-500/15 text-violet-300" },
     { key: "OCRE", label: "Quête Ocre", icon: <Crown className="h-5 w-5" />, color: "from-yellow-500/20 to-transparent", accent: "border-yellow-500/60 bg-yellow-500/15 text-yellow-300" },
     { key: "TUTORAT", label: "Tutorat Classe", icon: <GraduationCap className="h-5 w-5" />, color: "from-pink-500/20 to-transparent", accent: "border-pink-500/60 bg-pink-500/15 text-pink-300" },
 ];
 
 const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
-    PASSAGE_DONJON: "border-cyan-500/60 bg-cyan-500/10 text-cyan-300",
-    FORGEMAGIE: "border-amber-500/60 bg-amber-500/10 text-amber-300",
-    METIER: "border-emerald-500/60 bg-emerald-500/10 text-emerald-300",
+    PASSAGE_DONJON: "border-info/60 bg-info/10 text-info",
+    FORGEMAGIE: "border-warning/60 bg-warning/10 text-warning",
+    METIER: "border-success/60 bg-success/10 text-success",
     QUETE: "border-violet-500/60 bg-violet-500/10 text-violet-300",
     OCRE: "border-yellow-500/60 bg-yellow-500/10 text-yellow-300",
-    AUTRE: "border-zinc-500/60 bg-zinc-500/10 text-zinc-300",
+    AUTRE: "border-border/60 bg-muted/10 text-foreground",
     TUTORAT: "border-pink-500/60 bg-pink-500/10 text-pink-300",
 };
 
@@ -387,15 +387,15 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[92vh] overflow-y-auto p-0 gap-0">
+            <DialogContent className="max-w-xl bg-background border border-border shadow-2xl rounded-2xl text-foreground max-h-[92vh] overflow-y-auto p-0 gap-0">
                 {step === 1 ? (
                     <div className="flex flex-col h-full">
                         {/* Gradient header */}
-                        <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent px-6 pt-6 pb-5 border-b border-white/5">
-                            <DialogTitle className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                        <div className="bg-gradient-to-br from-info/10 via-info/5 to-transparent px-6 pt-6 pb-5 border-b border-border">
+                            <DialogTitle className="text-xl font-black text-foreground tracking-tight flex items-center gap-2">
                                 🚀 Publier un service
                             </DialogTitle>
-                            <p className="text-xs text-zinc-400 leading-relaxed mt-1">
+                            <p className="text-xs text-muted-foreground leading-relaxed mt-1">
                                 Sélectionnez la catégorie de service que vous souhaitez proposer à la guilde pour ouvrir son configurateur dédié.
                             </p>
                         </div>
@@ -404,24 +404,24 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {VISIBLE_CATEGORIES.map((c) => {
                                 const colors: Record<ServiceCategory, { border: string; text: string; bg: string; iconBorder: string; hoverShadow: string }> = {
                                     PASSAGE_DONJON: { 
-                                        border: "hover:border-cyan-500/40", 
-                                        text: "text-cyan-400", 
-                                        bg: "bg-cyan-500/10", 
-                                        iconBorder: "group-hover:border-cyan-500/30",
+                                        border: "hover:border-info/40", 
+                                        text: "text-info", 
+                                        bg: "bg-info/10", 
+                                        iconBorder: "group-hover:border-info/30",
                                         hoverShadow: ""
                                     },
                                     FORGEMAGIE: { 
-                                        border: "hover:border-amber-500/40", 
-                                        text: "text-amber-400", 
-                                        bg: "bg-amber-500/10", 
-                                        iconBorder: "group-hover:border-amber-500/30",
+                                        border: "hover:border-warning/40", 
+                                        text: "text-warning", 
+                                        bg: "bg-warning/10", 
+                                        iconBorder: "group-hover:border-warning/30",
                                         hoverShadow: ""
                                     },
                                     METIER: { 
-                                        border: "hover:border-emerald-500/40", 
-                                        text: "text-emerald-400", 
-                                        bg: "bg-emerald-500/10", 
-                                        iconBorder: "group-hover:border-emerald-500/30",
+                                        border: "hover:border-success/40", 
+                                        text: "text-success", 
+                                        bg: "bg-success/10", 
+                                        iconBorder: "group-hover:border-success/30",
                                         hoverShadow: ""
                                     },
                                     QUETE: { 
@@ -439,10 +439,10 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         hoverShadow: ""
                                     },
                                     AUTRE: { 
-                                        border: "hover:border-white/20", 
-                                        text: "text-white", 
-                                        bg: "bg-white/10", 
-                                        iconBorder: "group-hover:border-white/20",
+                                        border: "hover:border-border-strong", 
+                                        text: "text-foreground", 
+                                        bg: "bg-surface", 
+                                        iconBorder: "group-hover:border-border-strong",
                                         hoverShadow: "hover:shadow-none"
                                     },
                                     TUTORAT: { 
@@ -473,19 +473,19 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             setCategory(c.key);
                                             setStep(2);
                                         }}
-                                        className={`flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300 group text-left min-h-[96px] md:h-[96px] ${colorInfo.border} ${colorInfo.hoverShadow}`}
+                                        className={`flex items-center gap-4 p-4 rounded-2xl border border-border bg-surface hover:bg-surface transition-all duration-300 group text-left min-h-[96px] md:h-[96px] ${colorInfo.border} ${colorInfo.hoverShadow}`}
                                     >
-                                        <div className={`p-3 rounded-xl border border-white/10 transition-all duration-300 group- ${colorInfo.bg} ${colorInfo.text} ${colorInfo.iconBorder}`}>
+                                        <div className={`p-3 rounded-xl border border-border transition-all duration-300 group- ${colorInfo.bg} ${colorInfo.text} ${colorInfo.iconBorder}`}>
                                             {c.icon}
                                         </div>
                                         <div className="flex-1 space-y-1 min-w-0">
                                             <div className="flex items-center justify-between">
-                                                <h4 className="text-sm font-black text-zinc-100 group-hover:text-white transition-colors">{c.label}</h4>
+                                                <h4 className="text-sm font-black text-foreground group-hover:text-foreground transition-colors">{c.label}</h4>
                                                 <span className={`text-caption font-black uppercase tracking-wider ${colorInfo.text} opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0`}>
                                                     Configurer →
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors leading-normal">{descText}</p>
+                                            <p className="text-xs text-muted-foreground group-hover:text-muted-foreground transition-colors leading-normal">{descText}</p>
                                         </div>
                                     </button>
                                 );
@@ -495,12 +495,12 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                 ) : (
                     <div className="flex flex-col h-full">
                         {/* Gradient header */}
-                        <div className={`bg-gradient-to-r ${cat?.color ?? ""} px-6 pt-5 pb-4 border-b border-white/5`}>
+                        <div className={`bg-gradient-to-r ${cat?.color ?? ""} px-6 pt-5 pb-4 border-b border-border`}>
                             {/* Return Button */}
                             <button
                                 type="button"
                                 onClick={() => setStep(1)}
-                                className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white transition-colors mb-3"
+                                className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors mb-3"
                             >
                                 <ArrowLeft className="h-3.5 w-3.5" /> Changer de service
                             </button>
@@ -516,18 +516,18 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {category === "PASSAGE_DONJON" && (
                                 <div className="space-y-3">
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Sélectionner le Donjon *</Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Sélectionner le Donjon *</Label>
                                         <DungeonPicker guildId={guildId} onSelect={setDungeonSelection} value={dungeonSelection} />
                                     </div>
 
                                     {/* Dungeon Thumbnail / Miniature */}
                                     {dungeonSelection?.dungeon.imageUrl && (
-                                        <div className="relative flex items-center gap-4 p-3 rounded-2xl border border-cyan-500/20 bg-cyan-950/10 hover:border-cyan-500/30 transition-all duration-300 group">
+                                        <div className="relative flex items-center gap-4 p-3 rounded-2xl border border-info/20 bg-info/10 hover:border-info/30 transition-all duration-300 group">
                                             {/* Glow background */}
-                                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent pointer-events-none" />
+                                            <div className="absolute inset-0 bg-gradient-to-r from-info/5 to-transparent pointer-events-none" />
 
                                             {/* Square contained image */}
-                                            <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/5 bg-slate-950/40 flex-shrink-0">
+                                            <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-border bg-background/40 flex-shrink-0">
                                                 <Image
                                                     src={dungeonSelection.dungeon.imageUrl}
                                                     alt={dungeonSelection.dungeon.name}
@@ -538,8 +538,8 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
                                             {/* Text block */}
                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                <span className="text-caption text-cyan-400 font-bold uppercase tracking-widest leading-none mb-1.5">Donjon sélectionné</span>
-                                                <span className="text-sm font-black text-white leading-tight truncate">{dungeonSelection.dungeon.name}</span>
+                                                <span className="text-caption text-info font-bold uppercase tracking-widest leading-none mb-1.5">Donjon sélectionné</span>
+                                                <span className="text-sm font-black text-foreground leading-tight truncate">{dungeonSelection.dungeon.name}</span>
                                             </div>
                                         </div>
                                     )}
@@ -574,7 +574,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         return (
                                             <div className="space-y-2">
                                                 <div className="flex items-center justify-between">
-                                                    <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarifs par succès</Label>
+                                                    <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Tarifs par succès</Label>
                                                     <div className="flex items-center gap-2">
                                                         {hasAchs && selAchs.length >= 2 && (
                                                             <button
@@ -586,7 +586,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             </button>
                                                         )}
                                                         {!hasAchs && priceTiers.length < 6 && (
-                                                            <button type="button" onClick={addPriceTier} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
+                                                            <button type="button" onClick={addPriceTier} className="flex items-center gap-1 text-xs text-info hover:text-info transition-colors">
                                                                 <Plus className="h-3 w-3" /> Ajouter
                                                             </button>
                                                         )}
@@ -594,13 +594,13 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                 </div>
 
                                                 {hasAchs ? (
-                                                    <div className="space-y-2 rounded-xl border border-cyan-500/15 bg-cyan-500/5 p-3">
-                                                        <p className="text-caption text-cyan-400 font-bold">Prix par configuration :</p>
+                                                    <div className="space-y-2 rounded-xl border border-info/15 bg-info/5 p-3">
+                                                        <p className="text-caption text-info font-bold">Prix par configuration :</p>
                                                         {soloLabels.map((lbl, i) => {
                                                             const existing = priceTiers.find(t => t.label === lbl);
                                                             return (
                                                                 <div key={lbl} className="flex gap-2 items-center">
-                                                                    <span className={`text-xs font-bold shrink-0 w-44 truncate ${i === 0 ? "text-zinc-400" : "text-cyan-300"}`}>
+                                                                    <span className={`text-xs font-bold shrink-0 w-44 truncate ${i === 0 ? "text-muted-foreground" : "text-info"}`}>
                                                                         {i === 0 ? "⚪" : "✨"} {lbl}
                                                                     </span>
                                                                     <Input
@@ -613,7 +613,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                             });
                                                                         }}
                                                                         placeholder="Ex: 200k"
-                                                                        className="bg-white/5 border-white/10 h-8 text-sm flex-1"
+                                                                        className="bg-surface border-border h-8 text-sm flex-1"
                                                                         maxLength={50}
                                                                     />
                                                                 </div>
@@ -652,7 +652,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                                             onClick={() => toggleAchInCombo(ach.id)}
                                                                                             className={`relative w-9 h-9 rounded-lg border-2 transition-all duration-150 overflow-hidden ${isOn
                                                                                                 ? "border-violet-400  scale-110"
-                                                                                                : "border-white/10 opacity-40 hover:opacity-70 hover:border-white/30"
+                                                                                                : "border-border opacity-40 hover:opacity-70 hover:border-border-strong"
                                                                                                 }`}
                                                                                         >
                                                                                             <img
@@ -663,7 +663,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                                             />
                                                                                             {isOn && (
                                                                                                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-violet-500 rounded-full flex items-center justify-center">
-                                                                                                    <span className="text-caption text-white font-black">✓</span>
+                                                                                                    <span className="text-caption text-foreground font-black">✓</span>
                                                                                                 </span>
                                                                                             )}
                                                                                         </button>
@@ -672,16 +672,16 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                             </div>
                                                                             <div className="flex gap-2 items-center">
                                                                                 <span className="text-xs text-violet-300 font-bold truncate flex-1 min-w-0">
-                                                                                    {selectedAchNames.length > 0 ? selectedAchNames.join(" + ") : <span className="text-zinc-600 italic">Aucun succès sélectionné</span>}
+                                                                                    {selectedAchNames.length > 0 ? selectedAchNames.join(" + ") : <span className="text-muted-foreground italic">Aucun succès sélectionné</span>}
                                                                                 </span>
                                                                                 <Input
                                                                                     value={comboTier.price}
                                                                                     onChange={(e) => updatePriceTier(tierIdx, "price", e.target.value)}
                                                                                     placeholder="Ex: 350k"
-                                                                                    className="bg-white/5 border-white/10 w-24 text-sm h-7"
+                                                                                    className="bg-surface border-border w-24 text-sm h-7"
                                                                                     maxLength={50}
                                                                                 />
-                                                                                <button type="button" onClick={() => removePriceTier(tierIdx)} className="text-zinc-600 hover:text-rose-400 transition-colors shrink-0">
+                                                                                <button type="button" onClick={() => removePriceTier(tierIdx)} className="text-muted-foreground hover:text-danger transition-colors shrink-0">
                                                                                     <X className="h-4 w-4" />
                                                                                 </button>
                                                                             </div>
@@ -695,16 +695,16 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     <div className="space-y-1.5">
                                                         {priceTiers.length === 0 ? (
                                                             <div className="space-y-1.5">
-                                                                <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 100k / passage" className="bg-white/5 border-white/10" maxLength={100} />
-                                                                <p className="text-xs text-zinc-600">Sélectionnez des succès pour générer les paliers automatiques, ou &quot;Ajouter&quot; pour des paliers libres.</p>
+                                                                <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 100k / passage" className="bg-surface border-border" maxLength={100} />
+                                                                <p className="text-xs text-muted-foreground">Sélectionnez des succès pour générer les paliers automatiques, ou &quot;Ajouter&quot; pour des paliers libres.</p>
                                                             </div>
                                                         ) : (
                                                             <div className="space-y-2">
                                                                 {priceTiers.map((tier, i) => (
                                                                     <div key={i} className="flex gap-2 items-center">
-                                                                        <Input value={tier.label} onChange={(e) => updatePriceTier(i, "label", e.target.value)} placeholder="Ex: Full succès" className="bg-white/5 border-white/10 flex-1 text-sm h-8" maxLength={100} />
-                                                                        <Input value={tier.price} onChange={(e) => updatePriceTier(i, "price", e.target.value)} placeholder="Ex: 200k" className="bg-white/5 border-white/10 w-28 text-sm h-8" maxLength={100} />
-                                                                        <button type="button" onClick={() => removePriceTier(i)} className="text-zinc-600 hover:text-rose-400 transition-colors"><X className="h-4 w-4" /></button>
+                                                                        <Input value={tier.label} onChange={(e) => updatePriceTier(i, "label", e.target.value)} placeholder="Ex: Full succès" className="bg-surface border-border flex-1 text-sm h-8" maxLength={100} />
+                                                                        <Input value={tier.price} onChange={(e) => updatePriceTier(i, "price", e.target.value)} placeholder="Ex: 200k" className="bg-surface border-border w-28 text-sm h-8" maxLength={100} />
+                                                                        <button type="button" onClick={() => removePriceTier(i)} className="text-muted-foreground hover:text-danger transition-colors"><X className="h-4 w-4" /></button>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -721,7 +721,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {category === "FORGEMAGIE" && (
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Métiers FM *</Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Métiers FM *</Label>
                                         <div className="grid grid-cols-3 gap-2">
                                             {FM_JOBS.map((job) => (
                                                 <button
@@ -730,8 +730,8 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     onClick={() => toggleJob(job.name)}
                                                     title={job.name}
                                                     className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all text-caption font-bold ${selectedJobs.includes(job.name)
-                                                        ? "border-amber-500 bg-amber-500/15 text-amber-300"
-                                                        : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                                                        ? "border-warning bg-warning/15 text-warning"
+                                                        : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground"
                                                         }`}
                                                 >
                                                     <div className="relative h-9 w-9">
@@ -750,24 +750,24 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                     </div>
 
                                     {/* Commande Exo — OUI/NON */}
-                                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                                    <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3">
                                         <div>
-                                            <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                                            <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                                                 ✨ Prendre commandes Exo / Over
                                             </p>
-                                            <p className="text-caption text-zinc-500">Acceptez-vous les commandes exo ou over-stats ?</p>
+                                            <p className="text-caption text-muted-foreground">Acceptez-vous les commandes exo ou over-stats ?</p>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => setCommandeExo(v => !v)}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${commandeExo ? "bg-amber-500" : "bg-zinc-700"}`}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${commandeExo ? "bg-warning" : "bg-muted"}`}
                                         >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${commandeExo ? "translate-x-6" : "translate-x-1"}`} />
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform duration-200 ${commandeExo ? "translate-x-6" : "translate-x-1"}`} />
                                         </button>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif indicatif <span className="text-zinc-600 font-normal">(optionnel)</span></Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Tarif indicatif <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
                                                 <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
@@ -776,7 +776,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                 value={price}
                                                 onChange={(e) => setPrice(e.target.value)}
                                                 placeholder="Ex: 500k / exo, gratuit pour xp, etc."
-                                                className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                className="bg-surface border-border pl-9 font-semibold text-sm h-10"
                                                 maxLength={100}
                                             />
                                         </div>
@@ -788,7 +788,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {category === "METIER" && (
                                 <div className="space-y-4">
                                     {selectedMetierJob !== "Éleveur" && (
-                                        <div className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
+                                        <div className="flex gap-2 p-1 rounded-xl bg-surface border border-border">
                                             {(["craft", "pack"] as const).map((mode) => (
                                                 <button
                                                     key={mode}
@@ -798,8 +798,8 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                         setPrice("");
                                                     }}
                                                     className={`flex-1 py-2 text-xs font-black rounded-lg transition-all duration-200 ${metierMode === mode
-                                                        ? "bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 shadow-sm"
-                                                        : "text-zinc-400 hover:text-zinc-200"
+                                                        ? "bg-success/25 border border-success/40 text-success shadow-sm"
+                                                        : "text-muted-foreground hover:text-foreground"
                                                         }`}
                                                 >
                                                     {mode === "craft" ? "🛠️ Craft sur commande" : "📦 Pack montée 1 → 200"}
@@ -809,7 +809,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                     )}
 
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Sélectionner le métier *</Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Sélectionner le métier *</Label>
                                         <div className="grid grid-cols-4 gap-2">
                                             {DOFUS_JOBS.map((job) => (
                                                 <button
@@ -818,8 +818,8 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     onClick={() => setSelectedMetierJob(job.name === selectedMetierJob ? "" : job.name)}
                                                     title={job.name}
                                                     className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-caption font-bold ${selectedMetierJob === job.name
-                                                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                                                        : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+                                                        ? "border-success bg-success/15 text-success"
+                                                        : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground"
                                                         }`}
                                                 >
                                                     <div className="relative h-8 w-8">
@@ -838,18 +838,18 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                     </div>
 
                                     {selectedMetierJob === "Éleveur" ? (
-                                        <div className="space-y-3 border-t border-white/5 pt-4">
-                                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider block mb-1">Prestations de l'Éleveur</Label>
+                                        <div className="space-y-3 border-t border-border pt-4">
+                                            <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider block mb-1">Prestations de l'Éleveur</Label>
 
                                             {/* Passage Dofus Émeraude */}
-                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.emeraude.active ? "border-emerald-500/30 bg-emerald-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.emeraude.active ? "border-success/30 bg-success/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-9 h-9 shrink-0 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-success/10 rounded-xl flex items-center justify-center border border-success/20 shadow-inner">
                                                         <Image src="https://api.dofusdu.de/dofus3/v1/img/item/23002-64.png" alt="Dofus Émeraude" fill className="object-contain p-1" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Passage Dofus Émeraude</p>
-                                                        <p className="text-caption text-zinc-500 font-medium">Accouplement / Naissance</p>
+                                                        <p className="text-xs font-bold text-foreground leading-tight">Passage Dofus Émeraude</p>
+                                                        <p className="text-caption text-muted-foreground font-medium">Accouplement / Naissance</p>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -857,7 +857,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             emeraude: { ...prev.emeraude, active: !prev.emeraude.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.emeraude.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.emeraude.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                     >
                                                         {eleveurOptions.emeraude.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -875,7 +875,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                     emeraude: { ...prev.emeraude, price: e.target.value }
                                                                 }))}
                                                                 placeholder="Ex: 500k ou Gratuit"
-                                                                className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                             />
                                                         </div>
                                                     </div>
@@ -883,14 +883,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             </div>
 
                                             {/* Pack Dragodinde */}
-                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.dragodinde.active ? "border-emerald-500/30 bg-emerald-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.dragodinde.active ? "border-success/30 bg-success/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-elevated/40 rounded-xl flex items-center justify-center border border-border shadow-inner">
                                                         <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97016-64.png" alt="Dragodinde" fill className="object-contain p-1" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack Dragodinde</p>
-                                                        <p className="text-caption text-zinc-500 font-medium">Générations de 1 à 10</p>
+                                                        <p className="text-xs font-bold text-foreground leading-tight">Pack Dragodinde</p>
+                                                        <p className="text-caption text-muted-foreground font-medium">Générations de 1 à 10</p>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -898,7 +898,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             dragodinde: { ...prev.dragodinde, active: !prev.dragodinde.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.dragodinde.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.dragodinde.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                     >
                                                         {eleveurOptions.dragodinde.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -907,18 +907,18 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     <div className="mt-3 pl-12 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                                                         <div className="flex gap-2">
                                                             <div className="w-1/2 flex items-center gap-2">
-                                                                <span className="text-caption text-zinc-400 font-bold shrink-0">Choix :</span>
+                                                                <span className="text-caption text-muted-foreground font-bold shrink-0">Choix :</span>
                                                                 <select
                                                                     value={eleveurOptions.dragodinde.gen}
                                                                     onChange={(e) => setEleveurOptions(prev => ({
                                                                         ...prev,
                                                                         dragodinde: { ...prev.dragodinde, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
                                                                     }))}
-                                                                    className="bg-black/40 border border-white/10 rounded-lg text-xs h-8 px-2 flex-1 text-white font-bold outline-none focus:border-emerald-500/50"
+                                                                    className="bg-black/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
                                                                 >
-                                                                    <option value="all" className="bg-zinc-950 text-white">Pack Complet 1→10</option>
+                                                                    <option value="all" className="bg-background text-foreground">Pack Complet 1→10</option>
                                                                     {Array.from({ length: 10 }).map((_, i) => (
-                                                                        <option key={i + 1} value={i + 1} className="bg-zinc-950 text-white">Géné {i + 1}</option>
+                                                                        <option key={i + 1} value={i + 1} className="bg-background text-foreground">Géné {i + 1}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
@@ -933,7 +933,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         dragodinde: { ...prev.dragodinde, price: e.target.value }
                                                                     }))}
                                                                     placeholder="Tarif (kamas)"
-                                                                    className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                    className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                                 />
                                                             </div>
                                                         </div>
@@ -942,14 +942,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             </div>
 
                                             {/* Pack Muldo */}
-                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.muldo.active ? "border-emerald-500/30 bg-emerald-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.muldo.active ? "border-success/30 bg-success/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-elevated/40 rounded-xl flex items-center justify-center border border-border shadow-inner">
                                                         <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97299-64.png" alt="Muldo" fill className="object-contain p-1" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack Muldo</p>
-                                                        <p className="text-caption text-zinc-500 font-medium">Générations de 1 à 10</p>
+                                                        <p className="text-xs font-bold text-foreground leading-tight">Pack Muldo</p>
+                                                        <p className="text-caption text-muted-foreground font-medium">Générations de 1 à 10</p>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -957,7 +957,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             muldo: { ...prev.muldo, active: !prev.muldo.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.muldo.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.muldo.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                      >
                                                         {eleveurOptions.muldo.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -966,18 +966,18 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     <div className="mt-3 pl-12 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                                                         <div className="flex gap-2">
                                                             <div className="w-1/2 flex items-center gap-2">
-                                                                <span className="text-caption text-zinc-400 font-bold shrink-0">Choix :</span>
+                                                                <span className="text-caption text-muted-foreground font-bold shrink-0">Choix :</span>
                                                                 <select
                                                                     value={eleveurOptions.muldo.gen}
                                                                     onChange={(e) => setEleveurOptions(prev => ({
                                                                         ...prev,
                                                                         muldo: { ...prev.muldo, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
                                                                     }))}
-                                                                    className="bg-black/40 border border-white/10 rounded-lg text-xs h-8 px-2 flex-1 text-white font-bold outline-none focus:border-emerald-500/50"
+                                                                    className="bg-black/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
                                                                 >
-                                                                    <option value="all" className="bg-zinc-950 text-white">Pack Complet 1→10</option>
+                                                                    <option value="all" className="bg-background text-foreground">Pack Complet 1→10</option>
                                                                     {Array.from({ length: 10 }).map((_, i) => (
-                                                                        <option key={i + 1} value={i + 1} className="bg-zinc-950 text-white">Géné {i + 1}</option>
+                                                                        <option key={i + 1} value={i + 1} className="bg-background text-foreground">Géné {i + 1}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
@@ -992,7 +992,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         muldo: { ...prev.muldo, price: e.target.value }
                                                                     }))}
                                                                     placeholder="Tarif (kamas)"
-                                                                    className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                    className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1001,14 +1001,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             </div>
 
                                             {/* Pack Volkorne */}
-                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.volkorne.active ? "border-emerald-500/30 bg-emerald-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.volkorne.active ? "border-success/30 bg-success/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-elevated/40 rounded-xl flex items-center justify-center border border-border shadow-inner">
                                                         <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97261-64.png" alt="Volkorne" fill className="object-contain p-1" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack Volkorne</p>
-                                                        <p className="text-caption text-zinc-500 font-medium">Générations de 1 à 10</p>
+                                                        <p className="text-xs font-bold text-foreground leading-tight">Pack Volkorne</p>
+                                                        <p className="text-caption text-muted-foreground font-medium">Générations de 1 à 10</p>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -1016,7 +1016,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             volkorne: { ...prev.volkorne, active: !prev.volkorne.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.volkorne.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.volkorne.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                      >
                                                         {eleveurOptions.volkorne.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -1025,18 +1025,18 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     <div className="mt-3 pl-12 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                                                         <div className="flex gap-2">
                                                             <div className="w-1/2 flex items-center gap-2">
-                                                                <span className="text-caption text-zinc-400 font-bold shrink-0">Choix :</span>
+                                                                <span className="text-caption text-muted-foreground font-bold shrink-0">Choix :</span>
                                                                 <select
                                                                     value={eleveurOptions.volkorne.gen}
                                                                     onChange={(e) => setEleveurOptions(prev => ({
                                                                         ...prev,
                                                                         volkorne: { ...prev.volkorne, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
                                                                     }))}
-                                                                    className="bg-black/40 border border-white/10 rounded-lg text-xs h-8 px-2 flex-1 text-white font-bold outline-none focus:border-emerald-500/50"
+                                                                    className="bg-black/40 border border-border rounded-lg text-xs h-8 px-2 flex-1 text-foreground font-bold outline-none focus:border-success/50"
                                                                 >
-                                                                    <option value="all" className="bg-zinc-950 text-white">Pack Complet 1→10</option>
+                                                                    <option value="all" className="bg-background text-foreground">Pack Complet 1→10</option>
                                                                     {Array.from({ length: 10 }).map((_, i) => (
-                                                                        <option key={i + 1} value={i + 1} className="bg-zinc-950 text-white">Géné {i + 1}</option>
+                                                                        <option key={i + 1} value={i + 1} className="bg-background text-foreground">Géné {i + 1}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
@@ -1051,7 +1051,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                         volkorne: { ...prev.volkorne, price: e.target.value }
                                                                     }))}
                                                                     placeholder="Tarif (kamas)"
-                                                                    className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                    className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1060,14 +1060,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             </div>
 
                                             {/* Pack naissance 100 montures */}
-                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.pack100.active ? "border-emerald-500/30 bg-emerald-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.pack100.active ? "border-success/30 bg-success/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-elevated/40 rounded-xl flex items-center justify-center border border-border shadow-inner">
                                                         <Image src="https://api.dofusdu.de/dofus3/v1/img/item/93104-64.png" alt="100 montures" fill className="object-contain p-1" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack naissance 100 montures</p>
-                                                        <p className="text-caption text-zinc-500 font-medium">Kit d'accouplements prêt à naître</p>
+                                                        <p className="text-xs font-bold text-foreground leading-tight">Pack naissance 100 montures</p>
+                                                        <p className="text-caption text-muted-foreground font-medium">Kit d'accouplements prêt à naître</p>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -1075,7 +1075,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             pack100: { ...prev.pack100, active: !prev.pack100.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack100.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack100.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                     >
                                                         {eleveurOptions.pack100.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -1093,7 +1093,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                     pack100: { ...prev.pack100, price: e.target.value }
                                                                 }))}
                                                                 placeholder="Ex: 2M ou 2 000 000"
-                                                                className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                             />
                                                         </div>
                                                     </div>
@@ -1101,14 +1101,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                             </div>
 
                                             {/* Pack naissance 1000 montures */}
-                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.pack1000.active ? "border-emerald-500/30 bg-emerald-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.pack1000.active ? "border-success/30 bg-success/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-elevated/40 rounded-xl flex items-center justify-center border border-border shadow-inner">
                                                         <Image src="https://api.dofusdu.de/dofus3/v1/img/item/93293-64.png" alt="1000 montures" fill className="object-contain p-1" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack naissance 1000 montures</p>
-                                                        <p className="text-caption text-zinc-500 font-medium">Élevage industriel prêt à naître</p>
+                                                        <p className="text-xs font-bold text-foreground leading-tight">Pack naissance 1000 montures</p>
+                                                        <p className="text-caption text-muted-foreground font-medium">Élevage industriel prêt à naître</p>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -1116,7 +1116,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             ...prev,
                                                             pack1000: { ...prev.pack1000, active: !prev.pack1000.active }
                                                         }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack1000.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack1000.active ? "bg-success text-success-foreground font-black hover:bg-success" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                     >
                                                         {eleveurOptions.pack1000.active ? "Activé" : "Proposer"}
                                                     </button>
@@ -1134,7 +1134,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                                     pack1000: { ...prev.pack1000, price: e.target.value }
                                                                 }))}
                                                                 placeholder="Ex: 15M ou 15 000 000"
-                                                                className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                             />
                                                         </div>
                                                     </div>
@@ -1143,7 +1143,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
-                                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
+                                            <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">
                                                 {metierMode === "craft" ? "Tarif du Craft / Recette" : "Tarif du Pack Complet 1 → 200"}
                                             </Label>
                                             <div className="relative">
@@ -1154,11 +1154,11 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     value={price}
                                                     onChange={(e) => setPrice(e.target.value)}
                                                     placeholder={metierMode === "craft" ? "Ex: 10k par craft, ou gratuit" : "Ex: 10M ou 10 000 000"}
-                                                    className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                    className="bg-surface border-border pl-9 font-semibold text-sm h-10"
                                                     maxLength={50}
                                                 />
                                             </div>
-                                            <p className="text-caption text-zinc-500 italic">
+                                            <p className="text-caption text-muted-foreground italic">
                                                 {metierMode === "craft"
                                                     ? "Indiquez votre prix par craft ou coop."
                                                     : "Prix global pour fournir l'intégralité des ressources du niveau 1 à 200."}
@@ -1172,12 +1172,12 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {category === "QUETE" && (
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Sélectionner la quête *</Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Sélectionner la quête *</Label>
                                         <QuestPicker onSelect={setQuestSelection} value={questSelection} showSubCategory />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(optionnel)</span></Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Tarif <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
                                                 <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
@@ -1186,19 +1186,19 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                 value={price}
                                                 onChange={(e) => setPrice(e.target.value)}
                                                 placeholder="Ex: 500k ou Gratuit"
-                                                className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                className="bg-surface border-border pl-9 font-semibold text-sm h-10"
                                                 maxLength={50}
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
                                         <Input
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
                                             placeholder="Ex: Dispo pour combats, étapes spécifiques, etc."
-                                            className="bg-white/5 border-white/10 text-sm h-10"
+                                            className="bg-surface border-border text-sm h-10"
                                             maxLength={300}
                                         />
                                     </div>
@@ -1221,13 +1221,13 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         </div>
                                         <div className="space-y-0.5">
                                             <span className="text-caption text-yellow-500 font-black uppercase tracking-widest leading-none">L'Éternelle Moisson</span>
-                                            <h4 className="text-sm font-black text-white leading-tight">Dofus Ocre</h4>
-                                            <p className="text-caption text-zinc-500 leading-normal">Configurez vos packs ou services liés à la quête Ocre.</p>
+                                            <h4 className="text-sm font-black text-foreground leading-tight">Dofus Ocre</h4>
+                                            <p className="text-caption text-muted-foreground leading-normal">Configurez vos packs ou services liés à la quête Ocre.</p>
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Pack proposé *</Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Pack proposé *</Label>
                                         <div className="flex gap-2">
                                             {OCRE_PACKS.map((p) => (
                                                 <button
@@ -1236,7 +1236,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                     onClick={() => setOcrePack(p.value)}
                                                     className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-black border transition-all duration-200 ${ocrePack === p.value
                                                         ? "border-yellow-500 bg-yellow-500/15 text-yellow-300"
-                                                        : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                                                        : "border-border bg-surface text-muted-foreground hover:border-border-strong"
                                                         }`}
                                                 >
                                                     {p.label}
@@ -1246,7 +1246,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(kamas — optionnel)</span></Label>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Tarif <span className="text-muted-foreground font-normal">(kamas — optionnel)</span></Label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
                                                 <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
@@ -1255,7 +1255,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                 value={ocrePrice}
                                                 onChange={(e) => setOcrePrice(e.target.value)}
                                                 placeholder="Ex: 50M ou 50 000 000"
-                                                className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                className="bg-surface border-border pl-9 font-semibold text-sm h-10"
                                                 maxLength={50}
                                             />
                                         </div>
@@ -1273,17 +1273,17 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         </div>
                                         <div className="space-y-0.5">
                                             <span className="text-caption text-pink-500 font-black uppercase tracking-widest leading-none">Académie SigilOS</span>
-                                            <h4 className="text-sm font-black text-white leading-tight">Tutorat de Classe</h4>
-                                            <p className="text-caption text-zinc-500 leading-normal">Partagez votre expertise ou proposez d'accompagner des membres sur leur classe.</p>
+                                            <h4 className="text-sm font-black text-foreground leading-tight">Tutorat de Classe</h4>
+                                            <p className="text-caption text-muted-foreground leading-normal">Partagez votre expertise ou proposez d'accompagner des membres sur leur classe.</p>
                                         </div>
                                     </div>
 
                                     {/* Class Picker */}
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                                            Classes proposées <span className="text-zinc-600 font-normal">(optionnel)</span>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">
+                                            Classes proposées <span className="text-muted-foreground font-normal">(optionnel)</span>
                                         </Label>
-                                        <div className="grid grid-cols-5 gap-2 p-3 rounded-2xl border border-white/8 bg-white/[0.02]">
+                                        <div className="grid grid-cols-5 gap-2 p-3 rounded-2xl border border-white/8 bg-surface">
                                             {[...DOFUS_CLASSES].sort((a, b) => a.name.localeCompare(b.name)).map((cls) => {
                                                 const isSelected = tutoratClasses.includes(cls.id);
                                                 return (
@@ -1299,7 +1299,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                         className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all duration-200 group ${
                                                             isSelected
                                                                 ? "border-pink-500/70 bg-pink-500/15 "
-                                                                : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]"
+                                                                : "border-border bg-surface hover:border-border-strong hover:bg-surface"
                                                         }`}
                                                     >
                                                         <div className="relative w-9 h-9 transition-transform duration-200 group-">
@@ -1310,7 +1310,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             />
                                                         </div>
                                                         <span className={`text-caption font-bold leading-none text-center truncate w-full ${
-                                                            isSelected ? "text-pink-300" : "text-zinc-500 group-hover:text-zinc-300"
+                                                            isSelected ? "text-pink-300" : "text-muted-foreground group-hover:text-foreground"
                                                         }`}>{cls.name}</span>
                                                     </button>
                                                 );
@@ -1323,23 +1323,23 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         )}
                                     </div>
 
-                                    <div className="space-y-3 border-t border-white/5 pt-4">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider block mb-1">Prestations de Tutorat</Label>
+                                    <div className="space-y-3 border-t border-border pt-4">
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider block mb-1">Prestations de Tutorat</Label>
 
                                         {/* Les bases */}
-                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratBases ? "border-pink-500/30 bg-pink-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratBases ? "border-pink-500/30 bg-pink-500/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className="relative w-9 h-9 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-inner text-pink-400">
                                                     <span className="text-xs font-black">1</span>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-bold text-zinc-200 leading-tight">Les bases</p>
-                                                    <p className="text-caption text-zinc-500 font-medium">Sorts, caractéristiques, mécaniques élémentaires</p>
+                                                    <p className="text-xs font-bold text-foreground leading-tight">Les bases</p>
+                                                    <p className="text-caption text-muted-foreground font-medium">Sorts, caractéristiques, mécaniques élémentaires</p>
                                                 </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => setTutoratBases(!tutoratBases)}
-                                                    className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${tutoratBases ? "bg-pink-500 text-black font-black hover:bg-pink-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${tutoratBases ? "bg-pink-500 text-foreground font-black hover:bg-pink-400" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                 >
                                                     {tutoratBases ? "Activé" : "Proposer"}
                                                 </button>
@@ -1354,7 +1354,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             value={tutoratBasesPrice}
                                                             onChange={(e) => setTutoratBasesPrice(e.target.value)}
                                                             placeholder="Ex: 100k ou Gratuit"
-                                                            className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                            className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                         />
                                                     </div>
                                                 </div>
@@ -1362,19 +1362,19 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         </div>
 
                                         {/* Avancé */}
-                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratAvance ? "border-pink-500/30 bg-pink-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratAvance ? "border-pink-500/30 bg-pink-500/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className="relative w-9 h-9 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-inner text-pink-400">
                                                     <span className="text-xs font-black">2</span>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-bold text-zinc-200 leading-tight">Avancé</p>
-                                                    <p className="text-caption text-zinc-500 font-medium">Combos complexes, modes de jeu, optimisation combat</p>
+                                                    <p className="text-xs font-bold text-foreground leading-tight">Avancé</p>
+                                                    <p className="text-caption text-muted-foreground font-medium">Combos complexes, modes de jeu, optimisation combat</p>
                                                 </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => setTutoratAvance(!tutoratAvance)}
-                                                    className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${tutoratAvance ? "bg-pink-500 text-black font-black hover:bg-pink-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${tutoratAvance ? "bg-pink-500 text-foreground font-black hover:bg-pink-400" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                 >
                                                     {tutoratAvance ? "Activé" : "Proposer"}
                                                 </button>
@@ -1389,7 +1389,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             value={tutoratAvancePrice}
                                                             onChange={(e) => setTutoratAvancePrice(e.target.value)}
                                                             placeholder="Ex: 200k ou Gratuit"
-                                                            className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                            className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                         />
                                                     </div>
                                                 </div>
@@ -1397,19 +1397,19 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         </div>
 
                                         {/* Les Stuff */}
-                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratStuff ? "border-pink-500/30 bg-pink-500/5 " : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratStuff ? "border-pink-500/30 bg-pink-500/5 " : "border-border bg-surface opacity-75 hover:opacity-100"}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className="relative w-9 h-9 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-inner text-pink-400">
                                                     <span className="text-xs font-black">3</span>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-bold text-zinc-200 leading-tight">Les Stuff</p>
-                                                    <p className="text-caption text-zinc-500 font-medium">Théorie et proposition de builds d'équipements adaptés</p>
+                                                    <p className="text-xs font-bold text-foreground leading-tight">Les Stuff</p>
+                                                    <p className="text-caption text-muted-foreground font-medium">Théorie et proposition de builds d'équipements adaptés</p>
                                                 </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => setTutoratStuff(!tutoratStuff)}
-                                                    className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${tutoratStuff ? "bg-pink-500 text-black font-black hover:bg-pink-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-wider transition-all duration-200 ${tutoratStuff ? "bg-pink-500 text-foreground font-black hover:bg-pink-400" : "bg-surface text-muted-foreground hover:text-foreground"}`}
                                                 >
                                                     {tutoratStuff ? "Activé" : "Proposer"}
                                                 </button>
@@ -1424,7 +1424,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                                             value={tutoratStuffPrice}
                                                             onChange={(e) => setTutoratStuffPrice(e.target.value)}
                                                             placeholder="Ex: Gratuit ou 150k"
-                                                            className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                            className="bg-black/40 border-border pl-8 text-xs h-8 font-semibold rounded-lg text-foreground"
                                                         />
                                                     </div>
                                                 </div>
@@ -1437,12 +1437,12 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             {/* Description for non-Quete categories */}
                             {category !== "QUETE" && (
                                 <div className="space-y-2">
-                                    <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
+                                    <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
                                     <Input
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         placeholder="Ex: dispo en soirée, contactez-moi avant, etc."
-                                        className="bg-white/5 border-white/10 text-sm h-10"
+                                        className="bg-surface border-border text-sm h-10"
                                         maxLength={300}
                                     />
                                 </div>
@@ -1450,27 +1450,27 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
                             {/* Availability */}
                             <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Disponibilité</Label>
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Disponibilité</Label>
                                 <AvailabilityPreview guildId={guildId} />
                                 <Input
                                     value={availability}
                                     onChange={(e) => setAvailability(e.target.value)}
                                     placeholder="Précision optionnelle (ex: sauf mercredi)"
-                                    className="bg-white/5 border-white/10 text-xs h-9"
+                                    className="bg-surface border-border text-xs h-9"
                                     maxLength={200}
                                 />
                             </div>
 
                             {/* Contact Method */}
                             <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Contact préféré</Label>
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Contact préféré</Label>
                                 <div className="flex gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setContactDiscord(v => !v)}
                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 ${contactDiscord
-                                            ? "border-indigo-500 bg-indigo-500/15 text-indigo-300"
-                                            : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20"
+                                            ? "border-info bg-info/15 text-info"
+                                            : "border-border bg-surface text-muted-foreground hover:border-border-strong"
                                             }`}
                                     >
                                         <MessageSquare className="h-3.5 w-3.5" />
@@ -1480,8 +1480,8 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         type="button"
                                         onClick={() => setContactIngame(v => !v)}
                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 ${contactIngame
-                                            ? "border-cyan-500 bg-cyan-500/15 text-cyan-300"
-                                            : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20"
+                                            ? "border-info bg-info/15 text-info"
+                                            : "border-border bg-surface text-muted-foreground hover:border-border-strong"
                                             }`}
                                     >
                                         <Gamepad2 className="h-3.5 w-3.5" />
@@ -1491,12 +1491,12 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             </div>
                         </div>
 
-                        <div className="px-6 py-5 bg-slate-900/40 border-t border-white/5 flex gap-3 sticky bottom-0 z-10 mt-auto">
-                            <Button variant="ghost" onClick={() => setStep(1)} className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all">Retour</Button>
+                        <div className="px-6 py-5 bg-surface/40 border-t border-border flex gap-3 sticky bottom-0 z-10 mt-auto">
+                            <Button variant="ghost" onClick={() => setStep(1)} className="flex-1 border border-border bg-surface text-foreground hover:text-foreground hover:bg-surface font-bold h-12 transition-all">Retour</Button>
                             <Button
                                 onClick={handleSubmit}
                                 disabled={loading || !title.trim()}
-                                className={`flex-1 font-black h-12 text-white shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : CATEGORY_ACCENT[category].includes("pink") ? "bg-pink-600 hover:bg-pink-500 shadow-pink-900/20" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"}`}
+                                className={`flex-1 font-black h-12 text-foreground shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-info hover:bg-info shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-warning hover:bg-warning shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : CATEGORY_ACCENT[category].includes("pink") ? "bg-pink-600 hover:bg-pink-500 shadow-pink-900/20" : "bg-success hover:bg-success shadow-emerald-900/20"}`}
                             >
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publier"}
                             </Button>

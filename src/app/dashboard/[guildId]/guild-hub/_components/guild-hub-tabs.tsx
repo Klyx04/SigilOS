@@ -27,17 +27,17 @@ function HubCard({ label, description, icon: Icon, isActive, onClick }: HubCardP
             onClick={onClick}
             aria-pressed={isActive}
             className={cn(
-                "group flex items-center gap-4 p-5 rounded-2xl border text-left outline-none transition-colors duration-200 select-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+                "group flex items-center gap-4 p-5 rounded-2xl border text-left outline-none transition-colors duration-200 select-none focus-visible:ring-2 focus-visible:ring-success/50",
                 isActive
-                    ? "border-emerald-500/40 bg-emerald-500/[0.06]"
-                    : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20"
+                    ? "border-success/40 bg-success/[0.06]"
+                    : "border-border bg-surface hover:bg-surface hover:border-border-strong"
             )}
         >
             <div className={cn(
                 "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-colors duration-200",
                 isActive
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-zinc-900/60 border-white/5 text-zinc-500 group-hover:text-zinc-300 group-hover:border-white/10"
+                    ? "bg-success/10 border-success/30 text-success"
+                    : "bg-surface/60 border-border text-muted-foreground group-hover:text-foreground group-hover:border-border"
             )}>
                 <Icon className="w-5 h-5" />
             </div>
@@ -45,21 +45,21 @@ function HubCard({ label, description, icon: Icon, isActive, onClick }: HubCardP
             <div className="flex-1 min-w-0">
                 <p className={cn(
                     "font-bold transition-colors duration-200",
-                    isActive ? "text-white" : "text-zinc-300 group-hover:text-white"
+                    isActive ? "text-foreground" : "text-foreground group-hover:text-foreground"
                 )}>
                     {label}
                 </p>
-                <p className="text-caption font-medium text-zinc-500 mt-0.5">
+                <p className="text-caption font-medium text-muted-foreground mt-0.5">
                     {description}
                 </p>
             </div>
 
             {isActive && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" aria-hidden />
+                <span className="w-2 h-2 rounded-full bg-success shrink-0" aria-hidden />
             )}
             <ChevronRight className={cn(
                 "w-4 h-4 shrink-0 transition-colors duration-200",
-                isActive ? "text-emerald-400" : "text-zinc-600 group-hover:text-zinc-400"
+                isActive ? "text-success" : "text-muted-foreground group-hover:text-muted-foreground"
             )} />
         </button>
     );

@@ -53,15 +53,15 @@ export function GuildAppearanceSettingsClient({
 
     return (
         <div className="space-y-8">
-            <div className="p-6 rounded-2xl border border-white/5 bg-zinc-900/30 space-y-5">
+            <div className="p-6 rounded-2xl border border-border bg-surface/30 space-y-5">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center shrink-0"
+                    <div className="w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0"
                         style={{ background: previewAccent(hue) }}>
-                        <Palette className="w-5 h-5 text-black/70" />
+                        <Palette className="w-5 h-5 text-foreground/70" />
                     </div>
                     <div className="space-y-0.5">
-                        <h3 className="text-sm font-black text-white uppercase tracking-wider">Couleur de Guilde</h3>
-                        <p className="text-caption text-zinc-500 leading-normal">
+                        <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Couleur de Guilde</h3>
+                        <p className="text-caption text-muted-foreground leading-normal">
                             La teinte choisie teinte le tableau de bord (boutons, navigation, focus). Le système impose
                             luminosité et saturation : le contraste reste garanti en clair ET en sombre, quelle que soit la teinte.
                         </p>
@@ -69,12 +69,12 @@ export function GuildAppearanceSettingsClient({
                 </div>
 
                 {/* Slider teinte libre */}
-                <div className="space-y-2 pt-2 border-t border-white/5">
+                <div className="space-y-2 pt-2 border-t border-border">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">
                             Teinte personnalisée
                         </span>
-                        <span className="text-caption font-mono text-zinc-500 tabular-nums">
+                        <span className="text-caption font-mono text-muted-foreground tabular-nums">
                             {hue == null ? "défaut" : `${hue}°`}
                         </span>
                     </div>
@@ -85,10 +85,10 @@ export function GuildAppearanceSettingsClient({
                         value={hue ?? 163}
                         onChange={(e) => setHue(Number(e.target.value))}
                         aria-label="Teinte de la couleur de guilde (0-360°)"
-                        className="w-full accent-emerald-500"
+                        className="w-full accent-success"
                     />
                     <div
-                        className="h-3 rounded-full border border-white/10"
+                        className="h-3 rounded-full border border-border"
                         style={{ background: previewAccent(hue ?? 163) }}
                     />
                 </div>
@@ -97,7 +97,7 @@ export function GuildAppearanceSettingsClient({
                     <Button
                         onClick={() => save(hue)}
                         disabled={isPending}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider"
+                        className="bg-success hover:bg-success text-success-foreground text-xs font-black uppercase tracking-wider"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                         Appliquer la couleur

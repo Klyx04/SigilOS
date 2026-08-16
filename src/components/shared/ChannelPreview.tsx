@@ -44,13 +44,13 @@ async function loadGuildChannels(guildId: string): Promise<ChannelInfo[]> {
 
 function resolveTextColor(color: string): string {
     switch (color) {
-        case "amber": return "text-amber-400/80";
-        case "rose": return "text-rose-400/80";
-        case "emerald": return "text-emerald-400/80";
-        case "indigo": return "text-indigo-400/80";
+        case "amber": return "text-warning/80";
+        case "rose": return "text-danger/80";
+        case "emerald": return "text-success/80";
+        case "indigo": return "text-info/80";
         case "pink": return "text-pink-400/80";
-        case "purple": return "text-purple-400/80";
-        default: return "text-cyan-400/80";
+        case "purple": return "text-info/80";
+        default: return "text-info/80";
     }
 }
 
@@ -137,8 +137,8 @@ export function ChannelPreview({
 
     if (state.status === "error") {
         return (
-            <div className={`flex items-center gap-1.5 text-caption font-bold text-red-400/90 ${className}`}>
-                <AlertTriangle className="w-3 h-3 text-red-400/80" />
+            <div className={`flex items-center gap-1.5 text-caption font-bold text-danger/90 ${className}`}>
+                <AlertTriangle className="w-3 h-3 text-danger/80" />
                 <span>Salon introuvable</span>
             </div>
         );

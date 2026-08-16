@@ -28,14 +28,14 @@ function formatBytes(bytes: number): string {
 }
 
 const TYPE_CFG = {
-    MISSION: { label: "Mission", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", dot: "bg-rose-500", barColor: "bg-rose-500" },
-    KAMA: { label: "Kamas, Prêts & Coffre", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", dot: "bg-amber-500", barColor: "bg-amber-500" },
-    ACHIEVEMENT: { label: "Succès", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", dot: "bg-purple-500", barColor: "bg-purple-500" },
-    LOAN_PROOF: { label: "Prêt & Coffre", color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20", dot: "bg-cyan-500", barColor: "bg-cyan-500" },
-    PRESENTATION: { label: "Présentation Guilde", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-500", barColor: "bg-emerald-500" },
+    MISSION: { label: "Mission", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", dot: "bg-danger", barColor: "bg-danger" },
+    KAMA: { label: "Kamas, Prêts & Coffre", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", dot: "bg-warning", barColor: "bg-warning" },
+    ACHIEVEMENT: { label: "Succès", color: "text-info", bg: "bg-info/10", border: "border-info/20", dot: "bg-info", barColor: "bg-info" },
+    LOAN_PROOF: { label: "Prêt & Coffre", color: "text-info", bg: "bg-info/10", border: "border-info/20", dot: "bg-info", barColor: "bg-info" },
+    PRESENTATION: { label: "Présentation Guilde", color: "text-success", bg: "bg-success/10", border: "border-success/20", dot: "bg-success", barColor: "bg-success" },
     ICON: { label: "Icône", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20", dot: "bg-sky-500", barColor: "bg-sky-500" },
-    BANNER: { label: "Bannière de guilde", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-500", barColor: "bg-emerald-500" },
-    PHOTO: { label: "Photo de guilde", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", dot: "bg-indigo-500", barColor: "bg-indigo-500" },
+    BANNER: { label: "Bannière de guilde", color: "text-success", bg: "bg-success/10", border: "border-success/20", dot: "bg-success", barColor: "bg-success" },
+    PHOTO: { label: "Photo de guilde", color: "text-info", bg: "bg-info/10", border: "border-info/20", dot: "bg-info", barColor: "bg-info" },
 };
 
 // ─── Path Display ─────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ function PathDisplay({ path, colorClass, guildName }: { path: string; colorClass
 
     return (
         <div className="flex flex-wrap items-center gap-1.5 py-2">
-            <span className="text-caption font-mono text-zinc-300 font-black tracking-tighter uppercase whitespace-nowrap bg-zinc-950 px-2 py-1 rounded-lg border border-white/10 shadow-sm">SigilOS /</span>
+            <span className="text-caption font-mono text-foreground font-black tracking-tighter uppercase whitespace-nowrap bg-background px-2 py-1 rounded-lg border border-border shadow-sm">SigilOS /</span>
             {segments.map((seg, i) => {
                 const isId = (seg.length > 20 && /^[a-z0-9]+$/.test(seg)) || /^\d{17,20}$/.test(seg);
                 if (!seg) return null;
@@ -61,12 +61,12 @@ function PathDisplay({ path, colorClass, guildName }: { path: string; colorClass
                             title={isId && guildName ? `${seg} (${guildName})` : seg} 
                             className={cn(
                                 "text-caption font-mono font-black px-2 py-1.5 rounded-lg border shadow-sm transition-all whitespace-nowrap",
-                                isId ? "text-emerald-400/80 bg-emerald-500/5 border-emerald-500/20" : `${colorClass} bg-zinc-900 border-white/[0.15] opacity-90`
+                                isId ? "text-success/80 bg-success/5 border-success/20" : `${colorClass} bg-surface border-border opacity-90`
                             )}
                         >
                             {label}
                         </span>
-                        {i < segments.length - 1 && <span className="text-zinc-700 text-caption font-mono font-black mx-0.5">/</span>}
+                        {i < segments.length - 1 && <span className="text-muted-foreground text-caption font-mono font-black mx-0.5">/</span>}
                     </div>
                 );
             })}
@@ -109,11 +109,11 @@ function CountdownChip({
         
     const { label, urgent, expired } = useCountdown(targetDate);
 
-    if (expired) return <span className="text-caption font-black px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 uppercase">PRÊT POUR NETTOYAGE</span>;
+    if (expired) return <span className="text-caption font-black px-1.5 py-0.5 rounded bg-danger/20 text-danger uppercase">PRÊT POUR NETTOYAGE</span>;
     return (
         <span className={cn(
             "text-caption font-mono font-black px-1.5 py-0.5 rounded flex items-center gap-1.5 whitespace-nowrap", 
-            urgent ? "bg-red-500/10 text-red-400 animate-pulse" : "bg-zinc-800 text-zinc-400"
+            urgent ? "bg-danger/10 text-danger animate-pulse" : "bg-elevated text-muted-foreground"
         )}>
             <Clock className="w-2.5 h-2.5" />
             {labelPrefix}{label}
@@ -148,28 +148,28 @@ function FileExplorerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl bg-zinc-950 border-white/5 p-0 overflow-hidden outline-none">
-                <DialogHeader className="p-6 border-b border-white/10 bg-zinc-900/80 backdrop-blur-md">
+            <DialogContent className="max-w-5xl bg-background border-border p-0 overflow-hidden outline-none">
+                <DialogHeader className="p-6 border-b border-border bg-surface/80 backdrop-blur-md">
                     <div className="flex items-center gap-4 text-left">
                         <div className={cn("p-3 rounded-2xl shadow-xl", cfg.bg, cfg.color)}>
                             <FolderOpen className="w-6 h-6" />
                         </div>
                         <div>
-                            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">{label}</DialogTitle>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-widest mt-1 opacity-80">{files.length} fichiers physiques</p>
+                            <DialogTitle className="text-2xl font-black text-foreground uppercase tracking-tight">{label}</DialogTitle>
+                            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mt-1 opacity-80">{files.length} fichiers physiques</p>
                         </div>
                     </div>
                 </DialogHeader>
 
                 <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar">
                     {files.length === 0 ? (
-                        <div className="text-center py-20 text-zinc-700 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-[2rem]">
+                        <div className="text-center py-20 text-muted-foreground text-xs font-bold uppercase tracking-widest border-2 border-dashed border-border rounded-[2rem]">
                             Aucun fichier physique détecté
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {files.map((f, i) => (
-                                <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-white/5 bg-zinc-900/50 hover:border-white/20 transition-all aspect-square">
+                                <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-border bg-surface/50 hover:border-border-strong transition-all aspect-square">
                                     <button 
                                         className="absolute inset-0 z-10" 
                                         onClick={() => setLightbox({ url: f.url, type, label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true, isPending: f.isPending, expiresAt: f.expiresAt })}
@@ -190,7 +190,7 @@ function FileExplorerDialog({
                                                 return <CountdownChip modifiedAt={f.modifiedAt} durationMs={7 * 24 * 3600000} labelPrefix="RETENTION : " />;
                                             }
                                             return (
-                                                <span className="text-caption font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest flex items-center gap-1 shadow-2xl">
+                                                <span className="text-caption font-black px-1.5 py-0.5 rounded bg-success/10 text-success border border-success/20 uppercase tracking-widest flex items-center gap-1 shadow-2xl">
                                                     <Shield className="w-2 h-2" />
                                                     Permanent
                                                 </span>
@@ -199,8 +199,8 @@ function FileExplorerDialog({
                                     </div>
 
                                     <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none drop-shadow-md">
-                                        <p className="text-caption font-black text-white truncate uppercase tracking-tighter">{f.filename}</p>
-                                        <p className="text-caption font-mono font-black text-zinc-300 opacity-80">{formatBytes(f.sizeBytes)}</p>
+                                        <p className="text-caption font-black text-foreground truncate uppercase tracking-tighter">{f.filename}</p>
+                                        <p className="text-caption font-mono font-black text-foreground opacity-80">{formatBytes(f.sizeBytes)}</p>
                                     </div>
                                 </div>
                             ))}
@@ -235,31 +235,31 @@ function PendingValidationDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl bg-zinc-950 border-white/5 p-0 overflow-hidden outline-none">
-                <DialogHeader className="p-6 border-b border-white/5 bg-zinc-900/50">
+            <DialogContent className="max-w-5xl bg-background border-border p-0 overflow-hidden outline-none">
+                <DialogHeader className="p-6 border-b border-border bg-surface/50">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 text-left">
-                            <div className={cn("p-3 rounded-2xl bg-amber-500/10 text-amber-500 shadow-xl")}>
+                            <div className={cn("p-3 rounded-2xl bg-warning/10 text-warning shadow-xl")}>
                                 <Clock className="w-6 h-6" />
                             </div>
                             <div>
-                                <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter leading-none">WAITING ROOM</DialogTitle>
-                                <p className="text-caption font-black text-zinc-400 uppercase tracking-[0.2em] mt-2">{label} — {files.length} submissions</p>
+                                <DialogTitle className="text-2xl font-black text-foreground uppercase tracking-tighter leading-none">WAITING ROOM</DialogTitle>
+                                <p className="text-caption font-black text-muted-foreground uppercase tracking-[0.2em] mt-2">{label} — {files.length} submissions</p>
                             </div>
                         </div>
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-black px-3 py-1 text-caption tracking-widest uppercase">Expiration 24h</Badge>
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 font-black px-3 py-1 text-caption tracking-widest uppercase">Expiration 24h</Badge>
                     </div>
                 </DialogHeader>
 
                 <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar">
                     {files.length === 0 ? (
-                        <div className="text-center py-20 text-zinc-700 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-white/5 rounded-[2rem]">
+                        <div className="text-center py-20 text-muted-foreground text-xs font-bold uppercase tracking-widest border-2 border-dashed border-border rounded-[2rem]">
                             Aucun record en attente
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {files.map((f, i) => (
-                                <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-white/5 bg-zinc-900/50 hover:border-white/20 transition-all aspect-square">
+                                <div key={i} className="group relative rounded-[1.5rem] overflow-hidden border border-border bg-surface/50 hover:border-border-strong transition-all aspect-square">
                                     <button 
                                         className="absolute inset-0 z-10" 
                                         onClick={() => setLightbox({ url: f.url, type: f.type, label: cfg.label, filename: f.filename, sizeBytes: f.sizeBytes, isLocal: true, expiresAt: f.expiresAt })}
@@ -272,8 +272,8 @@ function PendingValidationDialog({
                                     </div>
 
                                     <div className="absolute bottom-3 left-3 right-3 space-y-0.5 pointer-events-none">
-                                        <p className="text-caption font-black text-white truncate">{f.memberName}</p>
-                                        <p className="text-caption font-mono text-zinc-500">{formatBytes(f.sizeBytes)}</p>
+                                        <p className="text-caption font-black text-foreground truncate">{f.memberName}</p>
+                                        <p className="text-caption font-mono text-muted-foreground">{formatBytes(f.sizeBytes)}</p>
                                     </div>
                                 </div>
                             ))}
@@ -349,8 +349,8 @@ export function StorageOverviewPanel() {
 
     if (loading && !overview) return (
         <div className="flex flex-col items-center justify-center py-40 gap-6">
-            <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
-            <span className="text-caption font-black text-zinc-600 uppercase tracking-widest animate-pulse">Exploration physique...</span>
+            <Loader2 className="w-10 h-10 text-warning animate-spin" />
+            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest animate-pulse">Exploration physique...</span>
         </div>
     );
 
@@ -359,32 +359,32 @@ export function StorageOverviewPanel() {
             {/* ── En-tête : titre + stats globales + actions ── */}
             <div className="flex flex-wrap items-end justify-between gap-6">
                 <div>
-                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Stockage &amp; Captures</h2>
-                    <p className="text-sm text-zinc-500 mt-1 max-w-2xl">Espace disque par guilde, captures en attente, seuils personnalisables et fichiers orphelins.</p>
+                    <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Stockage &amp; Captures</h2>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-2xl">Espace disque par guilde, captures en attente, seuils personnalisables et fichiers orphelins.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2.5">
-                    <div className="flex items-center gap-2 rounded-2xl bg-zinc-900/60 border border-white/10 px-4 py-2.5">
-                        <HardDrive className="w-4 h-4 text-blue-400" />
-                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Total</span>
-                        <span className="text-sm font-black font-mono text-white">{formatBytes(overview?.totalBytes || 0)}</span>
+                    <div className="flex items-center gap-2 rounded-2xl bg-surface/60 border border-border px-4 py-2.5">
+                        <HardDrive className="w-4 h-4 text-info" />
+                        <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Total</span>
+                        <span className="text-sm font-black font-mono text-foreground">{formatBytes(overview?.totalBytes || 0)}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-2xl bg-zinc-900/60 border border-white/10 px-4 py-2.5">
-                        <FileImage className="w-4 h-4 text-emerald-400" />
-                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Fichiers</span>
-                        <span className="text-sm font-black font-mono text-white">{overview?.totalFiles || 0}</span>
+                    <div className="flex items-center gap-2 rounded-2xl bg-surface/60 border border-border px-4 py-2.5">
+                        <FileImage className="w-4 h-4 text-success" />
+                        <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Fichiers</span>
+                        <span className="text-sm font-black font-mono text-foreground">{overview?.totalFiles || 0}</span>
                     </div>
-                    <button onClick={() => setOrphansOpen(true)} className={cn("flex items-center gap-2 rounded-2xl border px-4 py-2.5 transition-all", (overview?.orphanFiles.length || 0) > 0 ? "bg-rose-500/10 border-rose-500/25 text-rose-400 hover:bg-rose-500/15" : "bg-zinc-900/60 border-white/10 text-zinc-400 hover:text-white")}>
+                    <button onClick={() => setOrphansOpen(true)} className={cn("flex items-center gap-2 rounded-2xl border px-4 py-2.5 transition-all", (overview?.orphanFiles.length || 0) > 0 ? "bg-danger/10 border-danger/25 text-danger hover:bg-danger/15" : "bg-surface/60 border-border text-muted-foreground hover:text-foreground")}>
                         <AlertTriangle className="w-4 h-4" />
                         <span className="text-caption font-black uppercase tracking-widest">{overview?.orphanFiles.length || 0} orphelin(s)</span>
                     </button>
-                    <button onClick={() => load(true)} title="Rafraîchir le scan disque (force)" className="p-2.5 rounded-2xl bg-zinc-900/60 border border-white/10 text-zinc-400 hover:text-white transition-all">
+                    <button onClick={() => load(true)} title="Rafraîchir le scan disque (force)" className="p-2.5 rounded-2xl bg-surface/60 border border-border text-muted-foreground hover:text-foreground transition-all">
                         <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
                     </button>
                 </div>
             </div>
 
                     {/* ── Onglets ── */}
-                    <div className="flex items-center gap-1 border-b border-white/10 overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-1 border-b border-border overflow-x-auto no-scrollbar">
                         {([
                             { id: "guildes" as const, label: "Guildes", icon: Shield },
                             { id: "orphelins" as const, label: "Fichiers orphelins", icon: AlertTriangle },
@@ -393,11 +393,11 @@ export function StorageOverviewPanel() {
                             const Icon = tab.icon;
                             const badge = tab.id === "orphelins" ? overview?.orphanFiles.length || 0 : tab.id === "logs" ? logs?.totals.total : undefined;
                             return (
-                                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("flex items-center gap-2 px-4 py-3 -mb-px border-b-2 text-caption font-black uppercase tracking-widest transition-all whitespace-nowrap", activeTab === tab.id ? "border-blue-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300")}>
+                                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("flex items-center gap-2 px-4 py-3 -mb-px border-b-2 text-caption font-black uppercase tracking-widest transition-all whitespace-nowrap", activeTab === tab.id ? "border-info text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                                     <Icon className="w-4 h-4" />
                                     {tab.label}
                                     {badge != null && badge > 0 && (
-                                        <span className={cn("flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-caption font-black", tab.id === "orphelins" ? "bg-rose-500 text-white" : "bg-indigo-500 text-white")}>{badge > 99 ? "99+" : badge}</span>
+                                        <span className={cn("flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-caption font-black", tab.id === "orphelins" ? "bg-danger text-danger-foreground" : "bg-info text-info-foreground")}>{badge > 99 ? "99+" : badge}</span>
                                     )}
                                 </button>
                             );
@@ -409,7 +409,7 @@ export function StorageOverviewPanel() {
                             {/* Barre d'outils : recherche + tri + vue */}
                             <div className="flex flex-wrap items-center gap-3">
                                 <div className="relative flex-1 min-w-[220px] group">
-                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-blue-400 transition-colors">
+                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-info transition-colors">
                                         <Search className="w-4 h-4" />
                                     </div>
                                     <input
@@ -417,28 +417,28 @@ export function StorageOverviewPanel() {
                                         placeholder="Rechercher une guilde..."
                                         value={searchTerm}
                                         onChange={(e) => changeSearch(e.target.value)}
-                                        className="w-full bg-zinc-900/40 border border-white/10 rounded-xl py-2.5 pl-11 pr-4 text-sm focus:border-blue-500/50 focus:bg-zinc-900/60 transition-all outline-none"
+                                        className="w-full bg-surface/40 border border-border rounded-xl py-2.5 pl-11 pr-4 text-sm focus:border-info/50 focus:bg-surface/60 transition-all outline-none"
                                     />
                                 </div>
-                                <div className="flex items-center gap-1 p-1 bg-zinc-900/40 border border-white/10 rounded-xl">
-                                    <span className="px-2 text-caption font-black text-zinc-500 uppercase tracking-widest">Tri</span>
+                                <div className="flex items-center gap-1 p-1 bg-surface/40 border border-border rounded-xl">
+                                    <span className="px-2 text-caption font-black text-muted-foreground uppercase tracking-widest">Tri</span>
                                     {([['size', 'Taille'], ['name', 'Nom'], ['files', 'Fichiers']] as const).map(([key, label]) => (
-                                        <button key={key} onClick={() => setSortBy(key)} className={cn("px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all", sortBy === key ? "bg-blue-500 text-black" : "text-zinc-400 hover:text-white")}>
+                                        <button key={key} onClick={() => setSortBy(key)} className={cn("px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all", sortBy === key ? "bg-info text-info-foreground" : "text-muted-foreground hover:text-foreground")}>
                                             {label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
                             {/* Contenu : liste (table) */}
-                            <div className="bg-zinc-900/40 border border-white/10 rounded-2xl overflow-hidden">
+                            <div className="bg-surface/40 border border-border rounded-2xl overflow-hidden">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="bg-white/5">
+                                    <thead className="bg-surface">
                                         <tr>
-                                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">Guilde</th>
-                                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right font-mono">Taille Totale</th>
-                                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-center">Fichiers</th>
-                                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">Répartition</th>
-                                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Actions</th>
+                                            <th className="px-6 py-4 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border">Guilde</th>
+                                            <th className="px-6 py-4 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border text-right font-mono">Taille Totale</th>
+                                            <th className="px-6 py-4 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border text-center">Fichiers</th>
+                                            <th className="px-6 py-4 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border">Répartition</th>
+                                            <th className="px-6 py-4 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -449,19 +449,19 @@ export function StorageOverviewPanel() {
                                 </table>
                             </div>
                             {sortedGuilds.length === 0 && (
-                                <div className="h-48 flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-2xl text-zinc-700 text-xs font-black uppercase tracking-widest">
+                                <div className="h-48 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted-foreground text-xs font-black uppercase tracking-widest">
                                     Aucune correspondance
                                 </div>
                             )}
 
                             {/* Pagination */}
                             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                                <span className="text-xs font-mono font-black text-zinc-500">{sortedGuilds.length} guildes</span>
+                                <span className="text-xs font-mono font-black text-muted-foreground">{sortedGuilds.length} guildes</span>
                                 {totalPages > 1 && (
                                     <div className="flex items-center gap-1.5">
-                                        <button onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} className="px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/10 text-caption font-black disabled:opacity-30 hover:bg-white/5 transition-all">‹</button>
-                                        <span className="text-caption font-mono font-black text-zinc-300">{currentPage} / {totalPages}</span>
-                                        <button onClick={() => setPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/10 text-caption font-black disabled:opacity-30 hover:bg-white/5 transition-all">›</button>
+                                        <button onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} className="px-3 py-1.5 rounded-lg bg-surface/60 border border-border text-caption font-black disabled:opacity-30 hover:bg-surface transition-all">‹</button>
+                                        <span className="text-caption font-mono font-black text-foreground">{currentPage} / {totalPages}</span>
+                                        <button onClick={() => setPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 rounded-lg bg-surface/60 border border-border text-caption font-black disabled:opacity-30 hover:bg-surface transition-all">›</button>
                                     </div>
                                 )}
                             </div>
@@ -470,60 +470,60 @@ export function StorageOverviewPanel() {
 
                 {/* ── Onglet Fichiers orphelins ── */}
                 {activeTab === "orphelins" && (
-                    <div className="rounded-3xl border border-white/10 bg-zinc-900/40 p-6 space-y-4">
+                    <div className="rounded-3xl border border-border bg-surface/40 p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <div>
-                                <h3 className="text-lg font-black text-white uppercase tracking-widest">Fichiers orphelins</h3>
-                                <p className="text-sm text-zinc-500 mt-1">Fichiers présents sur le disque mais plus référencés en base.</p>
+                                <h3 className="text-lg font-black text-foreground uppercase tracking-widest">Fichiers orphelins</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Fichiers présents sur le disque mais plus référencés en base.</p>
                             </div>
-                            <button onClick={purgeOrphans} className="flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 px-4 py-2 text-caption font-black uppercase tracking-widest hover:bg-rose-500/15 transition-all">
+                            <button onClick={purgeOrphans} className="flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/25 text-danger px-4 py-2 text-caption font-black uppercase tracking-widest hover:bg-danger/15 transition-all">
                                 <Trash2 className="w-4 h-4" /> Tout nettoyer
                             </button>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-black/30 border border-white/5 px-4 py-3 text-sm text-zinc-400">
-                            <span className="font-black text-white text-2xl">{overview?.orphanFiles.length || 0}</span>
+                        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-black/30 border border-border px-4 py-3 text-sm text-muted-foreground">
+                            <span className="font-black text-foreground text-2xl">{overview?.orphanFiles.length || 0}</span>
                             <span>fichier(s) orphelin(s) détecté(s)</span>
-                            <button onClick={() => setOrphansOpen(true)} className="ml-auto underline decoration-dotted underline-offset-4 hover:text-white transition-colors">Voir la liste</button>
+                            <button onClick={() => setOrphansOpen(true)} className="ml-auto underline decoration-dotted underline-offset-4 hover:text-foreground transition-colors">Voir la liste</button>
                         </div>
                     </div>
                 )}
 
                 {/* ── Onglet Logs par guilde ── */}
                 {activeTab === "logs" && logs && (
-                    <div className="rounded-3xl border border-white/10 bg-zinc-900/40 p-6 space-y-4">
+                    <div className="rounded-3xl border border-border bg-surface/40 p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                                <div className="p-2.5 rounded-xl bg-info/10 border border-info/20 text-info">
                                     <ScrollText className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Logs par Guilde</h3>
-                                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">30 derniers jours — activité (services/modules) + audit sécurité</p>
+                                    <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Logs par Guilde</h3>
+                                    <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">30 derniers jours — activité (services/modules) + audit sécurité</p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-xl font-black text-white leading-none font-mono">{logs.totals.total}</p>
-                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest mt-1">logs au total</p>
+                                <p className="text-xl font-black text-foreground leading-none font-mono">{logs.totals.total}</p>
+                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest mt-1">logs au total</p>
                             </div>
                         </div>
 
                         <div className="overflow-x-auto no-scrollbar">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-white/5">
+                                <thead className="bg-surface">
                                     <tr>
-                                        <th className="px-5 py-3 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">Guilde</th>
-                                        <th className="px-5 py-3 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Activité</th>
-                                        <th className="px-5 py-3 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Audit</th>
-                                        <th className="px-5 py-3 text-caption font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 text-right">Total</th>
+                                        <th className="px-5 py-3 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border">Guilde</th>
+                                        <th className="px-5 py-3 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border text-right">Activité</th>
+                                        <th className="px-5 py-3 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border text-right">Audit</th>
+                                        <th className="px-5 py-3 text-caption font-black text-muted-foreground uppercase tracking-widest border-b border-border text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {logs.rows.slice(0, 15).map((row) => (
-                                        <tr key={row.guildId} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                                            <td className="px-5 py-3 text-caption font-black text-white">{row.name}</td>
-                                            <td className="px-5 py-3 text-caption font-mono text-zinc-400 text-right">{row.serviceLogs}</td>
-                                            <td className="px-5 py-3 text-caption font-mono text-zinc-400 text-right">{row.auditLogs}</td>
-                                            <td className="px-5 py-3 text-caption font-mono font-black text-zinc-200 text-right">{row.total}</td>
+                                        <tr key={row.guildId} className="border-b border-border hover:bg-surface transition-colors">
+                                            <td className="px-5 py-3 text-caption font-black text-foreground">{row.name}</td>
+                                            <td className="px-5 py-3 text-caption font-mono text-muted-foreground text-right">{row.serviceLogs}</td>
+                                            <td className="px-5 py-3 text-caption font-mono text-muted-foreground text-right">{row.auditLogs}</td>
+                                            <td className="px-5 py-3 text-caption font-mono font-black text-foreground text-right">{row.total}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -570,13 +570,13 @@ function StorageLimitEditor({ guildId, limitBytes, onSaved }: { guildId: string;
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="512"
                 title="Seuil de stockage (Mo) — vide = défaut 512 Mo"
-                className="w-16 h-7 rounded-lg bg-zinc-900 border border-white/10 text-caption font-mono px-2 text-zinc-200 focus:outline-none focus:border-emerald-500/40"
+                className="w-16 h-7 rounded-lg bg-surface border border-border text-caption font-mono px-2 text-foreground focus:outline-none focus:border-success/40"
             />
-            <span className="text-caption font-black text-zinc-500 uppercase">Mo</span>
+            <span className="text-caption font-black text-muted-foreground uppercase">Mo</span>
             <button
                 onClick={save}
                 disabled={saving}
-                className="h-7 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-caption font-black uppercase tracking-widest text-zinc-300 disabled:opacity-50 transition-all"
+                className="h-7 px-2.5 rounded-lg bg-surface hover:bg-surface text-caption font-black uppercase tracking-widest text-foreground disabled:opacity-50 transition-all"
             >
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : "OK"}
             </button>
@@ -617,7 +617,7 @@ function StorageMiniItem({
             <div 
                 className={cn(
                     "p-5 rounded-[2.5rem] border transition-all relative group/item overflow-hidden",
-                    count > 0 || myPending.length > 0 ? "bg-zinc-900/40 border-white/5" : "bg-zinc-950/20 border-white/[0.02] opacity-50 grayscale"
+                    count > 0 || myPending.length > 0 ? "bg-surface/40 border-border" : "bg-background/20 border-border opacity-50 grayscale"
                 )}
             >
                 <div className="flex items-start justify-between mb-4">
@@ -628,7 +628,7 @@ function StorageMiniItem({
                         {myPending.length > 0 && (
                             <button 
                                 onClick={() => setPendingOpen(true)}
-                                className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl text-amber-500 text-caption font-black uppercase tracking-widest transition-all border border-amber-500/20 shadow-xl flex items-center gap-2"
+                                className="px-3 py-1.5 bg-warning/10 hover:bg-warning/20 rounded-xl text-warning text-caption font-black uppercase tracking-widest transition-all border border-warning/20 shadow-xl flex items-center gap-2"
                             >
                                 <Clock className="w-3.5 h-3.5" />
                                 {myPending.length} EN ATTENTE
@@ -637,7 +637,7 @@ function StorageMiniItem({
                         {count > 0 && (
                             <button 
                                 onClick={() => setExplorerOpen(true)}
-                                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-500 hover:text-white transition-all shadow-xl"
+                                className="p-3 bg-surface hover:bg-surface rounded-2xl text-muted-foreground hover:text-foreground transition-all shadow-xl"
                             >
                                 <FolderOpen className="w-5 h-5" />
                             </button>
@@ -647,15 +647,15 @@ function StorageMiniItem({
 
                 <div className="space-y-4">
                     <div>
-                        <p className="text-caption font-black text-zinc-500 uppercase tracking-widest leading-none">{cfg.label}</p>
+                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest leading-none">{cfg.label}</p>
                         <div className="flex items-center gap-2 mt-2">
-                            <p className="text-[28px] font-black text-white tracking-tighter leading-none">{count}</p>
-                            <p className="text-caption font-mono text-zinc-500 uppercase">{formatBytes(bytes)}</p>
+                            <p className="text-[28px] font-black text-foreground tracking-tighter leading-none">{count}</p>
+                            <p className="text-caption font-mono text-muted-foreground uppercase">{formatBytes(bytes)}</p>
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-white/[0.03]">
-                        <p className="text-caption font-black text-zinc-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <div className="pt-4 border-t border-border">
+                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                             <HardDrive className="w-2.5 h-2.5" />
                             Chemin Physique
                         </p>
@@ -663,7 +663,7 @@ function StorageMiniItem({
                         {earliestPending && (
                             <div className="mt-2 flex items-center gap-2">
                                 <CountdownChip providedExpiresAt={earliestPending.expiresAt} labelPrefix="EXP : " />
-                                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">auto-suppression</span>
+                                <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">auto-suppression</span>
                             </div>
                         )}
                     </div>
@@ -707,7 +707,7 @@ function DeleteButton({ fileUrl, dbClear, onDeleted, label = "Supprimer" }: { fi
         setLoading(false);
     };
     return (
-        <button onClick={del} disabled={loading} className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl flex items-center gap-2 font-black uppercase text-caption tracking-widest transition-colors shadow-2xl" title={label}>
+        <button onClick={del} disabled={loading} className="px-4 py-2 bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 rounded-xl flex items-center gap-2 font-black uppercase text-caption tracking-widest transition-colors shadow-2xl" title={label}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 shrink-0" />}
             {label}
         </button>
@@ -718,8 +718,8 @@ function GuildAssetsStrip({ guild, onReload }: { guild: StorageGuildEntry; onRel
     const assets = guild.assets || [];
     if (assets.length === 0) return null;
     return (
-        <div className="mt-6 border-t border-white/[0.03] pt-5">
-            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <div className="mt-6 border-t border-border pt-5">
+            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
                 <ImageIcon className="w-3 h-3" /> Assets Guilde (icône / bannière / photo)
             </p>
             <div className="flex flex-wrap gap-4">
@@ -727,7 +727,7 @@ function GuildAssetsStrip({ guild, onReload }: { guild: StorageGuildEntry; onRel
                     const cfg = TYPE_CFG[asset.type as keyof typeof TYPE_CFG] || TYPE_CFG.ICON;
                     return (
                         <div key={asset.type} className="w-40">
-                            <div className="h-24 rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center">
+                            <div className="h-24 rounded-xl overflow-hidden border border-border bg-black/40 flex items-center justify-center">
                                 <img
                                     src={asset.url}
                                     alt={asset.label}
@@ -747,12 +747,12 @@ function GuildAssetsStrip({ guild, onReload }: { guild: StorageGuildEntry; onRel
                                             else toast.error(res.error || "Erreur lors de la suppression");
                                         }}
                                         title={`Supprimer ${asset.label}`}
-                                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors"
+                                        className="p-1.5 rounded-lg bg-danger/10 hover:bg-danger/20 text-danger transition-colors"
                                     >
                                         <Trash2 className="w-3 h-3" />
                                     </button>
                                 ) : (
-                                    <a href={asset.url} target="_blank" rel="noreferrer" className="text-caption font-black text-zinc-500 underline decoration-dotted underline-offset-4 hover:text-white">Voir</a>
+                                    <a href={asset.url} target="_blank" rel="noreferrer" className="text-caption font-black text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground">Voir</a>
                                 )}
                             </div>
                         </div>
@@ -771,57 +771,57 @@ function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () 
     return (
         <>
             <tr className={cn(
-                "group/row hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/[0.02]",
-                isExpanded && "bg-white/[0.03]"
+                "group/row hover:bg-surface transition-colors cursor-pointer border-b border-border",
+                isExpanded && "bg-surface"
             )} onClick={() => setIsExpanded(!isExpanded)}>
                 <td className="px-8 py-6">
                     <div className="flex items-center gap-4 text-left">
-                        <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
                             {guild.assets.find(a => a.type === "ICON") ? (
                                 <img src={guild.assets.find(a => a.type === "ICON")!.url} alt="" className="w-full h-full object-cover" />
-                            ) : <Shield className="w-3.5 h-3.5 text-zinc-600" />}
+                            ) : <Shield className="w-3.5 h-3.5 text-muted-foreground" />}
                         </div>
                         <div>
-                            <p className="text-sm font-black text-white uppercase tracking-tighter group-hover/row:text-indigo-400 transition-colors leading-tight">{guild.name}</p>
-                            <p className="text-caption font-mono font-bold text-zinc-600 tracking-tighter">{guild.discordGuildId}</p>
+                            <p className="text-sm font-black text-foreground uppercase tracking-tighter group-hover/row:text-info transition-colors leading-tight">{guild.name}</p>
+                            <p className="text-caption font-mono font-bold text-muted-foreground tracking-tighter">{guild.discordGuildId}</p>
                         </div>
                     </div>
                 </td>
-                <td className="px-8 py-6 text-right font-mono font-black text-indigo-400">{formatBytes(subTotal)}</td>
-                <td className="px-8 py-6 text-center font-black text-zinc-400 text-xs">{totalCount}</td>
+                <td className="px-8 py-6 text-right font-mono font-black text-info">{formatBytes(subTotal)}</td>
+                <td className="px-8 py-6 text-center font-black text-muted-foreground text-xs">{totalCount}</td>
                 <td className="px-8 py-6">
                     <div className="flex items-center gap-1.5">
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1 bg-rose-500/5 px-2 py-1 rounded-md border border-rose-500/10">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                        <span className="text-caption font-black text-rose-500/80">{guild.missionsCount}</span>
+                                    <div className="flex items-center gap-1 bg-danger/5 px-2 py-1 rounded-md border border-danger/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-danger" />
+                                        <span className="text-caption font-black text-danger/80">{guild.missionsCount}</span>
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-zinc-950 border-rose-500/20 text-rose-400 font-black text-caption uppercase tracking-widest">
+                                <TooltipContent className="bg-background border-danger/20 text-danger font-black text-caption uppercase tracking-widest">
                                     Missions: {formatBytes(guild.missionsBytes)}
                                 </TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1 bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                        <span className="text-caption font-black text-amber-500/80">{guild.kamaCount}</span>
+                                    <div className="flex items-center gap-1 bg-warning/5 px-2 py-1 rounded-md border border-warning/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-warning" />
+                                        <span className="text-caption font-black text-warning/80">{guild.kamaCount}</span>
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-zinc-950 border-amber-500/20 text-amber-400 font-black text-caption uppercase tracking-widest">
+                                <TooltipContent className="bg-background border-warning/20 text-warning font-black text-caption uppercase tracking-widest">
                                     Kamas: {formatBytes(guild.kamaBytes)}
                                 </TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1 bg-purple-500/5 px-2 py-1 rounded-md border border-purple-500/10">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                        <span className="text-caption font-black text-purple-500/80">{guild.achievementCount}</span>
+                                    <div className="flex items-center gap-1 bg-info/5 px-2 py-1 rounded-md border border-info/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-info" />
+                                        <span className="text-caption font-black text-info/80">{guild.achievementCount}</span>
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-zinc-950 border-purple-500/20 text-purple-400 font-black text-caption uppercase tracking-widest">
+                                <TooltipContent className="bg-background border-info/20 text-info font-black text-caption uppercase tracking-widest">
                                     Succès: {formatBytes(guild.achievementBytes)}
                                 </TooltipContent>
                             </Tooltip>
@@ -829,32 +829,32 @@ function GuildRow({ guild, onReload }: { guild: StorageGuildEntry; onReload: () 
                     </div>
                 </td>
                 <td className="px-8 py-6 text-right">
-                    <div className={cn("inline-flex items-center justify-center p-2 rounded-xl bg-white/5 transition-all", isExpanded && "bg-indigo-500 text-black shadow-lg shadow-indigo-500/20")}>
-                        <ChevronRight className={cn("w-4 h-4 text-zinc-500 transition-all", isExpanded ? "rotate-90 text-black" : "group-hover/row:translate-x-1")} />
+                    <div className={cn("inline-flex items-center justify-center p-2 rounded-xl bg-surface transition-all", isExpanded && "bg-info text-info-foreground shadow-lg shadow-indigo-500/20")}>
+                        <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-all", isExpanded ? "rotate-90 text-foreground" : "group-hover/row:translate-x-1")} />
                     </div>
                 </td>
             </tr>
             {isExpanded && (
-                <tr className="bg-zinc-950 animate-in slide-in-from-top-2 duration-300">
+                <tr className="bg-background animate-in slide-in-from-top-2 duration-300">
                     <td colSpan={5} className="px-8 py-8 space-y-6">
                         {/* Seuil & utilisation */}
-                        <div className="flex flex-wrap items-center gap-3 bg-black/30 border border-white/5 rounded-2xl px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-3 bg-black/30 border border-border rounded-2xl px-4 py-3">
                             <div className="flex-1 min-w-[220px]">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Utilisation du seuil</span>
-                                    <span className="text-caption font-mono font-black text-zinc-300">{guild.usagePercent}%</span>
+                                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Utilisation du seuil</span>
+                                    <span className="text-caption font-mono font-black text-foreground">{guild.usagePercent}%</span>
                                 </div>
-                                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                    <div className={cn("h-full rounded-full", guild.usagePercent > 100 ? "bg-red-500" : guild.usagePercent > 80 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${Math.min(100, guild.usagePercent)}%` }} />
+                                <div className="h-2 bg-surface rounded-full overflow-hidden">
+                                    <div className={cn("h-full rounded-full", guild.usagePercent > 100 ? "bg-danger" : guild.usagePercent > 80 ? "bg-warning" : "bg-success")} style={{ width: `${Math.min(100, guild.usagePercent)}%` }} />
                                 </div>
                             </div>
                             {guild.overLimit && (
-                                <span className="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 text-red-500 text-caption font-black uppercase tracking-widest px-2 py-1 rounded-lg">
+                                <span className="inline-flex items-center gap-1.5 bg-danger/10 border border-danger/30 text-danger text-caption font-black uppercase tracking-widest px-2 py-1 rounded-lg">
                                     <AlertTriangle className="w-3 h-3" /> Seuil dépassé
                                 </span>
                             )}
-                            <div className="flex items-center gap-2 border-l border-white/10 pl-4">
-                                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Limite</span>
+                            <div className="flex items-center gap-2 border-l border-border pl-4">
+                                <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Limite</span>
                                 <StorageLimitEditor guildId={guild.guildId} limitBytes={guild.limitBytes} onSaved={onReload} />
                             </div>
                         </div>
@@ -889,13 +889,13 @@ function Lightbox({ item, onClose, onDeleted }: { item: LightboxItem; onClose: (
                             <ImageIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-sm md:text-xl font-black text-white uppercase tracking-tight truncate max-w-[200px] md:max-w-md">{item.filename}</p>
-                            <p className="text-xs font-medium text-zinc-500">{formatBytes(item.sizeBytes || 0)} · {item.label}</p>
+                            <p className="text-sm md:text-xl font-black text-foreground uppercase tracking-tight truncate max-w-[200px] md:max-w-md">{item.filename}</p>
+                            <p className="text-xs font-medium text-muted-foreground">{formatBytes(item.sizeBytes || 0)} · {item.label}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <DeleteButton fileUrl={item.url} onDeleted={onDeleted} label="Supprimer Définitivement" />
-                        <button onClick={onClose} className="p-3 shrink-0 text-zinc-500 hover:text-white transition-colors bg-white/5 rounded-2xl hover:bg-white/10">
+                        <button onClick={onClose} className="p-3 shrink-0 text-muted-foreground hover:text-foreground transition-colors bg-surface rounded-2xl hover:bg-surface">
                             <X className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
@@ -904,7 +904,7 @@ function Lightbox({ item, onClose, onDeleted }: { item: LightboxItem; onClose: (
                 {/* Image restricted to available height */}
                 <div 
                     className={cn(
-                        "flex-1 min-h-0 relative rounded-[2rem] bg-black/50 border border-white/5 shadow-2xl p-4 transition-all",
+                        "flex-1 min-h-0 relative rounded-[2rem] bg-black/50 border border-border shadow-2xl p-4 transition-all",
                         isZoomed ? "overflow-auto flex items-start justify-start cursor-zoom-out" : "overflow-hidden flex items-center justify-center text-center cursor-zoom-in"
                     )}
                     onClick={() => setIsZoomed(!isZoomed)}

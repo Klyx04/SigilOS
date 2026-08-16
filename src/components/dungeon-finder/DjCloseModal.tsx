@@ -149,24 +149,24 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 12 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="relative w-full max-w-md bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                        className="relative w-full max-w-md bg-background border border-border rounded-2xl shadow-2xl overflow-hidden"
                     >
                         {/* Header glow */}
                         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
                         {/* Header */}
-                        <div className="p-6 pb-4 border-b border-white/5 bg-slate-900/30">
+                        <div className="p-6 pb-4 border-b border-border bg-surface/30">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/30 shadow-inner flex items-center justify-center shrink-0">
                                         <ShieldCheck className="w-5 h-5 text-violet-400" />
                                     </div>
                                     <div>
-                                        <h2 className="text-base font-black text-white">Clôturer le groupe</h2>
-                                        <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[240px]">{title}</p>
+                                        <h2 className="text-base font-black text-foreground">Clôturer le groupe</h2>
+                                        <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[240px]">{title}</p>
                                     </div>
                                 </div>
-                                <button onClick={onClose} className="text-slate-600 hover:text-white transition-colors mt-0.5">
+                                <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors mt-0.5">
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
@@ -177,20 +177,20 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                             {/* Info banner */}
                             <div className="flex items-start gap-2.5 bg-violet-500/8 border border-violet-500/20 rounded-xl px-3.5 py-3">
                                 <Trophy className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
-                                <p className="text-xs text-slate-300 leading-relaxed">
-                                    Valide les membres qui ont <strong className="text-white">réellement participé</strong> pour leur attribuer{" "}
+                                <p className="text-xs text-foreground leading-relaxed">
+                                    Valide les membres qui ont <strong className="text-foreground">réellement participé</strong> pour leur attribuer{" "}
                                     <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>.
                                     {post.dungeon && (
-                                        <span className="ml-1 text-slate-500">(Donjon niveau {post.dungeon.level})</span>
+                                        <span className="ml-1 text-muted-foreground">(Donjon niveau {post.dungeon.level})</span>
                                     )}
-                                    {" "}<span className="text-slate-500">Tu ne reçois pas de point en tant que créateur.</span>
+                                    {" "}<span className="text-muted-foreground">Tu ne reçois pas de point en tant que créateur.</span>
                                 </p>
                             </div>
 
                             {/* Participants inscrits */}
                             {totalListCount > 0 && (
                                 <div className="space-y-2">
-                                    <p className="text-caption text-slate-500 font-bold uppercase tracking-widest">
+                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
                                         Participants ({acceptedParticipants.length} inscrit{acceptedParticipants.length > 1 ? "s" : ""}{extraMembers.length > 0 ? ` + ${extraMembers.length} ajouté${extraMembers.length > 1 ? "s" : ""}` : ""})
                                     </p>
 
@@ -202,29 +202,29 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 key={p.profile.id}
                                                 onClick={() => toggle(p.profile.id)}
                                                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${isVal
-                                                    ? "bg-emerald-500/10 border-emerald-500/30 shadow-inner"
-                                                    : "bg-slate-900/40 border-white/5 hover:bg-slate-900/60"
+                                                    ? "bg-success/10 border-success/30 shadow-inner"
+                                                    : "bg-surface/40 border-border hover:bg-surface/60"
                                                     }`}
                                             >
-                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 shrink-0">
+                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-muted shrink-0">
                                                     {p.profile.user.image && (
                                                         <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-white truncate">
+                                                    <p className="text-sm font-bold text-foreground truncate">
                                                         {p.profile.discordNickname || p.profile.pseudoDofus || (p.profile as any).dofusPseudo || "Membre"}
                                                     </p>
-                                                    {p.classe && <p className="text-caption text-slate-500">{p.classe}</p>}
+                                                    {p.classe && <p className="text-caption text-muted-foreground">{p.classe}</p>}
                                                 </div>
                                                 {isVal && (
-                                                    <span className="flex items-center gap-1 text-caption font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                                    <span className="flex items-center gap-1 text-caption font-black text-success bg-success/20 px-2 py-0.5 rounded-md border border-success/30">
                                                         <Star className="w-2.5 h-2.5" /> +{pts} pt{pts > 1 ? "s" : ""}
                                                     </span>
                                                 )}
                                                 {isVal
-                                                    ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                                                    : <Circle className="w-5 h-5 text-slate-600 shrink-0" />
+                                                    ? <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                                                    : <Circle className="w-5 h-5 text-muted-foreground shrink-0" />
                                                 }
                                             </button>
                                         );
@@ -236,27 +236,27 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                         return (
                                             <div
                                                 key={m.id}
-                                                className="w-full flex items-center gap-3 p-3 rounded-xl border bg-amber-500/10 border-amber-500/30"
+                                                className="w-full flex items-center gap-3 p-3 rounded-xl border bg-warning/10 border-warning/30"
                                             >
-                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 shrink-0">
+                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-muted shrink-0">
                                                     {m.image && <img src={m.image} alt="" className="w-full h-full object-cover" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-white truncate">{m.name}</p>
-                                                    <p className="text-caption text-amber-400/70">Ajouté manuellement</p>
+                                                    <p className="text-sm font-bold text-foreground truncate">{m.name}</p>
+                                                    <p className="text-caption text-warning/70">Ajouté manuellement</p>
                                                 </div>
                                                 <button
                                                     onClick={() => toggle(m.id)}
                                                     className="shrink-0"
                                                 >
                                                     {isVal
-                                                        ? <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                                                        : <Circle className="w-5 h-5 text-slate-600" />
+                                                        ? <CheckCircle2 className="w-5 h-5 text-success" />
+                                                        : <Circle className="w-5 h-5 text-muted-foreground" />
                                                     }
                                                 </button>
                                                 <button
                                                     onClick={() => removeExtra(m.id)}
-                                                    className="text-slate-600 hover:text-rose-400 transition-colors shrink-0"
+                                                    className="text-muted-foreground hover:text-danger transition-colors shrink-0"
                                                 >
                                                     <X className="w-4 h-4" />
                                                 </button>
@@ -268,16 +268,16 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
 
                             {/* Empty state quand aucun inscrit */}
                             {totalListCount === 0 && (
-                                <div className="text-center py-4 text-slate-600">
+                                <div className="text-center py-4 text-muted-foreground">
                                     <Circle className="w-8 h-8 mx-auto mb-2 opacity-30" />
                                     <p className="text-sm">Aucun participant inscrit.</p>
-                                    <p className="text-xs text-slate-700 mt-1">Tu peux en ajouter ci-dessous.</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Tu peux en ajouter ci-dessous.</p>
                                 </div>
                             )}
 
                             {/* ── Ajouter un membre hors-liste ─────────────────────────────── */}
-                            <div className="pt-2 border-t border-white/5" ref={dropdownRef}>
-                                <p className="text-caption text-slate-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <div className="pt-2 border-t border-border" ref={dropdownRef}>
+                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                     <UserPlus className="w-3 h-3" />
                                     Ajouter un participant hors-liste
                                 </p>
@@ -288,7 +288,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                             setDropdownOpen((v) => !v);
                                             setTimeout(() => searchRef.current?.focus(), 50);
                                         }}
-                                        className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-900/60 border border-white/10 rounded-xl text-sm text-slate-400 hover:border-violet-500/40 hover:text-white transition-all"
+                                        className="w-full flex items-center gap-2 px-3 py-2.5 bg-surface/60 border border-border rounded-xl text-sm text-muted-foreground hover:border-violet-500/40 hover:text-foreground transition-all"
                                     >
                                         <Search className="w-4 h-4 shrink-0" />
                                         <span className="flex-1 text-left truncate">
@@ -304,24 +304,24 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: -4 }}
                                                 transition={{ duration: 0.15 }}
-                                                className="absolute z-10 top-full mt-1 w-full bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                                                className="absolute z-10 top-full mt-1 w-full bg-surface border border-border rounded-xl shadow-2xl overflow-hidden"
                                             >
-                                                <div className="p-2 border-b border-white/5">
+                                                <div className="p-2 border-b border-border">
                                                     <div className="flex items-center gap-2 px-2">
-                                                        <Search className="w-3 h-3 text-slate-500 shrink-0" />
+                                                        <Search className="w-3 h-3 text-muted-foreground shrink-0" />
                                                         <input
                                                             ref={searchRef}
                                                             type="text"
                                                             value={search}
                                                             onChange={(e) => setSearch(e.target.value)}
                                                             placeholder="Nom du membre…"
-                                                            className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none py-1"
+                                                            className="flex-1 bg-transparent text-sm text-foreground placeholder-slate-600 outline-none py-1"
                                                         />
                                                     </div>
                                                 </div>
                                                 <div className="max-h-48 overflow-y-auto">
                                                     {filteredSuggestions.length === 0 ? (
-                                                        <p className="text-center text-xs text-slate-600 py-4 italic">
+                                                        <p className="text-center text-xs text-muted-foreground py-4 italic">
                                                             {search ? "Aucun résultat" : "Tous les membres sont déjà listés"}
                                                         </p>
                                                     ) : (
@@ -330,12 +330,12 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                                                 key={m.id}
                                                                 type="button"
                                                                 onClick={() => addExtra(m)}
-                                                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                                                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface transition-colors text-left"
                                                             >
-                                                                <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-700 shrink-0">
+                                                                <div className="w-7 h-7 rounded-full overflow-hidden bg-muted shrink-0">
                                                                     {m.image && <img src={m.image} alt="" className="w-full h-full object-cover" />}
                                                                 </div>
-                                                                <span className="text-sm text-white font-medium truncate">{m.name}</span>
+                                                                <span className="text-sm text-foreground font-medium truncate">{m.name}</span>
                                                             </button>
                                                         ))
                                                     )}
@@ -348,27 +348,27 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
 
                             {/* Summary */}
                             {validatedCount > 0 && (
-                                <p className="text-caption text-slate-500 text-center">
-                                    <strong className="text-slate-300">{validatedCount}</strong> membre{validatedCount > 1 ? "s" : ""} recevra{validatedCount > 1 ? "ont" : ""}{" "}
+                                <p className="text-caption text-muted-foreground text-center">
+                                    <strong className="text-foreground">{validatedCount}</strong> membre{validatedCount > 1 ? "s" : ""} recevra{validatedCount > 1 ? "ont" : ""}{" "}
                                     <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>
                                 </p>
                             )}
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 pb-6 pt-4 flex gap-3 border-t border-white/5">
+                        <div className="px-6 pb-6 pt-4 flex gap-3 border-t border-border">
                             <Button
                                 variant="ghost"
                                 onClick={onClose}
                                 disabled={isPending}
-                                className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold max-h-12 h-12 transition-all"
+                                className="flex-1 border border-border bg-surface text-foreground hover:text-foreground hover:bg-surface font-bold max-h-12 h-12 transition-all"
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending}
-                                className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-black max-h-12 h-12 shadow-md shadow-violet-900/20"
+                                className="flex-1 bg-violet-600 hover:bg-violet-500 text-foreground font-black max-h-12 h-12 shadow-md shadow-violet-900/20"
                             >
                                 {isPending ? (
                                     <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Clôture…</>

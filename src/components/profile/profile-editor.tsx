@@ -98,7 +98,7 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
         <div className="grid gap-6 md:grid-cols-2">
 
             {/* ID CARD */}
-            <Card className="bg-black/40 border-white/10 backdrop-blur-sm h-fit">
+            <Card className="bg-black/40 border-border backdrop-blur-sm h-fit">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <UserIcon className="w-5 h-5 text-primary" />
@@ -110,9 +110,9 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center py-6 gap-4">
                     <div className="relative group">
-                        <Avatar className="w-32 h-32 border-4 border-white/10 shadow-xl group-hover:border-primary transition-colors">
+                        <Avatar className="w-32 h-32 border-4 border-border shadow-xl group-hover:border-primary transition-colors">
                             <AvatarImage src={profile.user.image || ""} />
-                            <AvatarFallback className="text-4xl bg-zinc-800 text-zinc-400">
+                            <AvatarFallback className="text-4xl bg-elevated text-muted-foreground">
                                 {profile.user.name?.[0]?.toUpperCase() || "?"}
                             </AvatarFallback>
                         </Avatar>
@@ -120,17 +120,17 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                     </div>
 
                     <div className="text-center space-y-1">
-                        <h3 className="text-2xl font-bold text-white tracking-tight">
+                        <h3 className="text-2xl font-bold text-foreground tracking-tight">
                             {pseudo || profile.user.name || "Inconnu"}
                         </h3>
                         <p className="text-primary font-medium">{classe || "Classe inconnue"}</p>
 
                         {/* Stats Badges */}
                         <div className="flex items-center justify-center gap-3 mt-4 text-xs font-mono">
-                            <div className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            <div className="px-3 py-1 rounded-full bg-info/20 text-info border border-info/30">
                                 ✨ {profile.xp} XP
                             </div>
-                            <div className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <div className="px-3 py-1 rounded-full bg-warning/20 text-warning border border-warning/30">
                                 🪙 {profile.guildatons} G
                             </div>
                         </div>
@@ -139,7 +139,7 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
             </Card>
 
             {/* FORM */}
-            <Card className="bg-zinc-900/50 border-white/10">
+            <Card className="bg-surface/50 border-border">
                 <CardHeader>
                     <CardTitle>Configuration du Profil</CardTitle>
                     <CardDescription>
@@ -160,18 +160,18 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                                     }}
                                     placeholder="Ex: Dark-Sasuké"
                                     className={cn(
-                                        "bg-zinc-950/50 border-white/10 focus:border-primary/50 transition-all",
-                                        verifyStatus === "success" && "border-emerald-500/50 pr-10",
-                                        verifyStatus === "error" && "border-rose-500/50 pr-10"
+                                        "bg-background/50 border-border focus:border-primary/50 transition-all",
+                                        verifyStatus === "success" && "border-success/50 pr-10",
+                                        verifyStatus === "error" && "border-danger/50 pr-10"
                                     )}
                                 />
                                 {verifyStatus === "success" && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500">
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-success">
                                         <UserCheck className="w-4 h-4" />
                                     </div>
                                 )}
                                 {verifyStatus === "error" && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500">
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-danger">
                                         <AlertTriangle className="w-4 h-4" />
                                     </div>
                                 )}
@@ -182,8 +182,8 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                                 onClick={handleVerify}
                                 disabled={isVerifying || !pseudo || pseudo.length < 2}
                                 className={cn(
-                                    "shrink-0 bg-black/20 border-white/10 hover:border-white/20",
-                                    verifyStatus === "success" && "text-emerald-500 border-emerald-500/20 bg-emerald-500/5"
+                                    "shrink-0 bg-black/20 border-border hover:border-border-strong",
+                                    verifyStatus === "success" && "text-success border-success/20 bg-success/5"
                                 )}
                             >
                                 {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -191,10 +191,10 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                         </div>
                         <p className="text-caption leading-relaxed text-muted-foreground ml-1 mt-1">
                             {verifyStatus === "success" ? (
-                                <span className="text-emerald-400 font-medium">✅ Pseudo validé sur le ladder officiel.</span>
+                                <span className="text-success font-medium">✅ Pseudo validé sur le ladder officiel.</span>
                             ) : (
                                 <>
-                                    Le pseudo doit être <strong className="text-white">EXACT</strong> (Majuscules, tirets, etc.) pour que la synchronisation automatique fonctionne.
+                                    Le pseudo doit être <strong className="text-foreground">EXACT</strong> (Majuscules, tirets, etc.) pour que la synchronisation automatique fonctionne.
                                 </>
                             )}
                         </p>
@@ -203,7 +203,7 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                     <div className="space-y-2">
                         <Label>Classe</Label>
                         <Select value={classe} onValueChange={setClasse}>
-                            <SelectTrigger className="bg-zinc-950/50 border-white/10">
+                            <SelectTrigger className="bg-background/50 border-border">
                                 <SelectValue placeholder="Sélectionner une classe" />
                             </SelectTrigger>
                             <SelectContent>
@@ -230,7 +230,7 @@ export function ProfileEditor({ profile: rawProfile, guildId }: ProfileEditorPro
                     </div>
 
                 </CardContent>
-                <CardFooter className="flex justify-between border-t border-white/5 pt-6">
+                <CardFooter className="flex justify-between border-t border-border pt-6">
                     <Button variant="ghost" onClick={() => setPseudo(profile.pseudoDofus || "")}>
                         Annuler
                     </Button>

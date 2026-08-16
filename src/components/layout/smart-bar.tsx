@@ -57,7 +57,7 @@ export function SmartBar({ memberCount, onlineCount, canSearch = false }: SmartB
 
             {/* DIVIDER */}
             {(memberCount !== undefined || onlineCount !== undefined) && (
-                <div className="h-4 w-px bg-white/10 mx-0.5" />
+                <div className="h-4 w-px bg-surface mx-0.5" />
             )}
 
             {/* 2. Guild Stats (Clickable) */}
@@ -75,27 +75,27 @@ export function SmartBar({ memberCount, onlineCount, canSearch = false }: SmartB
                                 }
                             }
                         }}
-                        className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white/5 transition-colors group/stats"
+                        className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-surface transition-colors group/stats"
                     >
                         {/* Avatars en ligne (stack compacte) */}
                         <div className="flex -space-x-2 items-center">
                             {onlineUsers.slice(0, 3).map((u) => (
                                 <Avatar key={u.id} className="h-7 w-7 ring-2 ring-background">
                                     <AvatarImage src={u.image || ""} alt={u.name || ""} />
-                                    <AvatarFallback className="bg-zinc-800 text-caption text-zinc-300">
+                                    <AvatarFallback className="bg-elevated text-caption text-foreground">
                                         {(u.name || "??").slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                             ))}
                             {onlineUsers.length === 0 && (
-                                <div className="h-7 w-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-caption text-zinc-500">—</div>
+                                <div className="h-7 w-7 rounded-full bg-surface border border-border flex items-center justify-center text-caption text-muted-foreground">—</div>
                             )}
                         </div>
 
                         {/* Compteur */}
-                        <div className="flex items-center gap-1 text-label font-semibold text-zinc-300">
-                            <span className="text-emerald-400" suppressHydrationWarning>{liveOnlineCount ?? 0}</span>
-                            <span className="text-zinc-700">/</span>
+                        <div className="flex items-center gap-1 text-label font-semibold text-foreground">
+                            <span className="text-success" suppressHydrationWarning>{liveOnlineCount ?? 0}</span>
+                            <span className="text-muted-foreground">/</span>
                             <span>{memberCount ?? 0}</span>
                         </div>
                     </button>

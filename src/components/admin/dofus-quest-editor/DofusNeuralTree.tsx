@@ -47,31 +47,31 @@ export function DofusNeuralTree({ dofusId, chains, onClose }: DofusNeuralTreePro
     return (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
             {/* HUD / Header */}
-            <div className="h-20 border-b border-white/10 flex items-center justify-between px-8 bg-zinc-950/80 backdrop-blur-3xl">
+            <div className="h-20 border-b border-border flex items-center justify-between px-8 bg-background/80 backdrop-blur-3xl">
                 <div className="flex items-center gap-6">
-                    <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                        <Move className="w-6 h-6 text-emerald-400" />
+                    <div className="p-2 bg-success/10 rounded-xl border border-success/20">
+                        <Move className="w-6 h-6 text-success" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-white italic tracking-tighter uppercase">Neural Tree Editor <span className="text-zinc-600">v3.0</span></h2>
-                        <p className="text-caption font-bold text-zinc-500 tracking-widest uppercase">Orchestration organique des quêtes</p>
+                        <h2 className="text-xl font-black text-foreground italic tracking-tighter uppercase">Neural Tree Editor <span className="text-muted-foreground">v3.0</span></h2>
+                        <p className="text-caption font-bold text-muted-foreground tracking-widest uppercase">Orchestration organique des quêtes</p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-black/40 border border-white/5 rounded-xl p-1">
-                        <Button variant="ghost" size="icon" onClick={() => setZoom(prev => Math.max(0.2, prev - 0.1))} className="h-8 w-8 hover:bg-white/5">
+                    <div className="flex items-center bg-black/40 border border-border rounded-xl p-1">
+                        <Button variant="ghost" size="icon" onClick={() => setZoom(prev => Math.max(0.2, prev - 0.1))} className="h-8 w-8 hover:bg-surface">
                             <ZoomOut className="w-4 h-4" />
                         </Button>
-                        <span className="text-caption font-black w-12 text-center text-zinc-400">{Math.round(zoom * 100)}%</span>
-                        <Button variant="ghost" size="icon" onClick={() => setZoom(prev => Math.min(2, prev + 0.1))} className="h-8 w-8 hover:bg-white/5">
+                        <span className="text-caption font-black w-12 text-center text-muted-foreground">{Math.round(zoom * 100)}%</span>
+                        <Button variant="ghost" size="icon" onClick={() => setZoom(prev => Math.min(2, prev + 0.1))} className="h-8 w-8 hover:bg-surface">
                             <ZoomIn className="w-4 h-4" />
                         </Button>
                     </div>
-                    <Button variant="outline" size="sm" onClick={onClose} className="border-white/10 bg-white/5 hover:bg-white/10 font-bold uppercase tracking-widest h-10 px-6 rounded-xl">
+                    <Button variant="outline" size="sm" onClick={onClose} className="border-border bg-surface hover:bg-surface font-bold uppercase tracking-widest h-10 px-6 rounded-xl">
                         Fermer
                     </Button>
-                    <Button onClick={saveLayout} className="bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest h-10 px-8 rounded-xl ">
+                    <Button onClick={saveLayout} className="bg-success hover:bg-success text-success-foreground font-black uppercase tracking-widest h-10 px-8 rounded-xl ">
                         <Save className="w-4 h-4 mr-2" />
                         Synchroniser
                     </Button>
@@ -93,7 +93,7 @@ export function DofusNeuralTree({ dofusId, chains, onClose }: DofusNeuralTreePro
                             drag
                             dragMomentum={false}
                             onDragEnd={(e, info) => handleDragEnd(q.id, info)}
-                            className="absolute p-4 rounded-2xl bg-zinc-900/80 border border-white/10 backdrop-blur-md shadow-2xl pointer-events-auto cursor-grab active:cursor-grabbing group min-w-[200px]"
+                            className="absolute p-4 rounded-2xl bg-surface/80 border border-border backdrop-blur-md shadow-2xl pointer-events-auto cursor-grab active:cursor-grabbing group min-w-[200px]"
                             style={{ 
                                 left: q.coords.x, 
                                 top: q.coords.y,
@@ -102,29 +102,29 @@ export function DofusNeuralTree({ dofusId, chains, onClose }: DofusNeuralTreePro
                         >
                             <div className="flex items-center gap-3">
                                 {q.localImageUrl ? (
-                                    <img src={q.localImageUrl} className="w-10 h-10 rounded-lg object-contain bg-black/40 border border-white/10" />
+                                    <img src={q.localImageUrl} className="w-10 h-10 rounded-lg object-contain bg-black/40 border border-border" />
                                 ) : (
-                                    <div className="w-10 h-10 rounded-lg bg-zinc-950 border border-white/5 flex items-center justify-center">
-                                        <RotateCcw className="w-5 h-5 text-zinc-700" />
+                                    <div className="w-10 h-10 rounded-lg bg-background border border-border flex items-center justify-center">
+                                        <RotateCcw className="w-5 h-5 text-muted-foreground" />
                                     </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-white font-bold leading-tight truncate">{q.name}</p>
-                                    <p className="text-caption text-zinc-500 font-black uppercase tracking-widest mt-0.5">#{q.dofusdbId || "MANUEL"}</p>
+                                    <p className="text-foreground font-bold leading-tight truncate">{q.name}</p>
+                                    <p className="text-caption text-muted-foreground font-black uppercase tracking-widest mt-0.5">#{q.dofusdbId || "MANUEL"}</p>
                                 </div>
                             </div>
 
                             {/* Connections (Stub for v3.1) */}
-                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full blur-[2px]" />
+                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-success rounded-full blur-[2px]" />
                         </motion.div>
                     ))}
                 </motion.div>
 
                 {/* Grid Overlay */}
                 <div className="absolute inset-x-0 bottom-8 flex justify-center pointer-events-none">
-                    <div className="bg-zinc-950/80 backdrop-blur-xl border border-white/5 rounded-full px-6 py-2 flex items-center gap-4 text-caption font-black text-zinc-600 uppercase tracking-widest">
+                    <div className="bg-background/80 backdrop-blur-xl border border-border rounded-full px-6 py-2 flex items-center gap-4 text-caption font-black text-muted-foreground uppercase tracking-widest">
                         <span>Grid Snapping Active</span>
-                        <div className="w-1 h-1 bg-zinc-800 rounded-full" />
+                        <div className="w-1 h-1 bg-elevated rounded-full" />
                         <span>Organique Engine v3</span>
                     </div>
                 </div>

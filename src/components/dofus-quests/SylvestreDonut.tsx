@@ -137,22 +137,22 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}
                     >
-                        <TreePine className="w-4 h-4 text-emerald-400" />
+                        <TreePine className="w-4 h-4 text-success" />
                     </div>
                     <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-emerald-400/70">Méta-Dofus</p>
-                        <h2 className="text-sm font-bold text-white">Dofus Sylvestre</h2>
+                        <p className="text-xs font-black uppercase tracking-widest text-success/70">Méta-Dofus</p>
+                        <h2 className="text-sm font-bold text-foreground">Dofus Sylvestre</h2>
                     </div>
                 </div>
                 {isObtained ? (
-                    <span className="flex items-center gap-1 text-xs font-black text-emerald-400 uppercase tracking-wider px-2 py-1 rounded-lg"
+                    <span className="flex items-center gap-1 text-xs font-black text-success uppercase tracking-wider px-2 py-1 rounded-lg"
                         style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
                         <CheckCircle2 className="w-3 h-3" /> Obtenu
                     </span>
                 ) : (
                     <Link
                         href={`/dashboard/${guildId}/quetes-dofus/sylvestre`}
-                        className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors"
+                        className="flex items-center gap-1 text-xs text-foreground/40 hover:text-foreground/70 transition-colors"
                     >
                         Détails <ExternalLink className="w-3 h-3" />
                     </Link>
@@ -198,7 +198,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                         <span className="text-2xl font-black tabular-nums" style={{ color: SYLVESTRE_COLOR }}>
                             {overallPercent}%
                         </span>
-                        <span className="text-caption text-white/30 uppercase tracking-widest font-bold leading-tight mt-0.5">
+                        <span className="text-caption text-foreground/30 uppercase tracking-widest font-bold leading-tight mt-0.5">
                             Perso
                         </span>
                     </div>
@@ -215,7 +215,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                             <span className="text-base flex-shrink-0">{seg.icon}</span>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs font-semibold text-white/80 truncate">{seg.label}</span>
+                                    <span className="text-xs font-semibold text-foreground/80 truncate">{seg.label}</span>
                                     <span className="text-xs font-black tabular-nums ml-2 flex-shrink-0" style={{ color: seg.color }}>
                                         {seg.percent}%
                                     </span>
@@ -230,7 +230,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                                         }}
                                     />
                                 </div>
-                                <p className="text-caption text-white/25 mt-0.5 truncate">{seg.description}</p>
+                                <p className="text-caption text-foreground/25 mt-0.5 truncate">{seg.description}</p>
                             </div>
                         </div>
                     ))}

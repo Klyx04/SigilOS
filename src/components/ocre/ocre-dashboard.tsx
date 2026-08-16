@@ -241,10 +241,10 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
     // Progress Calculation Helpers
     const getProgressColor = (current: number, total: number) => {
-        if (current === total) return "bg-emerald-500";
-        if (current > total * 0.7) return "bg-emerald-400";
-        if (current > total * 0.3) return "bg-amber-400";
-        return "bg-red-400";
+        if (current === total) return "bg-success";
+        if (current > total * 0.7) return "bg-success";
+        if (current > total * 0.3) return "bg-warning";
+        return "bg-danger";
     };
 
     const renderProgressBar = (label: string, category: { total: number; gathered: number }) => {
@@ -256,7 +256,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                 <div className="flex items-center justify-between text-xs">
                     <span className="font-medium text-muted-foreground">{label}</span>
                     <span className="text-muted-foreground">
-                        <span className={category.gathered === total ? "text-emerald-500 font-bold" : "text-foreground"}>
+                        <span className={category.gathered === total ? "text-success font-bold" : "text-foreground"}>
                             {category.gathered}
                         </span>
                         /{total}
@@ -272,14 +272,14 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
             {/* Header with Progress (Metamob Style) */}
             <div className="relative overflow-hidden p-6 rounded-2xl bg-card border border-border shadow-xl">
                 {/* Background Decoration */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-3xl -mr-32 -mt-32 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-warning/5 blur-3xl -mr-32 -mt-32 pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col md:flex-row gap-8">
                     {/* Left Side: Character & Quest Info */}
                     <div className="flex-1 space-y-4">
                         <div className="flex flex-col gap-1">
                             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500/20" />
+                                <Sparkles className="h-5 w-5 text-warning fill-amber-500/20" />
                                 Quête de l&apos;Éternelle Moisson
                             </h2>
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -287,14 +287,14 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                     href={`https://www.metamob.fr/profile/${data.questInfo.characterName}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="font-semibold text-foreground hover:text-amber-500 transition-colors flex items-center gap-1 group/link"
+                                    className="font-semibold text-foreground hover:text-warning transition-colors flex items-center gap-1 group/link"
                                 >
                                     {data.questInfo.characterName}
                                     <ArrowRightLeft className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-all -rotate-45" />
                                 </a>
                                 <span className="opacity-40">•</span>
                                 <span>{data.questInfo.serverName}</span>
-                                <Badge variant="outline" className="ml-2 border-amber-500/30 text-amber-500 text-caption h-5 px-1.5">
+                                <Badge variant="outline" className="ml-2 border-warning/30 text-warning text-caption h-5 px-1.5">
                                     Unity
                                 </Badge>
                             </div>
@@ -303,11 +303,11 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
                                 <span className="text-caption uppercase tracking-wider text-muted-foreground font-bold">Étape Actuelle</span>
-                                <span className="text-lg font-bold text-amber-500">{data.questInfo.currentStep}<span className="text-muted-foreground/30 text-xs ml-1">/ {data.questInfo.totalSteps}</span></span>
+                                <span className="text-lg font-bold text-warning">{data.questInfo.currentStep}<span className="text-muted-foreground/30 text-xs ml-1">/ {data.questInfo.totalSteps}</span></span>
                             </div>
                             <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
                                 <span className="text-caption uppercase tracking-wider text-muted-foreground font-bold">Progression</span>
-                                <span className="text-lg font-bold text-emerald-500">{data.stats.progressPercent}%</span>
+                                <span className="text-lg font-bold text-success">{data.stats.progressPercent}%</span>
                             </div>
                         </div>
                     </div>
@@ -323,28 +323,28 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
             {/* Main Navigation Sub-menu */}
             <Tabs defaultValue="progression" className="w-full space-y-8">
-                <TabsList className="flex items-center justify-start h-auto p-1.5 bg-zinc-900/50 border border-white/5 rounded-2xl w-full gap-3 overflow-x-auto no-scrollbar shrink-0">
+                <TabsList className="flex items-center justify-start h-auto p-1.5 bg-surface/50 border border-border rounded-2xl w-full gap-3 overflow-x-auto no-scrollbar shrink-0">
                     <TabsTrigger
                         value="progression"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
                     >
                         Progression
                     </TabsTrigger>
                     <TabsTrigger
                         value="monstres"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
                     >
                         Bestiaire
                     </TabsTrigger>
                     <TabsTrigger
                         value="echanges"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
                     >
                         Échanges
                     </TabsTrigger>
                     <TabsTrigger
                         value="membres"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
                     >
                         Membres
                     </TabsTrigger>
@@ -387,8 +387,8 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                     </div>
 
                     <div className="p-8 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                            <Sparkles className="h-6 w-6 text-amber-500" />
+                        <div className="h-12 w-12 rounded-2xl bg-warning/10 flex items-center justify-center">
+                            <Sparkles className="h-6 w-6 text-warning" />
                         </div>
                         <div className="max-w-xs">
                             <h4 className="font-bold text-foreground">Astuce Ocre</h4>
@@ -420,22 +420,22 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                     {/* Secondary Tabs (Grid) */}
                     <Tabs defaultValue="manquants" className="w-full">
                         <div className="overflow-x-auto no-scrollbar pb-1">
-                            <TabsList className="inline-flex w-auto bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-1.5 rounded-2xl min-w-full sm:min-w-0 gap-2">
-                                <TabsTrigger value="manquants" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-red-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-red-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
+                            <TabsList className="inline-flex w-auto bg-surface/50 backdrop-blur-sm border border-border p-1.5 rounded-2xl min-w-full sm:min-w-0 gap-2">
+                                <TabsTrigger value="manquants" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-elevated data-[state=active]:text-danger data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-danger/20 hover:bg-surface transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Manquants</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-red-500/10 text-red-500 border-none font-black">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-danger/10 text-danger border-none font-black">
                                         {filteredManquants.length}
                                     </Badge>
                                 </TabsTrigger>
-                                <TabsTrigger value="possedes" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-emerald-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
+                                <TabsTrigger value="possedes" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-elevated data-[state=active]:text-success data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-success/20 hover:bg-surface transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Possédés</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-emerald-500/10 text-emerald-500 border-none font-black">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-success/10 text-success border-none font-black">
                                         {filteredPossedes.length}
                                     </Badge>
                                 </TabsTrigger>
-                                <TabsTrigger value="doublons" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-amber-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
+                                <TabsTrigger value="doublons" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-warning/20 hover:bg-surface transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Doublons</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-amber-500/10 text-amber-500 border-none font-black">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-caption bg-warning/10 text-warning border-none font-black">
                                         {filteredDoublons.length}
                                     </Badge>
                                 </TabsTrigger>
@@ -507,8 +507,8 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
                     {/* Discovery Section (Placeholder styled as discovery) */}
                     <div className="flex flex-col items-center justify-center py-12 text-center space-y-6 bg-background/30 rounded-3xl border border-dashed border-border">
-                        <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                            <Sparkles className="h-8 w-8 text-emerald-500" />
+                        <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center border border-success/20">
+                            <Sparkles className="h-8 w-8 text-success" />
                         </div>
                         <div className="max-w-sm space-y-2">
                             <h3 className="text-lg font-bold uppercase tracking-wider">Trouver de nouveaux partenaires</h3>
@@ -520,7 +520,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                             guildId={guildId}
                             hasOcreChannel={hasOcreChannel}
                             trigger={
-                                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl h-11 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] text-xs">
+                                <Button size="lg" className="bg-success hover:bg-success text-success-foreground rounded-2xl h-11 px-8 font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] text-xs">
                                     Lancer la recherche de doublons
                                 </Button>
                             }
@@ -543,13 +543,13 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         exit={{ y: 100, opacity: 0 }}
                         className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[90vw] max-w-2xl"
                     >
-                        <div className="bg-zinc-900/90 backdrop-blur-2xl border border-amber-500/30 rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between gap-4">
+                        <div className="bg-surface/90 backdrop-blur-2xl border border-warning/30 rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between gap-4">
                             <div className="flex items-center gap-4 pl-2">
-                                <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                                    <Badge className="bg-amber-500 text-white font-black">{selectedMonsterIds.size}</Badge>
+                                <div className="h-10 w-10 rounded-2xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                                    <Badge className="bg-warning text-warning-foreground font-black">{selectedMonsterIds.size}</Badge>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-white uppercase tracking-wider">Monstres sélectionnés</span>
+                                    <span className="text-xs font-bold text-foreground uppercase tracking-wider">Monstres sélectionnés</span>
                                     <span className="text-caption text-muted-foreground italic">Actions groupées Metamob</span>
                                 </div>
                             </div>
@@ -558,7 +558,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-10 rounded-xl bg-background/50 hover:bg-emerald-500/10 hover:text-emerald-500 font-bold border-white/5"
+                                    className="h-10 rounded-xl bg-background/50 hover:bg-success/10 hover:text-success font-bold border-border"
                                     onClick={() => handleBulkUpdate('inc')}
                                     disabled={isBulkUpdating}
                                 >
@@ -568,17 +568,17 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-10 rounded-xl bg-background/50 hover:bg-red-500/10 hover:text-red-500 font-bold border-white/5"
+                                    className="h-10 rounded-xl bg-background/50 hover:bg-danger/10 hover:text-danger font-bold border-border"
                                     onClick={() => handleBulkUpdate('dec')}
                                     disabled={isBulkUpdating}
                                 >
                                     <Minus className="h-4 w-4 mr-2" />
                                     -1
                                 </Button>
-                                <div className="w-px h-8 bg-white/10 mx-1" />
+                                <div className="w-px h-8 bg-surface mx-1" />
                                 <Button
                                     size="sm"
-                                    className="h-10 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold transition-all active:scale-95"
+                                    className="h-10 px-6 rounded-xl bg-warning hover:bg-warning text-warning-foreground font-bold transition-all active:scale-95"
                                     onClick={() => handleBulkUpdate('set', 1)}
                                     disabled={isBulkUpdating}
                                 >

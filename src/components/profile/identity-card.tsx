@@ -27,7 +27,7 @@ export function IdentityCard({
         : undefined;
 
     return (
-        <div className="relative overflow-hidden p-6 bg-zinc-900/60 rounded-2xl border border-white/5 h-full flex flex-col items-center justify-between group">
+        <div className="relative overflow-hidden p-6 bg-surface/60 rounded-2xl border border-border h-full flex flex-col items-center justify-between group">
 
             {/* Background Gradient Effect */}
             <div
@@ -49,28 +49,28 @@ export function IdentityCard({
                         style={{ borderColor: borderColor || "rgba(255,255,255,0.1)" }}
                     >
                         <AvatarImage src={avatarUrl || ""} alt={displayName} className="object-cover" />
-                        <AvatarFallback className="text-4xl font-bold bg-zinc-900 text-zinc-300">
+                        <AvatarFallback className="text-4xl font-bold bg-surface text-foreground">
                             {displayName?.[0]?.toUpperCase() ?? "?"}
                         </AvatarFallback>
                     </Avatar>
 
                     {/* Top Contributor Crown Badge */}
                     {isTopContributor && (
-                        <div className="absolute -top-1 -right-1 z-20 p-1.5 bg-zinc-900 rounded-full border border-amber-500/30 shadow-lg shadow-amber-500/20" title="Top Contributeur">
-                            <Crown className="w-5 h-5 text-amber-500 fill-amber-500/20" />
+                        <div className="absolute -top-1 -right-1 z-20 p-1.5 bg-surface rounded-full border border-warning/30 shadow-lg shadow-amber-500/20" title="Top Contributeur">
+                            <Crown className="w-5 h-5 text-warning fill-amber-500/20" />
                         </div>
                     )}
 
                     {/* Vacation Badge */}
                     {isOnVacation && (
-                        <div className="absolute -bottom-1 -right-1 z-20 p-1.5 bg-zinc-900 rounded-full border border-cyan-500/30 shadow-lg shadow-cyan-500/20" title="En Vacances">
-                            <Palmtree className="w-5 h-5 text-cyan-400 fill-cyan-400/20" />
+                        <div className="absolute -bottom-1 -right-1 z-20 p-1.5 bg-surface rounded-full border border-info/30 shadow-lg shadow-cyan-500/20" title="En Vacances">
+                            <Palmtree className="w-5 h-5 text-info fill-cyan-400/20" />
                         </div>
                     )}
                 </div>
 
                 {/* Name */}
-                <h2 className="text-2xl font-bold text-white tracking-tight text-center mb-1">
+                <h2 className="text-2xl font-bold text-foreground tracking-tight text-center mb-1">
                     {displayName}
                 </h2>
 
@@ -82,12 +82,12 @@ export function IdentityCard({
                 {(isTopContributor || isOnVacation) && (
                     <div className="flex flex-wrap gap-2 justify-center mb-2">
                         {isTopContributor && (
-                            <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20">
+                            <Badge variant="secondary" className="bg-warning/10 text-warning hover:bg-warning/20 border-warning/20">
                                 Top Contributeur
                             </Badge>
                         )}
                         {isOnVacation && (
-                            <Badge variant="secondary" className="bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/20">
+                            <Badge variant="secondary" className="bg-info/10 text-info hover:bg-info/20 border-info/20">
                                 En Congés
                             </Badge>
                         )}
@@ -97,11 +97,11 @@ export function IdentityCard({
 
             {/* Footer: Member Since */}
             {joinedAt && (
-                <div className="w-full mt-6 pt-6 border-t border-white/5 flex flex-col items-center gap-1 z-10">
-                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest">
+                <div className="w-full mt-6 pt-6 border-t border-border flex flex-col items-center gap-1 z-10">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
                         Membre depuis
                     </p>
-                    <p className="text-zinc-300 font-medium">
+                    <p className="text-foreground font-medium">
                         {new Date(joinedAt).toLocaleDateString("fr-FR", { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                 </div>

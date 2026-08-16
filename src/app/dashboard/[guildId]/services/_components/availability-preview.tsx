@@ -16,9 +16,9 @@ const JOUR_COURTS: Record<string, string> = {
 type SlotColors = { pill: string };
 const SLOT_STYLE: Record<string, SlotColors & { emoji: string; label: string }> = {
     matin: { pill: "bg-orange-500/20 text-orange-300 border-orange-500/30", emoji: "🌅", label: "Matin" },
-    midi: { pill: "bg-amber-500/20 text-amber-300 border-amber-500/30", emoji: "☀️", label: "Aprèm" },
+    midi: { pill: "bg-warning/20 text-warning border-warning/30", emoji: "☀️", label: "Aprèm" },
     soir: { pill: "bg-violet-500/20 text-violet-300 border-violet-500/30", emoji: "🌙", label: "Soir" },
-    nuit: { pill: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30", emoji: "🌃", label: "Nuit" },
+    nuit: { pill: "bg-info/20 text-info border-info/30", emoji: "🌃", label: "Nuit" },
 };
 
 /** Résout le contenu d'un GlobalAvailability ou AvailabilityMap en map simple jour→slots[] */
@@ -61,13 +61,13 @@ export function AvailabilityPreview({ guildId }: AvailabilityPreviewProps) {
 
     if (activeDays.length === 0) {
         return (
-            <div className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
-                <Clock className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
-                <p className="text-xs text-zinc-600 italic">
+            <div className="flex items-center gap-2 rounded-lg border border-white/8 bg-surface px-3 py-2">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground italic">
                     Aucune dispo renseignée dans ton profil —{" "}
                     <a
                         href={`/dashboard/${guildId}/profile`}
-                        className="underline hover:text-zinc-400 transition-colors"
+                        className="underline hover:text-muted-foreground transition-colors"
                         target="_blank"
                     >
                         compléter le profil
@@ -78,19 +78,19 @@ export function AvailabilityPreview({ guildId }: AvailabilityPreviewProps) {
     }
 
     return (
-        <div className="rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2.5 space-y-2">
-            <div className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-zinc-500">
+        <div className="rounded-lg border border-white/8 bg-surface px-3 py-2.5 space-y-2">
+            <div className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 Dispos du profil (semaine courante)
             </div>
             <div className="flex flex-wrap gap-y-1.5 gap-x-4">
                 {activeDays.map((jour) => (
                     <div key={jour} className="flex items-center gap-1.5">
-                        <span className="text-caption font-black text-zinc-400 w-7">{JOUR_COURTS[jour]}</span>
+                        <span className="text-caption font-black text-muted-foreground w-7">{JOUR_COURTS[jour]}</span>
                         <div className="flex gap-1 flex-wrap">
                             {(map![jour] || []).map((slot) => {
                                 const style = SLOT_STYLE[slot] || {
-                                    pill: "bg-zinc-700/40 text-zinc-400 border-zinc-600/40",
+                                    pill: "bg-muted/40 text-muted-foreground border-border/40",
                                     emoji: "🕐",
                                     label: slot,
                                 };

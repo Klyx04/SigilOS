@@ -74,8 +74,8 @@ const ClassSelector = ({
                             className={cn(
                                 "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center group overflow-hidden",
                                 isSelected 
-                                    ? "border-white/40 shadow-xl scale-105" 
-                                    : "bg-zinc-900/50 border-white/5 hover:border-white/20 "
+                                    ? "border-border-strong shadow-xl scale-105" 
+                                    : "bg-surface/50 border-border hover:border-border-strong "
                             )}
                             style={{ 
                                 backgroundColor: isSelected ? `${color}22` : undefined,
@@ -106,11 +106,11 @@ const ClassSelector = ({
             {/* Dynamic Class Name Preview */}
             <div className="flex items-center justify-center h-6">
                 {activeClass ? (
-                    <span className="text-xs font-bold px-3 py-1 bg-white/10 rounded-full text-white tracking-wide shadow-inner animate-in fade-in zoom-in duration-200">
+                    <span className="text-xs font-bold px-3 py-1 bg-surface rounded-full text-foreground tracking-wide shadow-inner animate-in fade-in zoom-in duration-200">
                         {activeClass.name}
                     </span>
                 ) : (
-                    <span className="text-xs font-medium text-zinc-600 italic">
+                    <span className="text-xs font-medium text-muted-foreground italic">
                         Survolez pour voir la nom de la classe
                     </span>
                 )}
@@ -221,13 +221,13 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
         : links;
 
     return (
-        <div className="p-6 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/10 transition-all hover:border-white/20 group h-full flex flex-col">
+        <div className="p-6 bg-surface/40 backdrop-blur-md rounded-2xl border border-border transition-all hover:border-border-strong group h-full flex flex-col">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                    <Link2 className="w-5 h-5 text-emerald-400" />
-                    <h3 className="text-base font-semibold text-zinc-200">Mes Builds</h3>
+                    <Link2 className="w-5 h-5 text-success" />
+                    <h3 className="text-base font-semibold text-foreground">Mes Builds</h3>
                     {!readOnly && (
-                        <span className="text-xs text-zinc-500 bg-zinc-950/50 px-2 py-0.5 rounded border border-white/5">
+                        <span className="text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded border border-border">
                             {links.length}/20
                         </span>
                     )}
@@ -245,16 +245,16 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
             {/* Tag Filter UI Premium */}
             {links.length > 0 && (
-                <div className="bg-zinc-950/80 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] px-5 py-4 shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+                <div className="bg-background/80 backdrop-blur-2xl border border-border rounded-[1.5rem] px-5 py-4 shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
                     {/* Left: Filters */}
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* 1. Primary Elements */}
-                        <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5 flex-wrap">
+                        <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-border flex-wrap">
                             <button
                                 onClick={() => setSelectedTagFilter(null)}
                                 className={cn(
                                     "h-8 px-4 rounded-xl text-caption font-black transition-all shrink-0",
-                                    !selectedTagFilter ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                    !selectedTagFilter ? "bg-background text-foreground shadow-md" : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                 )}
                             >
                                 Tous
@@ -271,7 +271,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                         onClick={() => setSelectedTagFilter(selectedTagFilter === id ? null : id)}
                                         className={cn(
                                             "h-8 px-3 rounded-xl text-caption font-bold transition-all shrink-0",
-                                            selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                            selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
                                         {tag.label}
@@ -283,8 +283,8 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                         {/* 2. Advanced / Specialities (only if user has links with these) */}
                         {links.some(l => l.tags?.some(tagId => !["eau","feu","terre","air","multi"].includes(tagId))) && (
                             <>
-                                <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
-                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/5 flex-wrap">
+                                <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
+                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-border flex-wrap">
                                     {DO_TAGS.filter(t => !["eau","feu","terre","air","multi"].includes(t.id)).map(tag => {
                                         const hasTag = links.some(l => l.tags?.includes(tag.id));
                                         if (!hasTag) return null;
@@ -295,7 +295,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                 onClick={() => setSelectedTagFilter(selectedTagFilter === tag.id ? null : tag.id)}
                                                 className={cn(
                                                     "h-8 px-3 rounded-xl text-caption font-bold transition-all shrink-0",
-                                                    selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                                    selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                                 )}
                                             >
                                                 {tag.label}
@@ -308,10 +308,10 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     </div>
 
                     {/* Right: Count */}
-                    <div className="flex items-center gap-4 shrink-0 bg-black/40 px-4 py-2 rounded-2xl border border-white/5">
-                        <p className="text-caption text-zinc-500 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500/50 animate-pulse" />
-                            <span className="text-white font-black">{filteredLinks.length}</span>
+                    <div className="flex items-center gap-4 shrink-0 bg-black/40 px-4 py-2 rounded-2xl border border-border">
+                        <p className="text-caption text-muted-foreground flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-success/50 animate-pulse" />
+                            <span className="text-foreground font-black">{filteredLinks.length}</span>
                             <span> sur {links.length} build{links.length !== 1 ? "s" : ""}</span>
                         </p>
                     </div>
@@ -329,42 +329,42 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                             <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
 
                             {/* Upload / Update Date Bar (Gallery parity) */}
-                            <div className="flex items-center justify-between px-2 pt-1 text-caption text-zinc-500 border-t border-white/5">
+                            <div className="flex items-center justify-between px-2 pt-1 text-caption text-muted-foreground border-t border-border">
                                 <div className="flex items-center gap-1.5">
-                                    <Calendar className="w-3 h-3 text-zinc-500" />
+                                    <Calendar className="w-3 h-3 text-muted-foreground" />
                                     {link.createdAt ? (
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <span className="text-caption text-zinc-400 font-medium cursor-default">
+                                                    <span className="text-caption text-muted-foreground font-medium cursor-default">
                                                         {new Date(link.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                                                     </span>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-caption text-zinc-300">
+                                                <TooltipContent side="top" className="bg-surface border-border text-caption text-foreground">
                                                     <p>Ajouté le {new Date(link.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
                                                     {link.updatedAt && link.updatedAt !== link.createdAt && (
-                                                        <p className="text-zinc-400 mt-0.5">Mis à jour le {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                                        <p className="text-muted-foreground mt-0.5">Mis à jour le {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
                                                     )}
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                     ) : (
-                                        <span className="text-caption text-zinc-500 italic">Importé</span>
+                                        <span className="text-caption text-muted-foreground italic">Importé</span>
                                     )}
                                 </div>
 
                                 {link.updatedAt && link.updatedAt !== link.createdAt && (
-                                    <span className="text-caption text-emerald-400/90 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                    <span className="text-caption text-success/90 font-bold bg-success/10 px-1.5 py-0.5 rounded border border-success/20">
                                         MAJ {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                     </span>
                                 )}
                             </div>
 
                             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-30 opacity-0 group-hover/card:opacity-100 translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 pointer-events-none">
-                                <div className="flex items-center gap-1.5 bg-zinc-950/95 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto shrink-0 w-max">
+                                <div className="flex items-center gap-1.5 bg-background/95 backdrop-blur-xl border border-border p-1.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto shrink-0 w-max">
                                     <button
                                         onClick={() => handleCopyLink(link.url)}
-                                        className="p-2 bg-zinc-900/80 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
+                                        className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                         title="Copier le lien"
                                     >
                                         <Copy className="w-3.5 h-3.5" />
@@ -376,7 +376,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                 if (res.success) toast.success("Partagé sur Discord !");
                                                 else toast.error(res.error || "Erreur lors du partage");
                                             }}
-                                            className="p-2 bg-zinc-900/80 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
+                                            className="p-2 bg-surface/80 hover:bg-info text-info hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                             title="Partager sur Discord"
                                         >
                                             <Megaphone className="w-3.5 h-3.5" />
@@ -387,21 +387,21 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             <button
                                                 onClick={() => handleForceBake(link)}
                                                 disabled={isSubmitting}
-                                                className="p-2 bg-zinc-900/80 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all disabled:opacity-50"
+                                                className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all disabled:opacity-50"
                                                 title="Récupérer les données (Baking)"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", isSubmitting && "animate-spin")} />
                                             </button>
                                             <button
                                                 onClick={() => setEditingLink({ ...link })}
-                                                className="p-2 bg-zinc-900/80 hover:bg-indigo-500 text-white/50 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
+                                                className="p-2 bg-surface/80 hover:bg-info text-info-foreground/50 hover:text-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                                 title="Modifier ce build"
                                             >
                                                 <Pencil className="w-3.5 h-3.5" strokeWidth={2.5} />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteLink(link.id)}
-                                                className="p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 shadow-lg transition-all"
+                                                className="p-2 bg-danger/10 hover:bg-danger text-danger-foreground0 hover:text-foreground rounded-xl border border-danger/20 shadow-lg transition-all"
                                                 title="Supprimer ce build"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -413,24 +413,24 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                         </div>
                     ))
                 ) : (
-                    <div className="col-span-full text-center py-16 bg-zinc-950/40 rounded-[2rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden group/empty">
-                        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover/empty:opacity-100 transition-all duration-300" />
+                    <div className="col-span-full text-center py-16 bg-background/40 rounded-[2rem] border-2 border-dashed border-border flex flex-col items-center justify-center gap-6 relative overflow-hidden group/empty">
+                        <div className="absolute inset-0 bg-gradient-to-b from-success/5 to-transparent opacity-0 group-hover/empty:opacity-100 transition-all duration-300" />
                         
                         <div className="relative">
-                            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 rotate-3 group-hover/empty:rotate-6 transition-all duration-300 shadow-2xl">
-                                <Link2 className="w-10 h-10 text-emerald-400 group-hover/empty:scale-110 transition-all" />
+                            <div className="w-20 h-20 rounded-3xl bg-success/10 flex items-center justify-center border border-success/20 rotate-3 group-hover/empty:rotate-6 transition-all duration-300 shadow-2xl">
+                                <Link2 className="w-10 h-10 text-success group-hover/empty:scale-110 transition-all" />
                             </div>
-                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center animate-bounce shadow-xl">
-                                <Plus className="w-4 h-4 text-emerald-400" />
+                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center animate-bounce shadow-xl">
+                                <Plus className="w-4 h-4 text-success" />
                             </div>
                         </div>
 
                         <div className="space-y-2 relative px-6">
-                            <h4 className="text-white font-black uppercase tracking-widest text-sm">Aucun build importé</h4>
-                            <p className="text-zinc-500 text-xs leading-relaxed max-w-sm mx-auto font-medium">
-                                Importez vos stuffs depuis <span className="text-emerald-400 font-bold">DofusBook</span> pour que les membres puissent s'en inspirer.
+                            <h4 className="text-foreground font-black uppercase tracking-widest text-sm">Aucun build importé</h4>
+                            <p className="text-muted-foreground text-xs leading-relaxed max-w-sm mx-auto font-medium">
+                                Importez vos stuffs depuis <span className="text-success font-bold">DofusBook</span> pour que les membres puissent s'en inspirer.
                                 <br />
-                                <span className="text-zinc-600 italic">C'est ici que vous lorgnez le stuff des autres !</span>
+                                <span className="text-muted-foreground italic">C'est ici que vous lorgnez le stuff des autres !</span>
                             </p>
                         </div>
 
@@ -454,10 +454,10 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
             {/* Edit Dialog */}
             <Dialog open={!!editingLink} onOpenChange={(open) => !open && setEditingLink(null)}>
-                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-background border-border text-foreground sm:max-w-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Modifier le Build</DialogTitle>
-                        <DialogDescription className="text-zinc-400">
+                        <DialogDescription className="text-muted-foreground">
                             Modifiez le nom ou le lien de votre build.
                         </DialogDescription>
                     </DialogHeader>
@@ -470,7 +470,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     maxLength={30}
                                     value={editingLink.name}
                                     onChange={(e) => setEditingLink(prev => prev ? { ...prev, name: e.target.value } : null)}
-                                    className="bg-zinc-900 border-white/10"
+                                    className="bg-surface border-border"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -479,7 +479,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     id="edit-url"
                                     value={editingLink.url}
                                     onChange={(e) => setEditingLink(prev => prev ? { ...prev, url: e.target.value } : null)}
-                                    className="bg-zinc-900 border-white/10 font-mono text-xs"
+                                    className="bg-surface border-border font-mono text-xs"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -508,7 +508,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                     "px-2.5 py-1 text-caption sm:text-xs rounded-full transition-all border font-medium select-none",
                                                     isSelected
                                                         ? tag.className
-                                                        : "bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300 opacity-60 hover:opacity-100"
+                                                        : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:text-foreground opacity-60 hover:opacity-100"
                                                 )}
                                             >
                                                 {tag.label}
@@ -524,7 +524,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     onSelect={(id) => setEditingLink(prev => prev ? { ...prev, classId: id } : null)} 
                                     classes={DOFUS_CLASSES} 
                                 />
-                                <p className="text-caption text-zinc-500">
+                                <p className="text-caption text-muted-foreground">
                                     Sélectionnez la classe pour assurer une belle preview.
                                 </p>
                             </div>

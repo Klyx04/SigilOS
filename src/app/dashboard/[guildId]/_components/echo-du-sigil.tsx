@@ -16,7 +16,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
             {/* Ambient Background Glow (Subtle) */}
             <div className="absolute -inset-10 bg-guild/5 rounded-[40px] blur-[100px] opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-300" />
 
-            <div className="relative glass-premium p-8 md:p-12 rounded-3xl border border-white/5 overflow-hidden group-hover:border-white/10 transition-all duration-300">
+            <div className="relative glass-premium p-8 md:p-12 rounded-3xl border border-border overflow-hidden group-hover:border-border transition-all duration-300">
                 {/* Decorative Pattern Layer */}
                 <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-300">
                     <svg width="240" height="240" viewBox="0 0 120 120" fill="none" className="animate-spin-slow">
@@ -34,18 +34,18 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-caption font-black uppercase tracking-widest text-guild">Intelligence Focus</span>
-                                <h2 className="text-2xl md:text-5xl font-black tracking-tighter text-white leading-[1.1]">
+                                <h2 className="text-2xl md:text-5xl font-black tracking-tighter text-foreground leading-[1.1]">
                                      {data.title}
                                  </h2>
                             </div>
                         </div>
 
-                        <p className="text-zinc-400 text-sm md:text-lg font-medium leading-relaxed max-w-2xl pt-2">
+                        <p className="text-muted-foreground text-sm md:text-lg font-medium leading-relaxed max-w-2xl pt-2">
                             {data.description}
                         </p>
 
                         <div className="flex items-center gap-6 pt-4">
-                            <Button asChild className="h-12 bg-white text-black hover:bg-zinc-100 font-bold px-8 rounded-2xl group/btn transition-all  active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
+                            <Button asChild className="h-12 bg-background text-foreground hover:bg-surface font-bold px-8 rounded-2xl group/btn transition-all  active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
                                 <Link href={data.actionHref}>
                                     <span className="flex items-center gap-3">
                                         {data.actionLabel}
@@ -89,20 +89,20 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                                         initial={{ strokeDashoffset: 465 }}
                                         animate={{ strokeDashoffset: 465 - (465 * (data.priority / 100)) }}
                                         transition={{ duration: 2, ease: "circOut" }}
-                                        className="text-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                                        className="text-success drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                                         strokeLinecap="round"
                                     />
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-all duration-300 group-hover/progress:scale-110">
-                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1">Score</span>
-                                    <span className="text-4xl font-black text-white tracking-tighter">{Math.round(data.priority)}</span>
+                                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1">Score</span>
+                                    <span className="text-4xl font-black text-foreground tracking-tighter">{Math.round(data.priority)}</span>
                                 </div>
                             </div>
                         ) : (
                             <div className="w-40 h-40 flex items-center justify-center">
-                                <div className="absolute inset-0 bg-white/5 rounded-full blur-3xl opacity-20 scale-50" />
-                                {data.type === "SONGES_RECRUIT" && <InfinityIcon className="w-24 h-24 text-indigo-300 drop-shadow-[0_0_20px_#818cf8] opacity-30" />}
-                                {data.type === "WELCOME" && <Zap className="w-24 h-24 text-amber-300 drop-shadow-[0_0_20px_#fbbf24] opacity-30" />}
+                                <div className="absolute inset-0 bg-surface rounded-full blur-3xl opacity-20 scale-50" />
+                                {data.type === "SONGES_RECRUIT" && <InfinityIcon className="w-24 h-24 text-info drop-shadow-[0_0_20px_#818cf8] opacity-30" />}
+                                {data.type === "WELCOME" && <Zap className="w-24 h-24 text-warning drop-shadow-[0_0_20px_#fbbf24] opacity-30" />}
                             </div>
                         )}
                     </div>
@@ -110,7 +110,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
 
                 {/* Subtle Decorative Line */}
                 <div className="absolute bottom-0 left-0 h-1 w-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent w-full" />
+                    <div className="h-full bg-gradient-to-r from-transparent via-info/20 to-transparent w-full" />
                 </div>
             </div>
         </div>

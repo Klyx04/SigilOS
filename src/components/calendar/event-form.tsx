@@ -117,40 +117,40 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         label: "Raid Officiel 3.6",
         shortLabel: "Raid 3.6",
         icon: Swords,
-        gradient: "from-red-600 to-rose-600",
-        bg: "bg-red-500/10",
-        border: "border-red-500/30",
-        text: "text-red-400",
+        gradient: "from-danger to-danger",
+        bg: "bg-danger/10",
+        border: "border-danger/30",
+        text: "text-danger",
         preset: { defaultDuration: 3, maxParticipants: 12 }
     },
     EVENT_GUILD: {
         label: "Event Guilde (Mini-jeux)",
         shortLabel: "Event Guilde",
         icon: PartyPopper,
-        gradient: "from-purple-600 to-fuchsia-600",
-        bg: "bg-purple-500/10",
-        border: "border-purple-500/30",
-        text: "text-purple-400",
+        gradient: "from-info to-fuchsia-600",
+        bg: "bg-info/10",
+        border: "border-info/30",
+        text: "text-info",
         preset: { defaultDuration: 2 }
     },
     SESSION_MISSIONS: {
         label: "Missions Guilde",
         shortLabel: "Missions Guilde",
         icon: Target,
-        gradient: "from-amber-600 to-orange-600",
-        bg: "bg-amber-500/10",
-        border: "border-amber-500/30",
-        text: "text-amber-400",
+        gradient: "from-warning to-orange-600",
+        bg: "bg-warning/10",
+        border: "border-warning/30",
+        text: "text-warning",
         preset: { defaultDuration: 4, maxParticipants: 8 }
     },
     SORTIE_FARM: {
         label: "Sortie Farm / Drop",
         shortLabel: "Sortie Farm",
         icon: Wheat,
-        gradient: "from-emerald-600 to-green-600",
-        bg: "bg-emerald-500/10",
-        border: "border-emerald-500/30",
-        text: "text-emerald-400",
+        gradient: "from-success to-green-600",
+        bg: "bg-success/10",
+        border: "border-success/30",
+        text: "text-success",
         preset: { defaultDuration: 2 }
     },
     OTHERS: {
@@ -158,9 +158,9 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         shortLabel: "Autres",
         icon: Diamond,
         gradient: "from-slate-600 to-zinc-600",
-        bg: "bg-slate-500/10",
-        border: "border-slate-500/30",
-        text: "text-slate-400",
+        bg: "bg-muted/10",
+        border: "border-border/30",
+        text: "text-muted-foreground",
         preset: { defaultDuration: 2 }
     },
 };
@@ -559,7 +559,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     <div className="space-y-5">
                             {/* ============ TYPE SELECTOR (4 types) ============ */}
                             <div className="space-y-3">
-                    <FormLabel className="text-sm font-medium text-zinc-300">
+                    <FormLabel className="text-sm font-medium text-foreground">
                         Type d'événement
                     </FormLabel>
                     <div className="grid grid-cols-5 gap-2">
@@ -577,21 +577,21 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                         "relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors",
                                         isSelected
                                             ? cn(config.bg, config.border)
-                                            : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50"
+                                            : "bg-surface/50 border-border hover:border-border hover:bg-elevated/50"
                                     )}
                                 >
                                     <div className={cn(
                                         "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
-                                        isSelected ? config.bg : "bg-zinc-800"
+                                        isSelected ? config.bg : "bg-elevated"
                                     )}>
                                         <Icon className={cn(
                                             "h-5 w-5 transition-colors",
-                                            isSelected ? config.text : "text-zinc-400"
+                                            isSelected ? config.text : "text-muted-foreground"
                                         )} />
                                     </div>
                                     <span className={cn(
                                         "text-caption font-medium text-center leading-tight",
-                                        isSelected ? config.text : "text-zinc-400"
+                                        isSelected ? config.text : "text-muted-foreground"
                                     )}>
                                         {config.shortLabel}
                                     </span>
@@ -607,7 +607,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             currentConfig.bg, currentConfig.border, "border"
                         )}>
                             <Info className={cn("h-3.5 w-3.5", currentConfig.text)} />
-                            <span className="text-zinc-400">
+                            <span className="text-muted-foreground">
                                 <span className={currentConfig.text}>Preset :</span> {currentConfig.preset.maxParticipants} places
                             </span>
                         </div>
@@ -615,15 +615,15 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                     {/* ========== RAID SPECIFIC PANEL ========== */}
                     {selectedType === "RAID_OFFICIAL" && (
-                        <div className="space-y-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-4 p-4 rounded-xl border border-danger/20 bg-danger/5 animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className="flex items-center gap-2 mb-1">
-                                <Swords className="h-4 w-4 text-red-400" />
-                                <span className="text-xs font-black text-red-400 uppercase tracking-widest">Options Raid 3.6</span>
+                                <Swords className="h-4 w-4 text-danger" />
+                                <span className="text-xs font-black text-danger uppercase tracking-widest">Options Raid 3.6</span>
                             </div>
 
                             {/* Raid Subtype */}
                             <div className="space-y-2">
-                                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Type de Raid</span>
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Type de Raid</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     {RAID_TYPES.map(rt => (
                                         <button
@@ -633,8 +633,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             className={cn(
                                                 "relative flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 text-left transition-all group overflow-hidden h-24",
                                                 raidType === rt.id
-                                                    ? "border-red-500/50 "
-                                                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-600"
+                                                    ? "border-danger/50 "
+                                                    : "border-border bg-surface/50 hover:border-border"
                                             )}
                                         >
                                             {/* Background Art */}
@@ -656,7 +656,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                     
                                                     {/* Selection Glow */}
                                                     {raidType === rt.id && (
-                                                        <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+                                                        <div className="absolute inset-0 bg-danger/10 animate-pulse" />
                                                     )}
                                                 </div>
                                             )}
@@ -666,11 +666,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 <div className="flex flex-col">
                                                     <span className={cn(
                                                         "text-label font-black leading-tight uppercase tracking-tight drop-shadow-lg",
-                                                        raidType === rt.id ? "text-white" : "text-zinc-200"
+                                                        raidType === rt.id ? "text-foreground" : "text-foreground"
                                                     )}>{rt.short}</span>
                                                     <span className={cn(
                                                         "text-caption font-bold uppercase tracking-widest mt-0.5 drop-shadow-md",
-                                                        raidType === rt.id ? "text-red-400" : "text-zinc-400"
+                                                        raidType === rt.id ? "text-danger" : "text-muted-foreground"
                                                     )}>{rt.min}–{rt.max} joueurs</span>
                                                 </div>
                                             </div>
@@ -681,7 +681,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                             {/* Captain */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                     <Crown className="h-3.5 w-3.5 text-yellow-500" />
                                     Capitaine du Raid
                                 </label>
@@ -690,7 +690,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     placeholder="Pseudo Dofus du capitaine..."
                                     value={raidCaptain}
                                     onChange={e => setRaidCaptain(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-red-500/50 shadow-inner"
+                                    className="w-full h-10 px-3 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-danger/50 shadow-inner"
                                 />
                             </div>
 
@@ -701,32 +701,32 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 className={cn(
                                     "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all",
                                     openToExternal
-                                        ? "bg-emerald-500/10 border-emerald-500/40"
-                                        : "bg-zinc-900/50 border-zinc-800"
+                                        ? "bg-success/10 border-success/40"
+                                        : "bg-surface/50 border-border"
                                 )}
                             >
                                 <div className="flex items-center gap-2.5">
                                     {openToExternal
-                                        ? <Globe className="h-4 w-4 text-emerald-400" />
-                                        : <Lock className="h-4 w-4 text-zinc-500" />}
+                                        ? <Globe className="h-4 w-4 text-success" />
+                                        : <Lock className="h-4 w-4 text-muted-foreground" />}
                                     <div className="text-left">
                                         <p className={cn(
                                             "text-xs font-black uppercase tracking-wider",
-                                            openToExternal ? "text-emerald-400" : "text-zinc-400"
+                                            openToExternal ? "text-success" : "text-muted-foreground"
                                         )}>
                                             {openToExternal ? "Ouvert aux extérieurs" : "Guilde uniquement"}
                                         </p>
-                                        <p className="text-caption text-zinc-500">
+                                        <p className="text-caption text-muted-foreground">
                                             {openToExternal ? "Joueurs hors guilde autorisés" : "Réservé aux membres"}
                                         </p>
                                     </div>
                                 </div>
                                 <div className={cn(
                                     "w-10 h-5 rounded-full transition-all relative",
-                                    openToExternal ? "bg-emerald-500" : "bg-zinc-700"
+                                    openToExternal ? "bg-success" : "bg-muted"
                                 )}>
                                     <div className={cn(
-                                        "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all",
+                                        "absolute top-0.5 w-4 h-4 rounded-full bg-background shadow transition-all",
                                         openToExternal ? "left-5" : "left-0.5"
                                     )} />
                                 </div>
@@ -734,29 +734,29 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                             {/* Role Restrict Selector when Guilde Uniquement */}
                             {!openToExternal && (
-                                <div className="space-y-2 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="space-y-2 p-3 rounded-xl bg-background/80 border border-border animate-in fade-in slide-in-from-top-1 duration-200">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-caption font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                                            <Shield className="h-3.5 w-3.5 text-red-400" />
+                                        <label className="text-caption font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                            <Shield className="h-3.5 w-3.5 text-danger" />
                                             Rôles autorisés à s'inscrire
                                         </label>
-                                        <span className="text-caption text-zinc-500 font-bold">
+                                        <span className="text-caption text-muted-foreground font-bold">
                                             {allowedRoleIds.length === 0 ? "Tous les membres (par défaut)" : `${allowedRoleIds.length} rôle(s) sélectionné(s)`}
                                         </span>
                                     </div>
 
                                     {isLoadingRoles ? (
-                                        <div className="flex items-center gap-2 text-xs text-zinc-500 py-2">
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin text-danger" />
                                             Chargement des rôles Discord...
                                         </div>
                                     ) : whitelistedRoleIds.length > 0 && whitelistedRoles.length === 0 ? (
                                         <div className="flex flex-col gap-2 py-2">
-                                            <p className="text-xs text-amber-400 font-bold flex items-center gap-1.5">
+                                            <p className="text-xs text-warning font-bold flex items-center gap-1.5">
                                                 <AlertTriangle className="h-3 w-3" />
                                                 Rôles whitelistés introuvables
                                             </p>
-                                            <p className="text-xs text-zinc-500">
+                                            <p className="text-xs text-muted-foreground">
                                                 Les rôles configurés par l'admin ne sont plus disponibles sur ce serveur Discord.
                                                 Tous les membres de la guilde peuvent s'inscrire par défaut.
                                             </p>
@@ -777,8 +777,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                         className={cn(
                                                             "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5",
                                                             isSelected
-                                                                ? "bg-red-500/20 text-red-300 border-red-500/40 shadow-sm"
-                                                                : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200"
+                                                                ? "bg-danger/20 text-danger border-danger/40 shadow-sm"
+                                                                : "bg-surface text-muted-foreground border-border hover:border-border hover:text-foreground"
                                                         )}
                                                     >
                                                         <span
@@ -786,18 +786,18 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                             style={{ backgroundColor: role.color || "#ef4444" }}
                                                         />
                                                         {role.name}
-                                                        {isSelected && <Check className="w-3 h-3 text-red-400" />}
+                                                        {isSelected && <Check className="w-3 h-3 text-danger" />}
                                                     </button>
                                                 );
                                             })}
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-zinc-500 italic py-1">
+                                        <p className="text-xs text-muted-foreground italic py-1">
                                             Aucun rôle spécifique configuré. Tous les membres de la guilde peuvent s'inscrire.
                                         </p>
                                     )}
 
-                                    <p className="text-caption text-zinc-500 italic mt-1">
+                                    <p className="text-caption text-muted-foreground italic mt-1">
                                         {allowedRoleIds.length === 0
                                             ? "Laissez vide pour autoriser tous les membres ayant accès aux raids."
                                             : "Seuls les membres possédant l'un de ces rôles pourront s'inscrire."}
@@ -807,13 +807,13 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                             {/* Creator eligibility warning box */}
                             {creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible && (
-                                <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-red-500/30 bg-red-950/30 text-red-400 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-danger/30 bg-danger/30 text-danger animate-in fade-in slide-in-from-top-1 duration-200">
                                     <div className="flex items-start gap-2.5">
-                                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-danger" />
                                         <div className="text-xs leading-relaxed">
                                             <span className="font-black uppercase tracking-wide">Création de raid bloquée</span>
                                             <br />
-                                            <span className="text-red-400/90">
+                                            <span className="text-danger/90">
                                                 Pour créer et vous inscrire à un raid, vous devez posséder au moins <strong>30 🟣 (30 000 k)</strong> dans votre bourse de Kamas Violets.
                                                 Votre solde actuel est de <strong>{creatorRaidEligibility.totalDonated.toLocaleString("fr-FR")} k</strong>.
                                             </span>
@@ -821,7 +821,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     </div>
                                     <Link
                                         href={`/dashboard/${guildId}/missions#don-kamas`}
-                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-red-600/30 w-full sm:w-fit"
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-danger hover:bg-danger text-danger-foreground text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-red-600/30 w-full sm:w-fit"
                                     >
                                         <Coins className="h-4 w-4" />
                                         Faire mon don de kamas
@@ -839,12 +839,12 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         name="title"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-zinc-300">Titre</FormLabel>
+                                <FormLabel className="text-foreground">Titre</FormLabel>
                                 <FormControl>
                                     <Input
                                         placeholder="Ex: Raid Bethel - Farm clés"
                                         {...field}
-                                        className="h-11 bg-zinc-950 border border-zinc-800 text-zinc-100 focus:border-amber-500/50 shadow-inner"
+                                        className="h-11 bg-background border border-border text-foreground focus:border-warning/50 shadow-inner"
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -855,7 +855,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                 {/* ============ DATE & TIME (unified row) ============ */}
                 <div className="space-y-2">
-                    <FormLabel className="text-zinc-300">Date et horaires</FormLabel>
+                    <FormLabel className="text-foreground">Date et horaires</FormLabel>
                     <div className="grid grid-cols-3 gap-3">
                         <FormField
                             control={form.control}
@@ -868,23 +868,23 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 <Button
                                                     variant="outline"
                                                     className={cn(
-                                                        "h-11 w-full justify-start text-left font-normal bg-zinc-950 border border-zinc-800 text-zinc-100 hover:bg-zinc-900 shadow-inner",
+                                                        "h-11 w-full justify-start text-left font-normal bg-background border border-border text-foreground hover:bg-surface shadow-inner",
                                                         !field.value && "text-muted-foreground"
                                                     )}
                                                 >
-                                                    <CalendarIcon className="mr-2 h-4 w-4 text-amber-500" />
+                                                    <CalendarIcon className="mr-2 h-4 w-4 text-warning" />
                                                     {field.value ? format(field.value, "d MMM", { locale: fr }) : "Date"}
                                                 </Button>
                                             </FormControl>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800" align="start">
+                                        <PopoverContent className="w-auto p-0 bg-surface border-border" align="start">
                                             <Calendar
                                                 mode="single"
                                                 selected={field.value}
                                                 onSelect={field.onChange}
                                                 disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date()))}
                                                 initialFocus
-                                                className="bg-zinc-900"
+                                                className="bg-surface"
                                             />
                                         </PopoverContent>
                                     </Popover>
@@ -904,7 +904,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             <Input
                                                 type="time"
                                                 {...field}
-                                                className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
+                                                className="h-11 pl-10 bg-background border border-border text-foreground shadow-inner"
                                             />
                                         </div>
                                     </FormControl>
@@ -920,11 +920,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 <FormItem>
                                     <FormControl>
                                         <div className="relative">
-                                            <Clock className="absolute left-3 top-3.5 h-4 w-4 text-red-400" />
+                                            <Clock className="absolute left-3 top-3.5 h-4 w-4 text-danger" />
                                             <Input
                                                 type="time"
                                                 {...field}
-                                                className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
+                                                className="h-11 pl-10 bg-background border border-border text-foreground shadow-inner"
                                             />
                                         </div>
                                     </FormControl>
@@ -941,18 +941,18 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     name="maxParticipants"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-zinc-300">Places max</FormLabel>
+                            <FormLabel className="text-foreground">Places max</FormLabel>
                             <FormControl>
                                 {isRaid ? (
                                     // Locked for raids — value is fixed per raid type
-                                    <div className="flex items-center gap-3 h-11 pl-4 pr-5 rounded-lg border border-amber-500/20 bg-amber-500/5 w-fit">
-                                        <Users className="h-4 w-4 text-amber-400/70 shrink-0" />
-                                        <span className="text-amber-300 font-black text-lg tabular-nums">{field.value}</span>
-                                        <span className="text-caption font-bold text-amber-400/50 uppercase tracking-widest ml-1">places (fixe)</span>
+                                    <div className="flex items-center gap-3 h-11 pl-4 pr-5 rounded-lg border border-warning/20 bg-warning/5 w-fit">
+                                        <Users className="h-4 w-4 text-warning/70 shrink-0" />
+                                        <span className="text-warning font-black text-lg tabular-nums">{field.value}</span>
+                                        <span className="text-caption font-bold text-warning/50 uppercase tracking-widest ml-1">places (fixe)</span>
                                     </div>
                                 ) : (
                                     <div className="relative w-48">
-                                        <Users className="absolute left-3 top-3.5 h-4 w-4 text-zinc-500" />
+                                        <Users className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             type="text"
                                             inputMode="numeric"
@@ -965,7 +965,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 const numValue = value ? parseInt(value) : undefined;
                                                 field.onChange(numValue);
                                             }}
-                                            className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
+                                            className="h-11 pl-10 bg-background border border-border text-foreground shadow-inner"
                                         />
                                     </div>
                                 )}
@@ -982,11 +982,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         name="description"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-zinc-300">Description</FormLabel>
+                                <FormLabel className="text-foreground">Description</FormLabel>
                                 <FormControl>
                                     <Textarea
                                         placeholder="Détails, objectifs, pré-requis..."
-                                        className="min-h-[70px] bg-zinc-950 border border-zinc-800 text-zinc-100 resize-none shadow-inner"
+                                        className="min-h-[70px] bg-background border border-border text-foreground resize-none shadow-inner"
                                         {...field}
                                         value={field.value || ""}
                                     />
@@ -1016,8 +1016,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     className={cn(
                         "w-full h-12 font-bold text-base transition-all mt-4",
                         isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
-                            ? "bg-zinc-800 border border-zinc-700 text-zinc-500 cursor-not-allowed shadow-inner"
-                            : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20 text-zinc-950"
+                            ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed shadow-inner"
+                            : "bg-gradient-to-r from-warning to-orange-500 hover:from-warning hover:to-orange-400 shadow-lg shadow-amber-500/20 text-foreground"
                     )}
                 >
                     {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
@@ -1035,25 +1035,25 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
         {step === 2 && (
             <div className="space-y-6">
                 {/* Header Recap */}
-                <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 bg-zinc-950 border-white/10">
-                        {currentConfig && <currentConfig.icon className="w-6 h-6 text-zinc-500" />}
+                <div className="flex items-center gap-4 bg-surface/60 rounded-3xl p-5 border border-border shadow-xl relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 bg-background border-border">
+                        {currentConfig && <currentConfig.icon className="w-6 h-6 text-muted-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">
-                        <p className="font-black text-white text-lg tracking-tight truncate leading-tight">
+                        <p className="font-black text-foreground text-lg tracking-tight truncate leading-tight">
                             {form.watch("title") || currentConfig.shortLabel}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-caption font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">
+                            <span className="text-caption font-black bg-warning/10 text-warning px-1.5 py-0.5 rounded border border-warning/20">
                                 {format(form.watch("date"), "d MMM", { locale: fr })}
                             </span>
-                            <span className="text-caption font-medium text-zinc-500 truncate">
+                            <span className="text-caption font-medium text-muted-foreground truncate">
                                 {form.watch("startTime")} - {form.watch("endTime")}
                             </span>
                         </div>
                     </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 shrink-0 relative z-10">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 px-4 rounded-xl text-xs font-black text-muted-foreground hover:text-foreground bg-surface hover:bg-surface shrink-0 relative z-10">
                         RETOUR
                     </Button>
                 </div>
@@ -1064,18 +1064,18 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     name="publishOnDiscord"
                     render={({ field }) => (
                         <FormItem className="space-y-3">
-                            <div className="flex flex-row items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                            <div className="flex flex-row items-center justify-between rounded-lg border border-border bg-surface p-4">
                                 <div className="space-y-0.5">
-                                    <FormLabel className="text-base text-zinc-100 flex items-center gap-2">
+                                    <FormLabel className="text-base text-foreground flex items-center gap-2">
                                         Publier sur Discord
                                     </FormLabel>
-                                    <div className="text-sm text-zinc-400">
+                                    <div className="text-sm text-muted-foreground">
                                         Envoie l'annonce sur le serveur.
                                     </div>
                                     {field.value && canPublishForType && (
                                         <div className="flex items-center gap-1 mt-2 animate-in fade-in">
-                                            <Hash className="w-3.5 h-3.5 text-indigo-400/80" />
-                                            <span className="text-caption text-indigo-400/90 font-bold uppercase tracking-widest">
+                                            <Hash className="w-3.5 h-3.5 text-info/80" />
+                                            <span className="text-caption text-info/90 font-bold uppercase tracking-widest">
                                                 Sera posté dans #{targetChannelName}
                                             </span>
                                         </div>
@@ -1092,7 +1092,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 </FormControl>
                             </div>
                             {!canPublishForType && (
-                                <p className="text-caption text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
+                                <p className="text-caption text-warning/80 font-bold uppercase tracking-tight italic px-2">
                                     {isRaid
                                         ? "⚠️ Salon Discord raid non configuré par l'admin. Publication impossible."
                                         : "⚠️ Salon Discord calendrier non configuré par l'admin. Publication impossible."}
@@ -1109,15 +1109,15 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         name="mentionRoleIds"
                         render={({ field }) => (
                             <FormItem className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
-                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                    <p className="text-caption text-amber-300/80 font-medium leading-relaxed">
-                                        <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour que ton événement soit visible.
+                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                                    <p className="text-caption text-warning/80 font-medium leading-relaxed">
+                                        <span className="font-bold text-warning">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour que ton événement soit visible.
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 mb-1 ml-1">
-                                    <Hash className="h-3.5 w-3.5 text-indigo-400" />
-                                    <span className="text-caption font-black text-indigo-400/80 uppercase tracking-widest">Mentionner un rôle (Ping)</span>
+                                    <Hash className="h-3.5 w-3.5 text-info" />
+                                    <span className="text-caption font-black text-info/80 uppercase tracking-widest">Mentionner un rôle (Ping)</span>
                                 </div>
                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                     <PopoverTrigger asChild>
@@ -1126,7 +1126,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 variant="outline"
                                                 role="combobox"
                                                 aria-expanded={roleOpen}
-                                                className="h-14 bg-zinc-950/50 border-white/10 text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-zinc-950 px-4"
+                                                className="h-14 bg-background/50 border-border text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-background px-4"
                                             >
                                                 <div className="flex items-center gap-3 truncate">
                                                     {field.value && field.value.length > 0 ? (
@@ -1156,7 +1156,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                                                 e.stopPropagation();
                                                                                 field.onChange(field.value?.filter((rid: string) => rid !== id));
                                                                             }}
-                                                                            className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                                                            className="ml-0.5 hover:bg-elevated rounded-full p-0.5 transition-colors"
                                                                         >
                                                                             <X className="h-2.5 w-2.5" />
                                                                         </button>
@@ -1164,21 +1164,21 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                                 );
                                                             })}
                                                             {field.value.length > 3 && (
-                                                                <span className="text-caption font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide px-1.5">
                                                                     +{field.value.length - 3} rôles
                                                                 </span>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
+                                                        <span className="text-muted-foreground italic">Aucun ping (recommandé si petit besoin)</span>
                                                     )}
                                                 </div>
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
-                                        <Command className="bg-transparent text-white">
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
+                                        <Command className="bg-transparent text-foreground">
                                             <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
                                             <CommandList className="max-h-[320px] premium-scrollbar p-2">
                                                 <CommandEmpty>Aucun rôle.</CommandEmpty>
@@ -1187,10 +1187,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                         onSelect={() => {
                                                             field.onChange([]);
                                                         }}
-                                                        className="text-zinc-500 italic focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                        className="text-muted-foreground italic focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
                                                     >
                                                         <span>Aucun ping</span>
-                                                        {(!field.value || field.value.length === 0) && <Check className="h-4 w-4 text-amber-500" />}
+                                                        {(!field.value || field.value.length === 0) && <Check className="h-4 w-4 text-warning" />}
                                                     </CommandItem>
                                                     {pingAllowedRoles.map((role) => (
                                                         <CommandItem
@@ -1203,16 +1203,16 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                                     : [...current, role.id];
                                                                 field.onChange(next);
                                                             }}
-                                                            className="focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                            className="focus:bg-surface cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 <div 
                                                                     className="w-3 h-3 rounded-full shrink-0 shadow-sm" 
                                                                     style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : (role.color || "#9ca3af") }} 
                                                                 />
-                                                                <span className="font-bold text-zinc-300 group-hover:text-white transition-colors uppercase tracking-tight">{role.name}</span>
+                                                                <span className="font-bold text-foreground group-hover:text-foreground transition-colors uppercase tracking-tight">{role.name}</span>
                                                             </div>
-                                                            {field.value?.includes(role.id) && <Check className="h-4 w-4 text-amber-500" />}
+                                                            {field.value?.includes(role.id) && <Check className="h-4 w-4 text-warning" />}
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -1235,8 +1235,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         className={cn(
                             "w-full h-12 font-bold text-base transition-all",
                             isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
-                                ? "bg-zinc-800 border border-zinc-700 text-zinc-500 cursor-not-allowed shadow-inner"
-                                : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20 text-zinc-950"
+                                ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed shadow-inner"
+                                : "bg-gradient-to-r from-warning to-orange-500 hover:from-warning hover:to-orange-400 shadow-lg shadow-amber-500/20 text-foreground"
                         )}
                     >
                         {submitting ? (

@@ -48,16 +48,16 @@ export default async function AdminModulesPage({ params }: Props) {
             </div>
 
             {!isRbacConfigured && (
-                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
-                    <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="p-4 rounded-xl border border-warning/20 bg-warning/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
+                    <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div className="space-y-2 flex-1">
-                        <h3 className="text-amber-400 font-black text-sm uppercase tracking-wide">Rôles Discord Requis</h3>
-                        <p className="text-amber-500/80 text-xs font-medium">
+                        <h3 className="text-warning font-black text-sm uppercase tracking-wide">Rôles Discord Requis</h3>
+                        <p className="text-warning/80 text-xs font-medium">
                             Vous devez configurer au moins un rôle Discord pour l'accès au Dashboard avant de pouvoir activer de nouveaux modules pour vos membres.
                         </p>
                         <Link
                             href={`/dashboard/${guildId}/admin/permissions`}
-                            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-amber-500 text-amber-950 text-xs font-bold uppercase tracking-wider hover:bg-amber-400 transition-colors"
+                            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-warning text-warning-foreground text-xs font-bold uppercase tracking-wider hover:bg-warning transition-colors"
                         >
                             Configurer les rôles
                         </Link>

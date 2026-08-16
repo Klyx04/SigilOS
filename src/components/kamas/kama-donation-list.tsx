@@ -45,14 +45,14 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
     };
 
     const statusConfig = {
-        PENDING: { color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", icon: Clock, label: "En attente" },
-        VALIDATED: { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle2, label: "Validé" },
-        REJECTED: { color: "text-red-400", bg: "bg-red-500/10 border-red-500/20", icon: XCircle, label: "Refusé" },
+        PENDING: { color: "text-warning", bg: "bg-warning/10 border-warning/20", icon: Clock, label: "En attente" },
+        VALIDATED: { color: "text-success", bg: "bg-success/10 border-success/20", icon: CheckCircle2, label: "Validé" },
+        REJECTED: { color: "text-danger", bg: "bg-danger/10 border-danger/20", icon: XCircle, label: "Refusé" },
     };
 
     if (donations.length === 0) {
         return (
-            <div className="text-center py-10 text-zinc-600">
+            <div className="text-center py-10 text-muted-foreground">
                 <Coins className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Aucune donation pour le moment.</p>
             </div>
@@ -69,18 +69,18 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                 const isOwn = d.profileId === currentProfileId;
 
                 return (
-                    <div key={d.id} className="rounded-xl border border-white/8 bg-zinc-900/50 overflow-hidden transition-all duration-200 hover:border-white/12">
+                    <div key={d.id} className="rounded-xl border border-white/8 bg-surface/50 overflow-hidden transition-all duration-200 hover:border-white/12">
                         <div
                             className="flex items-center gap-3 p-3 cursor-pointer"
                             onClick={() => setExpandedId(isExpanded ? null : d.id)}
                         >
                             {/* Avatar */}
-                            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-elevated border border-border overflow-hidden shrink-0 flex items-center justify-center">
                                 {d.profile.user.image ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={d.profile.user.image} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="text-xs font-bold text-zinc-400">
+                                    <span className="text-xs font-bold text-muted-foreground">
                                         {(d.profile.pseudoDofus || d.profile.discordNickname || "?")[0].toUpperCase()}
                                     </span>
                                 )}
@@ -88,21 +88,21 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
 
                             {/* Name + amount */}
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-white truncate">
+                                <p className="text-sm font-bold text-foreground truncate">
                                     {d.profile.pseudoDofus || d.profile.discordNickname || "Membre"}
-                                    {isOwn && <span className="ml-2 text-caption text-zinc-500 font-normal">(vous)</span>}
+                                    {isOwn && <span className="ml-2 text-caption text-muted-foreground font-normal">(vous)</span>}
                                 </p>
-                                <p className="text-xs text-zinc-500">
+                                <p className="text-xs text-muted-foreground">
                                     {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true, locale: fr })}
                                 </p>
                             </div>
 
                             {/* Amount */}
                             <div className="text-right shrink-0">
-                                <p className="text-sm font-black text-amber-400 font-mono">
+                                <p className="text-sm font-black text-warning font-mono">
                                     {d.amount.toLocaleString("fr-FR")}
                                 </p>
-                                <p className="text-caption text-zinc-600 font-bold uppercase">kamas</p>
+                                <p className="text-caption text-muted-foreground font-bold uppercase">kamas</p>
                             </div>
 
                             {/* Status */}
@@ -112,24 +112,24 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                             </div>
 
                             {/* Expand */}
-                            <div className="text-zinc-600 shrink-0">
+                            <div className="text-muted-foreground shrink-0">
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </div>
                         </div>
 
                         {/* Expanded content */}
                         {isExpanded && (
-                            <div className="border-t border-white/8 p-3 space-y-3 bg-zinc-900/30">
+                            <div className="border-t border-white/8 p-3 space-y-3 bg-surface/30">
                                 {d.note && (
-                                    <p className="text-xs text-zinc-400 bg-zinc-800/50 rounded-lg px-3 py-2 border border-white/5">
+                                    <p className="text-xs text-muted-foreground bg-elevated/50 rounded-lg px-3 py-2 border border-border">
                                         💬 {d.note}
                                     </p>
                                 )}
 
                                 {d.proofUrl && (
                                     <div className="space-y-1.5">
-                                        <p className="text-caption font-bold text-zinc-500 uppercase tracking-widest">Preuve screenshot</p>
-                                        <div className="rounded-xl overflow-hidden border border-white/10 bg-zinc-800/30">
+                                        <p className="text-caption font-bold text-muted-foreground uppercase tracking-widest">Preuve screenshot</p>
+                                        <div className="rounded-xl overflow-hidden border border-border bg-elevated/30">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={d.proofUrl} alt="Preuve don" className="w-full max-h-80 object-contain" />
                                         </div>
@@ -137,7 +137,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                             href={d.proofUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 text-caption text-zinc-500 hover:text-zinc-300 transition-colors"
+                                            className="inline-flex items-center gap-1.5 text-caption text-muted-foreground hover:text-foreground transition-colors"
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <Eye className="w-3 h-3" /> Voir en plein écran
@@ -146,9 +146,9 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                 )}
 
                                 {d.status === "REJECTED" && d.rejectedReason && (
-                                    <div className="flex items-start gap-2 bg-red-500/5 border border-red-500/15 rounded-lg px-3 py-2">
-                                        <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                                        <p className="text-xs text-red-300">{d.rejectedReason}</p>
+                                    <div className="flex items-start gap-2 bg-danger/5 border border-danger/15 rounded-lg px-3 py-2">
+                                        <XCircle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
+                                        <p className="text-xs text-danger">{d.rejectedReason}</p>
                                     </div>
                                 )}
 
@@ -159,7 +159,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                             size="sm"
                                             onClick={e => { e.stopPropagation(); handleReview(d.id, "VALIDATE"); }}
                                             disabled={isProcessing}
-                                            className="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white gap-1.5 text-xs"
+                                            className="flex-1 bg-success hover:bg-success text-success-foreground gap-1.5 text-xs"
                                         >
                                             {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                                             Valider
@@ -169,7 +169,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                             onClick={e => { e.stopPropagation(); handleReview(d.id, "REJECT"); }}
                                             disabled={isProcessing}
                                             variant="ghost"
-                                            className="flex-1 text-red-400 hover:bg-red-500/10 hover:text-red-300 border border-red-500/20 gap-1.5 text-xs"
+                                            className="flex-1 text-danger hover:bg-danger/10 hover:text-danger border border-danger/20 gap-1.5 text-xs"
                                         >
                                             {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
                                             Refuser
@@ -184,7 +184,7 @@ export function KamaDonationList({ guildId, donations, canReview, currentProfile
                                         variant="ghost"
                                         onClick={e => { e.stopPropagation(); handleDelete(d.id); }}
                                         disabled={isProcessing}
-                                        className="w-full text-zinc-600 hover:text-red-400 hover:bg-red-500/5 text-xs"
+                                        className="w-full text-muted-foreground hover:text-danger hover:bg-danger/5 text-xs"
                                     >
                                         {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : "Annuler ma soumission"}
                                     </Button>

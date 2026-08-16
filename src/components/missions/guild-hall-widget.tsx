@@ -25,15 +25,15 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
     };
 
     return (
-        <div className="border border-white/5 bg-zinc-900/20 backdrop-blur-md rounded-3xl overflow-hidden transition-all duration-300 hover:border-cyan-500/20 hover:shadow-[0_20px_40px_rgba(6,182,212,0.05)] space-y-4">
+        <div className="border border-border bg-surface/20 backdrop-blur-md rounded-3xl overflow-hidden transition-all duration-300 hover:border-info/20 hover:shadow-[0_20px_40px_rgba(6,182,212,0.05)] space-y-4">
             
             {/* Header / Title */}
             <div className="p-5 pb-0 flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 backdrop-blur-sm shadow-lg">
+                <div className="p-2.5 rounded-xl bg-info/10 border border-info/20 text-info backdrop-blur-sm shadow-lg">
                     <Home className="w-5 h-5" />
                 </div>
                 <div>
-                    <h4 className="text-base font-black text-white tracking-tight uppercase italic">Hall de Guilde</h4>
+                    <h4 className="text-base font-black text-foreground tracking-tight uppercase italic">Hall de Guilde</h4>
                 </div>
             </div>
 
@@ -42,8 +42,8 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                     <div className="space-y-4">
                         {/* Map Viewer Preview */}
                         <div className="space-y-1.5">
-                            <span className="text-caption font-black text-cyan-400 uppercase tracking-wider block">Coordonnées de ralliement</span>
-                            <div className="w-full h-40 rounded-2xl overflow-hidden border border-white/10 relative">
+                            <span className="text-caption font-black text-info uppercase tracking-wider block">Coordonnées de ralliement</span>
+                            <div className="w-full h-40 rounded-2xl overflow-hidden border border-border relative">
                                 <MapViewer 
                                     initialX={posX} 
                                     initialY={posY} 
@@ -51,7 +51,7 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                                     initialWorldId={worldId ?? 1} 
                                     hideUI={true} 
                                 />
-                                <div className="absolute top-2 right-2 bg-black/85 border border-cyan-500/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-caption font-mono font-black text-cyan-400">
+                                <div className="absolute top-2 right-2 bg-black/85 border border-info/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-caption font-mono font-black text-info">
                                     [{posX}, {posY}]
                                 </div>
                             </div>
@@ -62,8 +62,8 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                             onClick={handleCopy}
                             className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all group cursor-pointer
                                 ${copied
-                                    ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-                                    : "bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40"
+                                    ? "bg-success/15 border border-success/30 text-success"
+                                    : "bg-info/10 hover:bg-info/15 border border-info/20 text-info hover:border-info/40"
                                 }`}
                         >
                             {copied ? (
@@ -74,9 +74,9 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
                         </button>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-6 bg-zinc-950/40 border border-dashed border-white/5 rounded-2xl text-center">
-                        <ShieldAlert className="w-8 h-8 text-amber-500/60 mb-2" />
-                        <p className="text-xs text-zinc-400 leading-relaxed max-w-[240px]">
+                    <div className="flex flex-col items-center justify-center p-6 bg-background/40 border border-dashed border-border rounded-2xl text-center">
+                        <ShieldAlert className="w-8 h-8 text-warning/60 mb-2" />
+                        <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px]">
                             Le Hall de Guilde n'a pas encore été configuré par un officier de la guilde.
                         </p>
                     </div>

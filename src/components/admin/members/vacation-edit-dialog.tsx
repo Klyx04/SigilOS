@@ -70,17 +70,17 @@ export function VacationEditDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px] bg-zinc-950 border-white/10 text-white rounded-[24px] overflow-hidden p-0">
+            <DialogContent className="sm:max-w-[425px] bg-background border-border text-foreground rounded-[24px] overflow-hidden p-0">
                 <div className="p-6 pb-2">
                     <DialogHeader>
-                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
-                            <Palmtree className="w-6 h-6 text-cyan-400" />
+                        <div className="w-12 h-12 rounded-2xl bg-info/10 border border-info/20 flex items-center justify-center mb-4">
+                            <Palmtree className="w-6 h-6 text-info" />
                         </div>
                         <DialogTitle className="text-xl font-black tracking-tight uppercase italic">
-                            Éditer <span className="text-cyan-400">Vacances</span>
+                            Éditer <span className="text-info">Vacances</span>
                         </DialogTitle>
-                        <DialogDescription className="text-zinc-500 italic">
-                            Modifiez les dates de vacances pour <span className="text-white font-bold">{memberName}</span>.
+                        <DialogDescription className="text-muted-foreground italic">
+                            Modifiez les dates de vacances pour <span className="text-foreground font-bold">{memberName}</span>.
                         </DialogDescription>
                     </DialogHeader>
                 </div>
@@ -97,11 +97,11 @@ export function VacationEditDialog({
                     />
                 </div>
 
-                <div className="px-6 py-4 bg-white/5 flex justify-end">
+                <div className="px-6 py-4 bg-surface flex justify-end">
                     <Button 
                         variant="ghost" 
                         onClick={() => onOpenChange(false)}
-                        className="font-bold text-zinc-500 hover:text-white uppercase text-caption tracking-widest"
+                        className="font-bold text-muted-foreground hover:text-foreground uppercase text-caption tracking-widest"
                     >
                         Fermer
                     </Button>

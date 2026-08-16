@@ -15,47 +15,47 @@ type Props = {
 export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     const colorClasses = {
         blue: {
-            border: "group-hover:border-blue-500/30 border-white/5",
-            bg: "hover:bg-blue-500/[0.03]",
-            rankText: "text-blue-400",
-            valueText: "text-blue-300",
-            glow: "bg-blue-400/10",
-            highlight: "bg-blue-500/10 border-blue-500/20 ring-1 ring-blue-500/20"
+            border: "group-hover:border-info/30 border-border",
+            bg: "hover:bg-info/[0.03]",
+            rankText: "text-info",
+            valueText: "text-info",
+            glow: "bg-info/10",
+            highlight: "bg-info/10 border-info/20 ring-1 ring-info/20"
         },
         purple: {
-            border: "group-hover:border-purple-500/30 border-white/5",
-            bg: "hover:bg-purple-500/[0.03]",
-            rankText: "text-purple-400",
-            valueText: "text-purple-300",
-            glow: "bg-purple-400/10",
-            highlight: "bg-purple-500/10 border-purple-500/20 ring-1 ring-purple-500/20"
+            border: "group-hover:border-info/30 border-border",
+            bg: "hover:bg-info/[0.03]",
+            rankText: "text-info",
+            valueText: "text-info",
+            glow: "bg-info/10",
+            highlight: "bg-info/10 border-info/20 ring-1 ring-info/20"
         },
         cyan: {
-            border: "group-hover:border-cyan-500/30 border-white/5",
-            bg: "hover:bg-cyan-500/[0.03]",
-            rankText: "text-cyan-400",
-            valueText: "text-cyan-300",
-            glow: "bg-cyan-400/10",
-            highlight: "bg-cyan-500/10 border-cyan-500/20 ring-1 ring-cyan-500/20"
+            border: "group-hover:border-info/30 border-border",
+            bg: "hover:bg-info/[0.03]",
+            rankText: "text-info",
+            valueText: "text-info",
+            glow: "bg-info/10",
+            highlight: "bg-info/10 border-info/20 ring-1 ring-info/20"
         },
         amber: {
-            border: "group-hover:border-amber-500/30 border-white/5",
-            bg: "hover:bg-amber-500/[0.03]",
-            rankText: "text-amber-400",
-            valueText: "text-amber-300",
-            glow: "bg-amber-400/10",
-            highlight: "bg-amber-500/10 border-amber-500/20 ring-1 ring-amber-500/20"
+            border: "group-hover:border-warning/30 border-border",
+            bg: "hover:bg-warning/[0.03]",
+            rankText: "text-warning",
+            valueText: "text-warning",
+            glow: "bg-warning/10",
+            highlight: "bg-warning/10 border-warning/20 ring-1 ring-warning/20"
         },
         emerald: {
-            border: "group-hover:border-emerald-500/30 border-white/5",
-            bg: "hover:bg-emerald-500/[0.03]",
-            rankText: "text-emerald-400",
-            valueText: "text-emerald-300",
-            glow: "bg-emerald-400/10",
-            highlight: "bg-emerald-500/10 border-emerald-500/20 ring-1 ring-emerald-500/20"
+            border: "group-hover:border-success/30 border-border",
+            bg: "hover:bg-success/[0.03]",
+            rankText: "text-success",
+            valueText: "text-success",
+            glow: "bg-success/10",
+            highlight: "bg-success/10 border-success/20 ring-1 ring-success/20"
         },
         yellow: {
-            border: "group-hover:border-yellow-500/30 border-white/5",
+            border: "group-hover:border-yellow-500/30 border-border",
             bg: "hover:bg-yellow-500/[0.03]",
             rankText: "text-yellow-400",
             valueText: "text-yellow-300",
@@ -63,12 +63,12 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             highlight: "bg-yellow-500/10 border-yellow-500/20 ring-1 ring-yellow-500/20"
         },
         indigo: {
-            border: "group-hover:border-indigo-500/30 border-white/5",
-            bg: "hover:bg-indigo-500/[0.03]",
-            rankText: "text-indigo-400",
-            valueText: "text-indigo-300",
-            glow: "bg-indigo-400/10",
-            highlight: "bg-indigo-500/10 border-indigo-500/20 ring-1 ring-indigo-500/20"
+            border: "group-hover:border-info/30 border-border",
+            bg: "hover:bg-info/[0.03]",
+            rankText: "text-info",
+            valueText: "text-info",
+            glow: "bg-info/10",
+            highlight: "bg-info/10 border-info/20 ring-1 ring-ring/20"
         }
     };
 
@@ -87,38 +87,38 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                "group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-2xl border transition-all duration-300 overflow-hidden",
                "backdrop-blur-md shadow-lg",
                colors.border,
-               isTop3 ? "bg-white/[0.04] border-white/20 shadow-white/5" : "bg-zinc-900/40 border-white/5",
-               isTourist && "border-red-500/10 grayscale-[0.8] opacity-60 hover:opacity-100 hover:grayscale-0",
-               entry.isCurrentUser && "ring-1 ring-white/20 bg-white/[0.06]"
+               isTop3 ? "bg-surface border-border-strong shadow-white/5" : "bg-surface/40 border-border",
+               isTourist && "border-danger/10 grayscale-[0.8] opacity-60 hover:opacity-100 hover:grayscale-0",
+               entry.isCurrentUser && "ring-1 ring-white/20 bg-surface"
             )}
         >
             {/* 1. Rank & Portrait */}
             <div className="flex items-center gap-3 shrink-0">
                 <div className="w-8 flex justify-center shrink-0">
                     {entry.rank === 1 ? (
-                        <Trophy className="h-5 w-5 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
+                        <Trophy className="h-5 w-5 text-warning drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
                     ) : entry.rank === 2 ? (
-                        <Medal className="h-5 w-5 text-slate-300 drop-shadow-[0_0_10px_rgba(203,213,225,0.4)]" />
+                        <Medal className="h-5 w-5 text-foreground drop-shadow-[0_0_10px_rgba(203,213,225,0.4)]" />
                     ) : entry.rank === 3 ? (
-                        <Medal className="h-5 w-5 text-amber-700 drop-shadow-[0_0_10px_rgba(180,83,9,0.4)]" />
+                        <Medal className="h-5 w-5 text-warning drop-shadow-[0_0_10px_rgba(180,83,9,0.4)]" />
                     ) : (
-                        <span className="text-caption font-black italic text-zinc-600 group-hover:text-zinc-400 transition-colors">
+                        <span className="text-caption font-black italic text-muted-foreground group-hover:text-muted-foreground transition-colors">
                             #{entry.rank.toString().padStart(2, '0')}
                         </span>
                     )}
                 </div>
 
                 <div className={cn(
-                    "w-11 h-11 rounded-xl overflow-hidden border border-white/10 shrink-0 shadow-2xl bg-black/40 relative group/avatar",
+                    "w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 shadow-2xl bg-black/40 relative group/avatar",
                     isTop3 && "ring-2 ring-white/10"
                 )}>
                     {entry.discordImage ? (
                         <img src={entry.discordImage} alt="Avatar" className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-125" />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-zinc-800"><User className="w-5 h-5 text-zinc-500" /></div>
+                        <div className="w-full h-full flex items-center justify-center bg-elevated"><User className="w-5 h-5 text-muted-foreground" /></div>
                     )}
                     {dofusClass && (
-                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-md border border-white/20 bg-zinc-900 p-0.5 shadow-2xl z-20">
+                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-md border border-border-strong bg-surface p-0.5 shadow-2xl z-20">
                             <img src={dofusClass.icon} alt={dofusClass.name} className="w-full h-full object-contain" />
                         </div>
                     )}
@@ -129,16 +129,16 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <div className="flex items-center gap-2 flex-wrap">
                     <span 
-                        className={cn("text-[15px] font-black tracking-tight truncate", isTop3 ? "text-white" : "text-zinc-100")}
+                        className={cn("text-[15px] font-black tracking-tight truncate", isTop3 ? "text-foreground" : "text-foreground")}
                         style={entry.discordRoleColor ? { color: `#${entry.discordRoleColor.toString(16).padStart(6, '0')}` } : undefined}
                     >
                         {entry.discordNickname || "Membre"}
                     </span>
-                    {entry.isCurrentUser && <span className="text-caption px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-black uppercase tracking-widest">VOUS</span>}
+                    {entry.isCurrentUser && <span className="text-caption px-1.5 py-0.5 rounded bg-info/20 text-info border border-info/30 font-black uppercase tracking-widest">VOUS</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                    {entry.pseudoDofus && <span className="text-caption text-zinc-400 font-medium italic truncate">{entry.pseudoDofus}</span>}
-                    {!isGeneral && entry.classe && <span className="text-caption text-zinc-500 font-black uppercase tracking-widest">• {entry.classe}</span>}
+                    {entry.pseudoDofus && <span className="text-caption text-muted-foreground font-medium italic truncate">{entry.pseudoDofus}</span>}
+                    {!isGeneral && entry.classe && <span className="text-caption text-muted-foreground font-black uppercase tracking-widest">• {entry.classe}</span>}
                 </div>
             </div>
 
@@ -146,11 +146,11 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             <div className="hidden sm:flex justify-center items-center px-4 shrink-0">
                 {isGeneral && entry.dofusLevel ? (
                     <div className="flex flex-col items-center">
-                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1.5 opacity-40">Niveau</span>
+                        <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-40">Niveau</span>
                         <div className="relative group/lv">
-                            <div className="absolute inset-0 bg-blue-500/20 blur-md rounded-full opacity-0 group-hover/lv:opacity-100 transition-opacity" />
-                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.05] border border-white/10 shadow-2xl backdrop-blur-xl group-hover/lv:border-blue-400/50 transition-all duration-300">
-                                <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "text-white")}>
+                            <div className="absolute inset-0 bg-info/20 blur-md rounded-full opacity-0 group-hover/lv:opacity-100 transition-opacity" />
+                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface border border-border shadow-2xl backdrop-blur-xl group-hover/lv:border-info/50 transition-all duration-300">
+                                <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-warning drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "text-foreground")}>
                                     {entry.dofusLevel}
                                 </span>
                             </div>
@@ -165,26 +165,26 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             <div className="flex justify-end pr-1 sm:pr-2 shrink-0">
                 {isGeneral ? (
                     <div className="flex flex-col items-end">
-                        <div className={cn("text-lg font-black tracking-tighter flex items-center gap-2", isTop3 ? "text-white" : "text-blue-400")}>
+                        <div className={cn("text-lg font-black tracking-tighter flex items-center gap-2", isTop3 ? "text-foreground" : "text-info")}>
                             <span className="opacity-30 text-caption font-black mt-1 tracking-widest">XP</span>
                             {Number(entry.totalXpBigInt || 0).toLocaleString()}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 opacity-30 group-hover:opacity-60 transition-opacity">
-                            <Zap className="w-3 h-3 text-blue-300" />
+                            <Zap className="w-3 h-3 text-info" />
                             <span className="text-caption font-black uppercase tracking-[0.2em] italic">Ladder Général</span>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col items-end">
-                        <div className={cn("text-body font-black tracking-tight uppercase", isTop3 ? "text-white" : colors.valueText)}>
+                        <div className={cn("text-body font-black tracking-tight uppercase", isTop3 ? "text-foreground" : colors.valueText)}>
                             {valueLabel}
                         </div>
                         {isTourist ? (
                             <div className={cn(
                                 "flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border animate-pulse",
                                 entry.isInVacation 
-                                    ? "bg-blue-500/10 border-blue-500/20 text-blue-400" 
-                                    : "bg-red-500/10 border-red-500/20 text-red-400"
+                                    ? "bg-info/10 border-info/20 text-info" 
+                                    : "bg-danger/10 border-danger/20 text-danger"
                             )}>
                                 {entry.isInVacation ? (
                                     <Umbrella className="w-3 h-3" />
@@ -196,7 +196,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                                 </span>
                             </div>
                         ) : accentColor === "purple" && (
-                            <div className="text-caption text-zinc-500 font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
+                            <div className="text-caption text-muted-foreground font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
                         )}
                     </div>
                 )}

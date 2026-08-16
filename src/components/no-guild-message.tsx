@@ -49,16 +49,16 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                 </div>
 
                 {/* Main card */}
-                <div className="relative bg-zinc-950/80 border border-white/8 rounded-3xl p-8 backdrop-blur-xl overflow-hidden shadow-2xl shadow-black/50">
+                <div className="relative bg-background/80 border border-white/8 rounded-3xl p-8 backdrop-blur-xl overflow-hidden shadow-2xl shadow-black/50">
                     {/* Top accent line */}
-                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-success/60 to-transparent" />
 
                     <div className="space-y-5">
                         <div className="space-y-2">
-                            <h1 className="text-display-xl font-bold text-white font-heading tracking-tight">
+                            <h1 className="text-display-xl font-bold text-foreground font-heading tracking-tight">
                                 {rateLimited ? "Vérification indisponible" : "Accès Restreint"}
                             </h1>
-                            <p className="text-zinc-400 text-sm leading-relaxed">
+                            <p className="text-muted-foreground text-sm leading-relaxed">
                                 {rateLimited
                                     ? "L'API Discord est temporairement saturée (trop de requêtes). La vérification de vos accès reprendra automatiquement dans quelques instants."
                                     : "Votre compte Discord n'est associé à aucune guilde active sur SigilOS."}
@@ -70,7 +70,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                             {rateLimited ? (
                                 <Button
                                     onClick={() => window.location.reload()}
-                                    className="h-12 rounded-xl bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition-colors"
+                                    className="h-12 rounded-xl bg-background text-foreground font-semibold text-sm hover:bg-surface transition-colors"
                                 >
                                     <RefreshCw className="h-4 w-4 mr-2 animate-spin-slow" />
                                     Relancer la vérification
@@ -80,7 +80,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                     {/* PRIMARY — Demander l'accès */}
                                     <button
                                         onClick={() => setShowModal(true)}
-                                        className="group relative w-full h-14 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-colors active:scale-[0.99] overflow-hidden flex flex-col items-center justify-center"
+                                        className="group relative w-full h-14 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors active:scale-[0.99] overflow-hidden flex flex-col items-center justify-center"
                                     >
                                         <span className="text-caption opacity-80 mb-0.5">Chef de Guilde ?</span>
                                         <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                     {/* SECONDARY — Changer de compte */}
                                     <button
                                         onClick={() => signOut({ callbackUrl: "/" })}
-                                        className="h-10 rounded-xl border border-white/8 text-zinc-400 hover:text-zinc-200 hover:border-white/15 transition-colors text-xs font-medium flex items-center justify-center gap-2"
+                                        className="h-10 rounded-xl border border-white/8 text-muted-foreground hover:text-foreground hover:border-border-strong transition-colors text-xs font-medium flex items-center justify-center gap-2"
                                     >
                                         <LogOut className="h-3.5 w-3.5" />
                                         Changer de compte
@@ -103,7 +103,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                     </div>
                 </div>
 
-                <p className="text-caption text-zinc-600 uppercase tracking-wider font-medium">
+                <p className="text-caption text-muted-foreground uppercase tracking-wider font-medium">
                     SigilOS · Réseau Sécurisé
                 </p>
             </div>

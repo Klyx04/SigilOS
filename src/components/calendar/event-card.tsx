@@ -47,12 +47,12 @@ interface EventCardProps {
 }
 
 const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; border: string; icon: any; gradient: string }> = {
-    RAID_OFFICIAL: { label: "Raid 3.6", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: Swords, gradient: "from-red-600 to-rose-600" },
-    EVENT_GUILD: { label: "Event Guilde", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", icon: PartyPopper, gradient: "from-purple-600 to-fuchsia-600" },
-    SESSION_MISSIONS: { label: "Missions Guilde", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Target, gradient: "from-amber-600 to-orange-600" },
-    SORTIE_FARM: { label: "Sortie Farm", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: Wheat, gradient: "from-emerald-600 to-green-600" },
-    KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-rose-600" },
-    OTHERS: { label: "Autres", color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/20", icon: Diamond, gradient: "from-slate-600 to-zinc-600" },
+    RAID_OFFICIAL: { label: "Raid 3.6", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", icon: Swords, gradient: "from-danger to-danger" },
+    EVENT_GUILD: { label: "Event Guilde", color: "text-info", bg: "bg-info/10", border: "border-info/20", icon: PartyPopper, gradient: "from-info to-fuchsia-600" },
+    SESSION_MISSIONS: { label: "Missions Guilde", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: Target, gradient: "from-warning to-orange-600" },
+    SORTIE_FARM: { label: "Sortie Farm", color: "text-success", bg: "bg-success/10", border: "border-success/20", icon: Wheat, gradient: "from-success to-green-600" },
+    KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-danger" },
+    OTHERS: { label: "Autres", color: "text-muted-foreground", bg: "bg-muted/10", border: "border-border/20", icon: Diamond, gradient: "from-slate-600 to-zinc-600" },
 };
 
 const EVENT_IMAGES: Record<string, string> = {
@@ -115,14 +115,14 @@ export function EventCard({
     // View: List (Horizontal Row)
     if (variant === "list") {
         return (
-            <div className="group relative flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 transition-all hover:bg-zinc-900/60 hover:border-zinc-700 hover:shadow-lg hover:shadow-black/20">
+            <div className="group relative flex items-center gap-4 rounded-xl border border-border bg-surface/40 p-3 transition-all hover:bg-surface/60 hover:border-border hover:shadow-lg hover:shadow-black/20">
                 {/* Left Accent Bar */}
                 <div className={cn("absolute left-0 top-3 bottom-3 w-1 rounded-r-full opacity-60 group-hover:opacity-100 transition-opacity", theme.bg.replace("/10", "/80"))} />
 
                 {/* Date Box */}
-                <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/50 ml-2">
-                    <span className="text-caption font-medium uppercase text-zinc-500">{format(startDate, "MMM", { locale: fr })}</span>
-                    <span className="text-xl font-bold text-zinc-200">{format(startDate, "dd")}</span>
+                <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-border bg-background/50 ml-2">
+                    <span className="text-caption font-medium uppercase text-muted-foreground">{format(startDate, "MMM", { locale: fr })}</span>
+                    <span className="text-xl font-bold text-foreground">{format(startDate, "dd")}</span>
                 </div>
 
                 {/* Info Main */}
@@ -132,22 +132,22 @@ export function EventCard({
                             <Icon className="mr-1 h-3 w-3" />
                             {theme.label}
                         </Badge>
-                        <div className="flex items-center gap-1 text-xs text-zinc-500">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             <span>{format(startDate, "HH:mm")} - {format(validEndDate, "HH:mm")}</span>
                         </div>
                     </div>
-                    <h3 className="text-base font-bold text-zinc-100 group-hover:text-amber-400 transition-colors line-clamp-2 leading-tight">
+                    <h3 className="text-base font-bold text-foreground group-hover:text-warning transition-colors line-clamp-2 leading-tight">
                         {event.title}
                     </h3>
-                    <div className="flex items-center gap-4 text-xs text-zinc-400">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5 text-zinc-500" />
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>{attendeeCount}{event.maxParticipants ? ` / ${event.maxParticipants}` : ""} participants</span>
                         </div>
                         {event.location && (
                             <div className="flex items-center gap-1.5 truncate max-w-[200px]">
-                                <MapPin className="h-3.5 w-3.5 text-zinc-500" />
+                                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="truncate">{event.location}</span>
                             </div>
                         )}
@@ -159,17 +159,17 @@ export function EventCard({
                     {event.attendees?.slice(0, 4).map((a: any) => {
                         const attendeeName = getDisplayName(a.user.profiles?.[0]) || a.user.name || "?";
                         return (
-                            <div key={a.id} className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 overflow-hidden" title={attendeeName}>
+                            <div key={a.id} className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-elevated overflow-hidden" title={attendeeName}>
                                 {a.user.image ? (
                                     <img src={a.user.image} alt={attendeeName} className="h-full w-full object-cover" />
                                 ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-caption text-zinc-400">{attendeeName?.[0]}</div>
+                                    <div className="h-full w-full flex items-center justify-center text-caption text-muted-foreground">{attendeeName?.[0]}</div>
                                 )}
                             </div>
                         );
                     })}
                     {attendeeCount > 4 && (
-                        <div className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 flex items-center justify-center text-caption font-bold text-zinc-400">
+                        <div className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-elevated flex items-center justify-center text-caption font-bold text-muted-foreground">
                             +{attendeeCount - 4}
                         </div>
                     )}
@@ -181,7 +181,7 @@ export function EventCard({
                     <div className={cn(
                         "h-2 w-2 rounded-full",
                         myAttendance?.status === "GOING" ? "bg-green-500" :
-                            myAttendance?.status === "MAYBE" ? "bg-amber-500" : "bg-zinc-800"
+                            myAttendance?.status === "MAYBE" ? "bg-warning" : "bg-elevated"
                     )} title={myAttendance?.status ? "Inscrit" : "Non inscrit"} />
                 </div>
             </div>
@@ -194,7 +194,7 @@ export function EventCard({
 
     return (
         <Card className={cn(
-            "h-full flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-zinc-800/50 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700/50",
+            "h-full flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-border/50 bg-surface/40 hover:bg-surface/60 hover:border-border/50",
             isCompleted && "opacity-80"
         )}>
             {/* Top Image Background */}
@@ -216,9 +216,9 @@ export function EventCard({
             {/* Completed watermark stamp overlay */}
             {isCompleted && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-                    <div className="rotate-[-15deg] flex flex-col items-center px-6 py-3 border-2 border-emerald-500/40 rounded-xl bg-emerald-500/10 backdrop-blur-[2px] ">
-                        <CheckCircle2 className="h-8 w-8 text-emerald-500/80" />
-                        <span className="mt-1 text-sm font-black uppercase tracking-widest text-emerald-400/90">
+                    <div className="rotate-[-15deg] flex flex-col items-center px-6 py-3 border-2 border-success/40 rounded-xl bg-success/10 backdrop-blur-[2px] ">
+                        <CheckCircle2 className="h-8 w-8 text-success/80" />
+                        <span className="mt-1 text-sm font-black uppercase tracking-widest text-success/90">
                             Terminé
                         </span>
                     </div>
@@ -230,7 +230,7 @@ export function EventCard({
                     <div className="flex items-center gap-2">
                         <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-sm font-semibold border-opacity-50 transition-colors", theme.bg, theme.color, theme.border)}>
                             {isCompleted ? (
-                                <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" />
+                                <CheckCircle2 className="w-4 h-4 mr-2 text-success" />
                             ) : (
                                 <Icon className="w-4 h-4 mr-2" />
                             )}
@@ -239,7 +239,7 @@ export function EventCard({
 
                         {/* Completed Event Badge */}
                         {isCompleted && (
-                            <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
+                            <Badge className="bg-success/15 text-success border-success/30 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
                                 ✓ Terminé
                             </Badge>
                         )}
@@ -253,11 +253,11 @@ export function EventCard({
                                     <div className={cn(
                                         "h-3 w-3 rounded-full ring-2 ring-zinc-950 shadow-lg",
                                         myAttendance.status === "REGISTERED" && "bg-green-500 shadow-green-500/50",
-                                        myAttendance.status === "MAYBE" && "bg-amber-500 shadow-amber-500/50",
-                                        myAttendance.status === "DECLINED" && "bg-red-500 shadow-red-500/50"
+                                        myAttendance.status === "MAYBE" && "bg-warning shadow-amber-500/50",
+                                        myAttendance.status === "DECLINED" && "bg-danger shadow-red-500/50"
                                     )} />
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-zinc-950 border-zinc-800 text-sm">
+                                <TooltipContent className="bg-background border-border text-sm">
                                     <p>{myAttendance.status === "REGISTERED" ? "Vous participez" : myAttendance.status === "MAYBE" ? "Peut-être" : "Vous ne venez pas"}</p>
                                 </TooltipContent>
                             </Tooltip>
@@ -266,7 +266,7 @@ export function EventCard({
                 </div>
 
                 <div className="space-y-1">
-                    <CardTitle className="text-xl font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors line-clamp-2 min-h-[1.75rem] break-words">
+                    <CardTitle className="text-xl font-bold text-foreground leading-tight group-hover:text-foreground transition-colors line-clamp-2 min-h-[1.75rem] break-words">
                         {event.title}
                     </CardTitle>
                 </div>
@@ -275,39 +275,39 @@ export function EventCard({
             <CardContent className="p-5 pt-2 flex-1 space-y-5">
                 {/* Info Grid */}
                 <div className="space-y-3">
-                    <div className="flex items-center text-base text-zinc-400 group-hover:text-zinc-300 transition-colors">
-                        <Calendar className="w-5 h-5 mr-3 text-zinc-500 shrink-0" />
+                    <div className="flex items-center text-base text-muted-foreground group-hover:text-foreground transition-colors">
+                        <Calendar className="w-5 h-5 mr-3 text-muted-foreground shrink-0" />
                         <span className="capitalize font-medium">
                             {format(startDate, "EEEE d MMMM", { locale: fr })}
                         </span>
                     </div>
-                    <div className="flex items-center text-base text-zinc-400 group-hover:text-zinc-300 transition-colors">
-                        <Clock className="w-5 h-5 mr-3 text-zinc-500 shrink-0" />
+                    <div className="flex items-center text-base text-muted-foreground group-hover:text-foreground transition-colors">
+                        <Clock className="w-5 h-5 mr-3 text-muted-foreground shrink-0" />
                         <span>
                             {format(startDate, "HH:mm")} - {format(validEndDate, "HH:mm")}
                         </span>
                     </div>
                     {event.location && (
-                        <div className="flex items-center text-base text-zinc-400 group-hover:text-zinc-300 transition-colors">
-                            <MapPin className="w-5 h-5 mr-3 text-zinc-500 shrink-0" />
+                        <div className="flex items-center text-base text-muted-foreground group-hover:text-foreground transition-colors">
+                            <MapPin className="w-5 h-5 mr-3 text-muted-foreground shrink-0" />
                             <span className="truncate">{event.location}</span>
                         </div>
                     )}
                 </div>
 
-                <Separator className="bg-zinc-800/50" />
+                <Separator className="bg-elevated/50" />
 
                 {/* Creator */}
                 {event.creator && (
                     <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8 ring-1 ring-zinc-800">
                             <AvatarImage src={event.creator.image} />
-                            <AvatarFallback className="text-xs bg-zinc-800 text-zinc-400">
+                            <AvatarFallback className="text-xs bg-elevated text-muted-foreground">
                                 {event.creator.name?.[0]?.toUpperCase() || "?"}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
-                            <span className="text-caption text-zinc-500 uppercase tracking-wider font-semibold">Organisé par</span>
+                            <span className="text-caption text-muted-foreground uppercase tracking-wider font-semibold">Organisé par</span>
                             <span className={cn("text-sm font-medium transition-colors", theme.color)}>{displayCreatorName}</span>
                         </div>
                     </div>
@@ -315,10 +315,10 @@ export function EventCard({
             </CardContent>
 
             <CardFooter className="p-5 pt-0 mt-auto">
-                <div className="w-full flex flex-col gap-2 p-3 rounded-lg bg-zinc-950/30 border border-zinc-800/30 transition-colors hover:bg-zinc-950/50">
+                <div className="w-full flex flex-col gap-2 p-3 rounded-lg bg-background/30 border border-border/30 transition-colors hover:bg-background/50">
                     <div className="flex items-center justify-between mb-1">
-                        <span className="text-caption font-semibold text-zinc-500 uppercase tracking-wider">Participants</span>
-                        <div className="flex items-center text-xs font-medium text-zinc-500">
+                        <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wider">Participants</span>
+                        <div className="flex items-center text-xs font-medium text-muted-foreground">
                             <Users className="w-3 h-3 mr-1.5" />
                             {displayAttendeeCount}
                             {event.maxParticipants && <span className="mx-0.5 opacity-50">/</span>}
@@ -338,24 +338,24 @@ export function EventCard({
 
                                 return (
                                     <div key={isKralamoure ? `${idx}-${participantName}` : a.id} className="flex items-center gap-2.5">
-                                        <Avatar className="h-6 w-6 border border-zinc-700/50 shadow-sm relative z-0">
+                                        <Avatar className="h-6 w-6 border border-border/50 shadow-sm relative z-0">
                                             {!isKralamoure && a.user?.image && <AvatarImage src={a.user.image} />}
-                                            <AvatarFallback className="text-caption bg-zinc-800 text-zinc-400">
+                                            <AvatarFallback className="text-caption bg-elevated text-muted-foreground">
                                                 {participantInitial}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-sm text-zinc-300 font-medium truncate">
+                                        <span className="text-sm text-foreground font-medium truncate">
                                             {participantName}
                                         </span>
                                     </div>
                                 );
                             })
                         ) : (
-                            <span className="text-sm text-zinc-600 italic">Aucun participant</span>
+                            <span className="text-sm text-muted-foreground italic">Aucun participant</span>
                         )}
 
                         {attendeesGoing.length > 3 && (
-                            <div className="pl-9 text-xs text-zinc-500 font-medium">
+                            <div className="pl-9 text-xs text-muted-foreground font-medium">
                                 +{attendeesGoing.length - 3} autres...
                             </div>
                         )}

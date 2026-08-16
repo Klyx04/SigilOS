@@ -47,8 +47,8 @@ export function PingEstimate({
     if (count === null || count === 0) return null;
 
     return (
-        <div className={`flex items-center gap-1.5 text-caption font-bold text-indigo-300/90 ${className}`}>
-            <Users className="w-3.5 h-3.5 text-indigo-400/80" />
+        <div className={`flex items-center gap-1.5 text-caption font-bold text-info/90 ${className}`}>
+            <Users className="w-3.5 h-3.5 text-info/80" />
             <span>👥 {count} personne{count > 1 ? "s" : ""} seront pingées</span>
         </div>
     );

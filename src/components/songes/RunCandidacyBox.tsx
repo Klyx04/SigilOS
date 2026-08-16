@@ -171,12 +171,12 @@ export function RunCandidacyBox({
             ) : canApply ? (
                 <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="w-full bg-green-600 hover:bg-green-500 text-white font-bold h-14 text-lg ">
+                        <Button className="w-full bg-green-600 hover:bg-green-500 text-foreground font-bold h-14 text-lg ">
                             <UserPlus className="w-5 h-5 mr-3" />
                             Postuler à cette Run
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-[#1a0933] border-purple-500/30 text-white w-[90vw] max-w-[425px] rounded-xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+                    <DialogContent className="bg-[#1a0933] border-purple-500/30 text-foreground w-[90vw] max-w-[425px] rounded-xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
                         <DialogHeader>
                             <DialogTitle>Candidature Run Songes</DialogTitle>
                         </DialogHeader>
@@ -189,7 +189,7 @@ export function RunCandidacyBox({
                                     </SelectTrigger>
                                     <SelectContent className="bg-[#1a0933] border-purple-500/30">
                                         {DOFUS_CLASSES.map((classe) => (
-                                            <SelectItem key={classe} value={classe} className="text-white focus:bg-purple-700/50 text-left">
+                                            <SelectItem key={classe} value={classe} className="text-foreground focus:bg-purple-700/50 text-left">
                                                 <div className="flex items-center">
                                                     <ClassIcon classId={classe} size={20} className="mr-2" />
                                                     {classe}
@@ -220,12 +220,12 @@ export function RunCandidacyBox({
                                             <SelectValue placeholder="Choisir un stuff..." />
                                         </SelectTrigger>
                                         <SelectContent className="bg-[#1a0933] border-purple-500/30">
-                                            <SelectItem value="none" className="text-zinc-500 italic">Aucun stuff</SelectItem>
+                                            <SelectItem value="none" className="text-muted-foreground italic">Aucun stuff</SelectItem>
                                             {stuffs.map((stuff) => (
-                                                <SelectItem key={stuff.id} value={stuff.id} className="text-white focus:bg-purple-700/50">
+                                                <SelectItem key={stuff.id} value={stuff.id} className="text-foreground focus:bg-purple-700/50">
                                                     <div className="flex items-center gap-2">
                                                         {stuff.previewData?.thumbnail && (
-                                                            <img src={stuff.previewData.thumbnail} className="w-6 h-6 rounded object-cover border border-white/10" alt="" />
+                                                            <img src={stuff.previewData.thumbnail} className="w-6 h-6 rounded object-cover border border-border" alt="" />
                                                         )}
                                                         <span className="truncate max-w-[200px]">{stuff.name}</span>
                                                     </div>
@@ -243,7 +243,7 @@ export function RunCandidacyBox({
                                             placeholder="Ex: Stuff Eau/Air Distant"
                                             value={customStuffName}
                                             onChange={(e) => setCustomStuffName(e.target.value)}
-                                            className="w-full bg-purple-900/30 border border-purple-500/30 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                            className="w-full bg-purple-900/30 border border-purple-500/30 rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
                                         />
                                     </div>
                                 )}

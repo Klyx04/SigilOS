@@ -274,13 +274,13 @@ export function ProofUploadDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-lg bg-slate-950 border-slate-800">
+            <DialogContent className="sm:max-w-lg bg-background border-border">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Upload className="w-5 h-5 text-indigo-400" />
+                        <Upload className="w-5 h-5 text-info" />
                         Soumettre une preuve
                     </DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription className="text-muted-foreground">
                         {missionTitle}
                     </DialogDescription>
                 </DialogHeader>
@@ -291,22 +291,22 @@ export function ProofUploadDialog({
                     {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
                     {/* ═══════════════════════════════════════ */}
                     {(state === "idle") && (
-                        <div className="relative rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-amber-900/20 to-zinc-900/60 p-4 space-y-3 ">
+                        <div className="relative rounded-xl border border-warning/40 bg-gradient-to-br from-warning/40 via-warning/20 to-zinc-900/60 p-4 space-y-3 ">
                             {/* Glow accent */}
-                            <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                            <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-warning/60 to-transparent" />
 
                             <div className="flex items-start gap-3">
-                                <div className="mt-0.5 p-2 rounded-lg bg-amber-500/20 border border-amber-500/30 shrink-0">
-                                    <Users className="w-5 h-5 text-amber-400" />
+                                <div className="mt-0.5 p-2 rounded-lg bg-warning/20 border border-warning/30 shrink-0">
+                                    <Users className="w-5 h-5 text-warning" />
                                 </div>
                                 <div className="flex-1 min-w-0 space-y-1">
                                     <div className="flex items-center gap-2">
-                                        <h3 className="text-sm font-black text-amber-300 uppercase tracking-wider">Contributeurs</h3>
-                                        <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">OPTIONNEL</span>
+                                        <h3 className="text-sm font-black text-warning uppercase tracking-wider">Contributeurs</h3>
+                                        <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30">OPTIONNEL</span>
                                     </div>
-                                    <p className="text-xs text-amber-200/80 leading-relaxed">
+                                    <p className="text-xs text-warning/80 leading-relaxed">
                                         Ils vous ont aidé ? Sélectionnez-les — ils recevront{" "}
-                                        <span className="font-black text-amber-300">des points de contribution</span>{" "}
+                                        <span className="font-black text-warning">des points de contribution</span>{" "}
                                         dès validation de votre preuve !
                                     </p>
                                 </div>
@@ -325,24 +325,24 @@ export function ProofUploadDialog({
                     {!preview && state === "idle" && (
                         <div
                             className={cn(
-                                "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors",
-                                isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
+                                "relative border-2 border-dashed border-border rounded-lg p-8 text-center transition-colors",
+                                isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-info/50 hover:bg-info/5"
                             )}
                             onDrop={handleDrop}
                             onDragOver={(e) => e.preventDefault()}
                         >
-                            <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                            <p className="text-sm text-slate-400 mb-2">
+                            <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                            <p className="text-sm text-muted-foreground mb-2">
                                 Glissez votre screenshot ici, coller (CTRL+V) ou{" "}
                                 <button
                                     type="button"
                                     onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
-                                    className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline focus:outline-none"
+                                    className="text-info hover:text-info font-medium hover:underline focus:outline-none"
                                 >
                                     cliquez pour sélectionner
                                 </button>
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                                 PNG, JPEG, WebP ou GIF • Max 10MB
                             </p>
                             <input
@@ -354,9 +354,9 @@ export function ProofUploadDialog({
                                 disabled={isCheckingSafety}
                             />
                             {isCheckingSafety && (
-                                <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
-                                    <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-                                    <p className="text-sm text-slate-300">Vérification de sécurité...</p>
+                                <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
+                                    <Loader2 className="w-8 h-8 animate-spin text-info" />
+                                    <p className="text-sm text-foreground">Vérification de sécurité...</p>
                                 </div>
                             )}
                         </div>
@@ -364,7 +364,7 @@ export function ProofUploadDialog({
 
                     {/* Preview */}
                     {preview && (
-                        <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black">
+                        <div className="relative rounded-lg overflow-hidden border border-border bg-black">
                             <Image
                                 src={preview}
                                 alt="Preview"
@@ -376,17 +376,17 @@ export function ProofUploadDialog({
                             {state === "idle" && (
                                 <button
                                     onClick={resetState}
-                                    className="absolute top-2 right-2 p-1.5 bg-red-500/80 rounded-full hover:bg-red-500 transition-colors"
+                                    className="absolute top-2 right-2 p-1.5 bg-danger/80 rounded-full hover:bg-danger transition-colors"
                                 >
-                                    <X className="w-4 h-4 text-white" />
+                                    <X className="w-4 h-4 text-foreground" />
                                 </button>
                             )}
 
                             {/* Analyzing overlay with progress */}
                             {state === "analyzing" && (
                                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3">
-                                    <Eye className="w-8 h-8 text-indigo-400 animate-pulse" />
-                                    <p className="text-xs text-slate-500">Processing...</p>
+                                    <Eye className="w-8 h-8 text-info animate-pulse" />
+                                    <p className="text-xs text-muted-foreground">Processing...</p>
 
                                 </div>
                             )}
@@ -395,8 +395,8 @@ export function ProofUploadDialog({
                             {state === "uploading" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
-                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-400 mx-auto mb-2" />
-                                        <p className="text-sm text-slate-300">Upload en cours...</p>
+                                        <Loader2 className="w-8 h-8 animate-spin text-info mx-auto mb-2" />
+                                        <p className="text-sm text-foreground">Upload en cours...</p>
                                     </div>
                                 </div>
                             )}
@@ -405,8 +405,8 @@ export function ProofUploadDialog({
                             {state === "success" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
-                                        <Clock className="w-12 h-12 text-amber-400 mx-auto mb-2" />
-                                        <p className="text-sm text-amber-300 font-medium">Envoyée à la modération</p>
+                                        <Clock className="w-12 h-12 text-warning mx-auto mb-2" />
+                                        <p className="text-sm text-warning font-medium">Envoyée à la modération</p>
                                     </div>
                                 </div>
                             )}
@@ -416,7 +416,7 @@ export function ProofUploadDialog({
 
                     {/* Error State */}
                     {error && (
-                        <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-lg border border-red-500/20 flex items-center gap-2">
+                        <div className="bg-danger/10 text-danger text-sm p-3 rounded-lg border border-danger/20 flex items-center gap-2">
                             <XCircle className="w-4 h-4 shrink-0" />
                             {error}
                         </div>

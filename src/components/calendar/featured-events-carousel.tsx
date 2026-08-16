@@ -19,26 +19,26 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
     RAID_OFFICIAL: {
         label: "Raid 3.6",
         icon: Swords,
-        color: "text-red-400",
-        bg: "bg-red-500/10 border-red-500/20"
+        color: "text-danger",
+        bg: "bg-danger/10 border-danger/20"
     },
     EVENT_GUILD: {
         label: "Event Guilde",
         icon: PartyPopper,
-        color: "text-purple-400",
-        bg: "bg-purple-500/10 border-purple-500/20"
+        color: "text-info",
+        bg: "bg-info/10 border-info/20"
     },
     SESSION_MISSIONS: {
         label: "Missions",
         icon: Target,
-        color: "text-amber-400",
-        bg: "bg-amber-500/10 border-amber-500/20"
+        color: "text-warning",
+        bg: "bg-warning/10 border-warning/20"
     },
     SORTIE_FARM: {
         label: "Farm",
         icon: Wheat,
-        color: "text-emerald-400",
-        bg: "bg-emerald-500/10 border-emerald-500/20"
+        color: "text-success",
+        bg: "bg-success/10 border-success/20"
     },
     KRALAMOURE: {
         label: "Kralamoure",
@@ -95,27 +95,27 @@ export function FeaturedEventsCarousel({ events, onEventClick }: FeaturedEventsC
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3 }}
                     className={cn(
-                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-zinc-900/50 backdrop-blur-md transition-all hover:bg-zinc-800/50  hover:border-zinc-700 group",
-                        config.bg.replace("/10", "/20").replace("border-", "border-zinc-800/50 ")
+                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-surface/50 backdrop-blur-md transition-all hover:bg-elevated/50  hover:border-border group",
+                        config.bg.replace("/10", "/20").replace("border-", "border-border/50 ")
                     )}
                 >
                     {/* Status Dot */}
                     <div className={cn("h-2 w-2 rounded-full animate-pulse", config.color.replace("text-", "bg-"))} />
 
                     {/* Title */}
-                    <span className="text-sm font-bold text-zinc-100 truncate max-w-[150px] group-hover:text-amber-400 transition-colors">
+                    <span className="text-sm font-bold text-foreground truncate max-w-[150px] group-hover:text-warning transition-colors">
                         {event.title}
                     </span>
 
                     {/* Date */}
-                    <span className="text-xs text-zinc-400 font-medium hidden sm:inline-block">
+                    <span className="text-xs text-muted-foreground font-medium hidden sm:inline-block">
                         {isToday(startDate) ? "Aujourd'hui" : format(startDate, "dd MMM", { locale: fr })} {format(startDate, "HH:mm")}
                     </span>
 
                     {/* Participants */}
                     <span className={cn(
-                        "text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-950/30 border border-zinc-800 flex items-center gap-1",
-                        isFull ? "text-red-400 border-red-900/30" : "text-zinc-500"
+                        "text-xs font-medium px-2 py-0.5 rounded-full bg-background/30 border border-border flex items-center gap-1",
+                        isFull ? "text-danger border-danger/30" : "text-muted-foreground"
                     )}>
                         <Users className="h-3 w-3" />
                         {participantCount}{maxParticipants ? `/${maxParticipants}` : ""}

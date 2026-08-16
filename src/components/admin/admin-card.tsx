@@ -51,14 +51,14 @@ const ICONS: Record<string, LucideIcon> = {
 
 const ACCENT: Record<string, { border: string; hover: string; text: string; bg: string; shadow: string }> = {
     violet: { border: "border-violet-500/20", hover: "hover:border-violet-500/50", text: "text-violet-400", bg: "bg-violet-500/10", shadow: "shadow-violet-500/20" },
-    blue: { border: "border-blue-500/20", hover: "hover:border-blue-500/50", text: "text-blue-400", bg: "bg-blue-500/10", shadow: "shadow-blue-500/20" },
-    slate: { border: "border-slate-500/20", hover: "hover:border-slate-500/50", text: "text-slate-400", bg: "bg-slate-500/10", shadow: "shadow-slate-500/20" },
-    indigo: { border: "border-indigo-500/20", hover: "hover:border-indigo-500/50", text: "text-indigo-400", bg: "bg-indigo-500/10", shadow: "shadow-indigo-500/20" },
+    blue: { border: "border-info/20", hover: "hover:border-info/50", text: "text-info", bg: "bg-info/10", shadow: "shadow-blue-500/20" },
+    slate: { border: "border-border/20", hover: "hover:border-border/50", text: "text-muted-foreground", bg: "bg-muted/10", shadow: "shadow-slate-500/20" },
+    indigo: { border: "border-info/20", hover: "hover:border-info/50", text: "text-info", bg: "bg-info/10", shadow: "shadow-indigo-500/20" },
     green: { border: "border-green-500/20", hover: "hover:border-green-500/50", text: "text-green-400", bg: "bg-green-500/10", shadow: "shadow-green-500/20" },
-    emerald: { border: "border-emerald-500/20", hover: "hover:border-emerald-500/50", text: "text-emerald-400", bg: "bg-emerald-500/10", shadow: "shadow-emerald-500/20" },
-    amber: { border: "border-amber-500/20", hover: "hover:border-amber-500/50", text: "text-amber-400", bg: "bg-amber-500/10", shadow: "shadow-amber-500/20" },
-    rose: { border: "border-rose-500/20", hover: "hover:border-rose-500/50", text: "text-rose-400", bg: "bg-rose-500/10", shadow: "shadow-rose-500/20" },
-    cyan: { border: "border-cyan-500/20", hover: "hover:border-cyan-500/50", text: "text-cyan-400", bg: "bg-cyan-500/10", shadow: "shadow-cyan-500/20" },
+    emerald: { border: "border-success/20", hover: "hover:border-success/50", text: "text-success", bg: "bg-success/10", shadow: "shadow-emerald-500/20" },
+    amber: { border: "border-warning/20", hover: "hover:border-warning/50", text: "text-warning", bg: "bg-warning/10", shadow: "shadow-amber-500/20" },
+    rose: { border: "border-danger/20", hover: "hover:border-danger/50", text: "text-danger", bg: "bg-danger/10", shadow: "shadow-rose-500/20" },
+    cyan: { border: "border-info/20", hover: "hover:border-info/50", text: "text-info", bg: "bg-info/10", shadow: "shadow-cyan-500/20" },
 };
 
 export function AdminCard({
@@ -95,7 +95,7 @@ export function AdminCard({
                 } else {
                     toast.success(newState ? "Ajouté aux favoris" : "Retiré des favoris", {
                         description: title,
-                        icon: newState ? <Star className="w-4 h-4 text-amber-400 fill-amber-400" /> : undefined
+                        icon: newState ? <Star className="w-4 h-4 text-warning fill-amber-400" /> : undefined
                     });
                 }
             } catch (err) {
@@ -108,7 +108,7 @@ export function AdminCard({
     return (
         <Link href={href} className="group outline-none relative block h-full" data-tour={tourId}>
             <div className={cn(
-                "relative flex flex-col h-full rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all duration-300 hover:bg-white/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
+                "relative flex flex-col h-full rounded-[2.5rem] border border-border bg-surface p-8 transition-all duration-300 hover:bg-surface hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
                 a.hover,
                 "before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/[0.05] before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300"
             )}>
@@ -119,8 +119,8 @@ export function AdminCard({
                     className={cn(
                         "absolute top-6 right-6 z-20 p-2.5 rounded-xl border transition-all duration-300  active:scale-95",
                         isPinned 
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400 " 
-                            : "bg-white/5 border-white/10 text-white/20 hover:text-white/60 hover:bg-white/10 hover:border-white/20"
+                            ? "bg-warning/10 border-warning/30 text-warning " 
+                            : "bg-surface border-border text-foreground/20 hover:text-foreground/60 hover:bg-surface hover:border-border-strong"
                     )}
                 >
                     <Star className={cn("w-4 h-4 transition-all duration-300", isPinned && "fill-current scale-110")} />
@@ -147,23 +147,23 @@ export function AdminCard({
                     {/* Body: Title & Intro */}
                     <div className="space-y-4 flex-1 mt-2">
                         <div className="flex items-center gap-3">
-                            <h3 className="text-xl font-black text-white tracking-tighter uppercase leading-tight">
+                            <h3 className="text-xl font-black text-foreground tracking-tighter uppercase leading-tight">
                                 {title}
                             </h3>
                             {warningBadge && (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-caption font-black uppercase tracking-[0.2em] whitespace-nowrap ">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/30 text-warning text-caption font-black uppercase tracking-[0.2em] whitespace-nowrap ">
                                     <ShieldAlert className="w-3 h-3" />
                                     {warningBadge}
                                 </span>
                             )}
                         </div>
-                        <p className="text-body-sm text-zinc-500 font-medium leading-relaxed group-hover:text-zinc-400 transition-colors">
+                        <p className="text-body-sm text-muted-foreground font-medium leading-relaxed group-hover:text-muted-foreground transition-colors">
                             {description}
                         </p>
                     </div>
 
                     {/* Footer: Action & Decoration */}
-                    <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+                    <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                         <div className={cn(
                             "flex items-center gap-2 text-caption font-black uppercase tracking-[0.2em] transition-all",
                             a.text,
@@ -176,7 +176,7 @@ export function AdminCard({
                         {/* Industrial Corner Detail */}
                         <div className="flex gap-1">
                             {[...Array(3)].map((_, i) => (
-                                <div key={i} className="h-1 w-1 rounded-full bg-white/5 group-hover:bg-white/20 transition-colors" />
+                                <div key={i} className="h-1 w-1 rounded-full bg-surface group-hover:bg-elevated transition-colors" />
                             ))}
                         </div>
                     </div>
@@ -184,8 +184,8 @@ export function AdminCard({
 
                 {/* Corner Decoration */}
                 <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <div className="h-[1px] w-12 bg-white/40" />
-                    <div className="h-12 w-[1px] bg-white/40 absolute top-3 right-3" />
+                    <div className="h-[1px] w-12 bg-elevated" />
+                    <div className="h-12 w-[1px] bg-elevated absolute top-3 right-3" />
                 </div>
             </div>
         </Link>

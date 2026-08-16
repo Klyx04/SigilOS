@@ -17,14 +17,14 @@ export function RecentStuffGallery({
     const displayBuilds = (builds || []).slice(0, 2);
 
     return (
-        <Card className="glass-premium border-white/5 h-full flex flex-col overflow-hidden group">
+        <Card className="glass-premium border-border h-full flex flex-col overflow-hidden group">
             <CardHeader className="pb-4 pt-6 px-6 shrink-0">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-success flex items-center gap-2">
                         <Sparkles className="w-3 h-3" />
                         Derniers Stuff de la Galerie
                     </CardTitle>
-                    <Link href={`/dashboard/${guildId}/galerie-stuff`} className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all">
+                    <Link href={`/dashboard/${guildId}/galerie-stuff`} className="text-caption font-black text-muted-foreground hover:text-success uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-all">
                         Explorer la galerie
                     </Link>
                 </div>
@@ -44,7 +44,7 @@ export function RecentStuffGallery({
                                     className="!max-w-none !p-4 !rounded-[2rem] shadow-2xl"
                                 />
                                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-20">
-                                    <div className="px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-caption font-black text-emerald-400 uppercase tracking-widest shadow-2xl">
+                                    <div className="px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-border text-caption font-black text-success uppercase tracking-widest shadow-2xl">
                                         {build.author.name}
                                     </div>
                                 </div>
@@ -52,7 +52,7 @@ export function RecentStuffGallery({
                         ))}
                     </div>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center py-20 text-zinc-600 italic border border-dashed border-white/5 rounded-[2rem]">
+                    <div className="flex-1 flex flex-col items-center justify-center py-20 text-muted-foreground italic border border-dashed border-border rounded-[2rem]">
                         <Sword className="w-10 h-10 opacity-20 mb-3" />
                         <p className="text-caption uppercase font-black tracking-widest">Aucun stuff partagé</p>
                         <p className="text-caption mt-1 opacity-60">Partagez votre optimisation !</p>
@@ -61,7 +61,7 @@ export function RecentStuffGallery({
 
                 {displayBuilds.length > 0 && (
                     <div className="mt-8 flex justify-center">
-                        <Link href={`/dashboard/${guildId}/galerie-stuff`} className="flex items-center gap-2 text-caption font-black text-zinc-600 hover:text-white uppercase tracking-widest group-hover:text-emerald-400 transition-colors">
+                        <Link href={`/dashboard/${guildId}/galerie-stuff`} className="flex items-center gap-2 text-caption font-black text-muted-foreground hover:text-foreground uppercase tracking-widest group-hover:text-success transition-colors">
                             Voir toute la galerie <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                         </Link>
                     </div>

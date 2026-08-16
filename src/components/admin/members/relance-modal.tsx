@@ -103,13 +103,13 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-lg bg-zinc-950 border-white/10 rounded-3xl">
+            <DialogContent className="max-w-lg bg-background border-border rounded-3xl">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-white">
-                        <Bell className="w-5 h-5 text-amber-400" />
+                    <DialogTitle className="flex items-center gap-2 text-foreground">
+                        <Bell className="w-5 h-5 text-warning" />
                         Relancer {isBulk ? "la sélection" : "ce membre"}
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-500">
+                    <DialogDescription className="text-muted-foreground">
                         Ping {isBulk ? "groupé" : "solo"} de {selectedTargets.length} / {targets.length} membre{targets.length > 1 ? "s" : ""} sélectionné{selectedTargets.length > 1 ? "s" : ""}.
                     </DialogDescription>
                 </DialogHeader>
@@ -119,27 +119,27 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                     {isBulk && (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-semibold text-zinc-300 uppercase tracking-widest">Membres ciblés</Label>
+                                <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Membres ciblés</Label>
                                 <button
                                     type="button"
                                     onClick={toggleAll}
-                                    className="text-caption font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    className="text-caption font-semibold text-success hover:text-success transition-colors"
                                 >
                                     {selectedIds.size === targets.length ? "Tout décocher" : "Tout cocher"}
                                 </button>
                             </div>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Rechercher un membre..."
-                                    className="h-10 pl-9 bg-zinc-900/50 border-white/10 text-sm"
+                                    className="h-10 pl-9 bg-surface/50 border-border text-sm"
                                 />
                             </div>
-                            <div className="max-h-44 overflow-y-auto rounded-xl border border-white/10 bg-zinc-900/40 divide-y divide-white/5">
+                            <div className="max-h-44 overflow-y-auto rounded-xl border border-border bg-surface/40 divide-y divide-border">
                                 {visibleTargets.length === 0 && (
-                                    <div className="px-3 py-4 text-caption text-zinc-500 text-center">Aucun membre ne correspond à la recherche.</div>
+                                    <div className="px-3 py-4 text-caption text-muted-foreground text-center">Aucun membre ne correspond à la recherche.</div>
                                 )}
                                 {visibleTargets.map((t) => {
                                     const checked = selectedIds.has(t.id);
@@ -148,15 +148,15 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                                             key={t.id}
                                             className={cn(
                                                 "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors",
-                                                checked ? "bg-emerald-500/[0.06]" : "hover:bg-white/[0.03]"
+                                                checked ? "bg-success/[0.06]" : "hover:bg-surface"
                                             )}
                                         >
                                             <Checkbox
                                                 checked={checked}
                                                 onCheckedChange={() => toggleTarget(t.id)}
-                                                className={checked ? "border-emerald-500/60" : ""}
+                                                className={checked ? "border-success/60" : ""}
                                             />
-                                            <span className={cn("text-sm truncate", checked ? "text-white" : "text-zinc-400")}>
+                                            <span className={cn("text-sm truncate", checked ? "text-foreground" : "text-muted-foreground")}>
                                                 {t.name}
                                             </span>
                                         </label>
@@ -166,38 +166,38 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label className="text-xs font-black text-zinc-300 uppercase tracking-widest">Livraison</Label>
+                        <Label className="text-xs font-black text-foreground uppercase tracking-widest">Livraison</Label>
                         <div className="grid grid-cols-2 gap-2">
                             <button type="button" onClick={() => setDelivery("CHANNEL")}
                                 className={cn("p-3 rounded-xl border text-left transition-colors",
-                                    delivery === "CHANNEL" ? "bg-amber-500/10 border-amber-500/40" : "bg-zinc-900/40 border-white/10 hover:border-white/20")}>
-                                <span className="flex items-center gap-2 text-sm font-bold text-white">
-                                    <Send className="w-4 h-4 text-amber-400" /> Canal
+                                    delivery === "CHANNEL" ? "bg-warning/10 border-warning/40" : "bg-surface/40 border-border hover:border-border-strong")}>
+                                <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                    <Send className="w-4 h-4 text-warning" /> Canal
                                 </span>
-                                <span className="text-caption text-zinc-500 mt-1 block">Message public dans un salon (@mention)</span>
+                                <span className="text-caption text-muted-foreground mt-1 block">Message public dans un salon (@mention)</span>
                             </button>
                             <button type="button" onClick={() => setDelivery("DM")}
                                 className={cn("p-3 rounded-xl border text-left transition-colors",
-                                    delivery === "DM" ? "bg-indigo-500/10 border-indigo-500/40" : "bg-zinc-900/40 border-white/10 hover:border-white/20")}>
-                                <span className="flex items-center gap-2 text-sm font-bold text-white">
-                                    <Users className="w-4 h-4 text-indigo-400" /> Message privé
+                                    delivery === "DM" ? "bg-info/10 border-info/40" : "bg-surface/40 border-border hover:border-border-strong")}>
+                                <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                    <Users className="w-4 h-4 text-info" /> Message privé
                                 </span>
-                                <span className="text-caption text-zinc-500 mt-1 block">MP via le bot Discord (pas de ping public)</span>
+                                <span className="text-caption text-muted-foreground mt-1 block">MP via le bot Discord (pas de ping public)</span>
                             </button>
                         </div>
                     </div>
 
                     {delivery === "CHANNEL" && (
-                        <div className="space-y-2 rounded-xl border border-white/10 bg-zinc-900/40 p-3">
-                            <Label className="text-xs font-semibold text-zinc-300 uppercase tracking-widest">Canal de diffusion configuré</Label>
+                        <div className="space-y-2 rounded-xl border border-border bg-surface/40 p-3">
+                            <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Canal de diffusion configuré</Label>
                             {!configLoaded ? (
-                                <div className="flex items-center gap-1.5 text-caption text-zinc-500">
+                                <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
                                     <Loader2 className="w-3 h-3 animate-spin" /> Résolution du salon…
                                 </div>
                             ) : hasChannel ? (
                                 <ChannelPreview guildId={guildId} channelId={relanceChannelId!} color="amber" />
                             ) : (
-                                <div className="flex items-center gap-1.5 text-caption text-amber-400/90">
+                                <div className="flex items-center gap-1.5 text-caption text-warning/90">
                                     <AlertTriangle className="w-3 h-3" />
                                     Aucun canal configuré — définissez-le dans Admin &gt; Paramètres &gt; Relances.
                                 </div>
@@ -206,29 +206,29 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                     )}
 
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-zinc-300 uppercase tracking-widest">Message de relance</Label>
+                        <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Message de relance</Label>
                         <Textarea value={message} onChange={(e) => setMessage(e.target.value)}
                             placeholder="Écrivez votre message de relance..."
-                            rows={4} className="bg-zinc-900/50 border-white/10 text-sm resize-none" />
-                        <p className="text-caption text-zinc-600">
+                            rows={4} className="bg-surface/50 border-border text-sm resize-none" />
+                        <p className="text-caption text-muted-foreground">
                             {message.trim().length}/2000
                         </p>
                     </div>
 
                     {/* #104 — Preview embed côté admin (fidèle à ce qui partira sur Discord) */}
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-zinc-300 uppercase tracking-widest">Aperçu de l'embed</Label>
-                        <div className="rounded-xl border border-white/10 bg-[#2b2d31] p-3">
+                        <Label className="text-xs font-semibold text-foreground uppercase tracking-widest">Aperçu de l'embed</Label>
+                        <div className="rounded-xl border border-border bg-[#2b2d31] p-3">
                             <div className="flex gap-3">
-                                <div className="w-1 self-stretch rounded bg-amber-500" />
+                                <div className="w-1 self-stretch rounded bg-warning" />
                                 <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-bold text-white">
+                                    <div className="text-sm font-bold text-foreground">
                                         {delivery === "DM" ? "🔔 Rappel de Guilde - SigilOS" : "🔔 Rappel de Guilde"}
                                     </div>
-                                    <div className="text-sm text-zinc-300 whitespace-pre-wrap break-words mt-1">
+                                    <div className="text-sm text-foreground whitespace-pre-wrap break-words mt-1">
                                         {message.trim() || "Votre message apparaîtra ici…"}
                                     </div>
-                                    <div className="text-caption text-zinc-500 mt-2">
+                                    <div className="text-caption text-muted-foreground mt-2">
                                         {delivery === "DM"
                                             ? `Envoyé par un administrateur depuis ${guildName}`
                                             : `SigilOS • ${guildName}`}
@@ -239,12 +239,12 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
                     </div>
                 </div>
 
-                <DialogFooter className="border-t border-white/5 pt-4 flex gap-3">
-                    <Button variant="ghost" onClick={onClose} disabled={isPending} className="text-zinc-400 hover:text-white">
+                <DialogFooter className="border-t border-border pt-4 flex gap-3">
+                    <Button variant="ghost" onClick={onClose} disabled={isPending} className="text-muted-foreground hover:text-foreground">
                         Annuler
                     </Button>
                     <Button onClick={handleSend} disabled={isPending || selectedTargets.length === 0}
-                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold uppercase tracking-widest text-xs h-10 px-5 rounded-xl disabled:opacity-40">
+                        className="bg-warning hover:bg-warning text-warning-foreground font-bold uppercase tracking-widest text-xs h-10 px-5 rounded-xl disabled:opacity-40">
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
                         Envoyer la relance
                     </Button>

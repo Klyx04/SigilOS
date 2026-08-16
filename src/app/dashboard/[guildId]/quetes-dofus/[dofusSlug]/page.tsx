@@ -143,7 +143,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         </span>
                         {(dofus as any).isMeta && (
                             <span
-                                className="flex items-center gap-1 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-emerald-400"
+                                className="flex items-center gap-1 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-success"
                                 style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.35)" }}
                             >
                                 <TreePine className="w-2.5 h-2.5" /> Méta-Dofus
@@ -151,7 +151,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         )}
                         {(dofus as any).isSylvestreReq && !(dofus as any).isMeta && (
                             <span
-                                className="flex items-center gap-1 text-caption font-bold uppercase tracking-widest px-2 py-0.5 rounded-full text-emerald-500/70"
+                                className="flex items-center gap-1 text-caption font-bold uppercase tracking-widest px-2 py-0.5 rounded-full text-success/70"
                                 style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}
                             >
                                 <Sparkles className="w-2.5 h-2.5" /> Requis Sylvestre
@@ -222,7 +222,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         border: `1px solid ${color}25`,
                     }}
                 >
-                    <div className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
                         <span style={{ color }}>⬡</span> Progression Metamob
                     </div>
                     <DofusOcreMetamob
@@ -244,7 +244,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         border: `1px solid ${color}25`,
                     }}
                 >
-                    <div className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
                         <span style={{ color }}>📖</span> Progression Almanax
                     </div>
                     <DofusDolmanaxTracker

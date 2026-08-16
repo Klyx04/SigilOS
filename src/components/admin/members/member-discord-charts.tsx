@@ -47,11 +47,11 @@ interface MemberDiscordChartsProps {
 const CustomTooltip = ({ active, payload, label, suffix = "" }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-zinc-950/90 border border-violet-500/20 px-4 py-3 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-                <p className="text-caption font-black text-zinc-500 uppercase tracking-[0.2em] mb-1">{label}</p>
-                <p className="text-[18px] font-black text-white tabular-nums leading-none">
+            <div className="bg-background/90 border border-violet-500/20 px-4 py-3 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+                <p className="text-caption font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">{label}</p>
+                <p className="text-[18px] font-black text-foreground tabular-nums leading-none">
                     {payload[0].value.toLocaleString()}
-                    <span className="text-caption text-zinc-400 uppercase font-bold ml-1.5">{suffix}</span>
+                    <span className="text-caption text-muted-foreground uppercase font-bold ml-1.5">{suffix}</span>
                 </p>
             </div>
         );
@@ -96,7 +96,7 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[300px]">
                 {[1, 2, 3].map(i => (
-                    <Card key={i} className="bg-zinc-900/30 border-white/5 animate-pulse rounded-[32px] overflow-hidden shadow-2xl" />
+                    <Card key={i} className="bg-surface/30 border-border animate-pulse rounded-[32px] overflow-hidden shadow-2xl" />
                 ))}
             </div>
         );
@@ -151,7 +151,7 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
         <div className="space-y-6">
             {/* Global Timeframe Selector */}
             <div className="flex justify-end">
-                <div className="bg-zinc-900/60 p-1 rounded-2xl border border-white/5 backdrop-blur-xl flex gap-1">
+                <div className="bg-surface/60 p-1 rounded-2xl border border-border backdrop-blur-xl flex gap-1">
                     {[
                         { id: "weekly", label: "Semaine" },
                         { id: "monthly", label: "Mois" },
@@ -162,8 +162,8 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                             onClick={() => setTimeframe(t.id as any)}
                             className={`px-4 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest transition-all ${
                                 timeframe === t.id 
-                                ? "bg-violet-600 text-white " 
-                                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                                ? "bg-violet-600 text-foreground " 
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
                             }`}
                         >
                             {t.label}
@@ -174,14 +174,14 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Activity Overview — Donut */}
-                <Card className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
+                <Card className="bg-surface/30 border-border backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
+                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground italic flex items-center gap-2">
                             <Activity className="w-4 h-4 text-violet-400" />
                             État d&apos;activité
                         </CardTitle>
-                        <CardDescription className="text-caption uppercase font-bold text-zinc-500">Membres actifs {timeframeLabel}</CardDescription>
+                        <CardDescription className="text-caption uppercase font-bold text-muted-foreground">Membres actifs {timeframeLabel}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[250px] relative min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
@@ -210,7 +210,7 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                         </ResponsiveContainer>
                         {/* Center label */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-4">
-                            <span className="text-3xl font-black text-white">{members.length > 0 ? Math.round((activeCount / members.length) * 100) : 0}%</span>
+                            <span className="text-3xl font-black text-foreground">{members.length > 0 ? Math.round((activeCount / members.length) * 100) : 0}%</span>
                             <span className="text-caption font-black text-violet-400 uppercase tracking-widest">Actif</span>
                         </div>
                     </CardContent>
@@ -218,59 +218,59 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                     <div className="px-6 pb-5 flex items-center justify-center gap-6">
                         <div className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 rounded-full bg-violet-500 " />
-                            <span className="text-caption font-black text-zinc-400 uppercase tracking-widest">Actifs <span className="text-white">{activeCount}</span></span>
+                            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Actifs <span className="text-foreground">{activeCount}</span></span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                            <span className="text-caption font-black text-zinc-400 uppercase tracking-widest">Silencieux <span className="text-white">{silentCount}</span></span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-muted" />
+                            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Silencieux <span className="text-foreground">{silentCount}</span></span>
                         </div>
                     </div>
                 </Card>
 
                 {/* Top Messages */}
-                <Card className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Card className="bg-surface/30 border-border backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-info/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
                         <div>
-                            <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4 text-blue-400" />
+                            <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground italic flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-info" />
                                 Top Bavards
                             </CardTitle>
-                            <CardDescription className="text-caption uppercase font-bold text-zinc-500">Volume messages {timeframeLabel}</CardDescription>
+                            <CardDescription className="text-caption uppercase font-bold text-muted-foreground">Volume messages {timeframeLabel}</CardDescription>
                         </div>
                         
                         <Dialog>
                             <DialogTrigger asChild>
-                                <button className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5 flex items-center gap-2 group/btn">
-                                    <Maximize2 className="w-3.5 h-3.5 text-zinc-400 group-hover/btn:text-white transition-colors" />
-                                    <span className="text-caption font-black uppercase text-zinc-500 group-hover/btn:text-white transition-colors">Détails</span>
+                                <button className="p-2 bg-surface hover:bg-surface rounded-xl transition-all border border-border flex items-center gap-2 group/btn">
+                                    <Maximize2 className="w-3.5 h-3.5 text-muted-foreground group-hover/btn:text-foreground transition-colors" />
+                                    <span className="text-caption font-black uppercase text-muted-foreground group-hover/btn:text-foreground transition-colors">Détails</span>
                                 </button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-4xl bg-zinc-950 border-white/10 p-0 rounded-[32px] overflow-hidden ">
-                                <DialogHeader className="p-8 border-b border-white/5">
-                                    <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white italic flex items-center gap-3">
+                            <DialogContent className="max-w-4xl bg-background border-border p-0 rounded-[32px] overflow-hidden ">
+                                <DialogHeader className="p-8 border-b border-border">
+                                    <DialogTitle className="text-2xl font-black uppercase tracking-tight text-foreground italic flex items-center gap-3">
                                         <Activity className="w-6 h-6 text-violet-500" />
                                         Audit Activité — {timeframe === "weekly" ? "Semaine" : timeframe === "monthly" ? "Mois" : "Global"}
                                     </DialogTitle>
-                                    <DialogDescription className="text-caption font-black uppercase tracking-widest text-zinc-500">Breakdown complet des statistiques Discord de la guilde</DialogDescription>
+                                    <DialogDescription className="text-caption font-black uppercase tracking-widest text-muted-foreground">Breakdown complet des statistiques Discord de la guilde</DialogDescription>
                                 </DialogHeader>
                                 
                                 <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
                                     <div className="flex flex-col md:flex-row gap-4">
                                         <div className="relative flex-1 group">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-violet-500 transition-colors" />
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-violet-500 transition-colors" />
                                             <Input 
                                                 placeholder="Filtrer par membre..." 
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="pl-12 h-12 bg-black/40 border-white/5 rounded-2xl text-white placeholder:text-zinc-600 focus:ring-violet-500/20"
+                                                className="pl-12 h-12 bg-black/40 border-border rounded-2xl text-foreground placeholder:text-muted-foreground focus:ring-violet-500/20"
                                             />
                                         </div>
                                         <Select value={selectedRole} onValueChange={setSelectedRole}>
-                                            <SelectTrigger className="w-full md:w-[200px] h-12 bg-black/40 border-white/5 rounded-2xl text-xs font-black uppercase tracking-widest text-zinc-400">
+                                            <SelectTrigger className="w-full md:w-[200px] h-12 bg-black/40 border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground">
                                                 <SelectValue placeholder="Rôle Discord" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-zinc-900 border-white/10 rounded-2xl">
+                                            <SelectContent className="bg-surface border-border rounded-2xl">
                                                 <SelectItem value="all" className="text-caption font-black uppercase tracking-widest">Tous les rôles</SelectItem>
                                                 {roleStats.map(role => (
                                                     <SelectItem key={role.roleId} value={role.roleId} className="text-caption font-black uppercase tracking-widest">
@@ -281,55 +281,55 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                         </Select>
                                     </div>
 
-                                    <div className="rounded-2xl border border-white/5 overflow-hidden">
+                                    <div className="rounded-2xl border border-border overflow-hidden">
                                         <Table>
-                                            <TableHeader className="bg-white/[0.02]">
-                                                <TableRow className="border-white/5 hover:bg-transparent">
-                                                    <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-widest">Membre</TableHead>
-                                                    <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-widest">Rôles Mappés</TableHead>
+                                            <TableHeader className="bg-surface">
+                                                <TableRow className="border-border hover:bg-transparent">
+                                                    <TableHead className="text-caption font-black uppercase text-muted-foreground tracking-widest">Membre</TableHead>
+                                                    <TableHead className="text-caption font-black uppercase text-muted-foreground tracking-widest">Rôles Mappés</TableHead>
                                                     <TableHead
-                                                        className="text-caption font-black uppercase text-zinc-500 tracking-widest text-center cursor-pointer hover:text-blue-400 transition-colors"
+                                                        className="text-caption font-black uppercase text-muted-foreground tracking-widest text-center cursor-pointer hover:text-info transition-colors"
                                                         onClick={() => { setSortKey("messages"); setSortOrder(prev => prev === "desc" ? "asc" : "desc"); }}
                                                     >
-                                                        Messages {sortKey === "messages" && <span className="text-blue-400">{sortOrder === "desc" ? "↓" : "↑"}</span>}
+                                                        Messages {sortKey === "messages" && <span className="text-info">{sortOrder === "desc" ? "↓" : "↑"}</span>}
                                                     </TableHead>
                                                     <TableHead
-                                                        className="text-caption font-black uppercase text-zinc-500 tracking-widest text-center cursor-pointer hover:text-emerald-400 transition-colors"
+                                                        className="text-caption font-black uppercase text-muted-foreground tracking-widest text-center cursor-pointer hover:text-success transition-colors"
                                                         onClick={() => { setSortKey("vocal"); setSortOrder(prev => prev === "desc" ? "asc" : "desc"); }}
                                                     >
-                                                        Vocal {sortKey === "vocal" && <span className="text-emerald-400">{sortOrder === "desc" ? "↓" : "↑"}</span>}
+                                                        Vocal {sortKey === "vocal" && <span className="text-success">{sortOrder === "desc" ? "↓" : "↑"}</span>}
                                                     </TableHead>
-                                                    <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-widest text-right">Dashboard</TableHead>
+                                                    <TableHead className="text-caption font-black uppercase text-muted-foreground tracking-widest text-right">Dashboard</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {sortedMembers.map(m => (
-                                                    <TableRow key={m.discordId} className="border-white/[0.03] hover:bg-white/[0.02]">
-                                                        <TableCell className="font-bold text-white text-body-sm">
+                                                    <TableRow key={m.discordId} className="border-border hover:bg-surface">
+                                                        <TableCell className="font-bold text-foreground text-body-sm">
                                                             {m.displayName}
-                                                            <p className="text-caption text-zinc-600 font-medium">@{m.username}</p>
+                                                            <p className="text-caption text-muted-foreground font-medium">@{m.username}</p>
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="flex flex-wrap gap-1">
                                                                 {m.roles.filter(rId => roleStats.some(rs => rs.roleId === rId)).map(rId => {
                                                                     const role = roleStats.find(rs => rs.roleId === rId);
                                                                     return (
-                                                                        <Badge key={rId} variant="outline" className="text-caption font-black bg-white/5 border-white/10 uppercase" style={{ color: role?.roleColor ? `#${role.roleColor.toString(16).padStart(6, '0')}` : undefined }}>
+                                                                        <Badge key={rId} variant="outline" className="text-caption font-black bg-surface border-border uppercase" style={{ color: role?.roleColor ? `#${role.roleColor.toString(16).padStart(6, '0')}` : undefined }}>
                                                                             {role?.roleName}
                                                                         </Badge>
                                                                     );
                                                                 })}
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="text-center font-black text-blue-400 tabular-nums">{(m as any)[keys.msg] || 0}</TableCell>
-                                                        <TableCell className="text-center font-black text-emerald-400 tabular-nums">
+                                                        <TableCell className="text-center font-black text-info tabular-nums">{(m as any)[keys.msg] || 0}</TableCell>
+                                                        <TableCell className="text-center font-black text-success tabular-nums">
                                                             {((m as any)[keys.voice] || 0) < 60 ? `${(m as any)[keys.voice] || 0}m` : `${Math.round(((m as any)[keys.voice] || 0) / 60)}h`}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             {m.hasDashboardProfile ? (
-                                                                <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-caption font-black uppercase">Inscrit</Badge>
+                                                                <Badge className="bg-success/10 text-success border-none text-caption font-black uppercase">Inscrit</Badge>
                                                             ) : (
-                                                                <Badge className="bg-amber-500/10 text-amber-500 border-none text-caption font-black uppercase">Absent</Badge>
+                                                                <Badge className="bg-warning/10 text-warning border-none text-caption font-black uppercase">Absent</Badge>
                                                             )}
                                                         </TableCell>
                                                     </TableRow>
@@ -371,14 +371,14 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                 </Card>
 
                 {/* Top Vocal */}
-                <Card className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Card className="bg-surface/30 border-border backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
-                            <Mic className="w-4 h-4 text-emerald-400" />
+                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-foreground italic flex items-center gap-2">
+                            <Mic className="w-4 h-4 text-success" />
                             Top Vocal
                         </CardTitle>
-                        <CardDescription className="text-caption uppercase font-bold text-zinc-500">Temps parole {timeframeLabel}</CardDescription>
+                        <CardDescription className="text-caption uppercase font-bold text-muted-foreground">Temps parole {timeframeLabel}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[250px] pt-2 min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>

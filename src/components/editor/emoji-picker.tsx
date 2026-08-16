@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 
 const Picker = dynamic(() => import('@emoji-mart/react'), {
     ssr: false,
-    loading: () => <div className="w-[352px] h-[435px] bg-zinc-900 rounded-xl animate-pulse" />
+    loading: () => <div className="w-[352px] h-[435px] bg-surface rounded-xl animate-pulse" />
 })
 import {
     Popover,
@@ -51,7 +51,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 text-zinc-400 hover:bg-white/10 hover:text-zinc-100 transition-all"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:bg-surface hover:text-foreground transition-all"
                         title="Insérer un Emoji"
                     >
                         <Smile className="w-4 h-4" />

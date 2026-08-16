@@ -32,16 +32,26 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
     const [weekOffset, setWeekOffset] = useState(0);
     const [search, setSearch] = useState("");
 
-    // #91 — recentre la vue sur la ligne de l'utilisateur courant
-    const highlightRowRef = useRef<HTMLTableRowElement>(null);
+    // ── Virtualisation (chantier #98) : seules les lignes visibles sont rendues ──
+    // Avec des centaines de membres, une table complète = des milliers de nœuds DOM
+    // → lag au scroll. On fixe une hauteur de ligne constante et on ne monte que
+    // les lignes du viewport (+ overscan), dans un conteneur à défilement propre.
+    const ROW_HEIGHT = 88;
+    const OVERSCAN = 6;
+    const [scrollTop, setScrollTop] = useState(0);
+    const [viewportHeight, setViewportHeight] = useState(600);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Observe la hauteur du conteneur de scroll (responsive).
     useEffect(() => {
-        if (highlightProfileId) {
-            const t = setTimeout(() => {
-                highlightRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 250);
-            return () => clearTimeout(t);
-        }
-    }, [highlightProfileId]);
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        const update = () => setViewportHeight(el.clientHeight || 600);
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     const currentMonday = useMemo(() => {
         const now = new Date();
@@ -125,6 +135,27 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
         // 4. Return original objects
         return membersWithVacationStatus.map(x => x.member);
     }, [members, search, weekDates]);
+
+    // #91 — recentre la vue sur la ligne de l'utilisateur courant (avec virtualisation).
+    useEffect(() => {
+        if (!highlightProfileId) return;
+        const t = setTimeout(() => {
+            const idx = filteredMembers.findIndex(m => m.id === highlightProfileId);
+            if (idx >= 0) {
+                scrollContainerRef.current?.scrollTo({
+                    top: Math.max(0, idx * ROW_HEIGHT - 180),
+                    behavior: "smooth"
+                });
+            }
+        }, 250);
+        return () => clearTimeout(t);
+    }, [highlightProfileId, filteredMembers]);
+
+    // Fenêtre de lignes visibles (virtualisation).
+    const totalRows = filteredMembers.length;
+    const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const endIndex = Math.min(totalRows, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN);
+    const visibleMembers = filteredMembers.slice(startIndex, endIndex);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -250,141 +281,121 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
                 </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="relative rounded-[2.5rem] border border-white/5 bg-zinc-950/40 backdrop-blur-3xl overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] group/calendar">
-                <div className="noise-overlay absolute inset-0 opacity-[0.02] pointer-events-none" />
-                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.01] to-transparent pointer-events-none" />
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
-                        <thead>
-                            <tr className="border-b border-white/10 bg-white/[0.02]">
-                                <th className="p-5 w-64 font-black text-zinc-500 text-caption uppercase tracking-[0.2em] italic">Membre</th>
-                                {DAYS_OF_WEEK.map(day => {
-                                    const date = weekDates[day];
-                                    const today = isToday(date);
-                                    return (
-                                        <th key={day} className={cn(
-                                            "p-4 text-center border-l border-white/5 relative overflow-hidden transition-all duration-300",
-                                            today && "bg-indigo-500/[0.03]"
-                                        )}>
-                                            {today && (
-                                                <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 " />
-                                            )}
-                                            <div className="flex flex-col items-center relative z-10">
-                                                <span className={cn(
-                                                    "text-caption font-black uppercase tracking-[0.2em] mb-1 transition-colors duration-300", 
-                                                    today ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(79,70,229,0.3)]" : "text-zinc-500"
-                                                )}>
-                                                    {format(date, "EEEE", { locale: fr })}
-                                                </span>
-                                                <span className={cn(
-                                                    "text-xl font-black transition-all duration-300 leading-none", 
-                                                    today ? "text-white scale-110" : "text-zinc-300"
-                                                )}>
-                                                    {format(date, "d")}
-                                                </span>
-                                            </div>
-                                        </th>
-                                    );
-                                })}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {filteredMembers.map((member) => {
+            {/* Calendar Grid — virtualisé (#98) : seule la fenêtre visible est rendue */}
+            <div className="relative rounded-2xl border border-white/5 bg-zinc-950/40 overflow-hidden">
+                <div
+                    ref={scrollContainerRef}
+                    onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+                    className="max-h-[68vh] overflow-auto premium-scrollbar"
+                >
+                    <div className="min-w-[800px]">
+                        {/* En-tête sticky */}
+                        <div className="sticky top-0 z-20 grid grid-cols-[16rem_repeat(7,1fr)] border-b border-white/10 bg-zinc-900/95 backdrop-blur">
+                            <div className="px-5 py-3 flex items-center">
+                                <span className="text-caption font-bold text-zinc-400 uppercase tracking-wider">Membre</span>
+                            </div>
+                            {DAYS_OF_WEEK.map(day => {
+                                const date = weekDates[day];
+                                const today = isToday(date);
+                                return (
+                                    <div key={day} className={cn("px-2 py-3 text-center border-l border-white/5", today && "bg-indigo-500/[0.05]")}>
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <span className={cn("text-caption font-semibold uppercase leading-none", today ? "text-indigo-400" : "text-zinc-500")}>
+                                                {format(date, "EEE", { locale: fr })}
+                                            </span>
+                                            <span className={cn("text-lg font-bold leading-none", today ? "text-white" : "text-zinc-300")}>
+                                                {format(date, "d")}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {/* Corps virtualisé : seules les lignes visibles (+ overscan) sont montées */}
+                        <div className="relative" style={{ height: totalRows * ROW_HEIGHT }}>
+                            {visibleMembers.map((member, i) => {
+                                const rowIndex = startIndex + i;
                                 const isHighlighted = !!highlightProfileId && member.id === highlightProfileId;
                                 return (
-                                <tr
-                                    key={member.id}
-                                    ref={isHighlighted ? highlightRowRef : undefined}
-                                    className={cn(
-                                        "group transition-colors",
-                                        isHighlighted
-                                            ? "bg-emerald-500/[0.06] ring-1 ring-inset ring-emerald-500/40"
-                                            : "hover:bg-white/[0.02]"
-                                    )}
-                                >
-                                    <td className="p-4">
-                                        <Link 
-                                            href={`/dashboard/${guildId}/members/${encodeURIComponent(member.pseudoDofus || member.id)}`}
-                                            className="flex items-center gap-4 group/member outline-none"
-                                        >
-                                            <div className="relative">
-                                                <Avatar className="w-12 h-12 border border-white/5 shadow-2xl transition-all duration-300 group-hover/member:scale-110 group-hover/member:rotate-3 group-hover/member:border-indigo-500/30">
+                                    <div
+                                        key={member.id}
+                                        className={cn(
+                                            "absolute left-0 right-0 grid grid-cols-[16rem_repeat(7,1fr)] border-b border-white/5 transition-colors",
+                                            isHighlighted
+                                                ? "bg-emerald-500/[0.06] ring-1 ring-inset ring-emerald-500/40"
+                                                : "hover:bg-white/[0.02]"
+                                        )}
+                                        style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+                                    >
+                                        <div className="px-4 flex items-center overflow-hidden">
+                                            <Link
+                                                href={`/dashboard/${guildId}/members/${encodeURIComponent(member.pseudoDofus || member.id)}`}
+                                                className="flex items-center gap-3 min-w-0 w-full group/member outline-none"
+                                            >
+                                                <Avatar className="w-10 h-10 shrink-0 border border-white/5">
                                                     <AvatarImage src={member.user?.image} />
-                                                    <AvatarFallback className="bg-zinc-900 text-xs font-black text-zinc-500 uppercase tracking-tighter">
+                                                    <AvatarFallback className="bg-zinc-900 text-xs font-bold text-zinc-500">
                                                         {(member.pseudoDofus || member.discordNickname || member.user?.name || "?").substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <div className="absolute inset-0 rounded-full bg-indigo-500/0 group-hover/member:bg-indigo-500/10 blur-xl transition-all duration-300 -z-10" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-black text-zinc-200 text-body-sm uppercase tracking-wider transition-colors duration-300 group-hover/member:text-indigo-400 truncate max-w-[150px]">
-                                                        {member.pseudoDofus || member.discordNickname || member.user?.name}
-                                                    </span>
-                                                    {isHighlighted && (
-                                                        <span className="shrink-0 text-caption font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-1.5 py-0.5">
-                                                            Vous
+                                                <div className="flex flex-col min-w-0">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="font-semibold text-zinc-200 text-body-sm truncate group-hover/member:text-indigo-400 transition-colors">
+                                                            {member.pseudoDofus || member.discordNickname || member.user?.name}
                                                         </span>
+                                                        {isHighlighted && (
+                                                            <span className="shrink-0 text-caption font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-1.5 py-0.5">Vous</span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-caption text-zinc-600 truncate">{member.roleName || "Membre"}</span>
+                                                </div>
+                                            </Link>
+                                        </div>
+                                        {DAYS_OF_WEEK.map(day => {
+                                            const onVacation = isVacation(member, weekDates[day]);
+                                            const slots = getMemberAvailabilityForDay(member, day);
+                                            const hasSlots = slots && slots.length > 0;
+                                            return (
+                                                <div key={day} className="px-1.5 py-1.5 border-l border-white/5 flex items-center justify-center">
+                                                    {onVacation ? (
+                                                        <div className="w-full h-full min-h-[60px] rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col items-center justify-center gap-0.5" title={member.vacationReason ? `En congés : ${member.vacationReason}` : "En congés"}>
+                                                            <Plane className="w-4 h-4 text-cyan-400" />
+                                                            <span className="text-caption font-bold text-cyan-500/80">Absent</span>
+                                                        </div>
+                                                    ) : hasSlots ? (
+                                                        <div className="grid grid-cols-2 gap-1">
+                                                            {slots.slice(0, 4).map((slot: TimeSlot) => {
+                                                                const Info = SLOT_INFO[slot];
+                                                                const Icon = Info.icon;
+                                                                return (
+                                                                    <div
+                                                                        key={slot}
+                                                                        className={cn("flex items-center justify-center w-6 h-6 rounded-md border", Info.bg, Info.border)}
+                                                                        title={Info.label}
+                                                                    >
+                                                                        <Icon className={cn("w-3.5 h-3.5", Info.color)} />
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-lg bg-zinc-900/50 border border-dashed border-white/10 flex items-center justify-center" title="Disponibilité non définie">
+                                                            <AlertCircle className="w-3.5 h-3.5 opacity-50" />
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <span className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic group-hover/member:text-zinc-500 transition-colors">
-                                                    {member.roleName || "Membre"}
-                                                </span>
-                                            </div>
-                                        </Link>
-                                    </td>
-                                    {DAYS_OF_WEEK.map(day => {
-                                        const onVacation = isVacation(member, weekDates[day]);
-                                        const slots = getMemberAvailabilityForDay(member, day);
-                                        const hasSlots = slots && slots.length > 0;
-                                        
-                                        return (
-                                            <td key={day} className="p-2 border-l border-white/5 align-middle">
-                                                {onVacation ? (
-                                                    <div className="w-full h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col items-center justify-center gap-0.5" title={member.vacationReason ? `En congés : ${member.vacationReason}` : "En congés"}>
-                                                        <Plane className="w-4 h-4 text-cyan-400" />
-                                                        <span className="text-caption font-bold text-cyan-500/80 uppercase tracking-widest">Absent</span>
-                                                    </div>
-                                                ) : hasSlots ? (
-                                                    <div className="w-full flex flex-wrap items-center justify-center gap-1.5 p-1">
-                                                        {slots.map((slot: TimeSlot) => {
-                                                            const Info = SLOT_INFO[slot];
-                                                            const Icon = Info.icon;
-                                                            return (
-                                                                <div 
-                                                                    key={slot}
-                                                                    className={cn(
-                                                                        "flex items-center justify-center w-7 h-7 rounded-md border shadow-sm transition-transform ",
-                                                                        Info.bg, Info.border
-                                                                    )}
-                                                                    title={Info.label}
-                                                                >
-                                                                    <Icon className={cn("w-4 h-4", Info.color)} />
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-full h-10 rounded-lg bg-zinc-900/50 border border-dashed border-white/10 flex flex-col items-center justify-center text-zinc-600 gap-1" title="Disponibilité non définie">
-                                                        <AlertCircle className="w-3.5 h-3.5 opacity-50" />
-                                                    </div>
-                                                )}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
+                                            );
+                                        })}
+                                    </div>
                                 );
                             })}
-                            {filteredMembers.length === 0 && (
-                                <tr>
-                                    <td colSpan={8} className="p-8 text-center text-zinc-500">
-                                        Aucun membre trouvé.
-                                    </td>
-                                </tr>
+                            {totalRows === 0 && (
+                                <div className="absolute inset-x-0 top-0 p-8 text-center text-zinc-500">
+                                    Aucun membre trouvé.
+                                </div>
                             )}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 

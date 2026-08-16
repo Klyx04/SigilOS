@@ -46,7 +46,12 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/08 — Mode sombre/clair V1 + tokens OKLCH + couleur de guilde + F-29
 
 > **Branche `feat/chantier-2026-08-19`** → **PR #484 créée** (https://github.com/Klyx04/SigilOS/pull/484).
-> Commits poussés le 20/08 : `cc16449cf` (F-29) · `3885b5f41` (batch #16/#5) · `c95e13571` (titres de bloc harmonisés).
+> Commits poussés le 20/08 : `cc16449cf` (F-29) · `3885b5f41` (batch #16/#5) · `c95e13571` (titres de bloc harmonisés) ·
+> `123c46f3f` (couleur de guilde **visible** via `--color-guild` sur les titres) · `b10974a5f` (fix Agenda de Guilde +
+> débordement sondages).
+> 📦 **Export UI/UX pour IA externe** : copie des fichiers clés dark/clair → **`C:\tmp\sigilos-dark-mode\`**
+> (globals.css, theme-provider, layout racine + dashboard, tailwind.config, design-system doc, toggles, top-nav,
+> schema prisma, changelog-actions, platform-config-panel, guild-appearance-settings-client).
 > ⚠️ `prisma migrate dev` reste **BLOQUÉ** sur cette branche (dérive inter-guilde `20260819000000` appliquée en DB
 > locale mais absente des migrations de cette branche) → **toute nouvelle migration = SQL manuel + `prisma migrate
 > deploy`** (jamais de `migrate reset`, perte de données).
@@ -74,6 +79,12 @@
 >   supprimer les widgets inutilisés `DashboardNews` / `LadderPreview` / `TopActivityWidget` (#51).
 > - Migration **`20260820000000_add_force_dark_mode_and_guild_accent_hue`** (`PlatformConfig.forceDarkMode` +
 >   `GuildConfig.accentHue`), appliquée en local via `migrate deploy` + client régénéré + `npm run dev` redémarré.
+> - **Bugfixes UI (b10974a5f)** : **Agenda de Guilde** → `getUpcomingEvents` retourne la **semaine en cours**
+>   (PUBLISHED + COMPLETED, `take: 20`, du LUN au DIM) au lieu de `startDate >= now` (les raids EN COURS type
+>   Krala/Gigalodon ne remontaient pas) ; widget : bandeau 7 jours avec pastilles, liste = semaine complète avec
+>   badges **« En cours »** (vert) / **« Terminé »** (gris, ligne atténuée) / jour à venir, compteur = en cours+à
+>   venir. **Sondages** : libellés de choix passés en `break-words` (fini `truncate`/nowrap → débordement de boîte)
+>   dans `poll-detail` / `poll-card` / `active-polls-widget`.
 > - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **208/208** · build OK.
 
 

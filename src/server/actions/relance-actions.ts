@@ -34,6 +34,81 @@ const RelanceSchema = z.object({
     criteria: z.string().optional(),
 });
 
+const ChannelIdSchema = z.string().refine((v) => /^\d{17,20}$/.test(v), "ID de salon Discord invalide");
+
+/**
+ * #104 — Configuration du canal de relance de la guilde (préconfiguré par l'admin).
+ * Le canal est défini une fois dans Admin > Paramètres, puis utilisé par la modale
+ * « Relancer » (plus de choix du canal à la volée → moins d'erreurs de diffusion).
+ */
+export async function getRelanceConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { relanceChannelId: string | null; guildName: string } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { relanceChannelId: true, name: true }
+        });
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return { success: true, data: { relanceChannelId: config.relanceChannelId ?? null, guildName: config.name } };
+    } catch (error) {
+        logger.error("Get Relance Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * #104 — Définit le canal Discord de diffusion des relances (ping canal).
+ * Sécurité : l'ID est validé (snowflake) ET appartient au serveur de la guilde.
+ */
+export async function updateRelanceChannel(guildId: string, channelId: string | null): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Permission Administrateur requise" };
+
+    if (channelId) {
+        const parsed = ChannelIdSchema.safeParse(channelId);
+        if (!parsed.success) return { success: false, error: "ID de salon Discord invalide" };
+
+        const { validateChannelBelongsToGuild } = await import("@/server/discord");
+        const belongs = await validateChannelBelongsToGuild(channelId, guildId);
+        if (!belongs) return { success: false, error: "Le salon sélectionné n'appartient pas à ce serveur Discord." };
+    }
+
+    try {
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { relanceChannelId: channelId }
+        });
+
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Admin",
+            action: "CONFIG_UPDATED",
+            targetType: "GUILD",
+            targetId: guildId,
+            newValue: { relanceChannelId: channelId }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Relance Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 /**
  * Get potential candidates for a relance
  */
@@ -197,6 +272,22 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // #104 — canal de diffusion préconfiguré par l'admin (Paramètres > Relances).
+        // L'UI n'envoie plus de canal à la volée : on lit la config guilde en fallback.
+        // Sécurité : l'ID est re-vérifié comme appartenant au serveur Discord de la guilde.
+        let resolvedChannelId = channelId;
+        if (type === "CHANNEL" || type === "BULK") {
+            if (!resolvedChannelId) resolvedChannelId = guildConfig.relanceChannelId ?? undefined;
+            if (!resolvedChannelId) {
+                return { success: false, error: "Aucun canal de relance configuré. Définissez-le dans Admin > Paramètres > Relances." };
+            }
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const belongs = await validateChannelBelongsToGuild(resolvedChannelId, guildId);
+            if (!belongs) {
+                return { success: false, error: "Le canal de relance configuré n'appartient pas à ce serveur Discord." };
+            }
+        }
+
         const results = {
             sent: 0,
             failed: 0,
@@ -215,10 +306,10 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
                 if (msgId) results.sent++; else results.failed++;
             }
         } else if (type === "CHANNEL") {
-            if (!channelId) return { success: false, error: "Salon requis for ce type de relance" };
+            if (!resolvedChannelId) return { success: false, error: "Salon requis pour ce type de relance" };
             
             const mentions = targetUserIds.map(id => `<@${id}>`).join(" ");
-            const msgId = await sendChannelMessage(channelId, `Bonjour ${mentions} !`, {
+            const msgId = await sendChannelMessage(resolvedChannelId, `Bonjour ${mentions} !`, {
                 embedTitle: "🔔 Rappel de Guilde",
                 embedDescription: message,
                 embedColor: 0xffa500,
@@ -226,9 +317,9 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
             });
             if (msgId) results.sent = targetUserIds.length; else results.failed = targetUserIds.length;
         } else if (type === "BULK") {
-            if (!channelId) return { success: false, error: "Salon requis" };
+            if (!resolvedChannelId) return { success: false, error: "Salon requis" };
             const mentions = targetUserIds.map(id => `<@${id}>`).join(" ");
-            const msgId = await sendChannelMessage(channelId, `⚠️ **RELANCE GÉNÉRALE**\nBonjour ${mentions} !`, {
+            const msgId = await sendChannelMessage(resolvedChannelId, `⚠️ **RELANCE GÉNÉRALE**\nBonjour ${mentions} !`, {
                 embedTitle: "🎯 Objectifs de Guilde",
                 embedDescription: message,
                 embedColor: 0xef4444, // Red

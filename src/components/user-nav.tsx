@@ -1,7 +1,8 @@
 "use client";
 
 import { LogOut, User, Sparkles } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -36,7 +37,7 @@ export function UserNav({ user }: { user: UserContext }) {
             <DropdownMenuTrigger asChild>
                 <Button id="user-nav-trigger" variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-primary/20 hover:ring-primary/50 transition-all">
                     <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.image} alt={user.name} />
+                        <DiscordAvatarImage src={user.image} alt={user.name} />
                         <AvatarFallback>{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                 </Button>

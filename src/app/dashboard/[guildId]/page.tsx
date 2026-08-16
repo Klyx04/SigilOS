@@ -12,6 +12,8 @@ import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
+import { hasFilledAvailability } from "@/lib/dofus-assets";
 import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
@@ -29,6 +31,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
+import { AvailabilityReminderPopup } from "@/components/dashboard/availability-reminder-popup";
 
 export default async function DashboardPage({
     params,
@@ -73,6 +76,7 @@ export default async function DashboardPage({
         calendarResult,
         pollsResult,
         activeRaid,
+        availabilityModuleEnabled,
     ] = await Promise.all([
         getActivePresence(guildId, 50),
         getUserProfile(guildId),
@@ -85,6 +89,7 @@ export default async function DashboardPage({
         getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
         user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
         getActiveRaid(guildId).catch(() => null),
+        isModuleEnabled(guildId, "availability"),
     ]);
 
     // Derived Data
@@ -95,6 +100,15 @@ export default async function DashboardPage({
     const upcomingEvents = calendarResult.success ? calendarResult.events : [];
     const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
     const hasRaidNow = !!activeRaid;
+
+    // Module Disponibilités — rappel hebdomadaire doux.
+    // JAMAIS si : onboarding en cours, module inactif, pas de permission, ou semaine déjà remplie.
+    const showAvailabilityReminder =
+        user.isOnboardingComplete &&
+        availabilityModuleEnabled &&
+        !!user.canViewAvailability &&
+        !!profile &&
+        !hasFilledAvailability((profile as any).availability);
 
     // Quick Stats Data
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
@@ -270,6 +284,9 @@ export default async function DashboardPage({
                 </div>
 
             </div>
+
+            {/* #Module Disponibilités — popup hebdo (1x/semaine si non rempli) */}
+            <AvailabilityReminderPopup guildId={guildId} enabled={showAvailabilityReminder} />
         </div>
     );
 }

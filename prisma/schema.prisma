@@ -490,6 +490,7 @@ model GuildModules {
   ladderSync       Boolean     @default(false)
   minigames        Boolean     @default(true)
   manualLadderSync Boolean     @default(true)
+  availability     Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 

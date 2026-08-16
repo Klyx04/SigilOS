@@ -16,7 +16,7 @@ export function ProfileTourReplayButton() {
             variant="outline"
             size="sm"
             onClick={() => startTour("profile")}
-            className="border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 hover:text-orange-300 text-orange-300 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all gap-2"
+            className="border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 hover:text-orange-300 text-orange-300 text-caption font-black uppercase tracking-widest rounded-xl transition-all gap-2"
         >
             <CircleHelp className="w-4 h-4 text-orange-400" />
             Tutoriel

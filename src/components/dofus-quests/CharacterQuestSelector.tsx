@@ -56,7 +56,7 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
 
     return (
         <div className="flex flex-col gap-1.5">
-            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">
+            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest ml-1">
                 Personnage Actif
             </span>
             <DropdownMenu>
@@ -95,7 +95,7 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
                         </div>
                         <div className="flex flex-col text-left">
                             <span className="text-xs font-bold">{mainCharacter.pseudo}</span>
-                            <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-widest">{mainCharacter.classe || "Principal"}</span>
+                            <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{mainCharacter.classe || "Principal"}</span>
                         </div>
                     </DropdownMenuItem>
                     
@@ -116,7 +116,7 @@ export function CharacterQuestSelector({ mainCharacter, mules }: CharacterQuestS
                             </div>
                             <div className="flex flex-col text-left">
                                 <span className="text-xs font-bold">{mule.pseudo}</span>
-                                <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-widest">
+                                <span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">
                                     Niv. {mule.level || 200} {mule.classe ? `• ${mule.classe}` : ""}
                                 </span>
                             </div>

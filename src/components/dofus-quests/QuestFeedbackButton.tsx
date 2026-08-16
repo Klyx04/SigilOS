@@ -72,8 +72,8 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                     ? `group inline-flex items-center gap-1.5 ${className}`
                     : `group inline-flex items-center gap-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 ring-1 ring-inset ring-rose-400/60 transition-all ${
                         compact
-                            ? "px-3 py-2 text-[10px] bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
-                            : "px-4 py-2.5 text-xs bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
+                            ? "px-3 py-2 text-caption bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 "
+                            : "px-4 py-2.5 text-xs bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 "
                     }`}
                 title="Signaler un bug, proposer une amélioration ou un ajout"
             >
@@ -122,7 +122,7 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
 
                         {/* Description */}
                         <div className="space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-zinc-500">
+                            <label className="text-caption font-black uppercase tracking-widest text-zinc-500">
                                 Description
                             </label>
                             <Textarea
@@ -131,7 +131,7 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                                 placeholder="Explique brièvement ton problème ou ton idée…"
                                 className="bg-zinc-900/50 border-white/10 text-zinc-200 placeholder:text-zinc-600 min-h-[110px] resize-none focus-visible:ring-1 focus-visible:ring-indigo-500/50"
                             />
-                            <p className="text-[10px] text-zinc-600 text-right">{description.length}/2000</p>
+                            <p className="text-caption text-zinc-600 text-right">{description.length}/2000</p>
                         </div>
                     </div>
 
@@ -139,7 +139,7 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                         <Button type="button" variant="ghost" onClick={close} disabled={isPending} className="text-zinc-400 hover:text-white hover:bg-white/5">
                             Annuler
                         </Button>
-                        <Button onClick={handleSubmit} disabled={isPending || !selectedType || !description.trim()} className="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-7 shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all">
+                        <Button onClick={handleSubmit} disabled={isPending || !selectedType || !description.trim()} className="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-7  transition-all">
                             <Send className="w-3.5 h-3.5 mr-2" />
                             {isPending ? "Envoi…" : "Envoyer"}
                         </Button>

@@ -72,7 +72,7 @@ export function PermissionCard({
                         </h3>
                         {details.sensitive && (
                             <span
-                                className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wide border"
+                                className="px-2 py-0.5 rounded-md text-caption font-bold uppercase tracking-wide border"
                                 style={{
                                     color: moduleColor,
                                     borderColor: `${moduleColor}50`,

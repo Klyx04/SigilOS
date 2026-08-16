@@ -79,14 +79,14 @@ export function AvailabilityPreview({ guildId }: AvailabilityPreviewProps) {
 
     return (
         <div className="rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2.5 space-y-2">
-            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-zinc-500">
                 <Clock className="h-3 w-3" />
                 Dispos du profil (semaine courante)
             </div>
             <div className="flex flex-wrap gap-y-1.5 gap-x-4">
                 {activeDays.map((jour) => (
                     <div key={jour} className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-black text-zinc-400 w-7">{JOUR_COURTS[jour]}</span>
+                        <span className="text-caption font-black text-zinc-400 w-7">{JOUR_COURTS[jour]}</span>
                         <div className="flex gap-1 flex-wrap">
                             {(map![jour] || []).map((slot) => {
                                 const style = SLOT_STYLE[slot] || {
@@ -97,7 +97,7 @@ export function AvailabilityPreview({ guildId }: AvailabilityPreviewProps) {
                                 return (
                                     <span
                                         key={slot}
-                                        className={`text-[9px] px-1.5 py-0.5 rounded border font-bold whitespace-nowrap ${style.pill}`}
+                                        className={`text-caption px-1.5 py-0.5 rounded border font-bold whitespace-nowrap ${style.pill}`}
                                     >
                                         {style.emoji} {style.label}
                                     </span>

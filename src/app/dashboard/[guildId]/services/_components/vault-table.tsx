@@ -105,7 +105,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                         <p className={`text-3xl font-black mt-1 tracking-tight ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                                             {isPositive ? "+" : ""}{formatQty(item.balance)}
                                         </p>
-                                        <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500">
+                                        <div className="flex items-center gap-3 mt-2 text-caption text-zinc-500">
                                             <span className="flex items-center gap-1">
                                                 <TrendingDown className="h-3 w-3 text-emerald-500" />
                                                 {formatQty(item.totalDeposited)} déposés
@@ -134,7 +134,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             <button
                                 key={f}
                                 onClick={() => setActionFilter(f)}
-                                className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-colors ${actionFilter === f
+                                className={`flex items-center gap-1.5 text-caption font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-colors ${actionFilter === f
                                     ? f === "ALL"
                                         ? "border-zinc-500/60 bg-zinc-500/20 text-zinc-300"
                                         : f === "DEPOSIT"
@@ -153,7 +153,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                         {/* Tri date */}
                         <button
                             onClick={() => setSortOrder(o => o === "desc" ? "asc" : "desc")}
-                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-300"
+                            className="flex items-center gap-2 text-caption font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-300"
                         >
                             {sortOrder === "desc" ? <ArrowDown className="h-3.5 w-3.5 text-cyan-400" /> : <ArrowUp className="h-3.5 w-3.5 text-cyan-400" />}
                             {sortOrder === "desc" ? "Plus récent" : "Plus ancien"}
@@ -215,7 +215,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             </span>
                                             <Badge
                                                 variant="outline"
-                                                className={`text-[9px] px-1.5 py-0 border font-black ${isDeposit
+                                                className={`text-caption px-1.5 py-0 border font-black ${isDeposit
                                                     ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5"
                                                     : "border-orange-500/30 text-orange-400 bg-orange-500/5"
                                                     }`}
@@ -226,13 +226,13 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                         <div className="flex items-center gap-2 mt-1">
                                             <Avatar className="h-4 w-4 rounded">
                                                 <AvatarImage src={entry.profile.user?.image || undefined} />
-                                                <AvatarFallback className="text-[7px] bg-zinc-800">
+                                                <AvatarFallback className="text-caption bg-zinc-800">
                                                     {name.slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <span className="text-xs text-zinc-400 font-medium">{name}</span>
-                                            <span className="text-[10px] text-zinc-600">·</span>
-                                            <span className="text-[10px] text-zinc-600">
+                                            <span className="text-caption text-zinc-600">·</span>
+                                            <span className="text-caption text-zinc-600">
                                                 {new Date(entry.createdAt).toLocaleDateString("fr-FR", {
                                                     day: "numeric",
                                                     month: "short",
@@ -242,7 +242,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             </span>
                                         </div>
                                         {entry.description && (
-                                            <p className="text-[10px] text-zinc-500 mt-0.5 truncate">{entry.description}</p>
+                                            <p className="text-caption text-zinc-500 mt-0.5 truncate">{entry.description}</p>
                                         )}
                                     </div>
 
@@ -253,11 +253,11 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             title="Voir la preuve"
-                                            className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-white/15 hover:border-white/40 hover:scale-105 transition-all shadow-lg opacity-90 hover:opacity-100"
+                                            className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-white/15 hover:border-white/40  transition-all shadow-lg opacity-90 hover:opacity-100"
                                         >
                                             <img src={entry.proofUrl} alt="Preuve" className="absolute inset-0 w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-end justify-center pb-1">
-                                                <span className="text-[9px] text-white/0 hover:text-white/80 font-bold bg-black/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-caption text-white/0 hover:text-white/80 font-bold bg-black/40 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                                                     ↗ Ouvrir
                                                 </span>
                                             </div>

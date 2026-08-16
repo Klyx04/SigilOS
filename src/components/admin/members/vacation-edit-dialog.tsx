@@ -101,7 +101,7 @@ export function VacationEditDialog({
                     <Button 
                         variant="ghost" 
                         onClick={() => onOpenChange(false)}
-                        className="font-bold text-zinc-500 hover:text-white uppercase text-[10px] tracking-widest"
+                        className="font-bold text-zinc-500 hover:text-white uppercase text-caption tracking-widest"
                     >
                         Fermer
                     </Button>

@@ -68,7 +68,7 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                 <Button variant="ghost" size="icon" className={cn("relative text-zinc-400 hover:text-white transition-colors", className)}>
                     <Rss className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-caption font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300 ">
                             {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                     )}
@@ -84,7 +84,7 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 transition-all"
+                        className="h-7 px-2 text-caption font-black uppercase tracking-widest text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 transition-all"
                         onClick={async (e) => { 
                             e.stopPropagation(); 
                             await fetchFeed(true); 
@@ -138,12 +138,12 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                                     <div className="space-y-1 overflow-hidden">
                                         <div className="flex items-center gap-1.5">
                                             {getIcon(n.type)}
-                                            <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 group-hover:text-zinc-300 transition-colors">
+                                            <span className="text-caption uppercase font-black tracking-widest text-zinc-400 group-hover:text-zinc-300 transition-colors">
                                                 {n.creatorId}
                                             </span>
                                         </div>
                                         <p className="text-sm font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors">{n.title}</p>
-                                        <p className="text-[10px] text-zinc-600 font-mono pt-1">
+                                        <p className="text-caption text-zinc-600 font-mono pt-1">
                                             {new Date(n.published).toLocaleDateString()} à {new Date(n.published).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
@@ -154,7 +154,7 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                     )}
                 </ScrollArea>
                 <div className="p-2 border-t border-white/5 bg-white/5">
-                    <Button variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest h-10 hover:bg-white/5 hover:text-white transition-all" asChild>
+                    <Button variant="ghost" size="sm" className="w-full text-caption font-black uppercase tracking-widest h-10 hover:bg-white/5 hover:text-white transition-all" asChild>
                         <Link href={`/dashboard/${guildId}/ressources`}>
                             Ouvrir le module Ressources
                         </Link>

@@ -124,7 +124,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                         key={pool}
                                         onClick={() => handlePoolChange(pool)}
                                         className={cn(
-                                            "flex items-center gap-2 px-4 py-1.5 text-[10px] font-black rounded-full transition-all uppercase tracking-widest",
+                                            "flex items-center gap-2 px-4 py-1.5 text-caption font-black rounded-full transition-all uppercase tracking-widest",
                                             isActive
                                                 ? pool === 'CLASSIQUES'
                                                     ? "bg-indigo-500 text-white shadow-lg"
@@ -151,7 +151,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                                 key={f.value}
                                                 onClick={() => setSelectedCategory(f.value)}
                                                 className={cn(
-                                                    "px-3 py-1.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-wider",
+                                                    "px-3 py-1.5 text-caption font-bold rounded-full transition-all uppercase tracking-wider",
                                                     isActive ? "bg-zinc-100 text-zinc-950 shadow-md" : "text-zinc-500 hover:text-white"
                                                 )}
                                             >
@@ -171,7 +171,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             size="sm"
                             onClick={() => setShowFilters(!showFilters)}
                             className={cn(
-                                "h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-widest transition-all",
+                                "h-9 rounded-full px-4 text-caption font-black uppercase tracking-widest transition-all",
                                 (showFilters || activeCategoryCount > 0)
                                     ? "bg-white/10 text-white border-white/20"
                                     : "bg-transparent text-zinc-400 border-white/5"
@@ -180,7 +180,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             <Filter className={cn("w-3.5 h-3.5 mr-2", activeCategoryCount > 0 && "text-emerald-400 animate-pulse")} />
                             Catégories
                             {activeCategoryCount > 0 && (
-                                <span className="ml-2 w-4 h-4 rounded-full bg-emerald-500 text-black text-[9px] flex items-center justify-center">
+                                <span className="ml-2 w-4 h-4 rounded-full bg-emerald-500 text-black text-caption flex items-center justify-center">
                                     {activeCategoryCount}
                                 </span>
                             )}
@@ -212,7 +212,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                         key={f.value}
                                         onClick={() => setSelectedCategory(isActive ? 'ALL' : f.value)}
                                         className={cn(
-                                            "group flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all",
+                                            "group flex items-center gap-2 px-3 py-1.5 text-caption font-bold rounded-lg border transition-all",
                                             isActive
                                                 ? cn(style.bg, style.border, style.text, "ring-1 ring-white/10")
                                                 : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white"

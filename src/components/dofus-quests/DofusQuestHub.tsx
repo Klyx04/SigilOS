@@ -184,7 +184,7 @@ export function DofusQuestHub({
                         onClick={() => handleTabChange("menu")}
                         className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-zinc-900/90 hover:border-emerald-500/60 hover:from-emerald-500/20 text-xs font-black uppercase tracking-[0.18em] text-emerald-200 hover:text-white transition-all shadow-lg shadow-black/30 group backdrop-blur-md cursor-pointer"
                     >
-                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group- transition-transform">
                             <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
                         </div>
                         <span>Retour au menu Quêtes</span>
@@ -220,12 +220,12 @@ export function DofusQuestHub({
                                         <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-full h-full object-contain" />
                                     </div>
                                     {rushSylvestreGuide?.isUnderConstruction && (
-                                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-[9px] font-black text-amber-400 uppercase tracking-widest z-10">
+                                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-black text-amber-400 uppercase tracking-widest z-10">
                                             <Construction className="w-2.5 h-2.5" /> En construction
                                         </div>
                                     )}
                                     <div className="space-y-4">
-                                        <div className="p-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 w-fit group-hover:scale-110 transition-transform duration-500">
+                                        <div className="p-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 w-fit group- transition-transform duration-300">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-10 h-10 object-contain" />
                                         </div>
@@ -234,7 +234,7 @@ export function DofusQuestHub({
                                                 <h3 className="text-lg font-black text-white italic uppercase tracking-wider">
                                                     Rush Sylvestre
                                                 </h3>
-                                                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest">NEW</span>
+                                                <span className="text-caption font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest">NEW</span>
                                             </div>
                                             <p className="text-xs font-semibold text-zinc-400 leading-relaxed">
                                                 Rush Sylvestre communautaire — suis ta progression étape par étape et coordonne-toi avec ta guilde.
@@ -246,7 +246,7 @@ export function DofusQuestHub({
                                             <span className="text-zinc-500">Mode :</span>
                                             <span className="text-emerald-400 font-black italic">Collaboratif</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-400 pt-2">
+                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-emerald-400 pt-2">
                                             Démarrer le Rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
                                         </div>
                                     </div>
@@ -264,7 +264,7 @@ export function DofusQuestHub({
                                         <img src="/assets/icons/ganymede.webp" alt="" className="w-full h-full object-contain" />
                                     </div>
                                     <div className="space-y-4">
-                                        <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 w-fit group-hover:scale-110 transition-transform duration-500">
+                                        <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 w-fit group- transition-transform duration-300">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src="/assets/icons/ganymede.webp" alt="Ganymède" className="w-10 h-10 object-contain" />
                                         </div>
@@ -282,7 +282,7 @@ export function DofusQuestHub({
                                             <span className="text-zinc-500">Guides disponibles :</span>
                                             <span className="text-indigo-400 font-black italic">{guides.length}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-400 pt-2">
+                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-indigo-400 pt-2">
                                             Consulter les Guides <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
                                         </div>
                                     </div>
@@ -298,7 +298,7 @@ export function DofusQuestHub({
                                         <div className="flex items-center gap-1.5">
                                             {["/assets/icons/ocre.png", "/module-dofus/Dofus_Turquoise.png", "/module-dofus/Dofus_Emeraude.png", "/module-dofus/Dofus_Pourpre.png", "/module-dofus/Dofus_Ebene.png"].map((url, i) => (
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                <img key={i} src={url} alt="" className="w-8 h-8 object-contain drop-shadow-md group-hover:scale-110 transition-transform" style={{ transitionDelay: `${i * 40}ms` }} />
+                                                <img key={i} src={url} alt="" className="w-8 h-8 object-contain drop-shadow-md group- transition-transform" style={{ transitionDelay: `${i * 40}ms` }} />
                                             ))}
                                             <span className="text-zinc-600 text-xs font-black ml-1">+{Math.max(0, totalNormalDofus - 5)}</span>
                                         </div>
@@ -317,9 +317,9 @@ export function DofusQuestHub({
                                             <span className="text-violet-400 font-black italic">{obtainedNormalDofus} / {totalNormalDofus} Dofus</span>
                                         </div>
                                         <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
-                                            <div className="bg-violet-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (obtainedNormalDofus / Math.max(1, totalNormalDofus)) * 100)}%` }} />
+                                            <div className="bg-violet-500 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (obtainedNormalDofus / Math.max(1, totalNormalDofus)) * 100)}%` }} />
                                         </div>
-                                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-violet-400 pt-2">
+                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-violet-400 pt-2">
                                             Accéder au Suivi <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
                                         </div>
                                     </div>
@@ -339,7 +339,7 @@ export function DofusQuestHub({
                                                     {guildStats.topMembers.slice(0, 6).map((m: any, i: number) => (
                                                         <div
                                                             key={m.profileId || i}
-                                                            className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-rose-900/60 flex items-center justify-center overflow-hidden ring-1 ring-rose-500/20 group-hover:scale-105 transition-transform"
+                                                            className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-rose-900/60 flex items-center justify-center overflow-hidden ring-1 ring-rose-500/20 group- transition-transform"
                                                             style={{ transitionDelay: `${i * 30}ms`, zIndex: 10 - i }}
                                                             title={m.pseudo || m.userName}
                                                         >
@@ -347,13 +347,13 @@ export function DofusQuestHub({
                                                                 // eslint-disable-next-line @next/next/no-img-element
                                                                 <img src={m.avatarUrl} alt={m.pseudo} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <span className="text-[11px] font-black text-rose-300">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
+                                                                <span className="text-caption font-black text-rose-300">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
                                                             )}
                                                         </div>
                                                     ))}
                                                     {guildStats.totalMembers > 6 && (
                                                         <div className="w-9 h-9 rounded-full border-2 border-zinc-950 bg-zinc-800 flex items-center justify-center ring-1 ring-white/10">
-                                                            <span className="text-[9px] font-black text-zinc-400">+{guildStats.totalMembers - 6}</span>
+                                                            <span className="text-caption font-black text-zinc-400">+{guildStats.totalMembers - 6}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -363,12 +363,12 @@ export function DofusQuestHub({
                                                         <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
                                                             <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, ((guildStats.topMembers[0] as any).dofusObtained || 0) / Math.max(1, totalNormalDofus) * 100)}%` }} />
                                                         </div>
-                                                        <span className="text-[9px] font-black text-rose-400/70">{(guildStats.topMembers[0] as any).pseudo || "Leader"}</span>
+                                                        <span className="text-caption font-black text-rose-400/70">{(guildStats.topMembers[0] as any).pseudo || "Leader"}</span>
                                                     </div>
                                                 )}
                                             </div>
                                         ) : (
-                                            <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 w-fit group-hover:scale-110 transition-transform duration-500">
+                                            <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 w-fit group- transition-transform duration-300">
                                                 <Users className="w-6 h-6 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
                                             </div>
                                         )}
@@ -386,7 +386,7 @@ export function DofusQuestHub({
                                             <span className="text-zinc-500">Membres actifs :</span>
                                             <span className="text-rose-400 font-black italic">{guildStats?.totalMembers || 0}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-rose-400 pt-2">
+                                        <div className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-rose-400 pt-2">
                                             Voir la Guilde <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
                                         </div>
                                     </div>
@@ -425,7 +425,7 @@ export function DofusQuestHub({
                                             <button
                                                 key={f}
                                                 onClick={() => setStatusFilter(f)}
-                                                className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === f ? "bg-zinc-800 text-white shadow-xl shadow-black/60 ring-1 ring-white/10" : "text-zinc-600 hover:text-zinc-400"}`}
+                                                className={`px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest transition-all ${statusFilter === f ? "bg-zinc-800 text-white shadow-xl shadow-black/60 ring-1 ring-white/10" : "text-zinc-600 hover:text-zinc-400"}`}
                                             >
                                                 {f}
                                             </button>
@@ -511,7 +511,7 @@ export function DofusQuestHub({
                                         )}
                                     </div>
                                     <div>
-                                        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-500">Fiche du Membre</span>
+                                        <span className="text-caption font-black uppercase tracking-widest text-zinc-500">Fiche du Membre</span>
                                         <h3 className="text-lg font-black text-white italic uppercase tracking-tight leading-tight">{selectedMember.pseudo}</h3>
                                     </div>
                                 </div>
@@ -524,9 +524,9 @@ export function DofusQuestHub({
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
                                         <Gem className="w-4 h-4 text-emerald-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Progression personnelle des Dofus</span>
+                                        <span className="text-caption font-black uppercase tracking-[0.2em] text-zinc-400">Progression personnelle des Dofus</span>
                                     </div>
-                                    <p className="text-[9px] text-zinc-600 mb-3">Progression de <span className="text-zinc-300 font-bold">{selectedMember?.pseudo}</span> — obtenus en premier, puis par avancement.</p>
+                                    <p className="text-caption text-zinc-600 mb-3">Progression de <span className="text-zinc-300 font-bold">{selectedMember?.pseudo}</span> — obtenus en premier, puis par avancement.</p>
                                     <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                                         {ficheDofusList.map(({ dofus, isObtained, percent }) => {
                                             const color = dofus.color || "#6366f1";
@@ -543,16 +543,16 @@ export function DofusQuestHub({
                                                             <div className="w-6 h-6 rounded-full" style={{ background: color }} />
                                                         )}
                                                     </div>
-                                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-1">{dofus.nameShort}</span>
+                                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-1">{dofus.nameShort}</span>
                                                     {isObtained ? (
-                                                        <span className="text-[7px] font-black text-emerald-400 uppercase tracking-wider">Obtenu</span>
+                                                        <span className="text-caption font-black text-emerald-400 uppercase tracking-wider">Obtenu</span>
                                                     ) : percent > 0 ? (
-                                                        <span className="text-[7px] font-black text-indigo-300 uppercase tracking-wider">{percent}%</span>
+                                                        <span className="text-caption font-black text-indigo-300 uppercase tracking-wider">{percent}%</span>
                                                     ) : (
-                                                        <span className="text-[7px] font-black text-zinc-700 uppercase tracking-wider">À faire</span>
+                                                        <span className="text-caption font-black text-zinc-700 uppercase tracking-wider">À faire</span>
                                                     )}
                                                     {isObtained && (
-                                                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.5)]">
+                                                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center ">
                                                             <CheckCircle2 className="w-2.5 h-2.5 text-white" />
                                                         </div>
                                                     )}
@@ -570,7 +570,7 @@ export function DofusQuestHub({
                                 <div>
                                     <div className="flex items-center gap-2 mb-3">
                                         <BookOpen className="w-4 h-4 text-indigo-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Progression personnelle des guides</span>
+                                        <span className="text-caption font-black uppercase tracking-[0.2em] text-zinc-400">Progression personnelle des guides</span>
                                     </div>
                                     {isMemberLoading ? (
                                         <div className="flex items-center justify-center py-8">
@@ -578,7 +578,7 @@ export function DofusQuestHub({
                                         </div>
                                     ) : memberGuideProgress.length === 0 ? (
                                         <div className="py-8 text-center">
-                                            <p className="text-zinc-600 font-black uppercase text-[9px] tracking-widest">Aucune progression de guide enregistrée</p>
+                                            <p className="text-zinc-600 font-black uppercase text-caption tracking-widest">Aucune progression de guide enregistrée</p>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col gap-3">
@@ -597,14 +597,14 @@ export function DofusQuestHub({
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center justify-between mb-1.5">
                                                                 <div className="flex items-center gap-1.5 min-w-0">
-                                                                    <span className="text-[10px] font-black text-white uppercase tracking-wider truncate">{gp.guideName}</span>
+                                                                    <span className="text-caption font-black text-white uppercase tracking-wider truncate">{gp.guideName}</span>
                                                                     {gp.guideSlug && (
                                                                         <Link href={`/dashboard/${guildId}/quetes-dofus/guide/${gp.guideSlug}`} target="_blank" className="text-indigo-400 hover:text-indigo-200 transition-colors flex-shrink-0" title="Ouvrir le guide">
                                                                             <ExternalLink className="w-3 h-3" />
                                                                         </Link>
                                                                     )}
                                                                 </div>
-                                                                <span className="text-[10px] font-black italic ml-2 flex-shrink-0" style={{ color }}>{gp.percent}%</span>
+                                                                <span className="text-caption font-black italic ml-2 flex-shrink-0" style={{ color }}>{gp.percent}%</span>
                                                             </div>
                                                             <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                                                                 <div className="h-full rounded-full" style={{ width: `${gp.percent}%`, background: `linear-gradient(90deg, ${color}, ${color}99)` }} />
@@ -612,18 +612,18 @@ export function DofusQuestHub({
                                                             {gp.activeMilestone && (
                                                                 <div className="flex items-center gap-1 mt-1.5">
                                                                     <div className="w-1 h-1 rounded-full bg-indigo-400 flex-shrink-0" />
-                                                                    <span className="text-[9px] font-bold text-zinc-500 truncate">En cours : {gp.activeMilestone.title}</span>
+                                                                    <span className="text-caption font-bold text-zinc-500 truncate">En cours : {gp.activeMilestone.title}</span>
                                                                 </div>
                                                             )}
                                                             {!gp.activeMilestone && gp.total > 0 && (
                                                                 <div className="flex items-center gap-1 mt-1.5">
                                                                     <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
-                                                                    <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider">Guide Terminé</span>
+                                                                    <span className="text-caption font-black text-emerald-400 uppercase tracking-wider">Guide Terminé</span>
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <div className="text-right flex-shrink-0">
-                                                            <span className="text-[9px] font-black text-white/40">{gp.completed}<span className="text-white/20">/{gp.total}</span></span>
+                                                            <span className="text-caption font-black text-white/40">{gp.completed}<span className="text-white/20">/{gp.total}</span></span>
                                                         </div>
                                                     </div>
                                                 );

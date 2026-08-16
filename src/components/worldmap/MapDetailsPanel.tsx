@@ -125,7 +125,7 @@ export default function MapDetailsPanel({
                                 <MapPin size={isMaximized ? 24 : 20} />
                             </div>
                             <div className="min-w-0 pr-2">
-                                <h3 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-1 truncate">Renseignement Satellite</h3>
+                                <h3 className="text-caption font-black uppercase tracking-widest text-white/30 mb-1 truncate">Renseignement Satellite</h3>
                                 <h2 className={cn(
                                     "font-black text-white uppercase italic tracking-tighter leading-tight truncate transition-all",
                                     isMaximized ? "text-xl" : "text-sm"
@@ -136,7 +136,7 @@ export default function MapDetailsPanel({
                             {isMaximized && (
                                 <div className="ml-4 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 shrink-0">
                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span className="text-[10px] font-black text-emerald-400 italic tracking-widest">
+                                    <span className="text-caption font-black text-emerald-400 italic tracking-widest">
                                         [ {position.x}, {position.y} ]
                                     </span>
                                 </div>
@@ -161,7 +161,7 @@ export default function MapDetailsPanel({
                                                 key={layer.id}
                                                 onClick={(e) => { e.stopPropagation(); onSelectMap?.(layer); }}
                                                 className={cn(
-                                                    "h-8 px-4 rounded-xl flex items-center justify-center transition-all border text-[10px] font-black uppercase italic cursor-pointer whitespace-nowrap",
+                                                    "h-8 px-4 rounded-xl flex items-center justify-center transition-all border text-caption font-black uppercase italic cursor-pointer whitespace-nowrap",
                                                     isActive 
                                                         ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg' 
                                                         : 'bg-transparent text-white/40 border-transparent hover:bg-white/10 hover:text-white'
@@ -181,14 +181,14 @@ export default function MapDetailsPanel({
                                         setIsMaximized(!isMaximized);
                                         handleReset();
                                     }}
-                                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 transition-all hover:scale-105 active:scale-95 shadow-xl"
+                                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 transition-all  active:scale-95 shadow-xl"
                                 >
                                     {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                                 </button>
                                 <button
                                     onPointerDown={e => e.stopPropagation()}
                                     onClick={onClose}
-                                    className="p-2.5 rounded-xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all"
+                                    className="p-2.5 rounded-xl bg-rose-500 text-white shadow-lg shadow-rose-500/20  active:scale-95 transition-all"
                                 >
                                     <X size={16} />
                                 </button>
@@ -209,7 +209,7 @@ export default function MapDetailsPanel({
                                             key={layer.id}
                                             onClick={(e) => { e.stopPropagation(); onSelectMap?.(layer); }}
                                             className={cn(
-                                                "h-7 px-3 rounded-lg flex items-center justify-center transition-all border text-[9px] font-black uppercase italic cursor-pointer whitespace-nowrap",
+                                                "h-7 px-3 rounded-lg flex items-center justify-center transition-all border text-caption font-black uppercase italic cursor-pointer whitespace-nowrap",
                                                 isActive 
                                                     ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg' 
                                                     : 'bg-transparent text-white/40 border-transparent hover:bg-white/10 hover:text-white'
@@ -243,7 +243,7 @@ export default function MapDetailsPanel({
                                         src={hdMapUrl}
                                         alt="HD Preview"
                                         className={cn(
-                                            "max-w-full max-h-full object-contain pointer-events-none transition-all duration-700",
+                                            "max-w-full max-h-full object-contain pointer-events-none transition-all duration-300",
                                             isMaximized && "shadow-2xl ring-1 ring-white/5"
                                         )}
                                         onError={(e) => {
@@ -254,7 +254,7 @@ export default function MapDetailsPanel({
                             ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center gap-4 opacity-20">
                                     <Swords size={48} className="text-white" />
-                                    <span className="text-white font-black uppercase text-[10px] italic tracking-widest text-center leading-loose">
+                                    <span className="text-white font-black uppercase text-caption italic tracking-widest text-center leading-loose">
                                         Visualisation Satellite<br/>indisponible
                                     </span>
                                 </div>
@@ -270,14 +270,14 @@ export default function MapDetailsPanel({
                                 <button 
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
-                                    className="w-12 h-12 rounded-2xl bg-slate-950 border border-white/20 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all cursor-pointer"
+                                    className="w-12 h-12 rounded-2xl bg-slate-950 border border-white/20 text-white flex items-center justify-center shadow-2xl  active:scale-90 transition-all cursor-pointer"
                                 >
                                     <Plus size={20} />
                                 </button>
                                 <button 
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
-                                    className="w-12 h-12 rounded-2xl bg-slate-950 border border-white/20 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all cursor-pointer"
+                                    className="w-12 h-12 rounded-2xl bg-slate-950 border border-white/20 text-white flex items-center justify-center shadow-2xl  active:scale-90 transition-all cursor-pointer"
                                 >
                                     <Minus size={20} />
                                 </button>
@@ -296,7 +296,7 @@ export default function MapDetailsPanel({
                 )}>
                     <div className="flex items-center gap-3 pointer-events-auto">
                         <div className="px-5 py-3 rounded-2xl bg-black border border-white/20 text-emerald-400 font-mono text-sm font-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-3">
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse " />
                             <span className="tracking-tight">[{position.displayX}, {position.displayY}]</span>
                         </div>
                         
@@ -307,7 +307,7 @@ export default function MapDetailsPanel({
                                 e.stopPropagation();
                                 onOpenZoneDetails?.();
                             }}
-                            className="px-10 py-3 rounded-2xl bg-amber-500 text-black font-black text-xs uppercase italic shadow-[0_20px_50px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer relative z-10"
+                            className="px-10 py-3 rounded-2xl bg-amber-500 text-black font-black text-xs uppercase italic shadow-[0_20px_50px_rgba(245,158,11,0.3)]  active:scale-95 transition-all flex items-center gap-2 cursor-pointer relative z-10"
                         >
                             <Layers size={16} /> 
                             Analyser
@@ -331,7 +331,7 @@ export default function MapDetailsPanel({
                         <div className="flex items-center gap-4 opacity-20">
                             <div className="flex items-center gap-2">
                                 <div className="w-1 h-1 rounded-full bg-white" />
-                                <span className="text-[7px] font-black uppercase tracking-[0.3em]">Live Feed</span>
+                                <span className="text-caption font-black uppercase tracking-widest">Live Feed</span>
                             </div>
                         </div>
                     </div>

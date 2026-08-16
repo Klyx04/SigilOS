@@ -28,10 +28,10 @@ export function ProofThumbnail({ src, alt = "Preuve", size = "sm" }: ProofThumbn
                 <img
                     src={src}
                     alt={alt}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform"
+                    className="absolute inset-0 w-full h-full object-cover group- transition-transform"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <span className="text-white opacity-0 group-hover:opacity-100 text-[10px] font-bold">🔍</span>
+                    <span className="text-white opacity-0 group-hover:opacity-100 text-caption font-bold">🔍</span>
                 </div>
             </button>
 

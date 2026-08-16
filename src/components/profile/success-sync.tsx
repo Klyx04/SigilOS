@@ -114,21 +114,21 @@ export function SuccessSync({
             <CardContent className="space-y-4">
                 {/* Ladder Sync Button (if enabled) */}
                 {!readOnly && canSyncLadder && (
-                    <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                    <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <Button
                             onClick={handleLadderSync}
                             disabled={isSyncing || !pseudoDofus}
-                            className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 disabled:opacity-50 group gap-3"
+                            className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest  transition-all active:scale-95 disabled:opacity-50 group gap-3"
                         >
                             {isSyncing ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
-                                <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                                <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" />
                             )}
                             <span>Synchroniser via Ladder</span>
                         </Button>
                         {!pseudoDofus && (
-                            <p className="text-[10px] text-zinc-500 text-center mt-2 italic font-medium">
+                            <p className="text-caption text-zinc-500 text-center mt-2 italic font-medium">
                                 Le pseudo Dofus est requis pour la synchronisation automatique.
                             </p>
                         )}
@@ -154,7 +154,7 @@ export function SuccessSync({
                                     <div className="flex flex-col gap-0.5">
                                         <div className="flex items-center gap-2.5">
                                             <span className="text-base font-bold text-white tracking-tight">Lien Ladder Officiel</span>
-                                            <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-[11px] font-black text-zinc-300 border border-white/10 uppercase tracking-wider">
+                                            <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-caption font-black text-zinc-300 border border-white/10 uppercase tracking-wider">
                                                 {serverName}
                                             </span>
                                         </div>
@@ -173,13 +173,13 @@ export function SuccessSync({
                                         </a>
                                     </Button>
                                 ) : (
-                                    <span className="text-[10px] text-white/20 italic">Pseudo requis</span>
+                                    <span className="text-caption text-white/20 italic">Pseudo requis</span>
                                 )}
                             </div>
 
                             {pseudoDofus && (
                                 <div className="px-3 py-2 bg-black/60 rounded-lg border border-white/10 overflow-hidden transition-all hover:border-white/20">
-                                    <p className="text-[11px] text-zinc-400 truncate font-mono select-all leading-none">
+                                    <p className="text-caption text-zinc-400 truncate font-mono select-all leading-none">
                                         {ladderUrl}
                                     </p>
                                 </div>
@@ -196,7 +196,7 @@ export function SuccessSync({
                                         {!readOnly && (
                                             <button
                                                 onClick={() => onTabChange?.('overview')}
-                                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-amber-400 transition-all bg-white/5 hover:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-white/5 hover:border-amber-500/30 shadow-lg"
+                                                className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-zinc-400 hover:text-amber-400 transition-all bg-white/5 hover:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-white/5 hover:border-amber-500/30 shadow-lg"
                                                 title="Modifier l'identité de combat"
                                             >
                                                 <Edit2 className="w-3 h-3" strokeWidth={2.5} />
@@ -212,7 +212,7 @@ export function SuccessSync({
                                     {!loadingPreview && !previewData && previewFetched && (
                                         <div className="h-10 flex flex-col items-center justify-center text-zinc-500">
                                             <span className="text-xs font-medium">Personnage introuvable ou erreur.</span>
-                                            <span className="text-[10px] italic">Vérifiez les majuscules et le serveur.</span>
+                                            <span className="text-caption italic">Vérifiez les majuscules et le serveur.</span>
                                         </div>
                                     )}
                                     {previewData && (() => {
@@ -222,7 +222,7 @@ export function SuccessSync({
                                             <div className="flex items-center gap-3">
                                                 {/* Class Icon */}
                                                 <div className="relative group/icon">
-                                                    <div className="absolute inset-0 bg-white/10 blur-md rounded-full scale-0 group-hover/icon:scale-110 transition-transform duration-500" />
+                                                    <div className="absolute inset-0 bg-white/10 blur-md rounded-full scale-0 group-hover/icon:scale-110 transition-transform duration-300" />
                                                     {dofusClass?.icon ? (
                                                         <img 
                                                             src={dofusClass.icon} 
@@ -241,7 +241,7 @@ export function SuccessSync({
                                                         <span className="text-sm font-black text-amber-50">{pseudoDofus}</span>
                                                     </div>
                                                     <span className={cn(
-                                                        "text-[10px] font-medium transition-colors flex items-center gap-1",
+                                                        "text-caption font-medium transition-colors flex items-center gap-1",
                                                         dofusClass ? "text-amber-400/80" : "text-zinc-500"
                                                     )}>
                                                         {dofusClass?.name || previewData.className || "Classe Inconnue"} • {previewData.level > 200 ? (
@@ -258,7 +258,7 @@ export function SuccessSync({
                                             {/* Visual Connector with Centered Server */}
                                             <div className="flex-1 mx-6 flex items-center justify-center gap-3">
                                                 <div className="border-b border-dashed border-white/10 flex-1" />
-                                                <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest text-center">
+                                                <span className="font-mono text-caption font-bold text-zinc-500 uppercase tracking-widest text-center">
                                                     SERVEUR {serverName}
                                                 </span>
                                                 <div className="border-b border-dashed border-white/10 flex-1" />
@@ -266,19 +266,19 @@ export function SuccessSync({
 
                                             <div className="flex items-center gap-6 text-right shrink-0">
                                                 <div className="flex flex-col items-end">
-                                                    <span className="text-[10px] uppercase font-bold text-zinc-500 leading-none mb-1">Points</span>
+                                                    <span className="text-caption uppercase font-bold text-zinc-500 leading-none mb-1">Points</span>
                                                     <span className="text-sm font-black text-amber-500 tabular-nums">{previewData.points.toLocaleString()}</span>
                                                 </div>
                                                 
                                                 <div className="flex gap-3">
                                                     <div className="flex flex-col items-end border-l border-white/5 pl-3">
-                                                        <span className="text-[9px] uppercase font-bold text-zinc-600 leading-none mb-1">Monde</span>
-                                                        <span className="text-[11px] font-black text-white/90 tabular-nums">
+                                                        <span className="text-caption uppercase font-bold text-zinc-600 leading-none mb-1">Monde</span>
+                                                        <span className="text-caption font-black text-white/90 tabular-nums">
                                                             {previewData.rank ? `#${previewData.rank.toLocaleString()}` : '—'}
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-col items-end border-l border-white/5 pl-3">
-                                                        <span className="text-[9px] uppercase font-bold text-zinc-600 leading-none mb-1">Guilde</span>
+                                                        <span className="text-caption uppercase font-bold text-zinc-600 leading-none mb-1">Guilde</span>
                                                         <span className={cn(
                                                             "text-sm font-black tabular-nums",
                                                             previewData.guildRank === 1 ? "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" : "text-white/90"
@@ -306,7 +306,7 @@ export function SuccessSync({
                                 </div>
                                 <Button 
                                     onClick={() => onTabChange?.('overview')}
-                                    className="bg-amber-500 hover:bg-amber-600 text-black font-black uppercase text-xs w-full sm:w-auto shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                    className="bg-amber-500 hover:bg-amber-600 text-black font-black uppercase text-xs w-full sm:w-auto "
                                 >
                                     Configurer
                                 </Button>

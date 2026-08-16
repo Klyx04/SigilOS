@@ -82,18 +82,18 @@ export function SmartBar({ memberCount, onlineCount, canSearch = false }: SmartB
                             {onlineUsers.slice(0, 3).map((u) => (
                                 <Avatar key={u.id} className="h-7 w-7 ring-2 ring-background">
                                     <AvatarImage src={u.image || ""} alt={u.name || ""} />
-                                    <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-300">
+                                    <AvatarFallback className="bg-zinc-800 text-caption text-zinc-300">
                                         {(u.name || "??").slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                             ))}
                             {onlineUsers.length === 0 && (
-                                <div className="h-7 w-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-zinc-500">—</div>
+                                <div className="h-7 w-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-caption text-zinc-500">—</div>
                             )}
                         </div>
 
                         {/* Compteur */}
-                        <div className="flex items-center gap-1 text-[12px] font-semibold text-zinc-300">
+                        <div className="flex items-center gap-1 text-label font-semibold text-zinc-300">
                             <span className="text-emerald-400" suppressHydrationWarning>{liveOnlineCount ?? 0}</span>
                             <span className="text-zinc-700">/</span>
                             <span>{memberCount ?? 0}</span>

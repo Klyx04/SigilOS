@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import GameDataInterface from "@/components/admin/GameDataInterface";
@@ -24,13 +24,13 @@ function StatCard({ label, icon: Icon, color, border, glow, value = "Sync OK", s
     return (
         <div className={cn("group p-7 rounded-3xl border bg-zinc-950/40 backdrop-blur-md", border, glow)}>
             <div className="flex items-center gap-4">
-                <div className={cn("p-3 rounded-2xl bg-zinc-900/60 border border-white/5 transition-transform group-hover:scale-110", color)}>
+                <div className={cn("p-3 rounded-2xl bg-zinc-900/60 border border-white/5 transition-transform group-", color)}>
                     <Icon className="w-7 h-7" />
                 </div>
                 <div className="min-w-0">
-                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</div>
+                    <div className="text-caption font-black text-zinc-500 uppercase tracking-widest">{label}</div>
                     <div className="text-2xl font-black text-white tracking-tighter italic truncate">{value}</div>
-                    {sub && <div className="text-[10px] text-zinc-600 font-bold">{sub}</div>}
+                    {sub && <div className="text-caption text-zinc-600 font-bold">{sub}</div>}
                 </div>
             </div>
         </div>
@@ -63,7 +63,7 @@ export default async function GameDataPage() {
                     </span>
                     <div className="space-y-0.5">
                         <div className="text-xs font-black text-emerald-400 uppercase tracking-widest leading-none">Synchronisation</div>
-                        <div className="text-[10px] text-emerald-500/70 font-bold">Opérationnelle</div>
+                        <div className="text-caption text-emerald-500/70 font-bold">Opérationnelle</div>
                     </div>
                 </div>
             </div>
@@ -93,7 +93,7 @@ export default async function GameDataPage() {
                         <RefreshCw className="w-4 h-4 text-indigo-400" />
                         <span className="text-sm font-black text-white uppercase tracking-widest">Console de Synchronisation</span>
                     </div>
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">GOD · Read-only logs</span>
+                    <span className="text-caption font-bold text-zinc-500 uppercase tracking-widest">GOD · Read-only logs</span>
                 </div>
                 <div className="p-6"><GameDataInterface /></div>
             </div>

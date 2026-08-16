@@ -36,7 +36,7 @@ export default async function MiniJeuxPage({ params }: Props) {
 
     return (
         <MiniGamesImmersive>
-        <div id="mini-games-page" className="w-full h-[calc(100vh-80px)] bg-[#080b12] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 rounded-xl border border-white/10">
+        <div id="mini-games-page" className="w-full h-[calc(100vh-80px)] bg-[#080b12] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-300 rounded-xl border border-white/10">
             <div className="worldmap-header flex-shrink-0 px-3 md:px-5 py-2 border-b border-white/5 bg-black/20 backdrop-blur-md" data-tour="minijeu-header">
                 <UnifiedModuleHeader
                     title="Mini-Jeux"

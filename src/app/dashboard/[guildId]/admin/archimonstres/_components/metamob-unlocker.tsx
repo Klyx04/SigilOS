@@ -88,7 +88,7 @@ export function MetamobUnlocker({ guildId }: { guildId: string }) {
                         <CardTitle className="text-white font-black uppercase tracking-tighter text-base">
                             Déblocage d'Urgence
                         </CardTitle>
-                        <CardDescription className="text-[10px] font-medium text-zinc-500">
+                        <CardDescription className="text-caption font-medium text-zinc-500">
                             Libérez un pseudo Metamob lié par erreur ou par un ancien membre.
                         </CardDescription>
                     </div>
@@ -127,7 +127,7 @@ export function MetamobUnlocker({ guildId }: { guildId: string }) {
                         {/* Suggestions Dropdown (Refined) */}
                         {showSuggestions && suggestions.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-                                <div className="px-3 py-2 bg-white/5 border-b border-white/5 text-[9px] font-black uppercase tracking-widest text-zinc-500 flex justify-between">
+                                <div className="px-3 py-2 bg-white/5 border-b border-white/5 text-caption font-black uppercase tracking-widest text-zinc-500 flex justify-between">
                                     <span>Résultats Trouvés</span>
                                     <span>{suggestions.length}</span>
                                 </div>
@@ -160,7 +160,7 @@ export function MetamobUnlocker({ guildId }: { guildId: string }) {
                             <Button
                                 variant="destructive"
                                 disabled={!targetPseudo.trim() || isLoading}
-                                className="h-12 px-6 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 transition-all font-black uppercase tracking-widest text-[10px]"
+                                className="h-12 px-6 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 transition-all font-black uppercase tracking-widest text-caption"
                             >
                                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4 mr-2" />}
                                 Libérer le compte
@@ -189,7 +189,7 @@ export function MetamobUnlocker({ guildId }: { guildId: string }) {
                 </div>
 
                 {status === "success" && (
-                    <div className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-400 font-medium animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-caption text-emerald-400 font-medium animate-in slide-in-from-top-2">
                         <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
                             <ArrowRight className="w-3 h-3" />
                         </div>

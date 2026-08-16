@@ -45,7 +45,7 @@ export default async function MemberTrackerPage({ params }: TrackerPageProps) {
                             <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
                                 <BugIcon className="w-5 h-5 text-amber-500" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500/60">Système de Suivi</span>
+                            <span className="text-caption font-black uppercase tracking-widest text-amber-500/60">Système de Suivi</span>
                         </div>
                         <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
                             Tracker de Bugs & Améliorations
@@ -57,17 +57,17 @@ export default async function MemberTrackerPage({ params }: TrackerPageProps) {
 
                     <div className="flex items-center gap-6 px-6 py-4 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-xl">
                         <div className="text-center">
-                            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Total</p>
+                            <p className="text-caption font-black text-zinc-600 uppercase tracking-widest mb-1">Total</p>
                             <p className="text-xl font-black text-white">{issues.length}</p>
                         </div>
                         <div className="w-px h-8 bg-white/5" />
                         <div className="text-center">
-                            <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">En cours</p>
+                            <p className="text-caption font-black text-amber-500 uppercase tracking-widest mb-1">En cours</p>
                             <p className="text-xl font-black text-white">{issues.filter(i => i.status === 'EN_COURS').length}</p>
                         </div>
                         <div className="w-px h-8 bg-white/5" />
                         <div className="text-center">
-                            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Résolus</p>
+                            <p className="text-caption font-black text-emerald-500 uppercase tracking-widest mb-1">Résolus</p>
                             <p className="text-xl font-black text-white">{issues.filter(i => i.status === 'TERMINE').length}</p>
                         </div>
                     </div>
@@ -82,10 +82,10 @@ export default async function MemberTrackerPage({ params }: TrackerPageProps) {
             </div>
 
             {/* Footer Status */}
-            <div className="px-8 py-3 bg-zinc-950/80 border-t border-white/5 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 relative z-10">
+            <div className="px-8 py-3 bg-zinc-950/80 border-t border-white/5 flex items-center justify-between text-caption font-black uppercase tracking-[0.2em] text-zinc-600 relative z-10">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 " />
                         <span className="text-emerald-500/60">Flux de données actif</span>
                     </div>
                     <div className="w-px h-3 bg-white/10" />

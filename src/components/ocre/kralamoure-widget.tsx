@@ -192,7 +192,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                 "relative p-4 rounded-xl border transition-all duration-300 overflow-hidden",
                 "bg-zinc-900/40 backdrop-blur-md",
                 isImminent
-                    ? "border-red-500/50 shadow-[0_0_15px_-5px_rgba(239,68,68,0.5)]"
+                    ? "border-red-500/50 "
                     : isUpcoming
                         ? "border-amber-500/40"
                         : "border-white/5 hover:border-white/10"
@@ -210,13 +210,13 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                         </h4>
                         {isUpcoming && <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />}
                     </div>
-                    <p className="text-[10px] font-black text-pink-500 uppercase tracking-[0.1em]">
+                    <p className="text-caption font-black text-pink-500 uppercase tracking-[0.1em]">
                         {event.server.name}
                     </p>
                 </div>
 
                 {isImported && (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
                         <CalendarCheck className="h-3 w-3 mr-1" />
                         Importé
                     </Badge>
@@ -226,7 +226,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             {/* Middle Row: Content & Time */}
             <div className="relative z-10 flex items-end justify-between gap-4">
                 <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-500">
+                    <div className="flex items-center gap-3 text-caption font-bold text-zinc-500">
                         <span className="flex items-center gap-1">
                             <Users className="h-3 w-3" />
                             {event.participants_count}
@@ -241,7 +241,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
                     </div>
 
                     {event.description && (
-                        <p className="text-[10px] text-zinc-400/70 italic line-clamp-1 border-l-2 border-white/5 pl-2">
+                        <p className="text-caption text-zinc-400/70 italic line-clamp-1 border-l-2 border-white/5 pl-2">
                             {event.description}
                         </p>
                     )}
@@ -249,7 +249,7 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
 
                 <div className="text-right shrink-0">
                     <p className={cn(
-                        "text-[9px] font-black uppercase tracking-wider mb-0.5",
+                        "text-caption font-black uppercase tracking-wider mb-0.5",
                         isImminent ? "text-red-400" : isUpcoming ? "text-amber-400" : "text-zinc-500"
                     )}>
                         {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}

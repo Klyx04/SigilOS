@@ -103,7 +103,7 @@ export default async function GettingStartedPage({
                                             strokeWidth="4"
                                             strokeDasharray="276"
                                             strokeDashoffset={276 - (276 * percent) / 100}
-                                            className="text-emerald-500 transition-all duration-1000 ease-out"
+                                            className="text-emerald-500 transition-all duration-300 ease-out"
                                             strokeLinecap="round"
                                         />
                                     </svg>
@@ -129,11 +129,11 @@ export default async function GettingStartedPage({
                 {/* Legend */}
                 <div className="mx-1 flex items-center gap-6 text-xs font-black uppercase tracking-widest">
                     <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[9px]">⚡ Obligatoire</span>
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-caption">⚡ Obligatoire</span>
                         <span className="text-zinc-500">Requis pour débloquer l&apos;accès</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px]">★ Recommandé</span>
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-caption">★ Recommandé</span>
                         <span className="text-zinc-500">Optimise l&apos;expérience</span>
                     </div>
                 </div>
@@ -162,7 +162,7 @@ export default async function GettingStartedPage({
                                 className={cn(
                                     "group relative glass-premium p-6 rounded-xl border transition-all duration-300",
                                     isCompleted
-                                        ? "border-emerald-500/20 bg-emerald-500/5 shadow-[0_0_20px_rgba(16,185,129,0.05)]"
+                                        ? "border-emerald-500/20 bg-emerald-500/5 "
                                         : isMandatory
                                             ? "border-rose-500/20 hover:border-rose-500/40"
                                             : isLocked
@@ -173,7 +173,7 @@ export default async function GettingStartedPage({
                                 <div className="flex items-start gap-6">
                                     <div className={cn(
                                         "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform",
-                                        !isLocked && "group-hover:scale-110",
+                                        !isLocked && "group-",
                                         isCompleted
                                             ? "bg-emerald-500/10 text-emerald-400"
                                             : isMandatory
@@ -191,21 +191,21 @@ export default async function GettingStartedPage({
                                                 {idx + 1}. {step.title}
                                             </h3>
                                             {isMandatory ? (
-                                                <span className="px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-wider">
+                                                <span className="px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-caption font-black uppercase tracking-wider">
                                                     ⚡ Obligatoire
                                                 </span>
                                             ) : (
-                                                <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase tracking-wider">
+                                                <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-caption font-black uppercase tracking-wider">
                                                     ★ Recommandé
                                                 </span>
                                             )}
                                             {isCompleted && (
-                                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase">
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-black uppercase">
                                                     ✓ Terminé
                                                 </span>
                                             )}
                                             {isLocked && (
-                                                <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-600 text-[9px] font-black uppercase">
+                                                <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-600 text-caption font-black uppercase">
                                                     🔒 Bloqué
                                                 </span>
                                             )}
@@ -221,7 +221,7 @@ export default async function GettingStartedPage({
                                             <Button
                                                 disabled
                                                 variant="outline"
-                                                className="font-black uppercase tracking-widest text-[10px] px-6 h-10 border-white/5 text-zinc-600 cursor-not-allowed"
+                                                className="font-black uppercase tracking-widest text-caption px-6 h-10 border-white/5 text-zinc-600 cursor-not-allowed"
                                             >
                                                 Bloqué
                                             </Button>
@@ -230,11 +230,11 @@ export default async function GettingStartedPage({
                                                 asChild
                                                 variant={isCompleted ? "outline" : "default"}
                                                 className={cn(
-                                                    "font-black uppercase tracking-widest text-[10px] px-6 h-10",
+                                                    "font-black uppercase tracking-widest text-caption px-6 h-10",
                                                     isCompleted
                                                         ? "border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5"
                                                         : isMandatory
-                                                            ? "bg-rose-500 text-white hover:bg-rose-600 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                                                            ? "bg-rose-500 text-white hover:bg-rose-600 "
                                                             : "bg-white text-black hover:bg-zinc-200"
                                                 )}
                                             >

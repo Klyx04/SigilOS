@@ -209,7 +209,7 @@ export default function CoordHoverMap({ containerRef, guildId }: CoordHoverMapPr
                   >
                     <div className="flex items-center gap-1.5 min-w-0">
                       <MapPin className="w-3 h-3 text-cyan-400 shrink-0" />
-                      <span className="text-[10px] font-mono font-bold text-cyan-300">
+                      <span className="text-caption font-mono font-bold text-cyan-300">
                         [{hover.x}, {hover.y}]
                       </span>
                     </div>
@@ -217,8 +217,8 @@ export default function CoordHoverMap({ containerRef, guildId }: CoordHoverMapPr
                   </div>
 
                   <div className="px-3 py-1 bg-zinc-900/40 border-b border-zinc-800/30 flex items-center gap-1.5">
-                    <span className="text-[7px] text-zinc-600 font-black uppercase tracking-widest shrink-0">Monde</span>
-                    <span className="text-[9px] text-zinc-300 font-medium truncate">{hover.worldId} — {worldName}</span>
+                    <span className="text-caption text-zinc-600 font-black uppercase tracking-widest shrink-0">Monde</span>
+                    <span className="text-caption text-zinc-300 font-medium truncate">{hover.worldId} — {worldName}</span>
                   </div>
 
                   <div className="relative w-full h-44 bg-black/60">
@@ -233,7 +233,7 @@ export default function CoordHoverMap({ containerRef, guildId }: CoordHoverMapPr
                       interactive={false}
                     />
                     <div className="absolute top-2 right-2 bg-black/80 border border-white/10 rounded-lg px-2 py-1 pointer-events-none">
-                      <span className="text-[9px] font-mono font-bold text-cyan-300">
+                      <span className="text-caption font-mono font-bold text-cyan-300">
                         [{hover.x}, {hover.y}]
                       </span>
                     </div>
@@ -241,14 +241,14 @@ export default function CoordHoverMap({ containerRef, guildId }: CoordHoverMapPr
 
                   <div className="flex items-center gap-1.5 px-2.5 py-2 bg-zinc-900/80 border-t border-zinc-800/60">
                     <button onClick={(e) => { e.stopPropagation(); handleCopy(); }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 text-cyan-300 text-[8px] font-black uppercase tracking-widest transition-all">
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 text-cyan-300 text-caption font-black uppercase tracking-widest transition-all">
                       <Copy className="w-2.5 h-2.5" /> Copier /travel
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleOpenMap(); }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-300 text-[8px] font-black uppercase tracking-widest transition-all">
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-300 text-caption font-black uppercase tracking-widest transition-all">
                       <ExternalLink className="w-2.5 h-2.5" /> Carte
                     </button>
-                    <span className="ml-auto text-[7px] text-zinc-600 font-mono">/travel {hover.x},{hover.y}</span>
+                    <span className="ml-auto text-caption text-zinc-600 font-mono">/travel {hover.x},{hover.y}</span>
                   </div>
                 </div>
               </motion.div>

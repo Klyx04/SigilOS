@@ -71,7 +71,7 @@ export function DofusPageOptions({ guildId, dofusSlug, baseColor }: DofusPageOpt
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 p-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Ambiance</p>
+          <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">Ambiance</p>
           <button
             type="button"
             onClick={() => toggleParticles(!particles)}
@@ -80,7 +80,7 @@ export function DofusPageOptions({ guildId, dofusSlug, baseColor }: DofusPageOpt
             <Sparkles className="w-4 h-4 shrink-0" style={{ color: particles ? baseColor : undefined }} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white">Particules Dofus</p>
-              <p className="text-[10px] text-zinc-500">Braises teintées à la couleur du Dofus</p>
+              <p className="text-caption text-zinc-500">Braises teintées à la couleur du Dofus</p>
             </div>
             <span className={`inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${particles ? "bg-emerald-500" : "bg-zinc-700"}`}>
               <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${particles ? "translate-x-3.5" : "translate-x-0.5"}`} />

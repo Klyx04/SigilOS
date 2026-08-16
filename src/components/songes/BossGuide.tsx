@@ -174,7 +174,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                 <div className="flex-1 min-w-0">
                     <h3 className="text-xl md:text-2xl font-black text-white tracking-tight truncate">{boss.Name}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Difficulté</span>
+                        <span className="text-caption uppercase tracking-wider text-white/30 font-bold">Difficulté</span>
                         <DifficultyStars difficulty={boss.Difficulty} />
                     </div>
 
@@ -183,21 +183,21 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 w-16 shrink-0">
                                 <Swords className="w-3.5 h-3.5 text-red-400" />
-                                <span className="text-[10px] uppercase tracking-wider text-white/40">Focus</span>
+                                <span className="text-caption uppercase tracking-wider text-white/40">Focus</span>
                             </div>
                             <ViabilityBar value={boss.ImmediateFocus} color="#f87171" />
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 w-16 shrink-0">
                                 <Wind className="w-3.5 h-3.5 text-blue-400" />
-                                <span className="text-[10px] uppercase tracking-wider text-white/40">Esquive</span>
+                                <span className="text-caption uppercase tracking-wider text-white/40">Esquive</span>
                             </div>
                             <ViabilityBar value={boss.Evasion} color="#60a5fa" />
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 w-16 shrink-0">
                                 <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[10px] uppercase tracking-wider text-white/40">Tank</span>
+                                <span className="text-caption uppercase tracking-wider text-white/40">Tank</span>
                             </div>
                             <ViabilityBar value={boss.Tanking} color="#34d399" />
                         </div>
@@ -215,7 +215,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                             />
                         </div>
                         {boss.Caption && (
-                            <p className="text-[10px] text-white/30 text-center leading-tight italic">
+                            <p className="text-caption text-white/30 text-center leading-tight italic">
                                 {boss.Caption}
                             </p>
                         )}
@@ -338,7 +338,7 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
             {/* Modal */}
             <div className={cn(
-                "relative w-full max-h-[85vh] bg-[#09090b] border border-white/10 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col transition-all duration-500",
+                "relative w-full max-h-[85vh] bg-[#09090b] border border-white/10 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col transition-all duration-300",
                 selectedBoss ? (WIDTH_EXCEPTIONS[selectedBoss.Name] || "max-w-2xl") : "max-w-2xl"
             )}>
                 {/* Header */}

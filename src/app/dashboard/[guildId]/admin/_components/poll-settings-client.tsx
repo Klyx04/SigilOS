@@ -112,7 +112,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                             className="font-mono bg-black/20 border-white/10 focus:border-cyan-500/50"
                         />
                         <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
-                        <p className="text-[10px] text-zinc-500 italic">
+                        <p className="text-caption text-zinc-500 italic">
                             Le salon où les nouveaux sondages seront publiés automatiquement si l'option est cochée lors de la création.
                         </p>
                     </div>
@@ -129,7 +129,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                             placeholder="ID du rôle (laisser vide pour ne mentionner personne)"
                             className="font-mono bg-black/20 border-white/10 focus:border-cyan-500/50"
                         />
-                        <p className="text-[10px] text-zinc-500 italic">
+                        <p className="text-caption text-zinc-500 italic">
                             Identifiant du rôle Discord à notifier (pings) lors de la publication d'un sondage.
                         </p>
                     </div>
@@ -140,7 +140,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                             <Users className="w-3.5 h-3.5 text-cyan-400" />
                             Rôles autorisés pour les mentions (Whitelist)
                         </Label>
-                        <p className="text-[10px] text-zinc-500 italic mb-2">
+                        <p className="text-caption text-zinc-500 italic mb-2">
                             Définissez quels rôles Discord les créateurs de sondages peuvent mentionner lors de la publication.
                         </p>
                         <PingRolesSelector
@@ -154,7 +154,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                     <div className="pt-4 flex items-center justify-between border-t border-white/5">
                         <div className="flex items-center gap-2 text-amber-500/80">
                             <AlertTriangle className="w-4 h-4" />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">
+                            <span className="text-caption font-medium uppercase tracking-wider">
                                 Vérifiez que le bot a les droits d'écriture
                             </span>
                         </div>

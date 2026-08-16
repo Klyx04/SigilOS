@@ -73,14 +73,14 @@ export function DiscordOwnershipModal({ isOpen, onClose, guildName }: DiscordOwn
 
                     {/* Tutorial Steps */}
                     <div className="space-y-2 py-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-4 px-2">
+                        <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 mb-4 px-2">
                             Procédure de transfert (Discord)
                         </h4>
 
                         <div className="grid gap-3">
                             {steps.map((step, idx) => (
                                 <div key={idx} className="group relative flex items-start gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all hover:bg-white/[0.07]">
-                                    <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 text-[10px] font-black text-zinc-400 group-hover:text-white group-hover:bg-zinc-700 transition-colors">
+                                    <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 text-caption font-black text-zinc-400 group-hover:text-white group-hover:bg-zinc-700 transition-colors">
                                         {idx + 1}
                                     </div>
                                     <div className="space-y-0.5">
@@ -112,7 +112,7 @@ export function DiscordOwnershipModal({ isOpen, onClose, guildName }: DiscordOwn
                             href="https://support.discord.com/hc/fr/articles/216273938-Comment-transf%C3%A9rer-la-propri%C3%A9t%C3%A9-d-un-serveur"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 py-2 text-[10px] font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
+                            className="flex items-center justify-center gap-2 py-2 text-caption font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
                         >
                             Voir l'aide officielle Discord
                             <ExternalLink className="w-3 h-3" />

@@ -71,10 +71,10 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                         />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-amber-400/80 group-hover:text-amber-400 transition-colors">
+                        <p className="text-caption font-black uppercase tracking-widest text-amber-400/80 group-hover:text-amber-400 transition-colors">
                             Prérequis — Les Animaux Fantastiques
                         </p>
-                        <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+                        <p className="text-caption text-zinc-500 truncate mt-0.5">
                             dofuspourlesnoobs.com · Guide complet de la quête
                         </p>
                     </div>
@@ -87,13 +87,13 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                 <Card className="p-6 bg-zinc-900/40 border-white/5 rounded-2xl">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 flex items-center gap-4">
-                            <div className={`relative w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-500 ${canOffer ? "bg-amber-500/15 border-amber-500/40 shadow-[0_0_20px_rgba(251,191,36,0.2)]" : "bg-zinc-800/50 border-white/5"}`}>
+                            <div className={`relative w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-300 ${canOffer ? "bg-amber-500/15 border-amber-500/40 " : "bg-zinc-800/50 border-white/5"}`}>
                                 <Image
                                     src="/assets/icons/croquette.png"
                                     alt="Croquette"
                                     width={36}
                                     height={36}
-                                    className={`object-contain transition-all duration-500 ${canOffer ? "drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] scale-110" : "grayscale opacity-40"}`}
+                                    className={`object-contain transition-all duration-300 ${canOffer ? "drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] scale-110" : "grayscale opacity-40"}`}
                                 />
                             </div>
                             <div>

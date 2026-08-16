@@ -117,7 +117,7 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                     onClick={isDiscordConfigured ? handleOpen : undefined}
                     disabled={!isDiscordConfigured}
                     className={cn(
-                        "font-black uppercase tracking-wider text-[10px] sm:text-xs rounded-xl h-9 px-4 sm:px-5 transition-all shrink-0 w-fit",
+                        "font-black uppercase tracking-wider text-caption sm:text-xs rounded-xl h-9 px-4 sm:px-5 transition-all shrink-0 w-fit",
                         isDiscordConfigured 
                             ? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-900/20" 
                             : "bg-zinc-800 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-60"

@@ -32,17 +32,17 @@ export function DashboardNews({
                 
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500 flex items-center gap-2">
+                        <CardTitle className="text-caption font-black uppercase tracking-widest text-amber-500 flex items-center gap-2">
                             <Calendar className="w-3 h-3" />
                             Almanax du Jour
                         </CardTitle>
-                        <Badge variant="outline" className="border-white/5 text-[8px] font-black uppercase text-zinc-500 tracking-tighter">Meryde</Badge>
+                        <Badge variant="outline" className="border-white/5 text-caption font-black uppercase text-zinc-500 tracking-tighter">Meryde</Badge>
                     </div>
                 </CardHeader>
                 
                 <CardContent className="space-y-6 flex-1 flex flex-col justify-center">
                     {almanax ? (
-                        <div className="space-y-6 animate-in fade-in duration-700">
+                        <div className="space-y-6 animate-in fade-in duration-300">
                             {/* Tribute / Offrande */}
                             <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5 group-hover:bg-white/[0.05] transition-colors">
                                 <div className="relative w-16 h-16 bg-zinc-900 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-2xl">
@@ -53,28 +53,28 @@ export function DashboardNews({
                                         className="object-contain p-2"
                                         unoptimized
                                     />
-                                    <div className="absolute -bottom-1 -right-1 bg-amber-500 text-black text-[10px] font-black px-1.5 rounded-sm shadow-xl">
+                                    <div className="absolute -bottom-1 -right-1 bg-amber-500 text-black text-caption font-black px-1.5 rounded-sm shadow-xl">
                                         x{almanax.tribute.quantity}
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none">Offrande</p>
+                                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest leading-none">Offrande</p>
                                     <h4 className="text-base font-black text-white leading-tight uppercase italic">{almanax.tribute.item.name}</h4>
                                     {almanax.reward_kamas && (
-                                        <div className="text-[10px] font-bold text-amber-500/80">+{almanax.reward_kamas.toLocaleString()} kamas</div>
+                                        <div className="text-caption font-bold text-amber-500/80">+{almanax.reward_kamas.toLocaleString()} kamas</div>
                                     )}
                                 </div>
                             </div>
                             
                             {/* Bonus Card */}
                             <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-2xl relative overflow-hidden flex-1 group/bonus">
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/bonus:scale-125 transition-transform duration-700">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/bonus:scale-125 transition-transform duration-300">
                                     <Sparkles className="w-12 h-12 text-amber-400" />
                                 </div>
                                 <div className="relative z-10 space-y-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest italic">{almanax.bonus.type?.name || "Bonus du jour"}</p>
+                                        <p className="text-caption font-black text-amber-500 uppercase tracking-widest italic">{almanax.bonus.type?.name || "Bonus du jour"}</p>
                                     </div>
                                     <p className="text-sm font-bold text-zinc-300 leading-relaxed italic tracking-tight">
                                         « {almanax.bonus.description} »
@@ -85,7 +85,7 @@ export function DashboardNews({
                                 </div>
                             </div>
 
-                            <Link href={`/dashboard/${guildId}/ressources?tab=almanax`} className="block text-center text-[10px] font-black text-zinc-600 hover:text-amber-500 uppercase tracking-[0.2em] transition-colors py-2">
+                            <Link href={`/dashboard/${guildId}/ressources?tab=almanax`} className="block text-center text-caption font-black text-zinc-600 hover:text-amber-500 uppercase tracking-[0.2em] transition-colors py-2">
                                 Voir les prochains jours →
                             </Link>
                         </div>
@@ -98,8 +98,8 @@ export function DashboardNews({
                         <div className="flex flex-col items-center justify-center py-12 text-zinc-600 space-y-3 italic">
                             <Calendar className="w-10 h-10 opacity-20" />
                             <div className="text-center">
-                                <p className="text-[10px] font-black uppercase tracking-widest">Oracle indisponible</p>
-                                <p className="text-[8px] uppercase tracking-tighter opacity-60">Vérifiez l'onglet Ressources</p>
+                                <p className="text-caption font-black uppercase tracking-widest">Oracle indisponible</p>
+                                <p className="text-caption uppercase tracking-tighter opacity-60">Vérifiez l'onglet Ressources</p>
                             </div>
                         </div>
                     )}
@@ -110,11 +110,11 @@ export function DashboardNews({
             <Card className="lg:col-span-8 glass-premium border-white/5 hover:border-indigo-500/20 transition-all overflow-hidden flex flex-col">
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
+                        <CardTitle className="text-caption font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
                             <Sparkles className="w-3 h-3" />
                             Échos du Monde des Douze
                         </CardTitle>
-                        <Link href={`/dashboard/${guildId}/ressources?tab=news`} className="text-[8px] font-black text-zinc-600 hover:text-indigo-400 uppercase border border-white/5 px-2 py-1 rounded-md transition-all">
+                        <Link href={`/dashboard/${guildId}/ressources?tab=news`} className="text-caption font-black text-zinc-600 hover:text-indigo-400 uppercase border border-white/5 px-2 py-1 rounded-md transition-all">
                             Voir tout
                         </Link>
                     </div>

@@ -149,7 +149,7 @@ export function MissionPublishFlowDialog({
 
                 {/* STEP INDICATOR */}
                 <div className="flex h-1 bg-white/5">
-                    <div className={cn("h-full bg-indigo-500 transition-all duration-500", progressWidth)} />
+                    <div className={cn("h-full bg-indigo-500 transition-all duration-300", progressWidth)} />
                 </div>
 
                 {/* CONTENT AREA */}
@@ -178,7 +178,7 @@ export function MissionPublishFlowDialog({
                                 <div className="flex items-center justify-between text-xs">
                                     <span className="text-zinc-400 font-bold">Pool de missions</span>
                                     <span className={cn(
-                                        "font-black uppercase tracking-widest px-2 py-1 rounded text-[10px]",
+                                        "font-black uppercase tracking-widest px-2 py-1 rounded text-caption",
                                         missionPool === 'CLASSIQUES' ? "bg-indigo-500/20 text-indigo-400" : "bg-yellow-500/20 text-yellow-500"
                                     )}>
                                         {missionPool}
@@ -198,7 +198,7 @@ export function MissionPublishFlowDialog({
                                 </div>
 
                                 {!isPoolComplete && (
-                                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2 text-[10px] text-rose-400 font-bold leading-tight">
+                                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2 text-caption text-rose-400 font-bold leading-tight">
                                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                                         {missionPool === 'CLASSIQUES'
                                             ? "ERREUR : Les 12 missions classiques doivent être configurées pour permettre la publication hebdomadaire."
@@ -245,7 +245,7 @@ export function MissionPublishFlowDialog({
 
                             {/* Warning: re-ping info */}
                             {isDiscordConfigured && (
-                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2 text-[10px] text-amber-400 font-bold leading-tight">
+                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2 text-caption text-amber-400 font-bold leading-tight">
                                     <Bell className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                     <span>
                                         En choisissant <span className="text-white">"Modifier en pingant"</span>, un nouveau message Discord sera envoyé et les rôles sélectionnés seront notifiés à nouveau.
@@ -264,7 +264,7 @@ export function MissionPublishFlowDialog({
                                     </div>
                                     <div>
                                         <p className="text-sm font-black text-white">Modifier sans reping</p>
-                                        <p className="text-[10px] text-zinc-500 mt-0.5">Sauvegarde silencieuse — aucune notification Discord.</p>
+                                        <p className="text-caption text-zinc-500 mt-0.5">Sauvegarde silencieuse — aucune notification Discord.</p>
                                     </div>
                                 </button>
 
@@ -279,7 +279,7 @@ export function MissionPublishFlowDialog({
                                         </div>
                                         <div>
                                             <p className="text-sm font-black text-indigo-300">Modifier en pingant</p>
-                                            <p className="text-[10px] text-indigo-400/60 mt-0.5">Envoie une nouvelle annonce Discord avec ping de rôle.</p>
+                                            <p className="text-caption text-indigo-400/60 mt-0.5">Envoie une nouvelle annonce Discord avec ping de rôle.</p>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-indigo-500 ml-auto shrink-0" />
                                     </button>
@@ -290,7 +290,7 @@ export function MissionPublishFlowDialog({
                                         </div>
                                         <div>
                                             <p className="text-sm font-black text-zinc-500">Modifier en pingant</p>
-                                            <p className="text-[10px] text-zinc-600 mt-0.5">Discord non configuré — option indisponible.</p>
+                                            <p className="text-caption text-zinc-600 mt-0.5">Discord non configuré — option indisponible.</p>
                                         </div>
                                     </div>
                                 )}
@@ -343,7 +343,7 @@ export function MissionPublishFlowDialog({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 ml-1">
                                     Ping un ou plusieurs rôles
                                 </label>
                                 <div className="bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden max-h-40 overflow-y-auto custom-scrollbar shadow-inner">

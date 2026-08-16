@@ -110,12 +110,12 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                 </div>
                 <div>
                     <h4 className="text-sm font-black text-white">Ajustement manuel XP</h4>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-caption text-zinc-500">
                         Déplace la barre de progression manuellement. Utile si le jeu n'envoie pas les données.
                     </p>
                 </div>
                 {currentOverride !== null && (
-                    <div className="ml-auto flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full">
+                    <div className="ml-auto flex items-center gap-1.5 text-caption font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full">
                         <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                         Override actif : {currentOverride.toLocaleString()} XP
                     </div>
@@ -133,7 +133,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
 
             {/* Slider */}
             <div className="space-y-3">
-                <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                <div className="flex items-center justify-between text-caption font-bold text-zinc-500 uppercase tracking-widest">
                     <span className="text-emerald-400">{realXp.toLocaleString()} XP (Min)</span>
                     <span className="text-white">{percentage}%</span>
                     <span>{maxXP.toLocaleString()} XP (Palier {targetTier})</span>
@@ -153,7 +153,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                 {/* Progress preview */}
                 <div className="relative h-3 w-full rounded-full bg-zinc-800 overflow-hidden">
                     <div
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-600 via-purple-500 to-fuchsia-500 transition-all duration-300 ease-out rounded-full shadow-[0_0_12px_rgba(168,85,247,0.4)]"
+                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-600 via-purple-500 to-fuchsia-500 transition-all duration-300 ease-out rounded-full "
                         style={{ width: `${percentage}%` }}
                     />
                 </div>

@@ -110,7 +110,7 @@ export function ClassDisplay({
                             <h3 className="text-base font-black text-white uppercase tracking-wider">
                                 Identité de Combat
                             </h3>
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Pseudo Dofus officiel & Classe</p>
+                            <p className="text-caption text-zinc-500 uppercase tracking-widest font-bold">Pseudo Dofus officiel & Classe</p>
                         </div>
                     </div>
                     {!readOnly && (
@@ -143,7 +143,7 @@ export function ClassDisplay({
 
                             <div className="flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest shrink-0">Pseudo Dofus :</span>
+                                    <span className="text-caption font-black text-zinc-400 uppercase tracking-widest shrink-0">Pseudo Dofus :</span>
                                     {pseudoDofus ? (
                                         <span className="text-lg font-black text-amber-400 tracking-wide drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
                                             {pseudoDofus}
@@ -156,7 +156,7 @@ export function ClassDisplay({
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest shrink-0">Classe principale :</span>
+                                    <span className="text-caption font-black text-zinc-400 uppercase tracking-widest shrink-0">Classe principale :</span>
                                     <span className="text-sm font-black text-white uppercase tracking-wider" style={{ color: mainClassData.color }}>
                                         {mainClassData.name}
                                     </span>
@@ -238,7 +238,7 @@ export function ClassDisplay({
                                         {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                                     </Button>
                                 </div>
-                                <p className="text-[11px] leading-relaxed text-zinc-500 pl-1 mt-3">
+                                <p className="text-caption leading-relaxed text-zinc-500 pl-1 mt-3">
                                     {verifyStatus === "success" ? (
                                         <span className="text-emerald-500 font-bold italic flex items-center gap-2">
                                             <UserCheck className="w-3.5 h-3.5" />
@@ -272,7 +272,7 @@ export function ClassDisplay({
                                             className={cn(
                                                 "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
                                                 isSelected
-                                                    ? "border-white/40 shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
+                                                    ? "border-white/40 "
                                                     : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
                                             )}
                                             style={isSelected ? {
@@ -281,10 +281,10 @@ export function ClassDisplay({
                                                 boxShadow: `0 0 20px -5px ${c.color}60`
                                             } : undefined}
                                         >
-                                            <div className={cn("mb-2 transform transition-transform group-hover:scale-110 duration-300", isSelected ? "scale-110" : "")}>
+                                            <div className={cn("mb-2 transform transition-transform group- duration-300", isSelected ? "scale-110" : "")}>
                                                 <ClassIcon classId={c.id} size={36} />
                                             </div>
-                                            <span className={cn("w-full px-1 text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
+                                            <span className={cn("w-full px-1 text-caption sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
                                                 style={isSelected ? { color: 'white', textShadow: `0 0 10px ${c.color}` } : undefined}
                                             >
                                                 {c.name}
@@ -292,7 +292,7 @@ export function ClassDisplay({
 
                                             {isSelected && (
                                                 <>
-                                                    <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                                                    <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center "
                                                         style={{ backgroundColor: c.color }}
                                                     >
                                                         <div className="w-1 h-1 rounded-full bg-white" />

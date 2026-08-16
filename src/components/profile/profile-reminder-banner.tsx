@@ -90,7 +90,7 @@ export function ProfileReminderBanner({
                     className={cn(
                         "relative w-full rounded-2xl border border-violet-500/25 overflow-hidden",
                         "bg-gradient-to-r from-violet-950/60 via-indigo-950/60 to-violet-950/60 backdrop-blur-xl",
-                        "shadow-[0_0_40px_rgba(139,92,246,0.12)]"
+                        ""
                     )}
                 >
                     {/* Animated top border glow */}
@@ -116,7 +116,7 @@ export function ProfileReminderBanner({
                             <p className="text-xs font-black text-white uppercase tracking-widest leading-none mb-1">
                                 Rappel mensuel du profil
                             </p>
-                            <p className="text-[11px] text-zinc-400 font-medium leading-snug">
+                            <p className="text-caption text-zinc-400 font-medium leading-snug">
                                 Vérifiez que vos informations de guilde sont à jour (pseudo Dofus, classe, métiers, disponibilités).
                             </p>
                         </div>
@@ -125,7 +125,7 @@ export function ProfileReminderBanner({
                         <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
                             <Button
                                 size="sm"
-                                className="h-8 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl gap-1.5 shadow-[0_4px_12px_rgba(16,185,129,0.25)] transition-all active:scale-95"
+                                className="h-8 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-caption font-black uppercase tracking-widest rounded-xl gap-1.5 shadow-[0_4px_12px_rgba(16,185,129,0.25)] transition-all active:scale-95"
                                 onClick={handleConfirmUpToDate}
                             >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -135,7 +135,7 @@ export function ProfileReminderBanner({
                             <Button
                                 size="sm"
                                 variant="secondary"
-                                className="h-8 px-3.5 bg-violet-600/80 hover:bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl gap-1.5 border border-violet-400/30 transition-all active:scale-95"
+                                className="h-8 px-3.5 bg-violet-600/80 hover:bg-violet-600 text-white text-caption font-black uppercase tracking-widest rounded-xl gap-1.5 border border-violet-400/30 transition-all active:scale-95"
                                 onClick={handleEditProfile}
                             >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export function ProfileReminderBanner({
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 px-2.5 text-zinc-500 hover:text-zinc-200 text-[10px] font-black uppercase tracking-widest rounded-xl gap-1 transition-all"
+                                className="h-8 px-2.5 text-zinc-500 hover:text-zinc-200 text-caption font-black uppercase tracking-widest rounded-xl gap-1 transition-all"
                                 onClick={handleDismiss}
                             >
                                 <RefreshCw className="w-3 h-3" />

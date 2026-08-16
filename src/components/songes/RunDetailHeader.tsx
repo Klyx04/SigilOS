@@ -186,11 +186,11 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
     };
 
     return (
-        <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#09090b] shadow-2xl transition-all duration-500">
+        <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#09090b] shadow-2xl transition-all duration-300">
             {/* Background Effects */}
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 via-blue-900/5 to-transparent pointer-events-none" />
             <div
-                className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px] opacity-30 pointer-events-none transition-all duration-700"
+                className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px] opacity-30 pointer-events-none transition-all duration-300"
                 style={{
                     backgroundColor: difficulty?.couleur || '#a855f7',
                     opacity: isCompleted ? 0 : 0.3 // Fade out glow when completed
@@ -200,8 +200,8 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
             {/* Subtle Premium Watermark pattern instead of giant text */}
             {isCompleted && (
                 <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-                    <div className="absolute top-4 right-4 animate-in fade-in zoom-in duration-700">
-                        <div className="relative border border-amber-500/30 bg-amber-500/5 px-4 py-1 rounded-full backdrop-blur-sm flex items-center gap-2 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+                    <div className="absolute top-4 right-4 animate-in fade-in zoom-in duration-300">
+                        <div className="relative border border-amber-500/30 bg-amber-500/5 px-4 py-1 rounded-full backdrop-blur-sm flex items-center gap-2 ">
                             <Trophy className="w-4 h-4 text-amber-500" />
                             <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Run Terminée</span>
                         </div>
@@ -212,7 +212,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                 </div>
             )}
 
-            <div className={`relative p-6 md:p-8 flex flex-col gap-8 z-10 transition-opacity duration-500 ${isCompleted ? "opacity-90 grayscale-[0.3]" : ""}`}>
+            <div className={`relative p-6 md:p-8 flex flex-col gap-8 z-10 transition-opacity duration-300 ${isCompleted ? "opacity-90 grayscale-[0.3]" : ""}`}>
                 {/* Top Row: Back link & Title Row */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
                     <div className="flex flex-col gap-3">
@@ -222,7 +222,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                         </Link>
                         <div className="flex items-center gap-4">
                             <div className={cn(
-                                "w-3 h-3 rounded-full shadow-[0_0_15px_currentColor] transition-colors duration-500",
+                                "w-3 h-3 rounded-full  transition-colors duration-300",
                                 optimisticStatus === "IN_PROGRESS" ? "bg-emerald-400 text-emerald-400 animate-pulse" :
                                     optimisticStatus === "RECRUITING" ? "bg-blue-400 text-blue-400" :
                                         optimisticStatus === "COMPLETED" ? "bg-amber-500 text-amber-500" : "bg-red-500 text-red-500"
@@ -235,19 +235,19 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
                             />
                             <h1 className={cn(
-                                "text-3xl md:text-5xl font-black tracking-tighter transition-colors duration-500 uppercase",
+                                "text-3xl md:text-5xl font-black tracking-tighter transition-colors duration-300 uppercase",
                                 isCompleted ? "text-amber-500/80" : "text-white"
                             )}>
                                 {difficulty?.label || "Rêve Inconnu"}
                             </h1>
                             {optimisticStatus === "IN_PROGRESS" && (
-                                <span className="text-[10px] font-black px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase tracking-[0.2em] transform -translate-y-1">
+                                <span className="text-caption font-black px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase tracking-[0.2em] transform -translate-y-1">
                                     En cours
                                 </span>
                             )}
                             {/* NEW: Objective Badge for Standard runs */}
                             {!epreuve && objective && (
-                                <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20 text-purple-300 text-[10px] font-black uppercase tracking-widest ml-2">
+                                <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20 text-purple-300 text-caption font-black uppercase tracking-widest ml-2">
                                     {objective.icon}
                                     <span>{objective.label}</span>
                                 </div>
@@ -258,9 +258,9 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                     {/* Floor Counter - Integrated into top row but on the right */}
                     <div className="flex items-center gap-4 self-start md:self-end bg-white/5 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md shadow-xl">
                         <div className="flex flex-col items-center leading-none">
-                            <span className="text-[10px] uppercase text-white/30 font-black tracking-widest mb-1">Étage Actuel</span>
+                            <span className="text-caption uppercase text-white/30 font-black tracking-widest mb-1">Étage Actuel</span>
                             <span className={cn(
-                                "text-4xl font-black transition-all duration-500",
+                                "text-4xl font-black transition-all duration-300",
                                 isCompleted ? "text-amber-500" : "text-white"
                             )}>
                                 {run.currentFloor}
@@ -268,7 +268,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                         </div>
                         <div className="h-8 w-px bg-white/10" />
                         <div className="flex flex-col items-center leading-none">
-                            <span className="text-[10px] uppercase text-white/30 font-black tracking-widest mb-1">Objectif</span>
+                            <span className="text-caption uppercase text-white/30 font-black tracking-widest mb-1">Objectif</span>
                             <span className="text-lg font-black text-white/60">26</span>
                         </div>
                     </div>
@@ -285,9 +285,9 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 href="https://www.dofuspourlesnoobs.com/songes-infinis.html"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-blue-500/30 bg-blue-600/10 text-blue-200 hover:bg-blue-500/20 hover:text-white hover:border-blue-400 hover:-translate-y-1 shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-blue-500/30 bg-blue-600/10 text-blue-200 hover:bg-blue-500/20 hover:text-white hover:border-blue-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                             >
-                                <div className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,1)] animate-pulse" />
+                                <div className="w-2.5 h-2.5 rounded-full bg-blue-400  animate-pulse" />
                                 <span>Guide Songes</span>
                                 <ArrowLeft className="w-5 h-5 rotate-[135deg] ml-auto transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
                             </a>
@@ -296,7 +296,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                             {onOpenBossGuide && (
                                 <button
                                     onClick={onOpenBossGuide}
-                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-600/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-white hover:border-emerald-400 hover:-translate-y-1 shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-600/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-white hover:border-emerald-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                                 >
                                     <BookOpen className="w-6 h-6 group-hover:rotate-12 transition-transform drop-shadow-[0_0_10px_rgba(217,70,239,1)]" />
                                     <span>Guide Boss Songes</span>
@@ -314,7 +314,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     backgroundColor: `${epreuve.color}05`,
                                 }}
                             >
-                                <div className="absolute -right-4 -bottom-4 text-8xl opacity-[0.03] transition-transform group-hover:scale-110 pointer-events-none">
+                                <div className="absolute -right-4 -bottom-4 text-8xl opacity-[0.03] transition-transform group- pointer-events-none">
                                     {epreuve.icon}
                                 </div>
                                 <div className="flex flex-col md:flex-row gap-5 items-start">
@@ -324,7 +324,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: epreuve.color }}>
+                                            <span className="text-caption font-black uppercase tracking-widest" style={{ color: epreuve.color }}>
                                                 Règle spéciale — Épreuve
                                             </span>
                                             <div className="h-px flex-1" style={{ backgroundColor: `${epreuve.color}20` }} />
@@ -335,7 +335,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                         </p>
                                         <div className="mt-4 flex items-center gap-2">
                                             <Trophy className="w-4 h-4" style={{ color: epreuve.color }} />
-                                            <span className="text-[11px] font-bold italic opacity-40">Aucun butin ni expérience durant cette épreuve.</span>
+                                            <span className="text-caption font-bold italic opacity-40">Aucun butin ni expérience durant cette épreuve.</span>
                                         </div>
                                     </div>
                                 </div>
@@ -348,7 +348,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                         {/* Leader Actions */}
                         {isLeader && (
                             <div className="flex flex-col gap-3">
-                                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Actions Chef de Run</span>
+                                <span className="text-caption font-black text-white/20 uppercase tracking-widest pl-1">Actions Chef de Run</span>
                                 {!isCompleted && (
                                     <Button
                                         onClick={openEdit}
@@ -414,7 +414,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 </DialogHeader>
                                 <div className="py-4 space-y-5">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Difficulté</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Difficulté</label>
                                         <Select value={editForm.difficulty} onValueChange={(v) => setEditForm(prev => ({ ...prev, difficulty: v }))}>
                                             <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
                                                 <SelectValue placeholder="Choisir la difficulté" />
@@ -428,7 +428,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
                                         <Select value={editForm.epreuveCode} onValueChange={(v) => setEditForm(prev => ({ ...prev, epreuveCode: v }))}>
                                             <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
                                                 <SelectValue placeholder="Run standard" />
@@ -442,7 +442,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                         </Select>
                                         {!editForm.epreuveCode && (
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Objectifs</label>
+                                                <label className="text-caption font-black text-white/40 uppercase tracking-widest">Objectifs</label>
                                                 <div className="grid grid-cols-1 gap-2">
                                                     {Object.entries(OBJECTIVES).map(([key, obj]) => (
                                                         <button
@@ -466,7 +466,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Date de départ</label>
+                                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Date de départ</label>
                                             <Input
                                                 type="date"
                                                 value={editForm.date}
@@ -475,7 +475,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Heure</label>
+                                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Heure</label>
                                             <Input
                                                 type="time"
                                                 value={editForm.time}
@@ -486,7 +486,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
                                         <Input
                                             type="number"
                                             min={0}
@@ -509,12 +509,12 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
 
                         {/* Metadata Card */}
                         <div className="bg-white/3 rounded-2xl p-5 border border-white/5 flex flex-col gap-4">
-                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Détails de l'expédition</span>
+                            <span className="text-caption font-black text-white/20 uppercase tracking-widest">Détails de l'expédition</span>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-1.5 col-span-2">
                                     <div className="flex items-center gap-2 text-amber-500/60">
                                         <Crown className="w-3.5 h-3.5" />
-                                        <span className="text-[10px] font-bold uppercase tracking-tighter">Chef d'expédition</span>
+                                        <span className="text-caption font-bold uppercase tracking-tighter">Chef d'expédition</span>
                                     </div>
                                     <span className="text-sm font-black text-white/90">{leaderName || "Chargement..."}</span>
                                 </div>
@@ -522,14 +522,14 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 <div className="flex flex-col gap-1.5">
                                     <div className="flex items-center gap-2 text-white/40">
                                         <Users className="w-3.5 h-3.5" />
-                                        <span className="text-[10px] font-bold uppercase tracking-tighter">Équipage</span>
+                                        <span className="text-caption font-bold uppercase tracking-tighter">Équipage</span>
                                     </div>
                                     <span className="text-sm font-black text-white/80">{run.members.length} / 4</span>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
                                     <div className="flex items-center gap-2 text-white/40">
                                         <Clock className="w-3.5 h-3.5" />
-                                        <span className="text-[10px] font-bold uppercase tracking-tighter">Créée</span>
+                                        <span className="text-caption font-bold uppercase tracking-tighter">Créée</span>
                                     </div>
                                     <span className="text-sm font-black text-white/80">{formatDate(run.createdAt)}</span>
                                 </div>

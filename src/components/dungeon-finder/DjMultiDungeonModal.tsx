@@ -117,7 +117,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                         </div>
                         <div>
                             <span className="block">Multi-donjons</span>
-                            <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                            <span className="block text-caption text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
                                 {MIN_DUNGEONS} à {MAX_DUNGEONS} donjons — un seul message Discord, un seul ping
                             </span>
                         </div>
@@ -139,8 +139,8 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                     {/* Grille des donjons (multi-sélection) */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Choisis tes donjons</p>
-                            <span className="text-[10px] font-black text-zinc-400 tabular-nums">{selections.length}/{MAX_DUNGEONS}</span>
+                            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Choisis tes donjons</p>
+                            <span className="text-caption font-black text-zinc-400 tabular-nums">{selections.length}/{MAX_DUNGEONS}</span>
                         </div>
                         {loading ? (
                             <div className="py-12 text-center text-zinc-500 bg-zinc-900/30 rounded-2xl border border-white/5">Consultation du bestiaire…</div>
@@ -175,7 +175,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                             )}
                                             <span className="flex-1 min-w-0">
                                                 <span className="block text-xs font-bold text-white truncate">{d.name}</span>
-                                                <span className="block text-[9px] text-zinc-500">Niv. {d.level} — {d.bossName}</span>
+                                                <span className="block text-caption text-zinc-500">Niv. {d.level} — {d.bossName}</span>
                                             </span>
                                         </button>
                                     );
@@ -187,7 +187,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                     {/* Configuration par donjon sélectionné */}
                     {selections.length > 0 && (
                         <div className="space-y-3">
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Succès, date & note par donjon</p>
+                            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Succès, date & note par donjon</p>
                             {selections.map((s) => (
                                 <div key={s.dungeon.id} className="rounded-2xl border border-white/5 bg-zinc-900/30 overflow-hidden">
                                     <button
@@ -206,7 +206,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                         )}
                                         <span className="flex-1 min-w-0">
                                             <span className="block text-xs font-bold text-white">{s.dungeon.name}</span>
-                                            <span className="block text-[9px] text-zinc-500">
+                                            <span className="block text-caption text-zinc-500">
                                                 {s.achievements.length} succès
                                                 {s.targetDate ? ` · ${new Date(s.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}
                                                 {s.message ? " · note" : ""}
@@ -226,11 +226,11 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                         <div className="px-3 pb-3 pt-1 space-y-3 border-t border-white/5">
                                             {/* Succès */}
                                             <div>
-                                                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                                                     <Trophy className="w-3 h-3" /> Succès visés
                                                 </p>
                                                 {s.dungeon.achievements.length === 0 ? (
-                                                    <p className="text-[10px] text-zinc-600">Aucun succès connu pour ce donjon.</p>
+                                                    <p className="text-caption text-zinc-600">Aucun succès connu pour ce donjon.</p>
                                                 ) : (
                                                     <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar">
                                                         {s.dungeon.achievements.map((a) => {
@@ -240,7 +240,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                                     key={a.id}
                                                                     type="button"
                                                                     onClick={() => toggleAchievement(s.dungeon.id, a.id)}
-                                                                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-bold border transition-colors ${
+                                                                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption font-bold border transition-colors ${
                                                                         isOn
                                                                             ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
                                                                             : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20"
@@ -260,7 +260,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
 
                                             {/* Date — OPTIONNELLE (heure facultative) */}
                                             <div className="space-y-1.5">
-                                                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
                                                     <CalendarClock className="w-3 h-3" /> Date prévue <span className="text-zinc-600 normal-case font-medium">(optionnelle — heure facultative)</span>
                                                 </p>
                                                 <DateTimePicker
@@ -290,7 +290,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
 
                 {/* Footer */}
                 <div className="border-t border-white/5 p-4 flex items-center justify-between gap-3">
-                    <span className="text-[10px] text-zinc-600 font-bold">
+                    <span className="text-caption text-zinc-600 font-bold">
                         {selections.length} donjon{selections.length > 1 ? "s" : ""} sélectionné{selections.length > 1 ? "s" : ""} — minimum {MIN_DUNGEONS}
                     </span>
                     <div className="flex items-center gap-2">

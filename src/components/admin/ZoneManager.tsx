@@ -290,7 +290,7 @@ export default function ZoneManager() {
                                                 onChange={(val) => setFormData({ ...formData, familyIds: val })}
                                                 placeholder="Sélectionner les familles..."
                                             />
-                                            <p className="mt-3 text-[11px] text-slate-500 leading-relaxed font-medium italic">
+                                            <p className="mt-3 text-caption text-slate-500 leading-relaxed font-medium italic">
                                                 Optionnel: lier des familles de monstres à cette zone.
                                             </p>
                                         </div>
@@ -304,7 +304,7 @@ export default function ZoneManager() {
                                                 onChange={(val) => setFormData({ ...formData, dungeonIds: val })}
                                                 placeholder="Sélectionner les donjons..."
                                             />
-                                            <p className="mt-3 text-[11px] text-slate-500 leading-relaxed font-medium italic">
+                                            <p className="mt-3 text-caption text-slate-500 leading-relaxed font-medium italic">
                                                 Optionnel: lier des boss de donjon à cette zone.
                                             </p>
                                         </div>

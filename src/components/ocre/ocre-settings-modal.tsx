@@ -89,7 +89,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
             )}
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-lg overflow-hidden p-0 rounded-3xl border-border bg-zinc-950/98 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.8)] border-white/10">
+                <DialogContent className="max-w-lg overflow-hidden p-0 rounded-3xl border-border bg-zinc-950/98 backdrop-blur-2xl  border-white/10">
                     <div className="relative p-8 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent border-b border-white/5">
                         <DialogHeader>
                             <div className="flex items-center gap-3 mb-2">
@@ -109,7 +109,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                     <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar">
                         {/* Section: Base Info */}
                         <div className="space-y-4">
-                            <h4 className="text-[10px] uppercase tracking-widest font-black text-muted-foreground/50 flex items-center gap-2">
+                            <h4 className="text-caption uppercase tracking-widest font-black text-muted-foreground/50 flex items-center gap-2">
                                 <Info className="h-3 w-3" />
                                 Configuration Générale
                             </h4>
@@ -130,7 +130,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-[10px] text-muted-foreground leading-tight">
+                                    <p className="text-caption text-muted-foreground leading-tight">
                                         Nombre de Dofus Ocre que vous faites en même temps (détermine vos doublons).
                                     </p>
                                 </div>
@@ -149,7 +149,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                                             <SelectItem value="0">Manuel</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-[10px] text-muted-foreground leading-tight">
+                                    <p className="text-caption text-muted-foreground leading-tight">
                                         <b>Auto</b> : Metamob calcule vos offres/recherches selon vos quantités.
                                     </p>
                                 </div>
@@ -158,7 +158,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
 
                         {/* Section: Thresholds */}
                         <div className="space-y-4">
-                            <h4 className="text-[10px] uppercase tracking-widest font-black text-muted-foreground/50 flex items-center gap-2">
+                            <h4 className="text-caption uppercase tracking-widest font-black text-muted-foreground/50 flex items-center gap-2">
                                 <ArrowRightLeft className="h-3 w-3" />
                                 Seuils de calcul automatique
                             </h4>
@@ -167,7 +167,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-xs font-bold">Seuil d&apos;offre</Label>
-                                        <p className="text-[10px] text-muted-foreground">Quantité à partir de laquelle vous proposez en échange.</p>
+                                        <p className="text-caption text-muted-foreground">Quantité à partir de laquelle vous proposez en échange.</p>
                                     </div>
                                     <Input 
                                         type="number" 
@@ -180,7 +180,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-xs font-bold">Seuil de recherche</Label>
-                                        <p className="text-[10px] text-muted-foreground">Quantité en dessous de laquelle vous recherchez le monstre.</p>
+                                        <p className="text-caption text-muted-foreground">Quantité en dessous de laquelle vous recherchez le monstre.</p>
                                     </div>
                                     <Input 
                                         type="number" 
@@ -194,7 +194,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
 
                         {/* Section: Visibility */}
                         <div className="space-y-4">
-                            <h4 className="text-[10px] uppercase tracking-widest font-black text-muted-foreground/50 flex items-center gap-2">
+                            <h4 className="text-caption uppercase tracking-widest font-black text-muted-foreground/50 flex items-center gap-2">
                                 <ShieldCheck className="h-3 w-3" />
                                 Visibilité & Vie Privée
                             </h4>
@@ -202,7 +202,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                             <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900/50 border border-white/5">
                                 <div className="space-y-0.5">
                                     <Label className="text-xs font-bold">Afficher mes échanges sur Metamob</Label>
-                                    <p className="text-[10px] text-muted-foreground">Si désactivé, vous n&apos;apparaîtrez pas dans les recherches publiques.</p>
+                                    <p className="text-caption text-muted-foreground">Si désactivé, vous n&apos;apparaîtrez pas dans les recherches publiques.</p>
                                 </div>
                                 <Switch 
                                     checked={settings.show_trades}

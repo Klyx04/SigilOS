@@ -131,7 +131,7 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
                                 <img 
                                     src={selectedDungeon.imageUrl} 
                                     alt={selectedDungeon.name}
-                                    className="w-full h-full object-contain scale-110 group-hover:scale-100 transition-all duration-500"
+                                    className="w-full h-full object-contain scale-110 group-hover:scale-100 transition-all duration-300"
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-zinc-900">
@@ -143,17 +143,17 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
 
                         <div className="flex-1 min-w-0 py-1">
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <span className="text-caption font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
                                     <CheckCircle2 className="w-3.5 h-3.5" /> Mission Active
                                 </span>
-                                <span className="px-2 py-0.5 bg-rose-500/10 text-[9px] font-black text-rose-500 border border-rose-500/20 rounded-md">
+                                <span className="px-2 py-0.5 bg-rose-500/10 text-caption font-black text-rose-500 border border-rose-500/20 rounded-md">
                                     NIV. {selectedDungeon.level}
                                 </span>
                             </div>
                             <h4 className="text-white font-black uppercase text-sm leading-tight truncate mb-1">
                                 {selectedDungeon.name}
                             </h4>
-                            <div className="flex items-center gap-1.5 text-zinc-500 text-[10px] font-bold">
+                            <div className="flex items-center gap-1.5 text-zinc-500 text-caption font-bold">
                                 <Skull className="w-3.5 h-3.5 text-rose-400/70" />
                                 <span>{selectedDungeon.bossName}</span>
                             </div>
@@ -310,13 +310,13 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                            <div className="text-caption font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Mission Active
                             </div>
                             <h4 className="text-white font-black uppercase text-sm truncate leading-tight">
                                 {payload.familyName || "Famille inconnue"}
                             </h4>
-                            <div className="text-zinc-500 text-[10px] mt-1 flex items-center gap-1">
+                            <div className="text-zinc-500 text-caption mt-1 flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
                                 <span className="truncate">{payload.zoneName || "Toute zone"}</span>
                             </div>
@@ -325,7 +325,7 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
                     
                     <div className="pt-3 border-t border-white/5">
                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Objectif de guilde</span>
+                            <span className="text-caption text-zinc-500 font-bold uppercase tracking-tighter">Objectif de guilde</span>
                             <span className="text-emerald-400 font-black text-xs">Vaincre 50 monstres</span>
                         </div>
                     </div>
@@ -413,7 +413,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                             <RadioGroupItem value={t.value} id={t.value} />
                             <Label htmlFor={t.value} className="cursor-pointer text-sm">
                                 <div className={cn("font-black uppercase tracking-tighter", anomalieType === t.value ? "text-fuchsia-300" : "text-zinc-400")}>{t.label}</div>
-                                <div className="text-[10px] text-zinc-600 font-medium">{t.desc}</div>
+                                <div className="text-caption text-zinc-600 font-medium">{t.desc}</div>
                             </Label>
                         </div>
                     ))}
@@ -454,13 +454,13 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             )}
 
             {/* Visual Preview Card for Anomalie */}
-            <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="w-14 h-14 rounded-xl bg-zinc-900/80 backdrop-blur-md border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
                     <img src={getAnomalieArtwork()} className="w-10 h-10 object-contain z-10" alt="Artwork" />
                     <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
                 </div>
-                <div className="flex-1 text-[11px] text-zinc-400 leading-relaxed py-0.5">
-                    <div className="font-black text-fuchsia-400 uppercase tracking-widest text-[9px] mb-1">Visualisation Mission</div>
+                <div className="flex-1 text-caption text-zinc-400 leading-relaxed py-0.5">
+                    <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Visualisation Mission</div>
                     {anomalieType === 'ZONE' && (
                         <>Vaincre 50 monstres dans un territory de niveau <span className="text-white font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
@@ -532,7 +532,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
     return (
         <div className="space-y-5">
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-500 font-black uppercase tracking-widest text-[9px]">Difficulté Onirique</Label>
+                <Label className="text-xs text-zinc-500 font-black uppercase tracking-widest text-caption">Difficulté Onirique</Label>
                 <div className="grid grid-cols-3 gap-2">
                     {SONGES_CONFIG.difficulties.map(diff => {
                         const isActive = difficulty === diff;
@@ -542,7 +542,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                                 type="button"
                                 onClick={() => updatePayload(diff, level, tier)}
                                 className={cn(
-                                    "py-2.5 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all",
+                                    "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
                                     isActive ? getDifficultyColor() : "bg-zinc-950 border-zinc-900 text-zinc-600"
                                 )}
                             >
@@ -562,7 +562,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                             type="button"
                             onClick={() => updatePayload(difficulty, lvl, tier)}
                             className={cn(
-                                "flex-1 py-2 rounded-xl border text-[11px] font-black transition-all",
+                                "flex-1 py-2 rounded-xl border text-caption font-black transition-all",
                                 level === lvl ? "bg-zinc-800 border-white/20 text-white shadow-xl" : "bg-zinc-950 border-zinc-900 text-zinc-600"
                             )}
                         >
@@ -581,7 +581,7 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                             type="button"
                             onClick={() => updatePayload(difficulty, level, t)}
                             className={cn(
-                                "flex-1 py-2 rounded-xl text-[10px] font-black transition-all",
+                                "flex-1 py-2 rounded-xl text-caption font-black transition-all",
                                 tier === t ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/20" : "text-zinc-600 hover:text-zinc-400"
                             )}
                         >
@@ -592,24 +592,24 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
             </div>
 
             {/* Visual Preview Card for Songes */}
-            <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-900/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+            <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-900/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
                 <div className="w-16 h-16 rounded-2xl bg-zinc-900/50 backdrop-blur-md border border-cyan-500/20 flex items-center justify-center relative overflow-hidden shrink-0">
                     <img src={getDifficultyArtwork()} className="w-14 h-14 object-contain z-10" alt="Songes" />
                     <div className="absolute inset-0 bg-cyan-500/5 animate-pulse" />
                 </div>
                 <div className="flex-1 space-y-1">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Aperçu Mission</span>
+                        <span className="text-caption font-black text-cyan-400 uppercase tracking-widest">Aperçu Mission</span>
                         <div className="flex items-center gap-1">
                             {Array.from({ length: 5 }).map((_, i) => (
                                 <div key={i} className={cn("w-1 h-1 rounded-full", i < tier ? "bg-cyan-400" : "bg-zinc-800")} />
                             ))}
                         </div>
                     </div>
-                    <p className="text-[11px] text-zinc-400 leading-tight">
+                    <p className="text-caption text-zinc-400 leading-tight">
                         Compléter le <span className="text-white font-black">Palier {tier}</span> d'un songe en <span className="text-cyan-400 font-bold uppercase">{difficulty} {level}</span>.
                     </p>
-                    <div className="text-[9px] text-zinc-600 font-bold italic">
+                    <div className="text-caption text-zinc-600 font-bold italic">
                         {tier === 1 ? "Pensées oniriques" : tier === 5 ? "Abstractions chimériques" : "Exploration onirique"}
                     </div>
                 </div>
@@ -632,10 +632,10 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
     return (
         <div className="space-y-5">
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-500 font-black uppercase tracking-widest text-[9px]">
+                <Label className="text-xs text-zinc-500 font-black uppercase tracking-widest text-caption">
                     Épreuve de Songe
                 </Label>
-                <p className="text-[10px] text-zinc-500 italic">
+                <p className="text-caption text-zinc-500 italic">
                     Choisissez une épreuve de Songe à réaliser.
                 </p>
                 <div className="grid grid-cols-2 gap-3">
@@ -678,7 +678,7 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
             </div>
 
             {epreuve && (
-                <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-900/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+                <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-900/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
                     <div className="w-16 h-16 rounded-2xl bg-zinc-900/50 backdrop-blur-md border border-cyan-500/20 flex items-center justify-center overflow-hidden shrink-0">
                         <img
                             src={`/assets/missions/epreuves-songes/${epreuve}.png`}
@@ -687,8 +687,8 @@ export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: F
                         />
                     </div>
                     <div className="flex-1 space-y-1">
-                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Aperçu Mission</span>
-                        <p className="text-[11px] text-zinc-400 leading-tight">
+                        <span className="text-caption font-black text-cyan-400 uppercase tracking-widest">Aperçu Mission</span>
+                        <p className="text-caption text-zinc-400 leading-tight">
                             Réaliser l'épreuve de Songe <span className="text-white font-black">{epreuve}</span>.
                         </p>
                     </div>
@@ -760,7 +760,7 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                             type="button"
                             onClick={() => handleModeChange(m.value)}
                             className={cn(
-                                "py-2.5 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all",
+                                "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
                                 mode === m.value
                                     ? "bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-xl shadow-amber-500/10"
                                     : "bg-zinc-950 border-zinc-900 text-zinc-600 hover:border-zinc-700"
@@ -792,7 +792,7 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                                 <img 
                                     src={selectedDungeon.imageUrl} 
                                     alt={selectedDungeon.name}
-                                    className="w-full h-full object-contain scale-110 group-hover:scale-100 transition-transform duration-700"
+                                    className="w-full h-full object-contain scale-110 group-hover:scale-100 transition-transform duration-300"
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-zinc-900">
@@ -804,11 +804,11 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
 
                         <div className="flex-1 min-w-0 py-1">
                             <div className="flex items-center gap-2 mb-1.5">
-                                <span className="px-1.5 py-0.5 bg-amber-500/20 text-[8px] font-black text-amber-400 border border-amber-500/30 rounded uppercase tracking-widest">
+                                <span className="px-1.5 py-0.5 bg-amber-500/20 text-caption font-black text-amber-400 border border-amber-500/30 rounded uppercase tracking-widest">
                                     Expédition
                                 </span>
                                 {mode !== 'aucun' && (
-                                    <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
+                                    <span className="text-caption font-black text-white/40 uppercase tracking-widest">
                                         Mode {mode}
                                     </span>
                                 )}
@@ -816,7 +816,7 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                             <h4 className="text-white font-black uppercase text-sm leading-tight truncate mb-1">
                                 {selectedDungeon.name}
                             </h4>
-                            <div className="flex items-center gap-1.5 text-zinc-500 text-[10px] font-bold">
+                            <div className="flex items-center gap-1.5 text-zinc-500 text-caption font-bold">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-amber-400/70" />
                                 <span>Vaincre le Boss en mode expédition</span>
                             </div>
@@ -1081,7 +1081,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
-                            <span className="text-[10px] font-black text-yellow-400">1</span>
+                            <span className="text-caption font-black text-yellow-400">1</span>
                         </div>
                         <span className="text-xs text-zinc-400 font-black uppercase tracking-widest">Contexte</span>
                     </div>
@@ -1100,10 +1100,10 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     : "bg-zinc-950 border-zinc-900 hover:border-zinc-700 text-zinc-500"
                             )}
                         >
-                            <span className={cn("text-2xl transition-transform duration-300", contextPreset === ctx.value ? "scale-110" : "group-hover:scale-110")}>{ctx.emoji}</span>
+                            <span className={cn("text-2xl transition-transform duration-300", contextPreset === ctx.value ? "scale-110" : "group-")}>{ctx.emoji}</span>
                             <div className="space-y-0.5">
-                                <div className="text-[10px] font-black leading-tight uppercase tracking-tighter">{ctx.label}</div>
-                                <div className="text-[8px] opacity-60 font-bold">{ctx.period}</div>
+                                <div className="text-caption font-black leading-tight uppercase tracking-tighter">{ctx.label}</div>
+                                <div className="text-caption opacity-60 font-bold">{ctx.period}</div>
                             </div>
                             {contextPreset === ctx.value && <div className="absolute inset-0 bg-yellow-500/5 animate-pulse pointer-events-none" />}
                         </button>
@@ -1124,7 +1124,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
             <div className="space-y-3">
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                        <span className="text-[10px] font-black text-indigo-400">2</span>
+                        <span className="text-caption font-black text-indigo-400">2</span>
                     </div>
                     <span className="text-xs text-zinc-400 font-black uppercase tracking-widest">Type de mission</span>
                 </div>
@@ -1144,8 +1144,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         >
                             <span className="text-xl">{st.emoji}</span>
                             <div className="space-y-0.5">
-                                <div className={cn("text-[10px] font-black uppercase tracking-tighter", eventType === st.value ? st.color : "text-zinc-400")}>{st.label}</div>
-                                <div className="text-[8px] opacity-60 font-bold leading-tight">{st.desc}</div>
+                                <div className={cn("text-caption font-black uppercase tracking-tighter", eventType === st.value ? st.color : "text-zinc-400")}>{st.label}</div>
+                                <div className="text-caption opacity-60 font-bold leading-tight">{st.desc}</div>
                             </div>
                         </button>
                     ))}
@@ -1156,7 +1156,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
             <div className="space-y-4 pt-2 border-t border-white/5">
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                        <span className="text-[10px] font-black text-emerald-400">3</span>
+                        <span className="text-caption font-black text-emerald-400">3</span>
                     </div>
                     <span className="text-xs text-zinc-400 font-black uppercase tracking-widest">Objectif</span>
                 </div>
@@ -1182,9 +1182,9 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     )}
                                 </div>
                                 <div className="flex-1">
-                                    <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Cible Événement</div>
+                                    <div className="text-caption font-black text-rose-400 uppercase tracking-widest mb-1">Cible Événement</div>
                                     <h4 className="text-white font-black uppercase text-sm leading-tight">{payload.bossName}</h4>
-                                    {contextLabel && <div className="text-[10px] text-yellow-400 font-bold mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {contextLabel}</div>}
+                                    {contextLabel && <div className="text-caption text-yellow-400 font-bold mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {contextLabel}</div>}
                                 </div>
                             </div>
                         )}
@@ -1221,9 +1221,9 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     )}
                                 </div>
                                 <div className="flex-1">
-                                    <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Régulation Active</div>
+                                    <div className="text-caption font-black text-amber-400 uppercase tracking-widest mb-1">Régulation Active</div>
                                     <h4 className="text-white font-black uppercase text-sm leading-tight">{payload.familyName}</h4>
-                                    <div className="text-[10px] text-zinc-500 font-bold mt-1">Vaincre 50 monstres</div>
+                                    <div className="text-caption text-zinc-500 font-bold mt-1">Vaincre 50 monstres</div>
                                 </div>
                             </div>
                         )}
@@ -1246,7 +1246,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                 searchPlaceholder="Nom du monstre..."
                                 emptyText="Aucun monstre trouvé dans la base."
                             />
-                            <p className="text-[9px] text-zinc-600 italic">Sélectionnez un monstre créé côté GOD pour pré-remplir le formulaire. Les champs restent modifiables.</p>
+                            <p className="text-caption text-zinc-600 italic">Sélectionnez un monstre créé côté GOD pour pré-remplir le formulaire. Les champs restent modifiables.</p>
                         </div>
 
                         {/* Nom (requis) */}
@@ -1318,7 +1318,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                         type="button"
                                         onClick={() => handleTargetCount(count)}
                                         className={cn(
-                                            "flex-1 py-2 rounded-xl text-[10px] font-black transition-all",
+                                            "flex-1 py-2 rounded-xl text-caption font-black transition-all",
                                             (payload.targetCount || 50) === count
                                                 ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
                                                 : "text-zinc-600 hover:text-zinc-400"
@@ -1333,7 +1333,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         {payload.monsterName && (
                             <div className="relative overflow-hidden rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Contrat Spécial</span>
+                                    <span className="text-caption font-black text-purple-400 uppercase tracking-widest">Contrat Spécial</span>
                                     <Skull className="w-3.5 h-3.5 text-purple-400" />
                                 </div>
                                 <div className="flex gap-3">
@@ -1345,10 +1345,10 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     <div className="flex-1 min-w-0">
                                         <h4 className="text-white font-black uppercase text-sm leading-tight mb-1">{payload.monsterName}</h4>
                                         <div className="space-y-0.5">
-                                            <p className="text-[10px] text-zinc-500 font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
-                                            {payload.level && <p className="text-[10px] text-purple-300 font-bold">Niveau : {payload.level}</p>}
+                                            <p className="text-caption text-zinc-500 font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
+                                            {payload.level && <p className="text-caption text-purple-300 font-bold">Niveau : {payload.level}</p>}
                                             {payload.zoneName && (
-                                                <p className="text-[10px] text-zinc-500 font-bold flex items-center gap-1">
+                                                <p className="text-caption text-zinc-500 font-bold flex items-center gap-1">
                                                     <MapPin className="w-3 h-3 text-purple-400" /> {payload.zoneName}
                                                 </p>
                                             )}
@@ -1356,7 +1356,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                     </div>
                                 </div>
                                 {payload.description && (
-                                    <p className="text-[11px] text-zinc-400 mt-2 pt-2 border-t border-white/5 leading-snug">{payload.description}</p>
+                                    <p className="text-caption text-zinc-400 mt-2 pt-2 border-t border-white/5 leading-snug">{payload.description}</p>
                                 )}
                             </div>
                         )}
@@ -1387,12 +1387,12 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                         {payload.description && (
                             <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
+                                    <span className="text-caption font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
                                         <Sparkles className="w-3.5 h-3.5" /> Objectif Personnel
                                     </span>
                                 </div>
                                 <h4 className="text-white font-black uppercase text-sm leading-tight mb-1">{payload.title || "Sans titre"}</h4>
-                                <p className="text-[11px] text-zinc-300 font-medium leading-snug">{payload.description}</p>
+                                <p className="text-caption text-zinc-300 font-medium leading-snug">{payload.description}</p>
                             </div>
                         )}
                     </div>
@@ -1406,8 +1406,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                 <img src="/assets/missions/fragment.png" className="w-10 h-10 object-contain z-10" alt="Fragments" />
                                 <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
                             </div>
-                            <div className="flex-1 text-[11px] text-zinc-400 leading-relaxed py-0.5">
-                                <div className="font-black text-fuchsia-400 uppercase tracking-widest text-[9px] mb-1">Mission Événement Fragments</div>
+                            <div className="flex-1 text-caption text-zinc-400 leading-relaxed py-0.5">
+                                <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Mission Événement Fragments</div>
                                 Obtenir <span className="text-white font-black">20 Fragments d'anomalie</span> dans une anomalie <span className="text-fuchsia-300 font-bold">(tous niveaux)</span>
                             </div>
                         </div>

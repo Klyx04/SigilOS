@@ -114,7 +114,7 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
     }, [members, search, weekDates]);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
+        <div className="space-y-6 animate-in fade-in duration-300">
             {/* Toolbar */}
             <div className="relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 p-5 rounded-[2rem] bg-zinc-950/40 border border-white/5 shadow-2xl backdrop-blur-3xl group/toolbar">
                 <div className="noise-overlay absolute inset-0 opacity-[0.03] pointer-events-none" />
@@ -147,7 +147,7 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                     </button>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <div className="px-4 text-sm font-black text-zinc-200 min-w-[180px] text-center flex items-center justify-center gap-2 cursor-pointer hover:text-indigo-400 hover:scale-105 transition-all duration-300 group/week" title="Choisir un mois">
+                            <div className="px-4 text-sm font-black text-zinc-200 min-w-[180px] text-center flex items-center justify-center gap-2 cursor-pointer hover:text-indigo-400  transition-all duration-300 group/week" title="Choisir un mois">
                                 <CalendarDays className={cn(
                                     "w-4 h-4 transition-colors",
                                     weekOffset === 0 ? "text-indigo-400" : "text-zinc-500 group-hover:text-indigo-400"
@@ -164,7 +164,7 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                     <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
                                         <Sparkles className="w-4 h-4 text-indigo-400" />
                                     </div>
-                                    <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em]">Sauter vers un mois</h4>
+                                    <h4 className="text-caption font-black uppercase text-zinc-400 tracking-[0.2em]">Sauter vers un mois</h4>
                                 </div>
                                 
                                 <div className="grid grid-cols-2 gap-2">
@@ -184,14 +184,14 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                                     setWeekOffset(offset);
                                                 }}
                                                 className={cn(
-                                                    "group/m relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-500 h-20 overflow-hidden",
+                                                    "group/m relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 h-20 overflow-hidden",
                                                     isActive
-                                                        ? "bg-indigo-500/20 border-indigo-500/40 shadow-[0_0_20px_rgba(79,70,229,0.2)]"
+                                                        ? "bg-indigo-500/20 border-indigo-500/40 "
                                                         : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10"
                                                 )}
                                             >
                                                 <span className={cn(
-                                                    "text-[9px] font-black uppercase tracking-widest transition-colors",
+                                                    "text-caption font-black uppercase tracking-widest transition-colors",
                                                     isActive ? "text-indigo-400" : "text-zinc-500 group-hover/m:text-zinc-300"
                                                 )}>
                                                     {format(targetMonth, "yyyy")}
@@ -212,7 +212,7 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
 
                                 <button 
                                     onClick={() => setWeekOffset(0)}
-                                    className="w-full mt-4 p-2 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                                    className="w-full mt-4 p-2 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-caption font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2"
                                 >
                                     <ChevronsLeft className="w-3 h-3" />
                                     Retour au présent
@@ -245,27 +245,27 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="border-b border-white/10 bg-white/[0.02]">
-                                <th className="p-5 w-64 font-black text-zinc-500 text-[10px] uppercase tracking-[0.2em] italic">Membre</th>
+                                <th className="p-5 w-64 font-black text-zinc-500 text-caption uppercase tracking-[0.2em] italic">Membre</th>
                                 {DAYS_OF_WEEK.map(day => {
                                     const date = weekDates[day];
                                     const today = isToday(date);
                                     return (
                                         <th key={day} className={cn(
-                                            "p-4 text-center border-l border-white/5 relative overflow-hidden transition-all duration-500",
+                                            "p-4 text-center border-l border-white/5 relative overflow-hidden transition-all duration-300",
                                             today && "bg-indigo-500/[0.03]"
                                         )}>
                                             {today && (
-                                                <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.5)]" />
+                                                <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 " />
                                             )}
                                             <div className="flex flex-col items-center relative z-10">
                                                 <span className={cn(
-                                                    "text-[9px] font-black uppercase tracking-[0.2em] mb-1 transition-colors duration-500", 
+                                                    "text-caption font-black uppercase tracking-[0.2em] mb-1 transition-colors duration-300", 
                                                     today ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(79,70,229,0.3)]" : "text-zinc-500"
                                                 )}>
                                                     {format(date, "EEEE", { locale: fr })}
                                                 </span>
                                                 <span className={cn(
-                                                    "text-xl font-black transition-all duration-500 leading-none", 
+                                                    "text-xl font-black transition-all duration-300 leading-none", 
                                                     today ? "text-white scale-110" : "text-zinc-300"
                                                 )}>
                                                     {format(date, "d")}
@@ -285,19 +285,19 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                             className="flex items-center gap-4 group/member outline-none"
                                         >
                                             <div className="relative">
-                                                <Avatar className="w-12 h-12 border border-white/5 shadow-2xl transition-all duration-500 group-hover/member:scale-110 group-hover/member:rotate-3 group-hover/member:border-indigo-500/30">
+                                                <Avatar className="w-12 h-12 border border-white/5 shadow-2xl transition-all duration-300 group-hover/member:scale-110 group-hover/member:rotate-3 group-hover/member:border-indigo-500/30">
                                                     <AvatarImage src={member.user?.image} />
                                                     <AvatarFallback className="bg-zinc-900 text-xs font-black text-zinc-500 uppercase tracking-tighter">
                                                         {(member.pseudoDofus || member.discordNickname || member.user?.name || "?").substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <div className="absolute inset-0 rounded-full bg-indigo-500/0 group-hover/member:bg-indigo-500/10 blur-xl transition-all duration-500 -z-10" />
+                                                <div className="absolute inset-0 rounded-full bg-indigo-500/0 group-hover/member:bg-indigo-500/10 blur-xl transition-all duration-300 -z-10" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="font-black text-zinc-200 text-[13px] uppercase tracking-wider transition-colors duration-500 group-hover/member:text-indigo-400 truncate max-w-[150px]">
+                                                <span className="font-black text-zinc-200 text-body-sm uppercase tracking-wider transition-colors duration-300 group-hover/member:text-indigo-400 truncate max-w-[150px]">
                                                     {member.pseudoDofus || member.discordNickname || member.user?.name}
                                                 </span>
-                                                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] italic group-hover/member:text-zinc-500 transition-colors">
+                                                <span className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic group-hover/member:text-zinc-500 transition-colors">
                                                     {member.roleName || "Membre"}
                                                 </span>
                                             </div>
@@ -313,7 +313,7 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                                 {onVacation ? (
                                                     <div className="w-full h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col items-center justify-center gap-0.5" title={member.vacationReason ? `En congés : ${member.vacationReason}` : "En congés"}>
                                                         <Plane className="w-4 h-4 text-cyan-400" />
-                                                        <span className="text-[9px] font-bold text-cyan-500/80 uppercase tracking-widest">Absent</span>
+                                                        <span className="text-caption font-bold text-cyan-500/80 uppercase tracking-widest">Absent</span>
                                                     </div>
                                                 ) : hasSlots ? (
                                                     <div className="w-full flex flex-wrap items-center justify-center gap-1.5 p-1">
@@ -324,7 +324,7 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
                                                                 <div 
                                                                     key={slot}
                                                                     className={cn(
-                                                                        "flex items-center justify-center w-7 h-7 rounded-md border shadow-sm transition-transform hover:scale-110",
+                                                                        "flex items-center justify-center w-7 h-7 rounded-md border shadow-sm transition-transform ",
                                                                         Info.bg, Info.border
                                                                     )}
                                                                     title={Info.label}

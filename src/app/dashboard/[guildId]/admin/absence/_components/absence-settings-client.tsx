@@ -112,7 +112,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
 
                         {/* Step 2 */}
                         <div className="relative pl-6 border-l-2 border-primary/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-2 border-zinc-950 shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-2 border-zinc-950 " />
                             <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
 
                             <div className="space-y-4">
@@ -156,7 +156,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-indigo-400">SigilOS</span>
-                                        <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-1 rounded">BOT</span>
+                                        <span className="bg-indigo-500/20 text-indigo-300 text-caption px-1 rounded">BOT</span>
                                         <span className="text-xs text-zinc-500">Aujourd'hui à 14:30</span>
                                     </div>
 

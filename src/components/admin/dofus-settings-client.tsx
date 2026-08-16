@@ -75,7 +75,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
     ];
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-300">
 
             {/* --- ACTION BAR --- */}
             <div className="sticky top-[140px] z-20 p-4 rounded-xl bg-zinc-900/80 border border-white/5 backdrop-blur-md flex items-center justify-between shadow-xl">
@@ -137,7 +137,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Position X</label>
+                                <label className="text-caption font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Position X</label>
                                 <input
                                     type="number"
                                     value={guildHallPosX ?? ""}
@@ -147,7 +147,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Position Y</label>
+                                <label className="text-caption font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Position Y</label>
                                 <input
                                     type="number"
                                     value={guildHallPosY ?? ""}
@@ -157,7 +157,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Monde</label>
+                                <label className="text-caption font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Monde</label>
                                 <div className="relative">
                                     <select
                                         value={guildHallWorldId ?? 1}
@@ -179,7 +179,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
 
                         {guildHallPosX !== null && guildHallPosY !== null ? (
                             <div className="space-y-2">
-                                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block">Aperçu Satellite HD</span>
+                                <span className="text-caption font-black text-cyan-400 uppercase tracking-wider block">Aperçu Satellite HD</span>
                                 <div className="w-full h-48 rounded-xl overflow-hidden border border-white/10 relative">
                                     <MapViewer 
                                         initialX={guildHallPosX} 
@@ -188,7 +188,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                         initialWorldId={guildHallWorldId ?? 1} 
                                         hideUI={true} 
                                     />
-                                    <div className="absolute top-2 right-2 bg-black/85 border border-cyan-500/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-[10px] font-mono font-black text-cyan-400">
+                                    <div className="absolute top-2 right-2 bg-black/85 border border-cyan-500/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-caption font-mono font-black text-cyan-400">
                                         [{guildHallPosX}, {guildHallPosY}]
                                     </div>
                                 </div>
@@ -222,7 +222,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                             return (
                                 <div key={cat.key} className="space-y-3">
                                     <div className="flex items-center gap-2 px-1">
-                                        <span className={cn("text-[10px] font-black uppercase tracking-wider", cat.color)}>
+                                        <span className={cn("text-caption font-black uppercase tracking-wider", cat.color)}>
                                             {cat.label}
                                         </span>
                                         <div className="h-px flex-1 bg-white/5" />
@@ -238,7 +238,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                                     className={cn(
                                                         "relative p-2.5 rounded-xl border transition-all duration-200 text-left flex items-center gap-3",
                                                         isSelected
-                                                            ? "bg-indigo-500/20 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                                                            ? "bg-indigo-500/20 border-indigo-500/50 "
                                                             : "bg-zinc-900/40 border-white/5 hover:border-white/10 hover:bg-zinc-800/40"
                                                     )}
                                                 >
@@ -255,7 +255,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                                         )}>
                                                             {server.name}
                                                         </p>
-                                                        <p className="text-[9px] text-zinc-600 font-mono scale-90 origin-left">ID:{server.id}</p>
+                                                        <p className="text-caption text-zinc-600 font-mono scale-90 origin-left">ID:{server.id}</p>
                                                     </div>
 
                                                     {isSelected && (

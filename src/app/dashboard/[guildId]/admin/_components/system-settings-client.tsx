@@ -100,7 +100,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 text-left">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
@@ -117,7 +117,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                 {channelId ? (
                                     <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Configuré</Badge>
                                 ) : (
-                                    <Badge variant="outline" className="text-zinc-600 border-white/5 uppercase text-[10px] font-black tracking-widest">Défaut</Badge>
+                                    <Badge variant="outline" className="text-zinc-600 border-white/5 uppercase text-caption font-black tracking-widest">Défaut</Badge>
                                 )}
                             </div>
                             <CardDescription className="text-xs font-medium text-zinc-500">
@@ -127,7 +127,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] uppercase font-black text-zinc-500 ml-1">ID du Salon Principal</Label>
+                                    <Label className="text-caption uppercase font-black text-zinc-500 ml-1">ID du Salon Principal</Label>
                                     <div className="relative group/input">
                                         <Input
                                             value={channelId}
@@ -150,8 +150,8 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                                 <item.icon className="w-3 h-3" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider">{item.title}</p>
-                                                <p className="text-[9px] text-zinc-500 leading-tight">{item.desc}</p>
+                                                <p className="text-caption font-bold text-zinc-300 uppercase tracking-wider">{item.title}</p>
+                                                <p className="text-caption text-zinc-500 leading-tight">{item.desc}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -174,14 +174,14 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         <CardContent>
                             <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] text-zinc-500 leading-relaxed max-w-sm font-medium">
+                                    <p className="text-caption text-zinc-500 leading-relaxed max-w-sm font-medium">
                                         Active le bouton de partage manuel des news Ankama sur le dashboard pour les administrateurs.
                                     </p>
                                 </div>
                                 <Switch 
                                     checked={newsEnabled}
                                     onCheckedChange={setNewsEnabled}
-                                    className="data-[state=checked]:bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                                    className="data-[state=checked]:bg-emerald-500 "
                                 />
                             </div>
                         </CardContent>
@@ -197,7 +197,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                 </span>
                                 🔔 Cycle de Vie des Membres
                             </CardTitle>
-                            <CardDescription className="text-[11px] text-zinc-500 font-medium leading-relaxed">
+                            <CardDescription className="text-caption text-zinc-500 font-medium leading-relaxed">
                                 Reçois une notification Discord riche (embed) quand un membre :
                             </CardDescription>
                         </CardHeader>
@@ -211,7 +211,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                     { emoji: "🗑️", label: "Est supprimé (admin)", color: "text-rose-400" },
                                     { emoji: "🔄", label: "Est réactivé", color: "text-emerald-400" },
                                 ].map((evt, idx) => (
-                                    <div key={idx} className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium">
+                                    <div key={idx} className="flex items-center gap-1.5 text-caption text-zinc-400 font-medium">
                                         <span>{evt.emoji}</span>
                                         <span className={evt.color}>{evt.label}</span>
                                     </div>
@@ -219,7 +219,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black text-zinc-500 ml-1">
+                                <Label className="text-caption uppercase font-black text-zinc-500 ml-1">
                                     Salon des notifications <span className="text-rose-400">(lifecycle)</span>
                                 </Label>
                                 <div className="relative group/input">
@@ -234,7 +234,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                     <ChannelPreview guildId={guildId} channelId={lifecycleChannelId} color="rose" />
                                     <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 flex items-start gap-3">
                                     <ShieldAlert className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
-                                    <p className="text-[10px] text-zinc-400 leading-relaxed">
+                                    <p className="text-caption text-zinc-400 leading-relaxed">
                                         <strong className="text-rose-300">Laisse vide</strong> pour désactiver. L'embed contiendra : pseudo Discord, pseudo Dofus, qui a fait l'action, le statut, l'heure, la guilde et la durée de rétention.
                                     </p>
                                 </div>
@@ -256,7 +256,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                 <div className="space-y-6">
                     <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
                         <CardHeader className="bg-white/5 pb-3 px-4 py-3">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Aperçu : Rapport Plateforme</CardTitle>
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Rapport Plateforme</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative px-4">
                             <div className="flex items-start gap-3">
@@ -266,19 +266,19 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-indigo-400 text-xs">SigilOS</span>
-                                        <span className="bg-indigo-500/20 text-indigo-300 text-[9px] px-1 rounded">BOT</span>
+                                        <span className="bg-indigo-500/20 text-indigo-300 text-caption px-1 rounded">BOT</span>
                                     </div>
                                     <div className="bg-[#2b2d31] rounded border-l-4 border-indigo-400 p-3 max-w-sm shadow-xl">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">📋</span>
-                                            <h4 className="font-semibold text-white text-[11px]">Rapport d'Activité</h4>
+                                            <h4 className="font-semibold text-white text-caption">Rapport d'Activité</h4>
                                         </div>
                                         <div className="space-y-1.5 mt-2">
-                                            <div className="flex justify-between text-[9px]">
+                                            <div className="flex justify-between text-caption">
                                                 <span className="text-zinc-500">Missions Validées</span>
                                                 <span className="text-zinc-200">12</span>
                                             </div>
-                                            <div className="flex justify-between text-[9px]">
+                                            <div className="flex justify-between text-caption">
                                                 <span className="text-zinc-500">Kamas Collectés</span>
                                                 <span className="text-emerald-400">450,000</span>
                                             </div>
@@ -291,7 +291,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
 
                     <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
                         <CardHeader className="bg-white/5 pb-3 px-4 py-3">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Aperçu : Lifecycle</CardTitle>
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Lifecycle</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative px-4">
                             <div className="flex items-start gap-3">
@@ -301,17 +301,17 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-rose-400 text-xs">SigilOS</span>
-                                        <span className="text-[9px] text-zinc-500 uppercase font-black tracking-wider">LIFECYCLE</span>
+                                        <span className="text-caption text-zinc-500 uppercase font-black tracking-wider">LIFECYCLE</span>
                                     </div>
                                     <div className="bg-[#2b2d31] rounded border-l-4 border-rose-500 p-3 max-w-sm">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">👋</span>
-                                            <h4 className="font-semibold text-white text-[11px]">Départ Membre</h4>
+                                            <h4 className="font-semibold text-white text-caption">Départ Membre</h4>
                                         </div>
-                                        <p className="text-zinc-300 text-[10px] leading-relaxed mb-2">
+                                        <p className="text-zinc-300 text-caption leading-relaxed mb-2">
                                             <span className="text-indigo-400">@Wylan</span> a quitté le serveur.
                                         </p>
-                                        <div className="w-full py-1 bg-zinc-700 text-white text-[9px] font-bold rounded flex items-center justify-center gap-1">
+                                        <div className="w-full py-1 bg-zinc-700 text-white text-caption font-bold rounded flex items-center justify-center gap-1">
                                             VOIR PROFIL <ExternalLink className="w-2.5 h-2.5" />
                                         </div>
                                     </div>

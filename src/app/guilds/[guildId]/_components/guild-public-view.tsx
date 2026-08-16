@@ -21,7 +21,8 @@ import {
     Globe,
     Image as ImageIcon,
     Crown,
-    Star
+    Star,
+    LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
@@ -128,31 +129,29 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
             {/* Sticky Header Nav (Consistent with Directory) */}
             <PublicHeader backHref="/guilds" backLabel="Annuaire" isMember={isMember} />
 
-            {/* #59 — Badge connecté : le visiteur est membre de cette guilde */}
-            {isMember && (
-                <div className="relative z-30 max-w-7xl mx-auto px-6 md:px-8 -mt-4 mb-4">
-                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md">
-                        <div className="flex items-center gap-3">
-                            <span className="relative flex h-3 w-3 shrink-0">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
-                            </span>
-                            <p className="text-sm font-bold text-emerald-300">
-                                Vous êtes membre de cette guilde ✅
-                            </p>
-                        </div>
-                        <Link href={`/dashboard/${guild.discordGuildId}`}>
-                            <Button className="h-10 px-5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all hover:scale-[1.02] flex items-center gap-2">
-                                <Sparkles className="w-4 h-4" />
-                                Ouvrir le Dashboard
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            )}
-
-            {/* Guild Header Content (Overlapping Hero) */}
+            {/* Guild Header Content (Overlapping Hero) — le badge membre est intégré
+                ici (1er bloc du conteneur) pour ne plus empiéter sur la présentation (#83). */}
             <div className="relative z-20 -mt-32 md:-mt-40 max-w-7xl mx-auto px-6 md:px-8 pb-12">
+                {isMember && (
+                    <div className="mb-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md">
+                            <div className="flex items-center gap-3">
+                                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
+                                </span>
+                                <p className="text-sm font-semibold text-emerald-300">
+                                    Vous êtes membre de cette guilde
+                                </p>
+                            </div>
+                            <Link href={`/dashboard/${guild.discordGuildId}`}>
+                                <Button className="h-9 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-lg transition-colors flex items-center gap-2">
+                                    <LayoutDashboard className="w-4 h-4" />
+                                    Ouvrir le Dashboard
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                )}
                 <div className="flex flex-col md:flex-row items-end gap-8">
                     {/* Guild Icon */}
                     <motion.div
@@ -240,7 +239,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                                 <Crown className="w-6 h-6" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Fondateur</p>
+                                                <p className="text-caption font-bold text-amber-500 uppercase tracking-widest">Fondateur</p>
                                                 <p className="text-xl font-bold text-white">{guild.founder}</p>
                                             </div>
                                         </div>
@@ -253,7 +252,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                                 <Star className="w-4 h-4" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-bold text-zinc-500 uppercase">Co-Leader</p>
+                                                <p className="text-caption font-bold text-zinc-500 uppercase">Co-Leader</p>
                                                 <p className="font-medium text-zinc-200">{pseudo}</p>
                                             </div>
                                         </div>
@@ -266,7 +265,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                                 <Shield className="w-4 h-4" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-bold text-zinc-500 uppercase">Bras Droit</p>
+                                                <p className="text-caption font-bold text-zinc-500 uppercase">Bras Droit</p>
                                                 <p className="font-medium text-zinc-200">{pseudo}</p>
                                             </div>
                                         </div>
@@ -304,7 +303,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                         src={guild.photoUrl}
                                         alt={`Photo de la guilde ${guild.name}`}
                                         fill
-                                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                        className="object-cover transition-transform duration-300 group-"
                                         unoptimized={true}
                                     />
                                 </div>
@@ -362,13 +361,13 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                             <div className="grid grid-cols-2 gap-3">
                                                 {guild.minLevel && (
                                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 text-center">
-                                                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-1">Niveau Min</p>
+                                                        <p className="text-caption text-zinc-500 uppercase tracking-wider font-bold mb-1">Niveau Min</p>
                                                         <p className="text-xl font-bold text-white">{guild.minLevel}</p>
                                                     </div>
                                                 )}
                                                 {guild.minSuccesses && (
                                                     <div className="p-3 bg-white/5 rounded-xl border border-white/5 text-center">
-                                                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-1">Succès Min</p>
+                                                        <p className="text-caption text-zinc-500 uppercase tracking-wider font-bold mb-1">Succès Min</p>
                                                         <p className="text-xl font-bold text-white">{guild.minSuccesses}</p>
                                                     </div>
                                                 )}

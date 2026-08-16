@@ -600,7 +600,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                         )} />
                                     </div>
                                     <span className={cn(
-                                        "text-[11px] font-medium text-center leading-tight",
+                                        "text-caption font-medium text-center leading-tight",
                                         isSelected ? config.text : "text-zinc-400"
                                     )}>
                                         {config.shortLabel}
@@ -649,7 +649,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             className={cn(
                                                 "relative flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 text-left transition-all group overflow-hidden h-24",
                                                 raidType === rt.id
-                                                    ? "border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                                                    ? "border-red-500/50 "
                                                     : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-600"
                                             )}
                                         >
@@ -660,7 +660,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                         src={rt.image} 
                                                         alt={rt.short}
                                                         className={cn(
-                                                            "w-full h-full object-cover opacity-25 transition-all duration-700 group-hover:scale-110",
+                                                            "w-full h-full object-cover opacity-25 transition-all duration-300 group-",
                                                             raidType === rt.id ? "opacity-60 saturate-[1.2] scale-105" : "group-hover:opacity-40"
                                                         )}
                                                     />
@@ -681,11 +681,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 <span className="text-2xl block mb-1 drop-shadow-md">{rt.icon}</span>
                                                 <div className="flex flex-col">
                                                     <span className={cn(
-                                                        "text-[12px] font-black leading-tight uppercase tracking-tight drop-shadow-lg",
+                                                        "text-label font-black leading-tight uppercase tracking-tight drop-shadow-lg",
                                                         raidType === rt.id ? "text-white" : "text-zinc-200"
                                                     )}>{rt.short}</span>
                                                     <span className={cn(
-                                                        "text-[10px] font-bold uppercase tracking-widest mt-0.5 drop-shadow-md",
+                                                        "text-caption font-bold uppercase tracking-widest mt-0.5 drop-shadow-md",
                                                         raidType === rt.id ? "text-red-400" : "text-zinc-400"
                                                     )}>{rt.min}–{rt.max} joueurs</span>
                                                 </div>
@@ -732,7 +732,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                         )}>
                                             {openToExternal ? "Ouvert aux extérieurs" : "Guilde uniquement"}
                                         </p>
-                                        <p className="text-[10px] text-zinc-500">
+                                        <p className="text-caption text-zinc-500">
                                             {openToExternal ? "Joueurs hors guilde autorisés" : "Réservé aux membres"}
                                         </p>
                                     </div>
@@ -752,11 +752,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             {!openToExternal && (
                                 <div className="space-y-2 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-[11px] font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                                        <label className="text-caption font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                                             <Shield className="h-3.5 w-3.5 text-red-400" />
                                             Rôles autorisés à s'inscrire
                                         </label>
-                                        <span className="text-[10px] text-zinc-500 font-bold">
+                                        <span className="text-caption text-zinc-500 font-bold">
                                             {allowedRoleIds.length === 0 ? "Tous les membres (par défaut)" : `${allowedRoleIds.length} rôle(s) sélectionné(s)`}
                                         </span>
                                     </div>
@@ -813,7 +813,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                         </p>
                                     )}
 
-                                    <p className="text-[10px] text-zinc-500 italic mt-1">
+                                    <p className="text-caption text-zinc-500 italic mt-1">
                                         {allowedRoleIds.length === 0
                                             ? "Laissez vide pour autoriser tous les membres ayant accès aux raids."
                                             : "Seuls les membres possédant l'un de ces rôles pourront s'inscrire."}
@@ -964,7 +964,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     <div className="flex items-center gap-3 h-11 pl-4 pr-5 rounded-lg border border-amber-500/20 bg-amber-500/5 w-fit">
                                         <Users className="h-4 w-4 text-amber-400/70 shrink-0" />
                                         <span className="text-amber-300 font-black text-lg tabular-nums">{field.value}</span>
-                                        <span className="text-[10px] font-bold text-amber-400/50 uppercase tracking-widest ml-1">places (fixe)</span>
+                                        <span className="text-caption font-bold text-amber-400/50 uppercase tracking-widest ml-1">places (fixe)</span>
                                     </div>
                                 ) : (
                                     <div className="relative w-48">
@@ -1015,7 +1015,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                 {/* ============ MISSION PICKER (Conditional) ============ */}
                 {selectedType === "SESSION_MISSIONS" && (
-                    <div className="pt-2 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-4 duration-300">
                         <MissionPicker
                             guildId={guildId}
                             selectedIds={selectedMissions}
@@ -1067,10 +1067,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             {form.watch("title") || currentConfig.shortLabel}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">
+                            <span className="text-caption font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">
                                 {format(form.watch("date"), "d MMM", { locale: fr })}
                             </span>
-                            <span className="text-[11px] font-medium text-zinc-500 truncate">
+                            <span className="text-caption font-medium text-zinc-500 truncate">
                                 {form.watch("startTime")} - {form.watch("endTime")}
                             </span>
                         </div>
@@ -1097,7 +1097,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     {field.value && canPublishForType && (
                                         <div className="flex items-center gap-1 mt-2 animate-in fade-in">
                                             <Hash className="w-3.5 h-3.5 text-indigo-400/80" />
-                                            <span className="text-[11px] text-indigo-400/90 font-bold uppercase tracking-widest">
+                                            <span className="text-caption text-indigo-400/90 font-bold uppercase tracking-widest">
                                                 Sera posté dans #{targetChannelName}
                                             </span>
                                         </div>
@@ -1114,7 +1114,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 </FormControl>
                             </div>
                             {!canPublishForType && (
-                                <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
+                                <p className="text-caption text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
                                     {isRaid
                                         ? "⚠️ Salon Discord raid non configuré par l'admin. Publication impossible."
                                         : "⚠️ Salon Discord calendrier non configuré par l'admin. Publication impossible."}
@@ -1133,13 +1133,13 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             <FormItem className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                 <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
                                     <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                    <p className="text-[10px] text-amber-300/80 font-medium leading-relaxed">
+                                    <p className="text-caption text-amber-300/80 font-medium leading-relaxed">
                                         <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour que ton événement soit visible.
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 mb-1 ml-1">
                                     <Hash className="h-3.5 w-3.5 text-indigo-400" />
-                                    <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest">Mentionner un rôle (Ping)</span>
+                                    <span className="text-caption font-black text-indigo-400/80 uppercase tracking-widest">Mentionner un rôle (Ping)</span>
                                 </div>
                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                     <PopoverTrigger asChild>
@@ -1168,10 +1168,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                                         }}
                                                                     >
                                                                         <div 
-                                                                            className="w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_5px_currentColor]" 
+                                                                            className="w-1.5 h-1.5 rounded-full shrink-0 " 
                                                                             style={{ backgroundColor: roleColor }} 
                                                                         />
-                                                                        <span className="text-[10px] font-bold uppercase truncate max-w-[80px]">{role.name}</span>
+                                                                        <span className="text-caption font-bold uppercase truncate max-w-[80px]">{role.name}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={(e) => {
@@ -1186,7 +1186,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                                 );
                                                             })}
                                                             {field.value.length > 3 && (
-                                                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                <span className="text-caption font-bold text-zinc-400 uppercase tracking-wide px-1.5">
                                                                     +{field.value.length - 3} rôles
                                                                 </span>
                                                             )}

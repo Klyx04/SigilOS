@@ -85,7 +85,7 @@ export function MemberSelector({
                             <>
                                 <Avatar className="h-5 w-5">
                                     <AvatarImage src={selectedMember.avatar || undefined} />
-                                    <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
+                                    <AvatarFallback className="text-caption bg-indigo-500/20 text-indigo-300">
                                         {(selectedMember.name || "??").substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -133,7 +133,7 @@ export function MemberSelector({
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-sm font-bold">Utiliser "{inputValue}"</span>
-                                            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Saisie manuelle</span>
+                                            <span className="text-caption text-zinc-500 uppercase tracking-widest">Saisie manuelle</span>
                                         </div>
                                     </button>
                                 ) : (
@@ -161,7 +161,7 @@ export function MemberSelector({
                                     >
                                         <Avatar className="h-6 w-6">
                                             <AvatarImage src={member.avatar || undefined} />
-                                            <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
+                                            <AvatarFallback className="text-caption bg-indigo-500/20 text-indigo-300">
                                                 {(member.name || "??").substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>

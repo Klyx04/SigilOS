@@ -234,7 +234,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                             onClear={() => { setSelectedItem(null); setItemName(""); }}
                             placeholder="Ex: Gelano, Abyssal Bouclier..."
                         />
-                        <p className="text-[10px] text-zinc-600">
+                        <p className="text-caption text-zinc-600">
                             Recherche : <strong className="text-zinc-400">Dofusdude</strong> (api.dofusdu.de) — équipements, ressources et consommables.
                             Si l&apos;API est indisponible, la <strong className="text-zinc-400">saisie libre</strong> ci-dessous reste disponible.
                         </p>
@@ -256,7 +256,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                                 )}
                                 <div>
                                     <p className="text-sm font-black text-white">{selectedItem.name}</p>
-                                    <p className="text-[10px] text-zinc-500">Item Dofus sélectionné</p>
+                                    <p className="text-caption text-zinc-500">Item Dofus sélectionné</p>
                                 </div>
                             </div>
                         )}
@@ -298,7 +298,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                                 {nsfwChecking && (
                                     <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
                                         <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-                                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Analyse sécurité…</span>
+                                        <span className="text-caption font-black text-white uppercase tracking-widest">Analyse sécurité…</span>
                                     </div>
                                 )}
                                 <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-white">
@@ -320,7 +320,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                                         </>
                                     )}
                                 </p>
-                                <p className="text-[10px] text-zinc-600">PNG, JPEG, WebP — max 5MB</p>
+                                <p className="text-caption text-zinc-600">PNG, JPEG, WebP — max 5MB</p>
                             </div>
                         )}
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
@@ -333,7 +333,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                                 <Send className={`h-4 w-4 ${notifyDiscord && isDiscordConfigured ? 'text-indigo-400' : 'text-zinc-500'}`} />
                                 <div>
                                     <p className={`text-xs font-bold ${notifyDiscord && isDiscordConfigured ? 'text-indigo-300' : 'text-zinc-300'}`}>Notifier sur Discord</p>
-                                    <p className="text-[10px] text-zinc-600">Envoyer un embed dans le salon coffre</p>
+                                    <p className="text-caption text-zinc-600">Envoyer un embed dans le salon coffre</p>
                                 </div>
                             </div>
                             <button
@@ -349,7 +349,7 @@ export function VaultForm({ open, onOpenChange, guildId, isDiscordConfigured = f
                         {!isDiscordConfigured && (
                             <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
                                     Le salon Discord n&apos;est pas configuré. Les notifications sont désactivées.
                                 </p>
                             </div>

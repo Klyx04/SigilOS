@@ -56,7 +56,7 @@ export default async function LoginPage({
 
             <main className="flex-1 flex items-center justify-center p-4 relative z-10 pt-20">
                 <div className="relative z-10 max-w-md w-full group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-violet-500/20 via-indigo-500/20 to-violet-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-violet-500/20 via-indigo-500/20 to-violet-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-300" />
 
                     <div className="relative bg-zinc-950/80 backdrop-blur-3xl border border-violet-500/20 rounded-3xl p-10 text-center shadow-2xl">
                         {/* Icon */}
@@ -97,7 +97,7 @@ export default async function LoginPage({
                             </Button>
                         </form>
 
-                        <p className="mt-6 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                        <p className="mt-6 text-caption text-zinc-600 font-mono uppercase tracking-widest">
                             Seuls les membres des guildes partenaires peuvent accéder au Dashboard.
                         </p>
                     </div>

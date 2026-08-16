@@ -26,6 +26,7 @@ import { updateUserProfile, updateAvailability, updateVacationMode, updateForgem
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, Settings, Hammer, Wrench, Activity } from "lucide-react";
+import Link from "next/link";
 import { ProfileReminderBanner } from "./profile-reminder-banner";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -431,18 +432,18 @@ export function ProfileBentoGrid({
                         {(() => {
                             const hasServices = !readOnly || ((localProfile as any).activeServices && (localProfile as any).activeServices.length > 0);
                             const ALL_TABS = [
-                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-emerald-400", bgActive: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]" },
-                                { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/15 border-sky-500/30 text-sky-300 shadow-[0_0_15px_rgba(14,165,233,0.2)]" },
-                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.2)]" },
-                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-rose-400", bgActive: "bg-rose-500/15 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.2)]" },
-                                { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.2)]" },
-                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]" },
-                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.2)]" },
-                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.2)]" },
-                                { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 shadow-[0_0_15px_rgba(217,70,239,0.2)]" },
-                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]" },
-                                { id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]" },
-                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.2)]" }] : []),
+                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-emerald-400", bgActive: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300 " },
+                                { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/15 border-sky-500/30 text-sky-300 " },
+                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 " },
+                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-rose-400", bgActive: "bg-rose-500/15 border-rose-500/30 text-rose-300 " },
+                                { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 " },
+                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 " },
+                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 " },
+                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " },
+                                { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 " },
+                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 " },
+                                { id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 " },
+                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 " }] : []),
                                 ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-zinc-200", bgActive: "bg-white/15 border-white/30 text-white" }] : []),
                             ].filter(t => !isEmpty[t.id]);
 
@@ -619,31 +620,48 @@ export function ProfileBentoGrid({
                 {/* PLANNING TAB */}
                 <TabsContent value="planning" className="animate-in fade-in duration-300 flex flex-col gap-6">
                     {visitedTabs.has("planning") && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2">
-                                <AvailabilityHeatmap
-                                    availability={localProfile.availability || {}}
-                                    onSave={handleAvailabilitySave}
-                                    readOnly={!canEdit}
-                                    vacationStart={localProfile.vacationStart}
-                                    vacationEnd={localProfile.vacationEnd}
-                                />
+                        <>
+                            {/* #4 — Lien vers l'agenda de guilde depuis le planning perso */}
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                                <div className="space-y-0.5">
+                                    <h3 className="text-title font-bold text-white">Mon planning perso</h3>
+                                    <p className="text-caption text-zinc-500">Vos créneaux de jeu et vos absences, pour la planification des événements.</p>
+                                </div>
+                                <Link
+                                    href={`/dashboard/${guildId}/calendar`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-sm font-semibold hover:bg-emerald-500/20 transition-colors duration-200"
+                                >
+                                    <Calendar className="w-4 h-4" />
+                                    Agenda de guilde
+                                </Link>
                             </div>
-                            <div>
-                                <VacationMode
-                                    vacationStart={localProfile.vacationStart}
-                                    vacationEnd={localProfile.vacationEnd}
-                                    vacationNotify={localProfile.vacationNotify}
-                                    vacationReason={localProfile.vacationReason}
-                                    onSave={handleVacationSave}
-                                    readOnly={!canEdit}
-                                    guildId={guildId}
-                                    pseudo={displayName}
-                                    profileId={profile.id}
-                                    hasAbsenceChannel={hasAbsenceChannel}
-                                />
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2">
+                                    <AvailabilityHeatmap
+                                        availability={localProfile.availability || {}}
+                                        onSave={handleAvailabilitySave}
+                                        readOnly={!canEdit}
+                                        vacationStart={localProfile.vacationStart}
+                                        vacationEnd={localProfile.vacationEnd}
+                                    />
+                                </div>
+                                <div>
+                                    <VacationMode
+                                        vacationStart={localProfile.vacationStart}
+                                        vacationEnd={localProfile.vacationEnd}
+                                        vacationNotify={localProfile.vacationNotify}
+                                        vacationReason={localProfile.vacationReason}
+                                        onSave={handleVacationSave}
+                                        readOnly={!canEdit}
+                                        guildId={guildId}
+                                        pseudo={displayName}
+                                        profileId={profile.id}
+                                        hasAbsenceChannel={hasAbsenceChannel}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
                 </TabsContent>
 

@@ -89,7 +89,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                 {/* Main Dynamic Tag (The one you edit in God Mode) */}
                 {dofus.rarity && (
                     <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm border"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-caption font-black uppercase tracking-wider shadow-sm border"
                         style={{
                             background: `${color}15`,
                             color,
@@ -128,7 +128,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                     localStorage.setItem("dofus-sync-all-mules", String(nextVal));
                     window.dispatchEvent(new Event("dofus-sync-all-mules-changed"));
                 }}
-                className={`absolute top-3 right-12 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 border ${
+                className={`absolute top-3 right-12 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200  border ${
                     syncAllMules ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-white/5 border-white/10 text-zinc-500 hover:text-white"
                 }`}
                 style={{
@@ -145,7 +145,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
             <button
                 onClick={handleToggleObtained}
                 disabled={isPending}
-                className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 "
                 style={{
                     background: isObtained ? color : "rgba(255,255,255,0.08)",
                     border: `1px solid ${isObtained ? color : "rgba(255,255,255,0.15)"}`,
@@ -173,7 +173,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                         showText={false}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="relative flex items-center justify-center transition-all duration-500 group-hover:scale-110 will-change-transform">
+                        <div className="relative flex items-center justify-center transition-all duration-300 group- will-change-transform">
                             {dofus.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
@@ -219,7 +219,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                             style={{ background: "rgba(255,255,255,0.08)" }}
                         >
                             <div
-                                className="h-full rounded-full transition-all duration-700"
+                                className="h-full rounded-full transition-all duration-300"
                                 style={{
                                     width: `${dofus.progressPercent}%`,
                                     background: isObtained
@@ -228,22 +228,22 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                                 }}
                             />
                         </div>
-                        <span className="text-[10px] tabular-nums font-black" style={{ color: dofus.progressPercent > 0 ? color : "rgba(255,255,255,0.2)" }}>
+                        <span className="text-caption tabular-nums font-black" style={{ color: dofus.progressPercent > 0 ? color : "rgba(255,255,255,0.2)" }}>
                             {dofus.progressPercent}%
                         </span>
-                        <span className="text-[10px] tabular-nums text-white/20 whitespace-nowrap">
+                        <span className="text-caption tabular-nums text-white/20 whitespace-nowrap">
                             ({dofus.completedQuests}/{dofus.totalQuests})
                         </span>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-1 mt-1">
                         <Lock className="w-3 h-3 text-white/25" />
-                        <span className="text-[10px] text-white/25">Guide à venir</span>
+                        <span className="text-caption text-white/25">Guide à venir</span>
                     </div>
                 )}
 
                 {dofus.levelRecommended > 0 && (
-                    <p className="text-[10px] text-white/30 text-center mt-0.5">
+                    <p className="text-caption text-white/30 text-center mt-0.5">
                         Niveau {dofus.levelRecommended}+
                     </p>
                 )}

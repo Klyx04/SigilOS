@@ -163,7 +163,7 @@ export function DateTimePicker({
                                 {pad(selectedHour)}:{pad(selectedMinute)}
                             </span>
                         )}
-                        {noTime && <span className="ml-1 text-slate-600 text-[10px]">optionnel</span>}
+                        {noTime && <span className="ml-1 text-slate-600 text-caption">optionnel</span>}
                     </button>
                 </div>
 
@@ -215,7 +215,7 @@ export function DateTimePicker({
                     <div className="p-4 space-y-4 w-72">
                         {/* Hour selector */}
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Heure</p>
+                            <p className="text-caption font-black uppercase tracking-widest text-slate-500">Heure</p>
                             <div className="flex items-center gap-3">
                                 <button
                                     type="button"
@@ -253,7 +253,7 @@ export function DateTimePicker({
 
                         {/* Minute selector */}
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Minutes</p>
+                            <p className="text-caption font-black uppercase tracking-widest text-slate-500">Minutes</p>
                             <div className="grid grid-cols-4 gap-2">
                                 {MINUTES.map((m) => (
                                     <button

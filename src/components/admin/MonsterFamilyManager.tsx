@@ -295,13 +295,13 @@ export default function MonsterFamilyManager() {
                                     {family.zones && family.zones.length > 0 && (
                                         <div className="flex flex-wrap gap-1 mt-2">
                                             {family.zones.slice(0, 2).map(z => (
-                                                <div key={z.id} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 flex items-center gap-1 max-w-full truncate">
+                                                <div key={z.id} className="text-caption px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 flex items-center gap-1 max-w-full truncate">
                                                     <MapPin className="w-2.5 h-2.5 shrink-0" />
                                                     <span className="truncate">{z.name}</span>
                                                 </div>
                                             ))}
                                             {family.zones.length > 2 && (
-                                                <div className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-500">
+                                                <div className="text-caption px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-500">
                                                     +{family.zones.length - 2}
                                                 </div>
                                             )}
@@ -396,7 +396,7 @@ export default function MonsterFamilyManager() {
                                     <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50 h-full flex flex-col">
                                         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-2">
                                             <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Zones de Présence</h3>
-                                            <span className="bg-indigo-500/10 text-indigo-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-indigo-500/20">
+                                            <span className="bg-indigo-500/10 text-indigo-400 text-caption font-black px-3 py-1 rounded-full uppercase tracking-widest border border-indigo-500/20">
                                                 {formData.zoneIds.length} sélectionnée(s)
                                             </span>
                                         </div>
@@ -408,7 +408,7 @@ export default function MonsterFamilyManager() {
                                                 onChange={(val) => setFormData({ ...formData, zoneIds: val })}
                                                 placeholder="Sélectionner les zones..."
                                             />
-                                            <p className="mt-4 text-[11px] text-slate-500 leading-relaxed font-medium italic">
+                                            <p className="mt-4 text-caption text-slate-500 leading-relaxed font-medium italic">
                                                 ⚠️ Les monstres de cette famille apparaîtront automatiquement dans les zones sélectionnées.
                                             </p>
                                         </div>

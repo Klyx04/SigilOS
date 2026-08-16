@@ -118,13 +118,13 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                     <div className="space-y-1">
                         <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Discord ID</label>
                         <Input value={discordId} onChange={(e) => setDiscordId(e.target.value)} placeholder="Ex: 123456789012345678" className="bg-zinc-950/60 border-white/10 text-white" />
-                        <p className="text-[10px] text-zinc-600">ID Discord de l'utilisateur (17-19 chiffres)</p>
+                        <p className="text-caption text-zinc-600">ID Discord de l'utilisateur (17-19 chiffres)</p>
                     </div>
                     <Button onClick={handleGrant} disabled={isPending} className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold gap-2">
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                         Créer le délégué
                     </Button>
-                    <p className="text-[10px] text-zinc-500">Le délégué est créé sans accès. Accorde ensuite ses permissions dans le stepper « Accorder un accès ».</p>
+                    <p className="text-caption text-zinc-500">Le délégué est créé sans accès. Accorde ensuite ses permissions dans le stepper « Accorder un accès ».</p>
                 </div>
             )}
 
@@ -146,14 +146,14 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                                         {d.userName || "Utilisateur"}
                                         {!d.discordId && <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
                                     </div>
-                                    <div className="text-[11px] text-zinc-500 truncate mt-0.5">
+                                    <div className="text-caption text-zinc-500 truncate mt-0.5">
                                         {d.discordId ? `<@${d.discordId}>` : "Aucun Discord lié"}
                                     </div>
                                 </div>
-                                <Badge className="shrink-0 text-[10px] uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIF</Badge>
+                                <Badge className="shrink-0 text-caption uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIF</Badge>
                             </div>
 
-                            <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                            <div className="flex items-center gap-2 text-caption text-zinc-500">
                                 <Clock className="w-3 h-3" />
                                 {d.scopes.length > 0
                                     ? d.scopes.map(s => SCOPE_LABELS[s] || s).join(" · ")
@@ -169,20 +169,20 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                                         <div key={g.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/5 px-3 py-2">
                                             <div className="min-w-0 space-y-0.5">
                                                 <div className="text-xs font-bold text-white truncate">{brick?.label || g.brickId}</div>
-                                                <div className="text-[10px] text-zinc-500 truncate">{g.reason || "—"}</div>
-                                                <div className="text-[10px] text-zinc-600 font-bold">
+                                                <div className="text-caption text-zinc-500 truncate">{g.reason || "—"}</div>
+                                                <div className="text-caption text-zinc-600 font-bold">
                                                     {g.expiresAt
                                                         ? (gExpired ? "Expiré" : `Expire dans ${Math.max(0, Math.floor((new Date(g.expiresAt).getTime() - Date.now()) / 60000))} min`)
                                                         : "Sans expiration"}
                                                 </div>
                                             </div>
                                             <Button size="sm" variant="ghost" onClick={() => handleRevokeGrant(g.id)} disabled={isPending}
-                                                className="shrink-0 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-[10px]">Révoquer</Button>
+                                                className="shrink-0 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-caption">Révoquer</Button>
                                         </div>
                                     );
                                 })}
                                 {grants.filter(g => g.delegateId === d.id && !g.revokedAt).length === 0 && (
-                                    <div className="text-[10px] text-zinc-600">Aucun accès actif</div>
+                                    <div className="text-caption text-zinc-600">Aucun accès actif</div>
                                 )}
                             </div>
 

@@ -75,7 +75,7 @@ const ClassSelector = ({
                                 "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center group overflow-hidden",
                                 isSelected 
                                     ? "border-white/40 shadow-xl scale-105" 
-                                    : "bg-zinc-900/50 border-white/5 hover:border-white/20 hover:scale-105"
+                                    : "bg-zinc-900/50 border-white/5 hover:border-white/20 "
                             )}
                             style={{ 
                                 backgroundColor: isSelected ? `${color}22` : undefined,
@@ -88,8 +88,8 @@ const ClassSelector = ({
                             )}
 
                             <div className={cn(
-                                "relative w-7 h-7 sm:w-9 sm:h-9 transition-all duration-500 z-10",
-                                isSelected ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : "grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110"
+                                "relative w-7 h-7 sm:w-9 sm:h-9 transition-all duration-300 z-10",
+                                isSelected ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : "grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 group-"
                             )}>
                                 <NextImage
                                     src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
@@ -253,7 +253,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                             <button
                                 onClick={() => setSelectedTagFilter(null)}
                                 className={cn(
-                                    "h-8 px-4 rounded-xl text-[11px] font-black transition-all shrink-0",
+                                    "h-8 px-4 rounded-xl text-caption font-black transition-all shrink-0",
                                     !selectedTagFilter ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
                                 )}
                             >
@@ -270,7 +270,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                         key={id}
                                         onClick={() => setSelectedTagFilter(selectedTagFilter === id ? null : id)}
                                         className={cn(
-                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                            "h-8 px-3 rounded-xl text-caption font-bold transition-all shrink-0",
                                             selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
                                         )}
                                     >
@@ -294,7 +294,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                 key={tag.id}
                                                 onClick={() => setSelectedTagFilter(selectedTagFilter === tag.id ? null : tag.id)}
                                                 className={cn(
-                                                    "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                                    "h-8 px-3 rounded-xl text-caption font-bold transition-all shrink-0",
                                                     selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
                                                 )}
                                             >
@@ -309,7 +309,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
                     {/* Right: Count */}
                     <div className="flex items-center gap-4 shrink-0 bg-black/40 px-4 py-2 rounded-2xl border border-white/5">
-                        <p className="text-[11px] text-zinc-500 flex items-center gap-2">
+                        <p className="text-caption text-zinc-500 flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-emerald-500/50 animate-pulse" />
                             <span className="text-white font-black">{filteredLinks.length}</span>
                             <span> sur {links.length} build{links.length !== 1 ? "s" : ""}</span>
@@ -329,18 +329,18 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                             <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
 
                             {/* Upload / Update Date Bar (Gallery parity) */}
-                            <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-zinc-500 border-t border-white/5">
+                            <div className="flex items-center justify-between px-2 pt-1 text-caption text-zinc-500 border-t border-white/5">
                                 <div className="flex items-center gap-1.5">
                                     <Calendar className="w-3 h-3 text-zinc-500" />
                                     {link.createdAt ? (
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <span className="text-[10px] text-zinc-400 font-medium cursor-default">
+                                                    <span className="text-caption text-zinc-400 font-medium cursor-default">
                                                         {new Date(link.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                                                     </span>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-[10px] text-zinc-300">
+                                                <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-caption text-zinc-300">
                                                     <p>Ajouté le {new Date(link.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
                                                     {link.updatedAt && link.updatedAt !== link.createdAt && (
                                                         <p className="text-zinc-400 mt-0.5">Mis à jour le {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
@@ -349,12 +349,12 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             </Tooltip>
                                         </TooltipProvider>
                                     ) : (
-                                        <span className="text-[10px] text-zinc-500 italic">Importé</span>
+                                        <span className="text-caption text-zinc-500 italic">Importé</span>
                                     )}
                                 </div>
 
                                 {link.updatedAt && link.updatedAt !== link.createdAt && (
-                                    <span className="text-[9px] text-emerald-400/90 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                    <span className="text-caption text-emerald-400/90 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                                         MAJ {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                     </span>
                                 )}
@@ -414,10 +414,10 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     ))
                 ) : (
                     <div className="col-span-full text-center py-16 bg-zinc-950/40 rounded-[2rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden group/empty">
-                        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover/empty:opacity-100 transition-all duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover/empty:opacity-100 transition-all duration-300" />
                         
                         <div className="relative">
-                            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 rotate-3 group-hover/empty:rotate-6 transition-all duration-500 shadow-2xl">
+                            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 rotate-3 group-hover/empty:rotate-6 transition-all duration-300 shadow-2xl">
                                 <Link2 className="w-10 h-10 text-emerald-400 group-hover/empty:scale-110 transition-all" />
                             </div>
                             <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center animate-bounce shadow-xl">
@@ -505,7 +505,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                     });
                                                 }}
                                                 className={cn(
-                                                    "px-2.5 py-1 text-[10px] sm:text-xs rounded-full transition-all border font-medium select-none",
+                                                    "px-2.5 py-1 text-caption sm:text-xs rounded-full transition-all border font-medium select-none",
                                                     isSelected
                                                         ? tag.className
                                                         : "bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300 opacity-60 hover:opacity-100"
@@ -524,7 +524,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     onSelect={(id) => setEditingLink(prev => prev ? { ...prev, classId: id } : null)} 
                                     classes={DOFUS_CLASSES} 
                                 />
-                                <p className="text-[10px] text-zinc-500">
+                                <p className="text-caption text-zinc-500">
                                     Sélectionnez la classe pour assurer une belle preview.
                                 </p>
                             </div>

@@ -43,7 +43,7 @@ export const AtmosphericParticles = () => {
       {particles.map((p) => (
         <motion.div
           key={p.id}
-          className="absolute rounded-full bg-indigo-300 shadow-[0_0_8px_rgba(165,180,252,0.8)]"
+          className="absolute rounded-full bg-indigo-300 "
           style={{
             width: p.width,
             height: p.height,

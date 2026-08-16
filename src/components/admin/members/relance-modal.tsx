@@ -81,7 +81,7 @@ export function RelanceModal({ guildId, targets, channels, onClose }: RelanceMod
                                 <span className="flex items-center gap-2 text-sm font-bold text-white">
                                     <Send className="w-4 h-4 text-amber-400" /> Canal
                                 </span>
-                                <span className="text-[11px] text-zinc-500 mt-1 block">Message public dans un salon (@mention)</span>
+                                <span className="text-caption text-zinc-500 mt-1 block">Message public dans un salon (@mention)</span>
                             </button>
                             <button type="button" onClick={() => setDelivery("DM")}
                                 className={cn("p-3 rounded-xl border text-left transition-colors",
@@ -89,7 +89,7 @@ export function RelanceModal({ guildId, targets, channels, onClose }: RelanceMod
                                 <span className="flex items-center gap-2 text-sm font-bold text-white">
                                     <Users className="w-4 h-4 text-indigo-400" /> Message privé
                                 </span>
-                                <span className="text-[11px] text-zinc-500 mt-1 block">MP via le bot Discord (pas de ping public)</span>
+                                <span className="text-caption text-zinc-500 mt-1 block">MP via le bot Discord (pas de ping public)</span>
                             </button>
                         </div>
                     </div>
@@ -118,7 +118,7 @@ export function RelanceModal({ guildId, targets, channels, onClose }: RelanceMod
                         <Textarea value={message} onChange={(e) => setMessage(e.target.value)}
                             placeholder="Salut @nickname ! Pense à valider tes missions cette semaine..."
                             rows={4} className="bg-zinc-900/50 border-white/10 text-sm resize-none" />
-                        <p className="text-[11px] text-zinc-600">
+                        <p className="text-caption text-zinc-600">
                             {message.trim().length}/2000 — les @nickname seront remplacés par les membres ciblés.
                         </p>
                     </div>

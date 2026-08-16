@@ -134,7 +134,7 @@ export function MemberSearchModal({
                         >
                             <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover:border-cyan-500/30 transition-colors">
                                 <AvatarImage src={member.image || undefined} />
-                                <AvatarFallback className="text-[10px] bg-zinc-800 font-bold">
+                                <AvatarFallback className="text-caption bg-zinc-800 font-bold">
                                     {member.name.slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
@@ -143,7 +143,7 @@ export function MemberSearchModal({
                                     {member.name}
                                 </p>
                                 {member.subtitle && (
-                                    <p className="text-[11px] text-zinc-500 truncate">
+                                    <p className="text-caption text-zinc-500 truncate">
                                         {member.subtitle}
                                     </p>
                                 )}

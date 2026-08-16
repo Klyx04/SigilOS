@@ -20,7 +20,7 @@ export const Badge = ({ children, color = "emerald", className = "" }: any) => {
     zinc: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${colors[color]} ${className}`}>
+    <span className={`px-2 py-0.5 rounded-full text-caption font-black uppercase tracking-wider border ${colors[color]} ${className}`}>
       {children}
     </span>
   );
@@ -28,8 +28,8 @@ export const Badge = ({ children, color = "emerald", className = "" }: any) => {
 
 export const MapBadge = ({ posX, posY, mapName, onClick }: { posX: number; posY: number; mapName?: string; onClick: any }) => (
   <button onClick={(e) => { e.stopPropagation(); onClick(posX, posY, mapName); }}
-    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-[10px] font-bold text-cyan-400 transition-all group active:scale-95">
-    <MapPin className="w-3 h-3 group-hover:scale-110 transition-transform text-cyan-500" />
+    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-caption font-bold text-cyan-400 transition-all group active:scale-95">
+    <MapPin className="w-3 h-3 group- transition-transform text-cyan-500" />
     <span>{mapName || `[${posX},${posY}]`}</span>
   </button>
 );
@@ -98,21 +98,21 @@ export const StepRow = ({ step, isChecked, onToggle, onMapClick, guideRef }: any
         />
       )}
 
-      <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all z-10 cursor-pointer ${isChecked ? "bg-emerald-500 border-emerald-400 text-emerald-950 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-90" : "bg-zinc-900 border-zinc-800 text-zinc-600 group-hover:border-zinc-700"}`}>
-        {isChecked ? <Check className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{step.stepNumber}</span>}
+      <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all z-10 cursor-pointer ${isChecked ? "bg-emerald-500 border-emerald-400 text-emerald-950  scale-90" : "bg-zinc-900 border-zinc-800 text-zinc-600 group-hover:border-zinc-700"}`}>
+        {isChecked ? <Check className="w-4 h-4 font-black" /> : <span className="text-caption font-black">{step.stepNumber}</span>}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1 transition-all">
           {step.name && (
-            <span className={`text-[11px] font-black transition-all ${isChecked ? "text-emerald-500/50 line-through" : "text-zinc-200"}`}>
+            <span className={`text-caption font-black transition-all ${isChecked ? "text-emerald-500/50 line-through" : "text-zinc-200"}`}>
               {step.name}
             </span>
           )}
           {hasPos && <MapBadge posX={step.pos_x} posY={step.pos_y} mapName={step.map} onClick={onMapClick} />}
         </div>
         <div 
-          className={`text-[11px] leading-relaxed ganymade-step-text transition-all duration-500 ${isChecked ? "text-zinc-600 grayscale opacity-40 italic line-through decoration-emerald-500/30" : "text-zinc-400"}`} 
+          className={`text-caption leading-relaxed ganymade-step-text transition-all duration-300 ${isChecked ? "text-zinc-600 grayscale opacity-40 italic line-through decoration-emerald-500/30" : "text-zinc-400"}`} 
           onClick={handleTextClick}
           // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(

@@ -83,7 +83,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
             <div className={cn("relative flex items-center justify-center w-full h-full", className)}>
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300">
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-caption font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
@@ -115,7 +115,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                 <Button variant="ghost" size="icon" className={cn("relative text-zinc-400 hover:text-white transition-colors", className)}>
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300">
+                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-caption font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300">
                             {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                     )}
@@ -126,7 +126,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/5">
                     <h4 className="font-bold text-xs uppercase tracking-widest text-white">Notifications</h4>
                     {unreadCount > 0 && (
-                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-primary transition-colors" onClick={handleMarkAllRead}>
+                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-caption font-black uppercase tracking-tighter text-zinc-500 hover:text-primary transition-colors" onClick={handleMarkAllRead}>
                             Tout lu
                             <Check className="ml-1 h-3 w-3" />
                         </Button>
@@ -153,14 +153,14 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
                                 className={cn(
-                                    "px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-all border",
+                                    "px-2.5 py-1 rounded-md text-caption font-bold whitespace-nowrap transition-all border",
                                     activeCategory === cat.id
                                         ? "bg-cyan-600/30 text-cyan-200 border-cyan-500/40"
                                         : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                 )}
                             >
                                 {cat.label}
-                                <span className="ml-1 text-[9px] opacity-60">({count})</span>
+                                <span className="ml-1 text-caption opacity-60">({count})</span>
                             </button>
                         );
                     })}
@@ -200,7 +200,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                                     <div className="space-y-1 overflow-hidden">
                                         <p className="text-sm font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors">{n.title}</p>
                                         <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">{n.message}</p>
-                                        <p className="text-[10px] text-zinc-600 font-mono pt-1">
+                                        <p className="text-caption text-zinc-600 font-mono pt-1">
                                             {new Date(n.createdAt).toLocaleDateString()} at {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
@@ -210,7 +210,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                     )}
                 </ScrollArea>
                 <div className="p-2 border-t border-white/5 bg-white/5">
-                    <Button variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest h-10 hover:bg-white/5 hover:text-white transition-all" asChild>
+                    <Button variant="ghost" size="sm" className="w-full text-caption font-black uppercase tracking-widest h-10 hover:bg-white/5 hover:text-white transition-all" asChild>
                         <Link href={`/dashboard/${guildId}/notifications`}>
                             Voir toutes les notifications
                         </Link>

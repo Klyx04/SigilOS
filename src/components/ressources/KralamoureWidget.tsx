@@ -76,7 +76,7 @@ export function KralamoureWidget() {
                 <Anchor className="h-8 w-8 text-emerald-500/30 mb-2" />
                 <h4 className="text-sm font-bold text-white mb-1">Antre du Kralamoure Géant</h4>
                 <p className="text-xs text-zinc-500">Aucune ouverture prévue sur votre serveur via Metamob pour le moment.</p>
-                <a href="https://metamob.fr/" target="_blank" rel="noopener noreferrer" className="mt-3 text-[10px] uppercase font-bold tracking-widest text-emerald-500 hover:text-emerald-400 flex items-center gap-1 transition-colors">
+                <a href="https://metamob.fr/" target="_blank" rel="noopener noreferrer" className="mt-3 text-caption uppercase font-bold tracking-widest text-emerald-500 hover:text-emerald-400 flex items-center gap-1 transition-colors">
                     Consulter Metamob <ExternalLink className="h-3 w-3" />
                 </a>
             </div>
@@ -110,11 +110,11 @@ export function KralamoureWidget() {
                         <div>
                             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
                                 Kralamoure Géant
-                                <span className="px-1.5 py-0.5 rounded text-[8px] tracking-widest bg-emerald-500/20 text-emerald-300">
+                                <span className="px-1.5 py-0.5 rounded text-caption tracking-widest bg-emerald-500/20 text-emerald-300">
                                     {nextEvent.server.name}
                                 </span>
                             </h3>
-                            <p className="text-[10px] text-zinc-400 font-medium tracking-wide">Prochaine ouverture Prévue</p>
+                            <p className="text-caption text-zinc-400 font-medium tracking-wide">Prochaine ouverture Prévue</p>
                         </div>
                     </div>
                 </div>
@@ -133,7 +133,7 @@ export function KralamoureWidget() {
                             <div className="text-emerald-100 font-bold text-sm tracking-wide capitalize">
                                 {formatDate(nextEvent.event_datetime)}
                             </div>
-                            <div className="flex items-center gap-3 mt-1 text-[10px] font-medium text-emerald-400/70">
+                            <div className="flex items-center gap-3 mt-1 text-caption font-medium text-emerald-400/70">
                                 <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {nextEvent.participants_count ?? 0} Inscrits</span>
                                 <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Tourbière [-60,-8]</span>
                             </div>
@@ -147,7 +147,7 @@ export function KralamoureWidget() {
                         href={`https://metamob.fr/krala/${nextEvent.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-500 hover:text-emerald-400 transition-colors"
+                        className="inline-flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-emerald-500 hover:text-emerald-400 transition-colors"
                     >
                         S'inscrire sur Metamob <ExternalLink className="h-3 w-3 mb-0.5" />
                     </a>

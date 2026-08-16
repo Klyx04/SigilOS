@@ -102,7 +102,7 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
                                     <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
                                 </div>
                                 <div>
-                                    <h3 className="text-white font-black text-[10px] uppercase italic tracking-widest">Parties en cours</h3>
+                                    <h3 className="text-white font-black text-caption uppercase italic tracking-widest">Parties en cours</h3>
                                 </div>
                             </div>
                             <button 
@@ -118,7 +118,7 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
                             {rooms.length === 0 ? (
                                 <div className="py-8 flex flex-col items-center justify-center gap-3 text-white/10 italic">
                                     <Gamepad2 size={32} strokeWidth={1} />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-center px-4">Aucune partie trouvée...</span>
+                                    <span className="text-caption font-black uppercase tracking-widest text-center px-4">Aucune partie trouvée...</span>
                                 </div>
                             ) : (
                                 rooms.map((room, idx) => (
@@ -129,21 +129,21 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
                                         <div className="flex flex-col gap-0.5 min-w-0 pr-2">
                                             <div className="flex items-center gap-1.5">
                                                 <span className={cn(
-                                                    "px-1 py-0.5 rounded-[4px] text-[7px] font-black uppercase italic",
+                                                    "px-1 py-0.5 rounded-[4px] text-caption font-black uppercase italic",
                                                     "bg-emerald-500/20 text-emerald-400"
                                                 )}>
                                                     Guesser
                                                 </span>
-                                                <span className="text-white/40 text-[9px] font-black italic">{room.playerCount}/{room.maxPlayers}</span>
+                                                <span className="text-white/40 text-caption font-black italic">{room.playerCount}/{room.maxPlayers}</span>
                                             </div>
-                                            <span className="text-white font-black text-[10px] uppercase italic truncate">
+                                            <span className="text-white font-black text-caption uppercase italic truncate">
                                                 {room.hostName || (room.id || room.roomId || "").slice(0, 8)}
                                             </span>
                                         </div>
 
                                         <button 
                                             onClick={() => handleSpectate(room)}
-                                            className="px-3 py-1.5 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg transition-all font-black uppercase italic text-[8px] active:scale-95 flex items-center gap-1.5"
+                                            className="px-3 py-1.5 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg transition-all font-black uppercase italic text-caption active:scale-95 flex items-center gap-1.5"
                                         >
                                             <Eye size={10} />
                                             Live
@@ -156,7 +156,7 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
                         {/* Footer Link */}
                         <button 
                             onClick={() => { router.push(`/dashboard/${guildId}/mini-jeux`); onOpenChange(false); }}
-                            className="p-3 bg-white/5 text-center text-white/40 hover:text-white text-[9px] font-black uppercase italic tracking-widest transition-all hover:bg-white/10 flex items-center justify-center gap-2"
+                            className="p-3 bg-white/5 text-center text-white/40 hover:text-white text-caption font-black uppercase italic tracking-widest transition-all hover:bg-white/10 flex items-center justify-center gap-2"
                         >
                             Arcade
                             <Play size={8} />

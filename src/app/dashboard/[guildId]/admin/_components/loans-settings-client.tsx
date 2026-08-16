@@ -265,7 +265,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-bold">Services (Marketplace)</Label>
-                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Onglet principal</p>
+                                    <p className="text-caption text-zinc-500 uppercase tracking-widest">Onglet principal</p>
                                 </div>
                                 <Switch
                                     checked={marketplaceEnabled}
@@ -274,7 +274,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!marketplaceEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
+                                    <Label className="text-caption text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={marketplaceMessage}
                                         onChange={(e) => setMarketplaceMessage(e.target.value)}
@@ -290,7 +290,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-bold">Prêts</Label>
-                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Emprunts & Retours</p>
+                                    <p className="text-caption text-zinc-500 uppercase tracking-widest">Emprunts & Retours</p>
                                 </div>
                                 <Switch
                                     checked={loansEnabled}
@@ -299,7 +299,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!loansEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
+                                    <Label className="text-caption text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={loansMessage}
                                         onChange={(e) => setLoansMessage(e.target.value)}
@@ -315,7 +315,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-bold">Coffre</Label>
-                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Historique & Trésorerie</p>
+                                    <p className="text-caption text-zinc-500 uppercase tracking-widest">Historique & Trésorerie</p>
                                 </div>
                                 <Switch
                                     checked={vaultEnabled}
@@ -324,7 +324,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!vaultEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
+                                    <Label className="text-caption text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={vaultMessage}
                                         onChange={(e) => setVaultMessage(e.target.value)}

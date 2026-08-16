@@ -55,7 +55,7 @@ export default function ServicesStats({ services, loansEnabled = true, vaultEnab
                         ].map(({ label, value, color }) => (
                             <div key={label} className="rounded-lg bg-white/[0.03] border border-white/8 p-3 text-center">
                                 <p className={`text-xl font-black ${color}`}>{value}</p>
-                                <p className="text-[10px] text-zinc-600 uppercase tracking-wider mt-0.5">{label}</p>
+                                <p className="text-caption text-zinc-600 uppercase tracking-wider mt-0.5">{label}</p>
                             </div>
                         ))}
                     </div>
@@ -63,7 +63,7 @@ export default function ServicesStats({ services, loansEnabled = true, vaultEnab
                     {/* Top prêteurs */}
                     {loans.topLenders.length > 0 && (
                         <div>
-                            <h5 className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2 flex items-center gap-1.5">
+                            <h5 className="text-caption font-black uppercase tracking-widest text-zinc-600 mb-2 flex items-center gap-1.5">
                                 <Users className="w-3 h-3" /> Top prêteurs
                             </h5>
                             <div className="space-y-1.5">
@@ -93,12 +93,12 @@ export default function ServicesStats({ services, loansEnabled = true, vaultEnab
                         <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/15 p-3 text-center">
                             <ArrowDownCircle className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
                             <p className="text-xl font-black text-emerald-400">{vault.totalDeposits}</p>
-                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider mt-0.5">Dépôts</p>
+                            <p className="text-caption text-zinc-600 uppercase tracking-wider mt-0.5">Dépôts</p>
                         </div>
                         <div className="rounded-lg bg-orange-500/5 border border-orange-500/15 p-3 text-center">
                             <ArrowUpCircle className="w-4 h-4 text-orange-400 mx-auto mb-1" />
                             <p className="text-xl font-black text-orange-400">{vault.totalWithdrawals}</p>
-                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider mt-0.5">Retraits</p>
+                            <p className="text-caption text-zinc-600 uppercase tracking-wider mt-0.5">Retraits</p>
                         </div>
                     </div>
 
@@ -113,7 +113,7 @@ export default function ServicesStats({ services, loansEnabled = true, vaultEnab
                     {/* Top contributeurs coffre */}
                     {vault.topContributors.length > 0 && (
                         <div>
-                            <h5 className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2 flex items-center gap-1.5">
+                            <h5 className="text-caption font-black uppercase tracking-widest text-zinc-600 mb-2 flex items-center gap-1.5">
                                 <Users className="w-3 h-3" /> Top contributeurs
                             </h5>
                             <div className="space-y-1.5">

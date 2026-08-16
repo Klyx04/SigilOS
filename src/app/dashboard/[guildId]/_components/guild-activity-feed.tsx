@@ -40,12 +40,12 @@ export function GuildActivityFeed({
         <Card className="glass-premium border-white/5 h-full overflow-hidden flex flex-col group">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
                         <Activity className="w-4 h-4" />
                         Flux de Vie de la Guilde
                     </CardTitle>
                     {logs.length > 0 && (
-                        <span className="text-[8px] font-black text-zinc-600 bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-800/40">
+                        <span className="text-caption font-black text-zinc-600 bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-800/40">
                             {uniqueActorsToday.size} actif{uniqueActorsToday.size > 1 ? "s" : ""} aujourd'hui
                         </span>
                     )}
@@ -86,7 +86,7 @@ export function GuildActivityFeed({
                                     <div className="relative">
                                         <Avatar className="h-9 w-9 shrink-0 border border-white/10 ring-2 ring-transparent group-hover/log:ring-emerald-500/20 transition-all">
                                             <AvatarImage src={log.actor?.image ?? undefined} />
-                                            <AvatarFallback className="text-[10px] font-black bg-zinc-900">{actorName[0]}</AvatarFallback>
+                                            <AvatarFallback className="text-caption font-black bg-zinc-900">{actorName[0]}</AvatarFallback>
                                         </Avatar>
                                         <div className={`absolute -bottom-1 -right-1 p-0.5 rounded-full bg-zinc-950 border border-white/10 ${config.color}`}>
                                             <Icon className="w-2.5 h-2.5" />
@@ -95,15 +95,15 @@ export function GuildActivityFeed({
                                     
                                     <div className="flex-1 min-w-0 space-y-0.5">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-[11px] font-black text-white group-hover/log:text-emerald-400 transition-colors">{actorName}</span>
-                                            <span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${config.bg} ${config.color} ${config.border} border`}>
+                                            <span className="text-caption font-black text-white group-hover/log:text-emerald-400 transition-colors">{actorName}</span>
+                                            <span className={`text-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${config.bg} ${config.color} ${config.border} border`}>
                                                 {config.label}
                                             </span>
-                                            <span className="text-[9px] text-zinc-600 font-bold ml-auto tabular-nums">
+                                            <span className="text-caption text-zinc-600 font-bold ml-auto tabular-nums">
                                                 {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true, locale: fr })}
                                             </span>
                                         </div>
-                                        <p className="text-[10px] text-zinc-400 font-medium leading-tight line-clamp-2">
+                                        <p className="text-caption text-zinc-400 font-medium leading-tight line-clamp-2">
                                             {log.summary}
                                         </p>
                                     </div>
@@ -113,7 +113,7 @@ export function GuildActivityFeed({
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center py-12 text-zinc-600 italic">
                             <Activity className="w-10 h-10 opacity-10 mb-2" />
-                            <p className="text-[10px] uppercase font-black tracking-widest text-center">Aucune activité récente</p>
+                            <p className="text-caption uppercase font-black tracking-widest text-center">Aucune activité récente</p>
                         </div>
                     )}
                 </div>
@@ -122,7 +122,7 @@ export function GuildActivityFeed({
                     <div className="mt-4 pt-3 border-t border-white/5 text-center">
                         <Link
                             href={`/dashboard/${guildId}/admin/logs`}
-                            className="text-[9px] font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                            className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest transition-colors"
                         >
                             Voir tout l'historique →
                         </Link>

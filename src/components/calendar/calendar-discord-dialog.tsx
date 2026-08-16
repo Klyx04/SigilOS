@@ -110,7 +110,7 @@ export function CalendarDiscordDialog({
                             {isReminder ? <Users className="w-4 h-4 shrink-0" /> : <BellOff className="w-4 h-4 shrink-0" />}
                             <div>
                                 <div className="text-xs font-black">{isReminder ? "Participants" : "Sans ping"}</div>
-                                <div className="text-[10px] text-zinc-600 font-medium">{isReminder ? "App seulement" : "Discret"}</div>
+                                <div className="text-caption text-zinc-600 font-medium">{isReminder ? "App seulement" : "Discret"}</div>
                             </div>
                             {pingType === "NONE" && <Check className={cn("w-3.5 h-3.5 ml-auto", isReminder ? "text-amber-400" : "text-indigo-400")} />}
                         </button>
@@ -129,7 +129,7 @@ export function CalendarDiscordDialog({
                                 <AtSign className="w-4 h-4 shrink-0" />
                                 <div>
                                     <div className="text-xs font-black">@everyone</div>
-                                    <div className="text-[10px] text-zinc-600 font-medium">{isReminder ? "App + Discord" : "Toute la guilde"}</div>
+                                    <div className="text-caption text-zinc-600 font-medium">{isReminder ? "App + Discord" : "Toute la guilde"}</div>
                                 </div>
                                 {pingType === "EVERYONE" && <Check className="w-3.5 h-3.5 ml-auto text-red-400" />}
                             </button>
@@ -139,12 +139,12 @@ export function CalendarDiscordDialog({
                     {/* Role list */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Ou un rôle spécifique</span>
+                            <span className="text-caption font-black uppercase tracking-wider text-zinc-500">Ou un rôle spécifique</span>
                             {selectedRoleId && (
                                 <button
                                     onClick={() => { setSelectedRoleId(null); if (pingType === "ROLE") setPingType("NONE"); }}
                                     className={cn(
-                                        "text-[10px] font-bold transition-colors",
+                                        "text-caption font-bold transition-colors",
                                         isReminder ? "text-amber-400 hover:text-amber-300" : "text-indigo-400 hover:text-indigo-300"
                                     )}
                                 >

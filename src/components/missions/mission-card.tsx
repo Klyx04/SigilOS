@@ -226,12 +226,12 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
     if (isEmpty) {
         return (
             <Card className="flex flex-col h-[180px] bg-zinc-950/50 border border-zinc-800/60 border-dashed items-center justify-center p-6 text-center space-y-4 hover:bg-zinc-900/50 transition-colors group">
-                <div className="w-12 h-12 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                <div className="w-12 h-12 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-center group- transition-transform duration-300 shadow-inner">
                     <Icon className="w-6 h-6 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
                 </div>
                 <div className="space-y-1 cursor-default">
                     <h3 className="font-semibold text-zinc-400 text-sm tracking-wide">Mission Mystère</h3>
-                    <p className="text-[10px] text-zinc-600 font-medium">Dévoilée prochainement</p>
+                    <p className="text-caption text-zinc-600 font-medium">Dévoilée prochainement</p>
                 </div>
             </Card>
         );
@@ -291,8 +291,8 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
             style={{ '--ring-color': config.ringColor } as React.CSSProperties}
         >
             <Card className={cn(
-                "flex flex-col relative overflow-hidden transition-all duration-500 group border-white/5 bg-[#121417] shadow-2xl",
-                "hover:border-white/10 hover:shadow-[0_0_30px_rgba(0,0,0,0.5)]",
+                "flex flex-col relative overflow-hidden transition-all duration-300 group border-white/5 bg-[#121417] shadow-2xl",
+                "hover:border-white/10 ",
                 !vitrineMode && isValidated && "ring-1 ring-emerald-500/40",
                 !vitrineMode && isRejected && "ring-1 ring-red-500/40",
                 !vitrineMode && isPendingValidation && "ring-1 ring-yellow-500/40"
@@ -300,7 +300,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                 {/* ----------------- HEADER BAR (Full Width) ----------------- */}
                 <div className={cn(
                     "relative z-20 flex items-center gap-4 px-4 py-2.5 shadow-inner border-b border-white/5",
-                    "overflow-hidden transition-all duration-500"
+                    "overflow-hidden transition-all duration-300"
                 )}>
                     {/* AI BACKGROUND BANNER */}
                     <div className="absolute inset-0 z-0">
@@ -325,7 +325,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                     <div className="relative shrink-0 z-10">
                         <div className="absolute inset-0 bg-white/20 blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 shadow-lg relative transition-transform group-hover:scale-105">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 shadow-lg relative transition-transform group-">
                             <Icon className={cn("w-4 h-4", config.color.replace('text-', 'text-white'))} />
                         </div>
                     </div>
@@ -339,17 +339,17 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     {/* Status Badges Pin to Right */}
                     <div className="ml-auto flex gap-2 relative z-10">
                         {!vitrineMode && isValidated && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/90 text-white font-black text-[9px] shadow-lg border border-white/10">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/90 text-white font-black text-caption shadow-lg border border-white/10">
                                 <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">VALIDÉ</span>
                             </div>
                         )}
                         {!vitrineMode && isPendingValidation && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-500/90 text-black font-black text-[9px] shadow-lg border border-white/10 animate-pulse">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-500/90 text-black font-black text-caption shadow-lg border border-white/10 animate-pulse">
                                 <Hourglass className="w-3 h-3" /> <span className="hidden sm:inline">ATTENTE</span>
                             </div>
                         )}
                         {!vitrineMode && isRejected && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/90 text-white font-black text-[9px] shadow-lg border border-white/10">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/90 text-white font-black text-caption shadow-lg border border-white/10">
                                 <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
                             </div>
                         )}
@@ -361,7 +361,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                     {/* Sub-Atmosphere Glow */}
                     <div className={cn(
-                        "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-1000 group-hover:scale-150",
+                        "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-300 group-hover:scale-150",
                         config.bgColor.replace('bg-', 'bg-')
                     )} />
 
@@ -374,7 +374,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                         )} />
 
                         {imageUrl ? (
-                            <div className="relative w-full h-full transform transition-transform duration-700 group-hover:scale-110">
+                            <div className="relative w-full h-full transform transition-transform duration-300 group-">
                                 <Image
                                     src={imageUrl}
                                     alt="Subject"
@@ -392,7 +392,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                                 {/* OBJECTIF MANUEL — gros badge exclamation sur l'image */}
                                 {mission.category === 'EVENT' && payload.eventType === 'OBJECTIF' && (
-                                    <div className="absolute bottom-1 right-1 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-amber-500/95 border-2 border-white/25 shadow-[0_0_24px_rgba(245,158,11,0.55)] flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform duration-300">
+                                    <div className="absolute bottom-1 right-1 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-amber-500/95 border-2 border-white/25  flex items-center justify-center overflow-hidden group- transition-transform duration-300">
                                         <Image
                                             src="/exclamation.png"
                                             alt="Objectif manuel"
@@ -423,7 +423,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             {/* Meta Data: Rank & Level UI */}
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center bg-black/60 rounded px-2.5 h-6 border border-white/10 shadow-inner">
-                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-2">RANG</span>
+                                    <span className="text-caption font-black text-zinc-400 uppercase tracking-widest mr-2">RANG</span>
                                     <span className="text-sm font-black text-white">{(mission as any).rank || 1}</span>
                                 </div>
                                 <div className="h-4 w-[1px] bg-white/10" />
@@ -438,7 +438,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             </div>
                             {/* Notes / Instructions libres (missions spéciales) */}
                             {payload?.notes && (
-                                <div className="mt-1.5 text-[11px] italic text-indigo-200/70 leading-snug pr-4 border-l-2 border-indigo-500/40 pl-2 line-clamp-2">
+                                <div className="mt-1.5 text-caption italic text-indigo-200/70 leading-snug pr-4 border-l-2 border-indigo-500/40 pl-2 line-clamp-2">
                                     📝 {payload.notes}
                                 </div>
                             )}
@@ -476,13 +476,13 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                                 className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all group/calendar"
                                             >
                                                 <CalendarIcon className="w-3 h-3 text-amber-500 group-hover/calendar:scale-110 transition-transform" />
-                                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                <span className="text-caption font-black text-amber-500 uppercase tracking-widest leading-none">
                                                     Session Prévue
                                                 </span>
                                                 <ExternalLink className="w-2.5 h-2.5 text-amber-500/50 group-hover/calendar:text-amber-500 transition-colors" />
                                             </Link>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" className="bg-zinc-900 border-zinc-800 text-amber-500 font-bold text-[10px] uppercase tracking-widest px-3 py-1.5">
+                                        <TooltipContent side="top" className="bg-zinc-900 border-zinc-800 text-amber-500 font-bold text-caption uppercase tracking-widest px-3 py-1.5">
                                             Voir l'événement sur le calendrier ?
                                         </TooltipContent>
                                     </Tooltip>
@@ -498,10 +498,10 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                         <Button
                             size="sm"
                             className={cn(
-                                "h-9 px-4 sm:px-6 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg shrink-0",
+                                "h-9 px-4 sm:px-6 text-caption sm:text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg shrink-0",
                                 isInterested
                                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30"
-                                    : "bg-white text-black hover:bg-emerald-400 hover:text-black hover:scale-105 active:scale-95 border-none"
+                                    : "bg-white text-black hover:bg-emerald-400 hover:text-black  active:scale-95 border-none"
                             )}
                             onClick={handleToggleInterest}
                             disabled={isPending || isRestricted}
@@ -522,7 +522,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="hidden sm:flex h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all border-white/10 shrink-0"
+                                className="hidden sm:flex h-9 px-4 text-caption font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all border-white/10 shrink-0"
                                 onClick={handleShowValidators}
                                 title="Voir les membres ayant validé"
                             >
@@ -550,7 +550,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                         </div>
                                     ))}
                                     {interestCount > 4 && (
-                                        <div className="w-8 h-8 rounded-full border-2 border-black bg-zinc-900 flex items-center justify-center text-[10px] font-black text-white shadow-sm z-10">
+                                        <div className="w-8 h-8 rounded-full border-2 border-black bg-zinc-900 flex items-center justify-center text-caption font-black text-white shadow-sm z-10">
                                             +{interestCount - 4}
                                         </div>
                                     )}
@@ -563,7 +563,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-9 px-4 text-[10px] font-black bg-red-500/5 text-red-400 border-red-500/20 hover:bg-red-500/10"
+                                    className="h-9 px-4 text-caption font-black bg-red-500/5 text-red-400 border-red-500/20 hover:bg-red-500/10"
                                     onClick={handleCancel}
                                 >
                                     ANNULER
@@ -572,7 +572,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 <Button
                                     size="sm"
                                     className={cn(
-                                        "h-9 px-5 text-[10px] font-black uppercase tracking-[2px] transition-all border",
+                                        "h-9 px-5 text-caption font-black uppercase tracking-[2px] transition-all border",
                                         isRejected
                                             ? "bg-red-950/40 text-red-300 hover:bg-white hover:text-black border-red-500/30"
                                             : "bg-zinc-800 text-zinc-300 hover:bg-white hover:text-black border-white/10"
@@ -617,7 +617,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             {isLoadingValidators ? (
                                 <div className="flex flex-col items-center justify-center p-12 text-zinc-500">
                                     <Loader2 className="w-6 h-6 animate-spin mb-3 text-emerald-500/50" />
-                                    <span className="text-[10px] uppercase font-bold tracking-widest">Recherche des archives...</span>
+                                    <span className="text-caption uppercase font-bold tracking-widest">Recherche des archives...</span>
                                 </div>
                             ) : validatorsList.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center p-12 text-zinc-500">
@@ -630,11 +630,11 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                         <div key={val.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
                                             <Avatar className="w-8 h-8 border border-white/10 shadow-sm">
                                                 <AvatarImage src={val.image} />
-                                                <AvatarFallback className="bg-zinc-800 text-[10px] font-black">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback className="bg-zinc-800 text-caption font-black">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                             <div className="flex flex-col flex-1 min-w-0">
                                                 <span className="text-sm font-black text-white truncate">{val.pseudo}</span>
-                                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+                                                <span className="text-caption font-bold uppercase tracking-widest text-zinc-500">
                                                     Validé le {new Date(val.date).toLocaleDateString('fr-FR')}
                                                 </span>
                                             </div>

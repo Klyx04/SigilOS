@@ -232,8 +232,8 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
-                                <span className="text-[11px] font-semibold uppercase tracking-tighter hidden xl:inline">Live</span>
-                                <span className="bg-emerald-500 text-emerald-950 text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
+                                <span className="text-caption font-semibold uppercase tracking-tighter hidden xl:inline">Live</span>
+                                <span className="bg-emerald-500 text-emerald-950 text-caption font-semibold px-1.5 py-0.5 rounded-md">
                                     {roomCount}
                                 </span>
                             </Button>
@@ -255,7 +255,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         title="Chat de Guilde"
                     >
                         <MessageSquare className="w-4 h-4  transition-transform" />
-                        <span className="text-[11px] font-semibold uppercase tracking-wider hidden sm:inline">Chat Live</span>
+                        <span className="text-caption font-semibold uppercase tracking-wider hidden sm:inline">Chat Live</span>
                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-[2px] border-background" />
                     </button>
                 )}
@@ -272,7 +272,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                         <span className="text-xs font-bold text-zinc-200 group-hover:text-white transition-colors">
                                             {sidebarProps.user.name}
                                         </span>
-                                        <span className="text-[10px] text-zinc-500 font-medium">
+                                        <span className="text-caption text-zinc-500 font-medium">
                                             {sidebarProps.user.roleName || "Membre"}
                                         </span>
                                     </div>
@@ -289,7 +289,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                 align="end" 
                                 sideOffset={8}
                             >
-                                <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                <DropdownMenuLabel className="px-3 py-2 text-caption font-bold text-zinc-500 uppercase tracking-wider">
                                     Mon Compte
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-white/5" />

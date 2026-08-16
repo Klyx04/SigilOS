@@ -102,7 +102,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
             className="group relative flex flex-col gap-4 px-5 py-5 rounded-[2.5rem] border border-white/5 bg-zinc-950/40 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
         >
             {/* Ambient Background Glow */}
-            <div className={cn("absolute -top-12 -right-12 w-32 h-32 blur-[60px] opacity-20 transition-all duration-700", currentCfg.color)} />
+            <div className={cn("absolute -top-12 -right-12 w-32 h-32 blur-[60px] opacity-20 transition-all duration-300", currentCfg.color)} />
             
             {/* Header: Title & Heartbeat */}
             <div className="flex items-center justify-between relative z-10">
@@ -111,7 +111,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                         <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", currentCfg.color)} />
                         <span className={cn("relative inline-flex rounded-full h-2 w-2", currentCfg.color)} />
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 group-hover:text-white transition-colors">
+                    <p className="text-caption font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">
                         Action Requise
                     </p>
                 </div>
@@ -133,7 +133,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                             key={f}
                             onClick={() => setFilter(f)}
                             className={cn(
-                                "relative flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all duration-300",
+                                "relative flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-black uppercase tracking-widest border transition-all duration-300",
                                 active 
                                     ? `${cfg.color} ${cfg.textActive} border-transparent shadow-lg ${cfg.shadow}` 
                                     : "bg-white/5 text-zinc-500 border-white/5 hover:bg-white/10 hover:text-zinc-300"
@@ -150,7 +150,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
             {/* Main Action Area */}
             <Link 
                 href={href} 
-                className="group/action relative flex items-center justify-between bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 px-4 py-3 rounded-2xl transition-all duration-500 overflow-hidden"
+                className="group/action relative flex items-center justify-between bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 px-4 py-3 rounded-2xl transition-all duration-300 overflow-hidden"
             >
                 <div className="flex items-center gap-4">
                     <AnimatePresence mode="wait">
@@ -164,22 +164,22 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                         </motion.span>
                     </AnimatePresence>
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em] leading-none mb-1">
+                        <span className="text-caption text-zinc-400 font-black uppercase tracking-[0.2em] leading-none mb-1">
                             En Attente
                         </span>
-                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest opacity-60">
+                        <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest opacity-60">
                             {filter === "all" ? "Demandes globales" : currentCfg.label}
                         </span>
                     </div>
                 </div>
                 <div className="p-2 rounded-full bg-white/5 group-hover/action:bg-white/10 transition-colors">
-                    <ChevronRight className={cn("w-4 h-4 transition-all duration-500 group-hover/action:translate-x-0.5", currentCfg.textInactive)} />
+                    <ChevronRight className={cn("w-4 h-4 transition-all duration-300 group-hover/action:translate-x-0.5", currentCfg.textInactive)} />
                 </div>
             </Link>
 
             {/* Modern Segmented Progress HUD */}
             <div className="space-y-2">
-                <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.2em] text-zinc-600">
+                <div className="flex items-center justify-between text-caption font-black uppercase tracking-[0.2em] text-zinc-600">
                     <span>Répartition</span>
                     <span className="text-zinc-400">Détails Système</span>
                 </div>
@@ -188,28 +188,28 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                         <motion.div 
                             initial={{ width: 0 }} 
                             animate={{ width: `${(data.pendingMissions / data.total) * 100}%` }} 
-                            className="h-full bg-rose-500 rounded-sm shadow-[0_0_8px_rgba(244,63,94,0.4)]" 
+                            className="h-full bg-rose-500 rounded-sm " 
                         />
                     )}
                     {data.pendingAchievements > 0 && (
                         <motion.div 
                             initial={{ width: 0 }} 
                             animate={{ width: `${(data.pendingAchievements / data.total) * 100}%` }} 
-                            className="h-full bg-amber-500 rounded-sm shadow-[0_0_8px_rgba(245,158,11,0.4)]" 
+                            className="h-full bg-amber-500 rounded-sm " 
                         />
                     )}
                     {pendingKamas > 0 && (
                         <motion.div 
                             initial={{ width: 0 }} 
                             animate={{ width: `${(pendingKamas / data.total) * 100}%` }} 
-                            className="h-full bg-yellow-400 rounded-sm shadow-[0_0_8px_rgba(250,204,21,0.4)]" 
+                            className="h-full bg-yellow-400 rounded-sm " 
                         />
                     )}
                     {pendingReactivations > 0 && (
                         <motion.div 
                             initial={{ width: 0 }} 
                             animate={{ width: `${(pendingReactivations / data.total) * 100}%` }} 
-                            className="h-full bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
+                            className="h-full bg-emerald-500 rounded-sm " 
                         />
                     )}
                 </div>

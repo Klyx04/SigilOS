@@ -41,25 +41,25 @@ const TIME_SLOT_COLORS: Record<TimeSlot, { bg: string; border: string; glow: str
     matin: {
         bg: "bg-orange-500/20",
         border: "border-orange-500/50",
-        glow: "shadow-[0_0_10px_rgba(249,115,22,0.3)]",
+        glow: "",
         text: "text-orange-400",
     },
     midi: {
         bg: "bg-amber-400/20",
         border: "border-amber-400/50",
-        glow: "shadow-[0_0_10px_rgba(251,191,36,0.3)]",
+        glow: "",
         text: "text-amber-400",
     },
     soir: {
         bg: "bg-violet-500/20",
         border: "border-violet-500/50",
-        glow: "shadow-[0_0_10px_rgba(139,92,246,0.3)]",
+        glow: "",
         text: "text-violet-400",
     },
     nuit: {
         bg: "bg-indigo-500/20",
         border: "border-indigo-500/50",
-        glow: "shadow-[0_0_10px_rgba(99,102,241,0.3)]",
+        glow: "",
         text: "text-indigo-400",
     },
 };
@@ -289,7 +289,7 @@ export function AvailabilityHeatmap({
 
                                             {/* Vacation Indicator Badge */}
                                             {isVacationDay && (
-                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500/90 text-[9px] text-zinc-950 font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500/90 text-caption text-zinc-950 font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
                                                     <Plane className="w-2.5 h-2.5" />
                                                 </div>
                                             )}
@@ -312,7 +312,7 @@ export function AvailabilityHeatmap({
                                                     <span className="text-xs font-medium text-zinc-400">
                                                         {TIME_SLOT_LABELS[slot]}
                                                     </span>
-                                                    <span className="text-[10px] text-zinc-600">
+                                                    <span className="text-caption text-zinc-600">
                                                         {TIME_SLOT_HOURS[slot]}
                                                     </span>
                                                 </div>
@@ -367,7 +367,7 @@ export function AvailabilityHeatmap({
                                                         {/* Vacation Strikethrough (Brighter Red) */}
                                                         {isVacationDay && (
                                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                <div className="w-[140%] h-[2px] bg-red-500/60 rotate-45 transform shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
+                                                                <div className="w-[140%] h-[2px] bg-red-500/60 rotate-45 transform " />
                                                             </div>
                                                         )}
                                                     </button>
@@ -383,7 +383,7 @@ export function AvailabilityHeatmap({
             </div>
 
             {/* Minimal Legend */}
-            <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-white/5 text-[10px] text-zinc-500">
+            <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-white/5 text-caption text-zinc-500">
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> Matin</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Midi</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-400" /> Soir</div>

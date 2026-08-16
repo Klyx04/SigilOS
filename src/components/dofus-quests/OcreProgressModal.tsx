@@ -71,11 +71,11 @@ export default function OcreProgressModal({
       <DialogContent className="max-w-lg bg-zinc-950/95 border border-white/5 rounded-[2rem] p-0 text-white outline-none overflow-hidden">
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-white/5">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
               <img src="/assets/icons/ocre.png" alt="Ocre" className="w-4 h-4 object-contain"/>
               Mon Ocre
             </DialogTitle>
-            <span className="text-[10px] font-bold text-zinc-500">Metamob · {metamobPseudo}</span>
+            <span className="text-caption font-bold text-zinc-500">Metamob · {metamobPseudo}</span>
           </div>
           <div className="flex items-center gap-3 mt-3">
             <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/5">
@@ -96,7 +96,7 @@ export default function OcreProgressModal({
             </div>
             <a
               href={`/dashboard/${guildId}/quete-ocre`}
-              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400/80 hover:text-amber-300 whitespace-nowrap"
+              className="inline-flex items-center gap-1 text-caption font-bold text-amber-400/80 hover:text-amber-300 whitespace-nowrap"
             >
               Quête complète <ExternalLink size={11}/>
             </a>

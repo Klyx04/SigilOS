@@ -405,13 +405,13 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                         <div className="p-2.5 bg-violet-600/10 rounded-xl">
                             <img src="/guildatons.png" alt="Guildaton" className="w-5 h-5 object-contain" />
                         </div>
-                        <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Total Guilde</span>
+                        <span className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">Total Guilde</span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-4xl font-black text-white">{totalGuildatons.toLocaleString()}</span>
-                        <span className="text-[10px] font-black text-violet-500 mb-2 uppercase italic font-black">Points</span>
+                        <span className="text-caption font-black text-violet-500 mb-2 uppercase italic font-black">Points</span>
                     </div>
-                    <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-widest italic opacity-60">Volume cumul├® des membres</p>
+                    <p className="text-caption text-zinc-500 font-bold mt-2 uppercase tracking-widest italic opacity-60">Volume cumul├® des membres</p>
                 </Card>
 
                 <Card className="bg-zinc-900/40 border-white/5 backdrop-blur-xl rounded-[24px] p-6 relative group">
@@ -419,21 +419,21 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                         <div className="p-2.5 bg-emerald-600/20 rounded-xl">
                             <TrendingUp className="w-5 h-5 text-emerald-400" />
                         </div>
-                        <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Moyenne</span>
+                        <span className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">Moyenne</span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-4xl font-black text-white">{avgGuildaton.toLocaleString()}</span>
-                        <span className="text-[10px] font-black text-emerald-500 mb-2 uppercase italic font-black">Pts/membre</span>
+                        <span className="text-caption font-black text-emerald-500 mb-2 uppercase italic font-black">Pts/membre</span>
                     </div>
                 </Card>
 
                 <Card className="lg:col-span-2 bg-black/40 border-white/5 backdrop-blur-xl rounded-[24px] p-4 flex flex-col h-[180px]">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] flex items-center gap-2">
+                        <span className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] flex items-center gap-2">
                             <Clock className="w-4 h-4 text-indigo-400" />
                             ├ëvolution (15 jours)
                         </span>
-                        <Badge variant="outline" className="text-[8px] border-white/5 text-zinc-500 uppercase font-black">Analyses site</Badge>
+                        <Badge variant="outline" className="text-caption border-white/5 text-zinc-500 uppercase font-black">Analyses site</Badge>
                     </div>
                     <div className="flex-1 w-full min-h-[120px]">
                         {!mounted ? (
@@ -476,15 +476,15 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
             <Card className="bg-gradient-to-br from-violet-600/10 via-zinc-900/40 to-emerald-500/5 border-white/5 backdrop-blur-xl overflow-hidden group">
                 <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-zinc-950 flex items-center justify-center border border-white/5 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-950 flex items-center justify-center border border-white/5 shadow-2xl group- transition-transform duration-300">
                             <Camera className="w-6 h-6 text-violet-400" />
                         </div>
                         <div className="space-y-1">
                             <h3 className="text-sm font-black uppercase italic tracking-tighter text-white flex items-center gap-2">
                                 Logiciel <span className="text-violet-500">SigilOCR</span>
-                                <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-[8px] px-1.5 py-0">v3.2 Stable</Badge>
+                                <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-caption px-1.5 py-0">v3.2 Stable</Badge>
                             </h3>
-                            <p className="text-[10px] text-zinc-500 font-medium max-w-sm">
+                            <p className="text-caption text-zinc-500 font-medium max-w-sm">
                                 Outil de scan automatique des points de guilde. Compatible Windows 10/11.
                             </p>
                         </div>
@@ -492,13 +492,13 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                     <div className="flex items-center gap-3">
                         <Button 
                             variant="outline"
-                            className="h-10 bg-black/40 border-white/5 hover:border-violet-500/30 hover:bg-violet-600/10 text-[10px] font-black uppercase tracking-widest rounded-xl px-4 text-zinc-400 hover:text-white transition-all"
+                            className="h-10 bg-black/40 border-white/5 hover:border-violet-500/30 hover:bg-violet-600/10 text-caption font-black uppercase tracking-widest rounded-xl px-4 text-zinc-400 hover:text-white transition-all"
                             onClick={() => window.open('https://github.com/Klyx04/SigilOCR/releases/latest', '_blank')}
                         >
                             <FileJson className="w-4 h-4 mr-2" /> Release Notes
                         </Button>
                         <Button 
-                            className="h-10 bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl px-6 shadow-[0_0_20px_rgba(139,92,246,0.2)] hover:scale-105 transition-all"
+                            className="h-10 bg-violet-600 hover:bg-violet-500 text-white text-caption font-black uppercase tracking-widest rounded-xl px-6   transition-all"
                             onClick={() => window.open('https://download.sigilos.fr/sigilocr-latest.exe', '_blank')}
                         >
                             <Download className="w-4 h-4 mr-2" /> T├®l├®charger (Win)
@@ -538,9 +538,9 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                         <Button 
                             onClick={handleValidateWeek}
                             disabled={validating}
-                            className="h-12 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/40 text-emerald-400 rounded-2xl px-6 text-[10px] font-black uppercase tracking-widest backdrop-blur-xl group"
+                            className="h-12 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/40 text-emerald-400 rounded-2xl px-6 text-caption font-black uppercase tracking-widest backdrop-blur-xl group"
                         >
-                            {validating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />}
+                            {validating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2 group- transition-transform" />}
                             Valider la Semaine
                         </Button>
 
@@ -548,14 +548,14 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                             onClick={handleSendReminder}
                             disabled={sending || !data?.settings?.notifyChannelId}
                             variant="outline"
-                            className="h-12 bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 rounded-2xl px-6 text-[10px] font-black uppercase tracking-widest backdrop-blur-xl group disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="h-12 bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 rounded-2xl px-6 text-caption font-black uppercase tracking-widest backdrop-blur-xl group disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Bell className="w-4 h-4 mr-2 text-violet-400 group-hover:scale-110 transition-transform" />}
+                            {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Bell className="w-4 h-4 mr-2 text-violet-400 group- transition-transform" />}
                             Envoyer Rappel Discord
                         </Button>
                         <Dialog open={manualOpen} onOpenChange={setManualOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="h-12 bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 rounded-2xl px-6 text-[10px] font-black uppercase tracking-widest backdrop-blur-xl">
+                                <Button variant="outline" className="h-12 bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 rounded-2xl px-6 text-caption font-black uppercase tracking-widest backdrop-blur-xl">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Ajouter Manuellement
                                 </Button>
@@ -567,7 +567,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                 </DialogHeader>
                                 <div className="space-y-4 py-4">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Discord ID (Requis si connu)</label>
+                                        <label className="text-caption font-black uppercase text-zinc-500 ml-1">Discord ID (Requis si connu)</label>
                                         <Input 
                                             placeholder="Ex: 283..." 
                                             value={manualForm.discordId}
@@ -577,7 +577,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Pseudo Discord</label>
+                                            <label className="text-caption font-black uppercase text-zinc-500 ml-1">Pseudo Discord</label>
                                             <Input 
                                                 placeholder="Pseudo" 
                                                 value={manualForm.username}
@@ -586,7 +586,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Ankama ID</label>
+                                            <label className="text-caption font-black uppercase text-zinc-500 ml-1">Ankama ID</label>
                                             <Input 
                                                 placeholder="Pseudo#1234" 
                                                 value={manualForm.ankamaId}
@@ -596,7 +596,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Guildaton Initial</label>
+                                        <label className="text-caption font-black uppercase text-zinc-500 ml-1">Guildaton Initial</label>
                                         <Input 
                                             type="number"
                                             value={manualForm.value}
@@ -615,7 +615,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
 
                         <Dialog open={importOpen} onOpenChange={setImportOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="h-12 bg-indigo-900/40 border-indigo-500/20 hover:bg-indigo-800 hover:border-indigo-400 rounded-2xl px-6 text-[10px] font-black uppercase tracking-widest backdrop-blur-xl group">
+                                <Button variant="outline" className="h-12 bg-indigo-900/40 border-indigo-500/20 hover:bg-indigo-800 hover:border-indigo-400 rounded-2xl px-6 text-caption font-black uppercase tracking-widest backdrop-blur-xl group">
                                     <Upload className="w-4 h-4 mr-2 group-hover:animate-bounce" />
                                     Importer CSV (OCR)
                                 </Button>
@@ -630,19 +630,19 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                 </DialogHeader>
                                 <div className="space-y-6 py-6" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
                                     <div className="p-8 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02] flex flex-col items-center justify-center gap-4 text-center group hover:border-indigo-500/30 hover:bg-white/[0.05] transition-all relative">
-                                        <div className="p-4 bg-indigo-500/10 rounded-2xl group-hover:scale-110 transition-transform">
+                                        <div className="p-4 bg-indigo-500/10 rounded-2xl group- transition-transform">
                                             <Upload className="w-8 h-8 text-indigo-400" />
                                         </div>
                                         <div>
                                             <p className="text-sm font-black text-white italic">Cliquez Libre ou Glissez-D├®posez</p>
-                                            <p className="text-[10px] text-zinc-500 font-bold mt-1 uppercase tracking-tighter">Le robot trouvera automatiquement les fautes dans les noms.</p>
+                                            <p className="text-caption text-zinc-500 font-bold mt-1 uppercase tracking-tighter">Le robot trouvera automatiquement les fautes dans les noms.</p>
                                         </div>
                                         <Input type="file" accept=".csv" title="Upload" onChange={handleCsvImport} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-50 block" />
                                     </div>
 
                                     {importData.length > 0 && (
                                         <div className="max-h-[300px] overflow-y-auto rounded-2xl border border-white/5 p-4 space-y-2 bg-black/40">
-                                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/5 text-[10px] font-black uppercase text-zinc-500 tracking-widest">
+                                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/5 text-caption font-black uppercase text-zinc-500 tracking-widest">
                                                 <span>Aper├ºu des donn├®es ({importData.length} lignes)</span>
                                             </div>
                                             {importData.slice(0, 10).map((row, i) => (
@@ -652,7 +652,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                                 </div>
                                             ))}
                                             {importData.length > 10 && (
-                                                <p className="text-[10px] text-zinc-600 text-center pt-2 italic">... et {importData.length - 10} autres membres</p>
+                                                <p className="text-caption text-zinc-600 text-center pt-2 italic">... et {importData.length - 10} autres membres</p>
                                             )}
                                         </div>
                                     )}
@@ -672,11 +672,11 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                     <Table className="min-w-[800px]">
                         <TableHeader className="bg-white/[0.02] border-b border-white/5">
                             <TableRow className="border-none hover:bg-transparent">
-                                <TableHead className="pl-8 py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Membre</TableHead>
-                                <TableHead className="py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Discord ID / Ankama</TableHead>
-                                <TableHead className="py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Inscrit</TableHead>
-                                <TableHead className="py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] w-[200px] whitespace-nowrap">Guildaton (Edit)</TableHead>
-                                <TableHead className="pr-8 text-right py-6 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Action</TableHead>
+                                <TableHead className="pl-8 py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Membre</TableHead>
+                                <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Discord ID / Ankama</TableHead>
+                                <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Inscrit</TableHead>
+                                <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] w-[200px] whitespace-nowrap">Guildaton (Edit)</TableHead>
+                                <TableHead className="pr-8 text-right py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] whitespace-nowrap">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -705,12 +705,12 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                                     <span className="font-black text-zinc-200 group-hover:text-white transition-colors flex items-center gap-2">
                                                         {m.displayName}
                                                         {m.isRegistered && m.currentValue < (data.settings?.weeklyQuota || 0) && (
-                                                            <div className="flex items-center gap-1 bg-red-500/10 text-red-400 px-1.5 py-[2px] rounded-sm text-[8px] uppercase font-black">
+                                                            <div className="flex items-center gap-1 bg-red-500/10 text-red-400 px-1.5 py-[2px] rounded-sm text-caption uppercase font-black">
                                                                 <AlertCircle className="w-3 h-3" /> Glandeur
                                                             </div>
                                                         )}
                                                     </span>
-                                                    <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">{m.discordRoleName || "Membre de guilde"}</span>
+                                                    <span className="text-caption text-zinc-500 font-black uppercase tracking-widest">{m.discordRoleName || "Membre de guilde"}</span>
                                                     
                                                     {/* Petit graphique d'├®volution */}
                                                     <div className="h-8 w-32 mt-2 opacity-30 group-hover:opacity-100 transition-opacity">
@@ -738,22 +738,22 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-md w-fit tabular-nums">{m.discordId}</span>
-                                                {m.ankamaId && <span className="text-[10px] font-black text-violet-400/70">{m.ankamaId}</span>}
+                                                <span className="text-caption font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-md w-fit tabular-nums">{m.discordId}</span>
+                                                {m.ankamaId && <span className="text-caption font-black text-violet-400/70">{m.ankamaId}</span>}
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col gap-1.5">
                                                 {m.isRegistered ? (
-                                                    <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-[9px] font-black uppercase tracking-widest w-fit">Inscrit site</Badge>
+                                                    <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-caption font-black uppercase tracking-widest w-fit">Inscrit site</Badge>
                                                 ) : (
-                                                    <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-[9px] font-black uppercase tracking-widest w-fit">Non-inscrit</Badge>
+                                                    <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-caption font-black uppercase tracking-widest w-fit">Non-inscrit</Badge>
                                                 )}
                                                 {!m.isOnDiscord && (
-                                                    <Badge variant="outline" className="border-amber-500/30 text-amber-500/80 text-[8px] font-black uppercase tracking-tighter w-fit">Pas sur Discord</Badge>
+                                                    <Badge variant="outline" className="border-amber-500/30 text-amber-500/80 text-caption font-black uppercase tracking-tighter w-fit">Pas sur Discord</Badge>
                                                 )}
                                                 {m.discordId.startsWith("manual_") && (
-                                                    <Badge variant="outline" className="border-violet-500/30 text-violet-500/80 text-[8px] font-black uppercase tracking-tighter w-fit italic">Ligne Manuelle</Badge>
+                                                    <Badge variant="outline" className="border-violet-500/30 text-violet-500/80 text-caption font-black uppercase tracking-tighter w-fit italic">Ligne Manuelle</Badge>
                                                 )}
                                             </div>
                                         </TableCell>

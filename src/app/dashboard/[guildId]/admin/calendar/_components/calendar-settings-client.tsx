@@ -248,7 +248,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-amber-500/50 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-amber-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-amber-500 border-2 border-zinc-950 " />
                                 <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
 
                                 <div className="space-y-4">
@@ -307,7 +307,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2 mb-1">
                                             <span className="font-medium text-amber-400">SigilOS</span>
-                                            <span className="bg-amber-500/20 text-amber-300 text-[10px] px-1 rounded">BOT</span>
+                                            <span className="bg-amber-500/20 text-amber-300 text-caption px-1 rounded">BOT</span>
                                             <span className="text-xs text-zinc-500">Maintenant</span>
                                         </div>
 
@@ -402,15 +402,15 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-red-500/50 space-y-8 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 " />
                                 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-sm font-medium text-white">2.1 Salon Raid Gigalodon</h3>
                                         {isGigalodonConfigured ? (
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-[10px]">Configuré</Badge>
+                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-caption">Configuré</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-zinc-500 h-5 text-[10px]">Repli actif</Badge>
+                                            <Badge variant="outline" className="text-zinc-500 h-5 text-caption">Repli actif</Badge>
                                         )}
                                     </div>
                                     <div className="flex gap-2">
@@ -439,9 +439,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-sm font-medium text-white">2.2 Salon Raid Sanctuaire des Jardins Éternels</h3>
                                         {isSanctuaireConfigured ? (
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-[10px]">Configuré</Badge>
+                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-caption">Configuré</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-zinc-500 h-5 text-[10px]">Repli actif</Badge>
+                                            <Badge variant="outline" className="text-zinc-500 h-5 text-caption">Repli actif</Badge>
                                         )}
                                     </div>
                                     <div className="flex gap-2">
@@ -470,9 +470,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-sm font-medium text-white">2.3 Salon Raid Général (Repli par défaut)</h3>
                                         {isRaidConfigured ? (
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-[10px]">Actif</Badge>
+                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-caption">Actif</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-zinc-500 h-5 text-[10px]">Calendrier général</Badge>
+                                            <Badge variant="outline" className="text-zinc-500 h-5 text-caption">Calendrier général</Badge>
                                         )}
                                     </div>
                                     <div className="flex gap-2">
@@ -561,7 +561,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                                     <p className="text-xs font-semibold text-zinc-200">
                                                         Seuil de don requis
                                                     </p>
-                                                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                                                    <p className="text-caption text-zinc-500 mt-0.5">
                                                         1 🟣 = 1 000 k • Actuellement {raidKamaDonationThreshold * 10} 🟣 ({raidKamaDonationThreshold * 10_000} k)
                                                     </p>
                                                 </div>
@@ -634,7 +634,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 " />
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-white">4. Whitelist des Rôles d'Inscription (Raid Guilde)</h3>
                                     <Button 
@@ -674,7 +674,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2 mb-1">
                                             <span className="font-medium text-red-400">SigilOS</span>
-                                            <span className="bg-red-500/20 text-red-300 text-[10px] px-1 rounded">BOT</span>
+                                            <span className="bg-red-500/20 text-red-300 text-caption px-1 rounded">BOT</span>
                                             <span className="text-xs text-zinc-500">Maintenant</span>
                                         </div>
 

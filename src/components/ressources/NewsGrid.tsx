@@ -160,7 +160,7 @@ function FeaturedCard({
         >
             {/* Ambient glow on hover */}
             <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
                 style={{ background: `radial-gradient(ellipse at 20% 50%, ${feedColor}12, transparent 60%)` }}
             />
 
@@ -172,7 +172,7 @@ function FeaturedCard({
                         src={item.imageUrl}
                         alt={item.title}
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        className="w-full h-full object-cover group- transition-transform duration-300"
                         onError={() => setImgError(true)}
                     />
                 ) : (
@@ -192,10 +192,10 @@ function FeaturedCard({
                         </svg>
                         {/* Center icon / Logo */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
-                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden bg-black/40 border border-white/10 group-hover:scale-110 transition-transform duration-500 shadow-2xl">
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden bg-black/40 border border-white/10 group- transition-transform duration-300 shadow-2xl">
                                 <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-12 h-12 object-contain" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">{feedLabel}</span>
+                            <span className="text-caption font-black uppercase tracking-widest text-white/40">{feedLabel}</span>
                         </div>
                     </div>
                 )}
@@ -220,13 +220,13 @@ function FeaturedCard({
             <div className="relative p-5 space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
                     {item.category && (
-                        <span className="text-[9px] font-black uppercase tracking-[0.25em] px-2 py-0.5 rounded-full"
+                        <span className="text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
                             style={{ background: `${feedColor}15`, color: feedColor, border: `1px solid ${feedColor}30` }}>
                             {item.category}
                         </span>
                     )}
                     {item.pubDate && (
-                        <span className="text-[10px] text-zinc-600">{formatPubDate(item.pubDate)}</span>
+                        <span className="text-caption text-zinc-600">{formatPubDate(item.pubDate)}</span>
                     )}
                 </div>
                 <h3 className="text-lg font-bold text-white leading-tight line-clamp-3 group-hover:opacity-80 transition-opacity">
@@ -284,17 +284,17 @@ function SideCard({
                         src={item.imageUrl}
                         alt={item.title}
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover group- transition-transform duration-300"
                         onError={() => setImgError(true)}
                     />
                 ) : (
-                    <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-8 h-8 object-contain opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" />
+                    <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-8 h-8 object-contain opacity-40 group-hover:opacity-100 group- transition-all duration-300" />
                 )}
             </div>
 
             <div className="flex-1 min-w-0 space-y-1">
                 {item.pubDate && (
-                    <time className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block">
+                    <time className="text-caption font-bold uppercase tracking-widest text-zinc-600 block">
                         {formatPubDate(item.pubDate)}
                     </time>
                 )}
@@ -355,7 +355,7 @@ function ListCard({
                         src={item.imageUrl} 
                         alt="" 
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                        className="w-full h-full object-cover group- transition-transform duration-300" 
                         onError={() => setImgError(true)}
                     />
                 ) : (
@@ -372,7 +372,7 @@ function ListCard({
             
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-caption font-black uppercase tracking-widest text-zinc-500">
                         {formatPubDate(item.pubDate)}
                     </span>
                     <div className="h-px w-8 bg-white/10" />
@@ -393,7 +393,7 @@ function ListCard({
                 />
             )}
 
-            <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+            <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-caption font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
                 Détails
             </div>
             <ExternalLink className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 mr-2" />
@@ -704,7 +704,7 @@ export function NewsGrid({
 
             {/* PREVIEW MODAL */}
             <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
-                <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 rounded-[2rem] p-0 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 rounded-[2rem] p-0 overflow-hidden ">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
                     
                     <DialogHeader className="p-8 pb-4">
@@ -741,7 +741,7 @@ export function NewsGrid({
                                     <Hash className={cn("w-6 h-6", previewItem?.type === "BROADCAST" ? "text-amber-500" : "text-indigo-400")} />
                                 </div>
                                 <div className="flex flex-col gap-0.5">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Destination de publication</span>
+                                    <span className="text-caption font-black uppercase tracking-widest text-zinc-500">Destination de publication</span>
                                     <span className="text-sm font-bold text-white flex items-center gap-2">
                                         Posté dans 
                                         <span className={cn(
@@ -755,7 +755,7 @@ export function NewsGrid({
                             </div>
                             
                             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed italic">
+                                <p className="text-caption text-zinc-500 font-medium leading-relaxed italic">
                                     {previewItem?.type === "BROADCAST" 
                                         ? "⚠️ Cette action est irréversible. Le message sera envoyé simultanément à toutes les guildes ayant configuré SigilOS."
                                         : "Le post inclura le titre, la description et l'image de l'article avec un lien direct vers la source officielle."}
@@ -774,7 +774,7 @@ export function NewsGrid({
                         <button
                             onClick={() => previewItem?.type === "BROADCAST" ? confirmBroadcast(previewItem.item) : confirmSendToDiscord(previewItem!.item)}
                             className={cn(
-                                "flex-[2] h-12 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3",
+                                "flex-[2] h-12 rounded-xl text-caption font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3",
                                 previewItem?.type === "BROADCAST" 
                                     ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20" 
                                     : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"

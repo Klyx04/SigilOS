@@ -102,7 +102,7 @@ function LinkPreviewCard({
                     <img
                         src={link.thumbnail}
                         alt={link.title ?? "Aperçu"}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover group- transition-transform duration-300"
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.display = "none";
                         }}
@@ -117,7 +117,7 @@ function LinkPreviewCard({
             {/* Content */}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[10px] font-black text-amber-400/90 uppercase tracking-widest bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    <span className="text-caption font-black text-amber-400/90 uppercase tracking-widest bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                         {domain}
                     </span>
                 </div>
@@ -127,7 +127,7 @@ function LinkPreviewCard({
                     </p>
                 )}
                 {link.description && (
-                    <p className="text-[11px] text-zinc-400 leading-snug line-clamp-1 mt-0.5">
+                    <p className="text-caption text-zinc-400 leading-snug line-clamp-1 mt-0.5">
                         {link.description}
                     </p>
                 )}
@@ -206,7 +206,7 @@ function AddLinkForm({
 
     return (
         <div className="space-y-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+            <p className="text-caption font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
                 <Link className="h-3.5 w-3.5" /> Ajouter un lien externe
             </p>
 
@@ -301,7 +301,7 @@ function TipSectionEditor({
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/70 border-b border-zinc-800/80">
                 <div className="flex items-center gap-2">
-                    <span className="h-5 px-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest flex items-center">
+                    <span className="h-5 px-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-caption font-black uppercase tracking-widest flex items-center">
                         Conseil #{index + 1}
                     </span>
                 </div>
@@ -483,7 +483,7 @@ function RaidTabPanel({
                         </h3>
                         <p className="text-xs text-zinc-300 font-bold drop-shadow-sm">{config.subtitle}</p>
                     </div>
-                    <Badge className="bg-black/60 text-zinc-300 border border-zinc-800 text-[10px] font-black uppercase px-2 py-0.5 backdrop-blur-sm">
+                    <Badge className="bg-black/60 text-zinc-300 border border-zinc-800 text-caption font-black uppercase px-2 py-0.5 backdrop-blur-sm">
                         {config.badge}
                     </Badge>
                 </div>
@@ -535,7 +535,7 @@ function RaidTabPanel({
                         <span className="text-sm font-black uppercase tracking-widest text-zinc-500">
                             Conseils & Stratégies
                         </span>
-                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px] font-black">
+                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-caption font-black">
                             {tips.length}
                         </Badge>
                     </div>
@@ -654,7 +654,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950/98 border border-white/10 ring-1 ring-red-500/20 shadow-[0_0_60px_rgba(239,68,68,0.15)] p-0">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950/98 border border-white/10 ring-1 ring-red-500/20  p-0">
                 {/* Header */}
                 <div className="relative overflow-hidden px-6 pt-6 pb-4 border-b border-zinc-800/80 shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
@@ -771,7 +771,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-sm transition-all hover:scale-105 disabled:opacity-50"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-sm transition-all  disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 Sauvegarder les modifications

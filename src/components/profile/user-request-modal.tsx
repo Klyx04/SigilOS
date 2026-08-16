@@ -119,7 +119,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
 
             {/* Label */}
             <span className={cn(
-                "relative z-10 text-[11px] font-black uppercase tracking-widest transition-colors duration-300",
+                "relative z-10 text-caption font-black uppercase tracking-widest transition-colors duration-300",
                 isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"
             )}>
                 {cfg.label}
@@ -128,7 +128,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
             {/* Availability badge */}
             {availability && (
                 <span className={cn(
-                    "relative z-10 text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                    "relative z-10 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
                     type === "job" && jobsCount
                         ? "bg-amber-500/10 text-amber-400/70 border-amber-500/20"
                         : type === "legendary" && hasLegendary
@@ -269,7 +269,7 @@ export function UserRequestModal({
                                 <DialogTitle className="text-base font-black tracking-wide">
                                     Solliciter <span className="text-emerald-400">{targetName}</span>
                                 </DialogTitle>
-                                <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                                <p className="text-caption text-zinc-500 font-medium mt-0.5">
                                     Envoyez une demande de service à ce membre
                                 </p>
                             </div>
@@ -283,13 +283,13 @@ export function UserRequestModal({
                                 return (
                                     <div key={s} className="flex items-center gap-2 flex-1">
                                         <div className={cn(
-                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all",
+                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest border transition-all",
                                             isDone
                                                 ? [activeCfg.border, activeCfg.badge, "shadow-sm"].join(" ")
                                                 : "border-zinc-800 text-zinc-600 bg-zinc-900/50"
                                         )}>
                                             <span className={cn(
-                                                "w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black",
+                                                "w-3.5 h-3.5 rounded-full flex items-center justify-center text-caption font-black",
                                                 isDone ? "bg-current" : "bg-zinc-700"
                                             )}>
                                                 {isDone ? "✓" : i + 1}
@@ -322,7 +322,7 @@ export function UserRequestModal({
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="w-1 h-1 rounded-full bg-amber-400/60" />
-                                    <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">
+                                    <Label className="text-caption uppercase font-black text-zinc-500 tracking-widest">
                                         Choisissez le type de service
                                     </Label>
                                 </div>
@@ -350,7 +350,7 @@ export function UserRequestModal({
 
                                 {type === "order" && !orderData && (
                                     <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/40">
-                                        <p className="text-[10px] text-zinc-500 font-medium text-center">
+                                        <p className="text-caption text-zinc-500 font-medium text-center">
                                             Ce membre n'a pas d'ordre configuré sur son profil
                                         </p>
                                     </div>
@@ -360,7 +360,7 @@ export function UserRequestModal({
                                     <Button
                                         onClick={() => setStep("value")}
                                         className={cn(
-                                            "w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all",
+                                            "w-full h-11 rounded-xl font-black text-caption uppercase tracking-widest shadow-lg transition-all",
                                             type === "job" ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30" :
                                             type === "order" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30" :
                                             "bg-purple-600 hover:bg-purple-500 shadow-purple-600/30"
@@ -386,7 +386,7 @@ export function UserRequestModal({
                                     <div className="w-1 h-1 rounded-full" style={{
                                         backgroundColor: type === "job" ? "#f59e0b" : type === "order" ? "#6366f1" : "#a855f7"
                                     }} />
-                                    <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">
+                                    <Label className="text-caption uppercase font-black text-zinc-500 tracking-widest">
                                         {type === "job" ? "Métier recherché" : type === "order" ? "Ordre d'alignement" : "Légendaire à crafter"}
                                     </Label>
                                 </div>
@@ -425,7 +425,7 @@ export function UserRequestModal({
                                 </div>
 
                                 {!value && (
-                                    <p className="text-[9px] text-zinc-600 text-center font-medium">
+                                    <p className="text-caption text-zinc-600 text-center font-medium">
                                         Sélectionnez un élément ci-dessus
                                     </p>
                                 )}
@@ -434,7 +434,7 @@ export function UserRequestModal({
                                     <Button
                                         variant="ghost"
                                         onClick={() => setStep("type")}
-                                        className="text-zinc-500 hover:text-zinc-300 text-[10px] font-black uppercase tracking-widest h-9"
+                                        className="text-zinc-500 hover:text-zinc-300 text-caption font-black uppercase tracking-widest h-9"
                                     >
                                         ← Retour
                                     </Button>
@@ -442,7 +442,7 @@ export function UserRequestModal({
                                         onClick={() => setStep("message")}
                                         disabled={!value}
                                         className={cn(
-                                            "flex-1 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all",
+                                            "flex-1 h-10 rounded-xl font-black text-caption uppercase tracking-widest shadow-lg transition-all",
                                             type === "job" ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30" :
                                             type === "order" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30" :
                                             "bg-purple-600 hover:bg-purple-500 shadow-purple-600/30"
@@ -490,13 +490,13 @@ export function UserRequestModal({
                                             <>
                                                 {icon && <img src={icon} alt="" className="w-8 h-8 object-contain shrink-0" />}
                                                 <div>
-                                                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Objet de la demande</p>
+                                                    <p className="text-caption font-black uppercase tracking-widest text-zinc-500">Objet de la demande</p>
                                                     <p className="text-sm font-bold text-white">{label}</p>
                                                 </div>
                                                 <Button
                                                     variant="ghost"
                                                     onClick={() => setStep("value")}
-                                                    className="ml-auto text-[9px] text-zinc-500 hover:text-zinc-300 font-black uppercase tracking-widest h-7 px-2"
+                                                    className="ml-auto text-caption text-zinc-500 hover:text-zinc-300 font-black uppercase tracking-widest h-7 px-2"
                                                 >
                                                     Modifier
                                                 </Button>
@@ -508,12 +508,12 @@ export function UserRequestModal({
                                 {/* Message */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
+                                        <Label className="text-caption uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
                                             <span className="w-1 h-1 rounded-full bg-zinc-600" />
                                             Message (optionnel)
                                         </Label>
                                         <span className={cn(
-                                            "text-[9px] font-bold transition-colors",
+                                            "text-caption font-bold transition-colors",
                                             message.length > 450 ? "text-amber-500" : "text-zinc-600"
                                         )}>
                                             {message.length} / 500
@@ -532,14 +532,14 @@ export function UserRequestModal({
                                     <Button
                                         variant="ghost"
                                         onClick={() => setStep("value")}
-                                        className="text-zinc-500 hover:text-zinc-300 text-[10px] font-black uppercase tracking-widest h-9"
+                                        className="text-zinc-500 hover:text-zinc-300 text-caption font-black uppercase tracking-widest h-9"
                                     >
                                         ← Retour
                                     </Button>
                                     <Button
                                         onClick={handleSubmit}
                                         disabled={isPending}
-                                        className="flex-1 h-11 rounded-xl font-black text-[10px] uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        className="flex-1 h-11 rounded-xl font-black text-caption uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                                     >
                                         {isPending ? (
                                             <span className="flex items-center gap-2">
@@ -564,7 +564,7 @@ export function UserRequestModal({
                         variant="ghost"
                         onClick={() => { resetModal(); onClose(); }}
                         disabled={isPending}
-                        className="text-zinc-600 hover:text-zinc-400 text-[9px] font-black uppercase tracking-widest h-8 w-full"
+                        className="text-zinc-600 hover:text-zinc-400 text-caption font-black uppercase tracking-widest h-8 w-full"
                     >
                         Annuler
                     </Button>

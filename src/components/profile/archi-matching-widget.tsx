@@ -103,13 +103,13 @@ export function ArchiMatchingWidget({
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-medium truncate">{match.nom}</p>
-                                            <p className="text-[10px] text-muted-foreground truncate">
+                                            <p className="text-caption text-muted-foreground truncate">
                                                 {match.zone}
                                             </p>
                                         </div>
                                         <Badge
                                             variant="outline"
-                                            className="shrink-0 text-[10px] px-1.5 bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                            className="shrink-0 text-caption px-1.5 bg-amber-500/10 text-amber-500 border-amber-500/30"
                                         >
                                             x{match.ownerQuantite}
                                         </Badge>

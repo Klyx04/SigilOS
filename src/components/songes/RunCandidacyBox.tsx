@@ -171,7 +171,7 @@ export function RunCandidacyBox({
             ) : canApply ? (
                 <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="w-full bg-green-600 hover:bg-green-500 text-white font-bold h-14 text-lg shadow-[0_0_20px_rgba(22,163,74,0.3)]">
+                        <Button className="w-full bg-green-600 hover:bg-green-500 text-white font-bold h-14 text-lg ">
                             <UserPlus className="w-5 h-5 mr-3" />
                             Postuler à cette Run
                         </Button>

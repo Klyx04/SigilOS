@@ -541,7 +541,7 @@ export function GalleryClient({
                                             >
                                                 <Star className={cn("w-3.5 h-3.5", build.hasVoted && "fill-current")} />
                                                 {build.votesCount > 0 && (
-                                                    <span className="text-[10px] font-bold">{build.votesCount}</span>
+                                                    <span className="text-caption font-bold">{build.votesCount}</span>
                                                 )}
                                             </button>
                                             <button
@@ -582,7 +582,7 @@ export function GalleryClient({
                                     <div className="flex items-center gap-2.5">
                                         <Avatar className="w-6 h-6 border border-white/10">
                                             <AvatarImage src={build.author.image || undefined} />
-                                            <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-500">
+                                            <AvatarFallback className="text-caption bg-zinc-900 text-zinc-500">
                                                 {build.author.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
@@ -597,7 +597,7 @@ export function GalleryClient({
                                                             {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                                         </span>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-[10px] text-zinc-300">
+                                                    <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-caption text-zinc-300">
                                                         <p>Ajouté le {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
                                                         {build.updatedAt && build.updatedAt !== build.createdAt && (
                                                             <p className="text-zinc-500">Mis à jour le {new Date(build.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
@@ -630,7 +630,7 @@ export function GalleryClient({
                                                 src={skin.thumbnailUrl} 
                                                 alt={skin.name} 
                                                 fill 
-                                                className="object-contain object-[50%_20%] group-hover/card:scale-105 transition-transform duration-500 bg-zinc-950/30" 
+                                                className="object-contain object-[50%_20%] group-hover/card:scale-105 transition-transform duration-300 bg-zinc-950/30" 
                                             />
                                         </div>
                                     ) : (
@@ -722,15 +722,15 @@ export function GalleryClient({
                                     <div className="flex items-center gap-2.5">
                                         <Avatar className="w-6 h-6 border border-white/10">
                                             <AvatarImage src={skin.author.image || undefined} />
-                                            <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-500">
+                                            <AvatarFallback className="text-caption bg-zinc-900 text-zinc-500">
                                                 {skin.author.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[11px] text-zinc-500">
+                                        <span className="text-caption text-zinc-500">
                                             Par <span className="text-zinc-300 font-bold">{skin.author.name}</span>
                                         </span>
                                     </div>
-                                    <span className="text-[9px] text-zinc-600 font-medium" suppressHydrationWarning>
+                                    <span className="text-caption text-zinc-600 font-medium" suppressHydrationWarning>
                                         {new Date(skin.createdAt).toLocaleDateString("fr-FR")}
                                     </span>
                                 </div>
@@ -755,7 +755,7 @@ export function GalleryClient({
                     >
                         <ChevronDown className="w-4 h-4" />
                         Charger plus {activeTab === "STUFF" ? "de builds" : "de skins"}
-                        <span className="text-[10px] text-zinc-500 ml-1">
+                        <span className="text-caption text-zinc-500 ml-1">
                             ({(activeTab === "STUFF" ? stuffTotal - stuffBuilds.length : skinTotal - skinBuilds.length)} restants)
                         </span>
                     </Button>
@@ -785,16 +785,16 @@ export function GalleryClient({
                                 
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                                     <div className="bg-sky-500/20 backdrop-blur-xl px-3 py-1 rounded-full border border-sky-500/30 w-fit">
-                                        <span className="text-[10px] font-black text-sky-400 tracking-widest uppercase">
+                                        <span className="text-caption font-black text-sky-400 tracking-widest uppercase">
                                             {selectedSkin.provider}
                                         </span>
                                     </div>
                                     <div className="bg-zinc-950/80 backdrop-blur-xl px-3 py-1 rounded-xl border border-white/10 w-fit shadow-2xl flex items-center gap-2">
                                         <Avatar className="w-4 h-4 border border-white/10">
                                             <AvatarImage src={selectedSkin.author.image || undefined} />
-                                            <AvatarFallback className="text-[6px] bg-zinc-900">{selectedSkin.author.name.substring(0,2)}</AvatarFallback>
+                                            <AvatarFallback className="text-caption bg-zinc-900">{selectedSkin.author.name.substring(0,2)}</AvatarFallback>
                                         </Avatar>
-                                        <span className="text-[10px] font-black text-zinc-400 tracking-tighter uppercase">
+                                        <span className="text-caption font-black text-zinc-400 tracking-tighter uppercase">
                                             Partagé par <span className="text-white">{selectedSkin.author.name}</span>
                                         </span>
                                     </div>
@@ -811,7 +811,7 @@ export function GalleryClient({
                                         <div className="flex flex-wrap items-center gap-3 mt-4">
                                             {selectedSkin.metadata?.class && (
                                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-xl shadow-inner">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                                    <span className="text-caption font-black uppercase tracking-widest">
                                                         {(() => {
                                                             const classData = DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(selectedSkin.metadata!.class));
                                                             return classData ? classData.name : selectedSkin.metadata.class;
@@ -821,7 +821,7 @@ export function GalleryClient({
                                             )}
                                             {selectedSkin.metadata?.gender && (
                                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl shadow-inner">
-                                                     <span className="text-[10px] font-black uppercase tracking-widest">
+                                                     <span className="text-caption font-black uppercase tracking-widest">
                                                         {selectedSkin.metadata.gender === "M" ? "Mâle" : "Femelle"}
                                                     </span>
                                                 </div>
@@ -832,12 +832,12 @@ export function GalleryClient({
                                                         {String(selectedSkin.metadata.head).startsWith('http') ? (
                                                             <NextImage src={selectedSkin.metadata.head} alt="Head" width={24} height={24} className="object-cover group-hover/head:scale-110 transition-transform" unoptimized />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-zinc-600">
+                                                            <div className="w-full h-full flex items-center justify-center text-caption font-bold text-zinc-600">
                                                                 #{selectedSkin.metadata.head}
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest opacity-70">
+                                                    <span className="text-caption font-black uppercase tracking-widest opacity-70">
                                                         Visage {String(selectedSkin.metadata.head).startsWith('http') ? "" : selectedSkin.metadata.head}
                                                     </span>
                                                 </div>
@@ -848,7 +848,7 @@ export function GalleryClient({
                                     {/* Colors */}
                                     {selectedSkin.colors && Object.keys(selectedSkin.colors).length > 0 && (
                                         <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                                            <h3 className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1 h-1 rounded-full bg-sky-500" />
                                                 Harmonie de Couleurs
                                             </h3>
@@ -869,8 +869,8 @@ export function GalleryClient({
                                                                 style={{ backgroundColor: hex as string }}
                                                             />
                                                             <div className="min-w-0">
-                                                                <p className="text-[9px] font-bold text-zinc-500 truncate uppercase tracking-tighter group-hover/color:text-sky-300 transition-colors">{label}</p>
-                                                                <p className="text-[11px] font-black text-white uppercase font-mono">{hex as string}</p>
+                                                                <p className="text-caption font-bold text-zinc-500 truncate uppercase tracking-tighter group-hover/color:text-sky-300 transition-colors">{label}</p>
+                                                                <p className="text-caption font-black text-white uppercase font-mono">{hex as string}</p>
                                                             </div>
                                                         </div>
                                                         <div className="p-1.5 rounded-lg bg-white/5 text-zinc-400 group-hover/color:bg-sky-500/20 group-hover/color:text-sky-400 transition-all shrink-0">
@@ -885,7 +885,7 @@ export function GalleryClient({
                                     {/* Equipment */}
                                     {selectedSkin.equipment && Array.isArray(selectedSkin.equipment) && selectedSkin.equipment.length > 0 && (
                                         <div className="space-y-4 pb-4">
-                                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                                            <h3 className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                                 <div className="w-1 h-1 rounded-full bg-purple-500" />
                                                 Composition du Look
                                             </h3>
@@ -901,8 +901,8 @@ export function GalleryClient({
                                                                 )}
                                                             </div>
                                                             <div>
-                                                                <p className="text-[12px] font-bold text-white group-hover/item:text-sky-400 transition-colors leading-tight">{item.name}</p>
-                                                                <p className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">{item.type}</p>
+                                                                <p className="text-label font-bold text-white group-hover/item:text-sky-400 transition-colors leading-tight">{item.name}</p>
+                                                                <p className="text-caption text-zinc-500 font-medium uppercase tracking-wider">{item.type}</p>
                                                             </div>
                                                         </div>
                                                     </div>

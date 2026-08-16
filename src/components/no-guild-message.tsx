@@ -82,7 +82,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                         onClick={() => setShowModal(true)}
                                         className="group relative w-full h-14 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-colors active:scale-[0.99] overflow-hidden flex flex-col items-center justify-center"
                                     >
-                                        <span className="text-[11px] opacity-80 mb-0.5">Chef de Guilde ?</span>
+                                        <span className="text-caption opacity-80 mb-0.5">Chef de Guilde ?</span>
                                         <div className="flex items-center gap-2">
                                             <Crown className="w-4 h-4" />
                                             <span>Inscrire ma Guilde</span>

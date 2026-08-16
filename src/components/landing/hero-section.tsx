@@ -29,7 +29,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
 
                     {/* Copy */}
                     <div className="max-w-xl">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-5">
+                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-emerald-400 mb-5">
                             SigilOS · Dofus Unity
                         </p>
                         <h1 className="text-[clamp(2.1rem,4.6vw,3.5rem)] font-bold tracking-tight text-white leading-[1.08] mb-5">
@@ -73,7 +73,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                 <form action={loginWithDiscord}>
                                     <button
                                         type="submit"
-                                        className="inline-flex items-center gap-2 text-[13px] text-zinc-400 hover:text-emerald-400 font-medium transition-colors"
+                                        className="inline-flex items-center gap-2 text-body-sm text-zinc-400 hover:text-emerald-400 font-medium transition-colors"
                                     >
                                         <DiscordIcon className="w-4 h-4" />
                                         Déjà membre ? Se connecter avec Discord

@@ -84,7 +84,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     return (
         <div
             className={cn(
-               "group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-2xl border transition-all duration-500 overflow-hidden",
+               "group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-2xl border transition-all duration-300 overflow-hidden",
                "backdrop-blur-md shadow-lg",
                colors.border,
                isTop3 ? "bg-white/[0.04] border-white/20 shadow-white/5" : "bg-zinc-900/40 border-white/5",
@@ -102,7 +102,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                     ) : entry.rank === 3 ? (
                         <Medal className="h-5 w-5 text-amber-700 drop-shadow-[0_0_10px_rgba(180,83,9,0.4)]" />
                     ) : (
-                        <span className="text-[10px] font-black italic text-zinc-600 group-hover:text-zinc-400 transition-colors">
+                        <span className="text-caption font-black italic text-zinc-600 group-hover:text-zinc-400 transition-colors">
                             #{entry.rank.toString().padStart(2, '0')}
                         </span>
                     )}
@@ -113,7 +113,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                     isTop3 && "ring-2 ring-white/10"
                 )}>
                     {entry.discordImage ? (
-                        <img src={entry.discordImage} alt="Avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-125" />
+                        <img src={entry.discordImage} alt="Avatar" className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-125" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-zinc-800"><User className="w-5 h-5 text-zinc-500" /></div>
                     )}
@@ -134,11 +134,11 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                     >
                         {entry.discordNickname || "Membre"}
                     </span>
-                    {entry.isCurrentUser && <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-black uppercase tracking-widest">VOUS</span>}
+                    {entry.isCurrentUser && <span className="text-caption px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-black uppercase tracking-widest">VOUS</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                    {entry.pseudoDofus && <span className="text-[10px] text-zinc-400 font-medium italic truncate">{entry.pseudoDofus}</span>}
-                    {!isGeneral && entry.classe && <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">• {entry.classe}</span>}
+                    {entry.pseudoDofus && <span className="text-caption text-zinc-400 font-medium italic truncate">{entry.pseudoDofus}</span>}
+                    {!isGeneral && entry.classe && <span className="text-caption text-zinc-500 font-black uppercase tracking-widest">• {entry.classe}</span>}
                 </div>
             </div>
 
@@ -146,10 +146,10 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             <div className="hidden sm:flex justify-center items-center px-4 shrink-0">
                 {isGeneral && entry.dofusLevel ? (
                     <div className="flex flex-col items-center">
-                        <span className="text-[7px] font-black text-zinc-500 uppercase tracking-[0.3em] mb-1.5 opacity-40">Niveau</span>
+                        <span className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1.5 opacity-40">Niveau</span>
                         <div className="relative group/lv">
                             <div className="absolute inset-0 bg-blue-500/20 blur-md rounded-full opacity-0 group-hover/lv:opacity-100 transition-opacity" />
-                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.05] border border-white/10 shadow-2xl backdrop-blur-xl group-hover/lv:border-blue-400/50 transition-all duration-500">
+                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.05] border border-white/10 shadow-2xl backdrop-blur-xl group-hover/lv:border-blue-400/50 transition-all duration-300">
                                 <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "text-white")}>
                                     {entry.dofusLevel}
                                 </span>
@@ -166,17 +166,17 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                 {isGeneral ? (
                     <div className="flex flex-col items-end">
                         <div className={cn("text-lg font-black tracking-tighter flex items-center gap-2", isTop3 ? "text-white" : "text-blue-400")}>
-                            <span className="opacity-30 text-[10px] font-black mt-1 tracking-widest">XP</span>
+                            <span className="opacity-30 text-caption font-black mt-1 tracking-widest">XP</span>
                             {Number(entry.totalXpBigInt || 0).toLocaleString()}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 opacity-30 group-hover:opacity-60 transition-opacity">
                             <Zap className="w-3 h-3 text-blue-300" />
-                            <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">Ladder Général</span>
+                            <span className="text-caption font-black uppercase tracking-[0.2em] italic">Ladder Général</span>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col items-end">
-                        <div className={cn("text-[14px] font-black tracking-tight uppercase", isTop3 ? "text-white" : colors.valueText)}>
+                        <div className={cn("text-body font-black tracking-tight uppercase", isTop3 ? "text-white" : colors.valueText)}>
                             {valueLabel}
                         </div>
                         {isTourist ? (
@@ -191,12 +191,12 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                                 ) : (
                                     <Ghost className="w-3 h-3" />
                                 )}
-                                <span className="text-[7px] font-black uppercase tracking-widest leading-none">
+                                <span className="text-caption font-black uppercase tracking-widest leading-none">
                                     {entry.isInVacation ? "En Vacances" : "Mauvais Élève"}
                                 </span>
                             </div>
                         ) : accentColor === "purple" && (
-                            <div className="text-[8px] text-zinc-500 font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
+                            <div className="text-caption text-zinc-500 font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
                         )}
                     </div>
                 )}

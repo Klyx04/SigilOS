@@ -68,11 +68,11 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
         <div className="bg-zinc-900/10 border border-white/5 rounded-3xl p-8 backdrop-blur-xl h-full flex flex-col gap-6 shadow-2xl relative overflow-hidden">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
                 <div className="space-y-1">
-                    <h3 className="text-xs font-black text-amber-500 uppercase tracking-[0.3em] flex items-center gap-3">
+                    <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-3">
                         <AlertTriangle className="w-4 h-4" />
                         Target Purge Zone
                     </h3>
-                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Identification & Nettoyage des Ghost Users</p>
+                    <p className="text-zinc-500 text-caption font-bold uppercase tracking-widest">Identification & Nettoyage des Ghost Users</p>
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-4">
@@ -89,7 +89,7 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                     <div className="flex items-center gap-6 bg-black/40 px-6 py-3 rounded-2xl border border-white/5 shadow-inner">
                         <div className="flex flex-col items-center">
                             <span className="text-3xl font-black text-rose-500 leading-none">{ghostUsers.length}</span>
-                            <span className="text-[8px] font-black text-rose-500/50 uppercase tracking-tighter mt-1">Total</span>
+                            <span className="text-caption font-black text-rose-500/50 uppercase tracking-tighter mt-1">Total</span>
                         </div>
                         {ghostUsers.length > 0 && (
                             <Button
@@ -97,7 +97,7 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                 size="sm"
                                 disabled={isPurgingAll}
                                 onClick={handlePurgeAll}
-                                className="bg-rose-500 text-white hover:bg-rose-600 font-black uppercase tracking-widest text-[9px] h-10 px-5 shadow-[0_0_20px_rgba(244,63,94,0.3)]"
+                                className="bg-rose-500 text-white hover:bg-rose-600 font-black uppercase tracking-widest text-caption h-10 px-5 "
                             >
                                 {isPurgingAll ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <Trash2 className="w-3 h-3 mr-2" />}
                                 Purge Globale
@@ -113,8 +113,8 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                     <UserX className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
-                    <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">Aide au Diagnostic</h4>
-                    <p className="text-[10px] text-zinc-500 leading-relaxed font-bold uppercase tracking-tight">
+                    <h4 className="text-caption font-black text-amber-500 uppercase tracking-widest leading-none">Aide au Diagnostic</h4>
+                    <p className="text-caption text-zinc-500 leading-relaxed font-bold uppercase tracking-tight">
                         Ces utilisateurs ont un compte mais **aucun** profil de guilde. 
                         Vérifie l'activité (sessions) avant de purger. Un utilisateur avec 0 session est probablement un robot ou une erreur de connexion.
                     </p>
@@ -171,25 +171,25 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                                             <div className="flex items-center gap-1.5 text-zinc-500">
                                                 <Calendar className="w-3 h-3" />
-                                                <span className="text-[9px] font-bold uppercase tracking-tighter">Créé: {new Date(user.createdAt).toLocaleDateString()}</span>
+                                                <span className="text-caption font-bold uppercase tracking-tighter">Créé: {new Date(user.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             
                                             <div className="flex items-center gap-1.5 text-zinc-500">
                                                 <MousePointer2 className="w-3 h-3" />
-                                                <span className="text-[9px] font-bold uppercase tracking-tighter">{user._count?.sessions} sessions</span>
+                                                <span className="text-caption font-bold uppercase tracking-tighter">{user._count?.sessions} sessions</span>
                                             </div>
 
                                             {user._count?.guildEvents > 0 && (
                                                 <div className="flex items-center gap-1.5 text-amber-500">
                                                     <CalendarCheck className="w-3 h-3" />
-                                                    <span className="text-[9px] font-bold uppercase tracking-tighter text-amber-500/80">{user._count.guildEvents} events</span>
+                                                    <span className="text-caption font-bold uppercase tracking-tighter text-amber-500/80">{user._count.guildEvents} events</span>
                                                 </div>
                                             )}
 
                                             {lastActivity && (
                                                 <div className="flex items-center gap-1.5 text-blue-400/70 italic">
                                                     <Clock className="w-3 h-3" />
-                                                    <span className="text-[9px] font-bold uppercase tracking-tighter">Actif: {new Date(lastActivity).toLocaleDateString()}</span>
+                                                    <span className="text-caption font-bold uppercase tracking-tighter">Actif: {new Date(lastActivity).toLocaleDateString()}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -199,7 +199,7 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                 <div className="flex items-center gap-2 justify-end shrink-0">
                                     <div className="flex flex-col items-end mr-4 hidden md:flex gap-1.5">
                                          <span className={cn(
-                                             "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
+                                             "text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
                                              user._count?.sessions > 0 ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : "text-zinc-600 border-white/5 bg-white/5"
                                          )}>
                                              {user._count?.sessions > 0 ? "Interactif" : "Visiteur"}
@@ -208,12 +208,12 @@ export function TargetPurgePanel({ ghostUsers }: TargetPurgePanelProps) {
                                          {/* New indicator for Whitelist membership */}
                                          {user.memberInWhitelists && user.memberInWhitelists.length > 0 && (
                                              <div className="flex flex-col items-end gap-1">
-                                                 <span className="text-[7px] font-black uppercase tracking-tighter text-amber-500/80 bg-amber-500/5 border border-amber-500/10 px-1.5 rounded-sm">
+                                                 <span className="text-caption font-black uppercase tracking-tighter text-amber-500/80 bg-amber-500/5 border border-amber-500/10 px-1.5 rounded-sm">
                                                      Sur Whitelist
                                                  </span>
                                                  <div className="flex flex-wrap gap-1 justify-end max-w-[150px]">
                                                      {user.memberInWhitelists.map((gName: string, idx: number) => (
-                                                         <span key={idx} className="text-[7px] text-zinc-500 whitespace-nowrap">{gName}</span>
+                                                         <span key={idx} className="text-caption text-zinc-500 whitespace-nowrap">{gName}</span>
                                                      ))}
                                                  </div>
                                              </div>

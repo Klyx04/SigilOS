@@ -61,7 +61,7 @@ export async function MemberHistory({ guildId }: MemberHistoryProps) {
                                     <div className="text-sm text-zinc-400">
                                         {profile.archivedAt ? format(profile.archivedAt, "d MMMM yyyy", { locale: fr }) : "Date inconnue"}
                                     </div>
-                                    <div className="text-[10px] text-zinc-600 uppercase tracking-tighter">
+                                    <div className="text-caption text-zinc-600 uppercase tracking-tighter">
                                         {profile.status === "BANNED" ? "Données Nettoyées" : "Rétention 90j"}
                                     </div>
                                 </div>
@@ -80,7 +80,7 @@ export async function MemberHistory({ guildId }: MemberHistoryProps) {
             </div>
 
             <div className="p-3 bg-zinc-900/30 text-center border-t border-zinc-800">
-                <p className="text-[10px] text-zinc-500 italic">
+                <p className="text-caption text-zinc-500 italic">
                     Note: Les profils bannis n'ont plus aucune donnée associée (succès, métiers, activitées) par sécurité.
                 </p>
             </div>

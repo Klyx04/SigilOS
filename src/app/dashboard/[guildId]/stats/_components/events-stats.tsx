@@ -62,7 +62,7 @@ export default function EventsStats({ events }: EventsStatsProps) {
             {pieData.length > 0 && (
                 <div className="h-44">
                     {!mounted ? (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-[10px] italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-caption italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
                             Chargement du graphique...
                         </div>
                     ) : (

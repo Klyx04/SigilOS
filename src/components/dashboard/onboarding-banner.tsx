@@ -91,8 +91,8 @@ export function OnboardingBanner({
             )}
 
             <div className={cn(
-                "relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden transition-all duration-500 group-hover/onboarding:border-white/20",
-                variant === "user" ? "ring-1 ring-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]" : "ring-1 ring-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]",
+                "relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden transition-all duration-300 group-hover/onboarding:border-white/20",
+                variant === "user" ? "ring-1 ring-blue-500/20 " : "ring-1 ring-emerald-500/20 ",
                 !isFinished ? "opacity-100" : "opacity-90"
             )}>
                 {dismissible && (
@@ -119,7 +119,7 @@ export function OnboardingBanner({
                             <div className={cn(
                                 "p-3 rounded-2xl border transition-colors",
                                 !isFinished
-                                    ? (variant === "user" ? "bg-blue-500/20 border-blue-500/30 text-blue-400 group-hover/onboarding:scale-110 duration-500" : "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 group-hover/onboarding:scale-110 duration-500")
+                                    ? (variant === "user" ? "bg-blue-500/20 border-blue-500/30 text-blue-400 group-hover/onboarding:scale-110 duration-300" : "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 group-hover/onboarding:scale-110 duration-300")
                                     : "bg-zinc-500/10 border-white/10 text-zinc-400"
                             )}>
                                 {isFinished ? (
@@ -131,7 +131,7 @@ export function OnboardingBanner({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
-                                        "text-[10px] font-black uppercase tracking-[0.4em] leading-none",
+                                        "text-caption font-black uppercase tracking-widest leading-none",
                                         variant === "user" ? "text-blue-400/80" : "text-emerald-400/80"
                                     )}>
                                         {isFinished ? (variant === "user" ? "Prêt pour l'aventure" : "Succès") : (variant === "user" ? "Préparation" : "Configuration Nécessaire")}
@@ -146,7 +146,7 @@ export function OnboardingBanner({
                                                 variant === "user" ? "bg-blue-400" : "bg-emerald-400"
                                             )} />
                                             <span className={cn(
-                                                "text-[8px] font-black uppercase tracking-tighter",
+                                                "text-caption font-black uppercase tracking-tighter",
                                                 variant === "user" ? "text-blue-400" : "text-emerald-400"
                                             )}>Priorité</span>
                                         </div>
@@ -180,7 +180,7 @@ export function OnboardingBanner({
                             )}
 
                             <div className="flex-1 min-w-[200px] space-y-2">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                                <div className="flex justify-between text-caption font-black uppercase tracking-widest">
                                     <span className="text-zinc-500">{checklistLabel}</span>
                                     <span className={variant === "user" ? "text-blue-400" : "text-emerald-400"}>{completedSteps} / {steps.length}</span>
                                 </div>
@@ -190,8 +190,8 @@ export function OnboardingBanner({
                                         animate={{ width: `${progress}%` }}
                                         transition={{ duration: 1, ease: "easeOut" }}
                                         className={cn(
-                                            "h-full transition-all duration-500",
-                                            variant === "user" ? "bg-gradient-to-r from-blue-600 to-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)]" : "bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                                            "h-full transition-all duration-300",
+                                            variant === "user" ? "bg-gradient-to-r from-blue-600 to-blue-400 " : "bg-gradient-to-r from-emerald-600 to-emerald-400 "
                                         )}
                                     />
                                 </div>
@@ -209,14 +209,14 @@ export function OnboardingBanner({
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.1 * idx }}
                                         className={cn(
-                                            "relative p-4 rounded-2xl border transition-all hover:scale-110 active:scale-95 group/step flex flex-col items-center gap-3 min-w-[90px]",
+                                            "relative p-4 rounded-2xl border transition-all  active:scale-95 group/step flex flex-col items-center gap-3 min-w-[90px]",
                                             step.completed
-                                                ? (variant === "user" ? "bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")
+                                                ? (variant === "user" ? "bg-blue-500/10 border-blue-500/30 text-blue-400 " : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")
                                                 : "bg-white/5 border-white/10 text-zinc-500 hover:border-white/30 hover:bg-white/10"
                                         )}
                                     >
                                         <Icon className={cn("w-6 h-6", !step.completed && "grayscale opacity-50")} />
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">{step.title}</span>
+                                        <span className="text-caption font-black uppercase tracking-widest text-center leading-tight">{step.title}</span>
 
                                         {step.completed && (
                                             <div className={cn(
@@ -228,7 +228,7 @@ export function OnboardingBanner({
                                         )}
 
                                         <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 p-2 rounded-lg opacity-0 group-hover/step:opacity-100 pointer-events-none transition-all z-50 whitespace-nowrap scale-90 group-hover/step:scale-100 origin-top">
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-white">{step.description}</p>
+                                            <p className="text-caption font-black uppercase tracking-widest text-white">{step.description}</p>
                                         </div>
                                     </motion.div>
                                 </Link>
@@ -237,7 +237,7 @@ export function OnboardingBanner({
                     </div>
                 </div>
 
-                <div className="absolute -bottom-10 -right-10 p-8 opacity-[0.03] pointer-events-none group-hover/onboarding:opacity-[0.07] transition-opacity duration-1000 group-hover/onboarding:rotate-0 rotate-12">
+                <div className="absolute -bottom-10 -right-10 p-8 opacity-[0.03] pointer-events-none group-hover/onboarding:opacity-[0.07] transition-opacity duration-300 group-hover/onboarding:rotate-0 rotate-12">
                     {variant === "user" ? <Sparkles className="w-64 h-64 text-white" /> : <Shield className="w-64 h-64 text-white" />}
                 </div>
             </div>

@@ -31,16 +31,16 @@ export function IdentityCard({
 
             {/* Background Gradient Effect */}
             <div
-                className="absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-primary/10 to-transparent blur-3xl opacity-50 pointer-events-none group-hover:opacity-75 transition-opacity duration-700"
+                className="absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-primary/10 to-transparent blur-3xl opacity-50 pointer-events-none group-hover:opacity-75 transition-opacity duration-300"
                 style={borderColor ? { background: `linear-gradient(to bottom, ${borderColor}20, transparent)` } : undefined}
             />
 
             <div className="flex flex-col items-center w-full z-10">
                 {/* Avatar with Role Border and Badges */}
-                <div className="relative mb-4 ring-offset-[3px] ring-offset-zinc-950/0 rounded-full transition-all duration-500 hover:scale-105">
+                <div className="relative mb-4 ring-offset-[3px] ring-offset-zinc-950/0 rounded-full transition-all duration-300 ">
                     {/* Glow behind Avatar */}
                     <div
-                        className="absolute inset-0 rounded-full blur-[20px] opacity-20 transition-opacity duration-500 group-hover:opacity-40"
+                        className="absolute inset-0 rounded-full blur-[20px] opacity-20 transition-opacity duration-300 group-hover:opacity-40"
                         style={{ backgroundColor: borderColor || "#ffffff" }}
                     />
 

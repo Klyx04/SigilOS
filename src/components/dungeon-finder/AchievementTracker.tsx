@@ -164,17 +164,17 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
             {/* Global stats banner */}
             <div className="relative overflow-hidden bg-zinc-950 border border-white/10 rounded-2xl p-6 group">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-emerald-500/5" />
-                <div className="absolute -top-24 -right-24 w-64 h-64 opacity-[0.03] rotate-12 group-hover:rotate-0 transition-transform duration-1000">
+                <div className="absolute -top-24 -right-24 w-64 h-64 opacity-[0.03] rotate-12 group-hover:rotate-0 transition-transform duration-300">
                     <Trophy className="w-full h-full text-white" />
                 </div>
                 
                 <div className="relative flex flex-col md:flex-row items-center gap-6">
                     {/* Big ring */}
-                    <div className="relative shrink-0 transition-transform group-hover:scale-105 duration-500">
+                    <div className="relative shrink-0 transition-transform group- duration-300">
                         <ProgressRing pct={progressPct} size={84} stroke={6} color={progressPct === 100 ? "#10b981" : "#6366f1"} />
                         <span className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-xl font-black text-white leading-none">{progressPct}%</span>
-                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">Global</span>
+                            <span className="text-caption font-bold text-zinc-500 uppercase tracking-tighter">Global</span>
                         </span>
                     </div>
 
@@ -186,7 +186,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                         <p className="text-2xl font-black text-white leading-none">
                             {completedTotal} <span className="text-zinc-600 font-bold text-lg">/ {totalAchievements}</span>
                         </p>
-                        <p className="text-[11px] text-zinc-400 mt-3 flex items-center justify-center md:justify-start gap-2 bg-white/5 w-max px-3 py-1.5 rounded-lg border border-white/5 shadow-inner mx-auto md:mx-0">
+                        <p className="text-caption text-zinc-400 mt-3 flex items-center justify-center md:justify-start gap-2 bg-white/5 w-max px-3 py-1.5 rounded-lg border border-white/5 shadow-inner mx-auto md:mx-0">
                             <Info className="w-3.5 h-3.5 text-indigo-400" />
                             Coche tes succès pour trouver des partenaires de jeu.
                         </p>
@@ -198,13 +198,13 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                             <p className="text-xl font-black text-emerald-400 leading-none">
                                 {dungeons.filter((d) => d.achievements.every((a) => completedIds.has(a.id))).length}
                             </p>
-                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Donjons Finis</p>
+                            <p className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Donjons Finis</p>
                         </div>
                         <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-3 text-center shadow-inner">
                             <p className="text-xl font-black text-zinc-300 leading-none">
                                 {dungeons.filter((d) => !d.achievements.every((a) => completedIds.has(a.id))).length}
                             </p>
-                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Restants</p>
+                            <p className="text-caption text-zinc-500 font-bold uppercase tracking-widest mt-1">Restants</p>
                         </div>
                     </div>
                 </div>
@@ -267,7 +267,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                             key={preset.label}
                             onClick={() => { setMinLevel(preset.min); setMaxLevel(preset.max); }}
                             className={cn(
-                                "px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border",
+                                "px-3.5 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all border",
                                 isActive
                                     ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30 shadow-lg shadow-indigo-900/10"
                                     : "bg-white/5 text-zinc-500 border-transparent hover:bg-white/10 hover:text-zinc-300"
@@ -324,7 +324,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                             <div className="flex-1 text-center sm:text-left">
                                                 <h3 className="text-2xl font-black text-white tracking-tight uppercase">{dungeon.name}</h3>
                                                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
-                                                    <span className="bg-indigo-500/10 text-indigo-400 text-[10px] font-black px-2.5 py-1 rounded border border-indigo-500/20 uppercase tracking-widest">Niveau {dungeon.level}</span>
+                                                    <span className="bg-indigo-500/10 text-indigo-400 text-caption font-black px-2.5 py-1 rounded border border-indigo-500/20 uppercase tracking-widest">Niveau {dungeon.level}</span>
                                                     <span className="text-zinc-500 text-xs font-bold">·</span>
                                                     <span className="text-zinc-400 text-sm font-bold uppercase tracking-tighter">{dungeon.bossName}</span>
                                                 </div>
@@ -336,7 +336,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                         toggleDungeonAchievements(dungeon, !isComplete);
                                                     }}
                                                     className={cn(
-                                                        "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95",
+                                                        "px-4 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all shadow-lg active:scale-95",
                                                         isComplete
                                                             ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500 hover:text-white hover:border-rose-400"
                                                             : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500 hover:text-white hover:border-emerald-400"
@@ -385,7 +385,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                                 )}>
                                                                     {a.challenge.name}
                                                                 </span>
-                                                                <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mt-0.5">{a.points} Pts</p>
+                                                                <p className="text-caption text-zinc-600 font-black uppercase tracking-widest mt-0.5">{a.points} Pts</p>
                                                             </div>
                                                         </button>
                                                     </div>
@@ -407,7 +407,7 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                         <div className="p-4 flex flex-col h-full gap-4">
                                             {/* Top: icon + progress ring */}
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center transition-transform group-hover:scale-105 duration-500 relative">
+                                                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center transition-transform group- duration-300 relative">
                                                     {dungeon.imageUrl
                                                         ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                                         : <Trophy className="w-6 h-6 text-zinc-700" />
@@ -428,8 +428,8 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                         stroke={4}
                                                         color={isComplete ? "#10b981" : "#6366f1"}
                                                     />
-                                                    <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white">
-                                                        {done}<span className="text-[8px] opacity-40 mx-0.5">/</span>{dungeon.achievements.length}
+                                                    <span className="absolute inset-0 flex items-center justify-center text-caption font-black text-white">
+                                                        {done}<span className="text-caption opacity-40 mx-0.5">/</span>{dungeon.achievements.length}
                                                     </span>
                                                 </div>
                                             </div>
@@ -440,11 +440,11 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                                     {dungeon.name}
                                                 </p>
                                                 <div className="flex items-center gap-1.5 mt-2">
-                                                    <span className="text-[10px] font-black text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-white/5">LVL {dungeon.level}</span>
+                                                    <span className="text-caption font-black text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-white/5">LVL {dungeon.level}</span>
                                                     {isComplete && (
                                                         <div className="flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                                                             <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                                                            <span className="text-[9px] text-emerald-400 font-black uppercase tracking-tighter">FINI</span>
+                                                            <span className="text-caption text-emerald-400 font-black uppercase tracking-tighter">FINI</span>
                                                         </div>
                                                     )}
                                                 </div>

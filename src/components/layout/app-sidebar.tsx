@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
     LayoutDashboard,
     BookOpen,
@@ -41,7 +41,8 @@ import {
     History,
     Bug,
     Coins,
-    Map
+    Map,
+    CalendarClock
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -88,6 +89,7 @@ export function AppSidebar({
     const [localHiddenHrefs, setLocalHiddenHrefs] = useState<string[]>(user.hiddenNavItems || []);
     const [notifications, setNotifications] = useState<any[]>([]);
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     // #62 — garde anti-race : quand un changement local (pin/hide) est en vol,
     // on N'ÉCRASE PAS l'état optimiste avec des props serveur potentiellement
@@ -144,6 +146,16 @@ export function AppSidebar({
         if (aliases) {
             return aliases.some(alias => pathname.startsWith(alias));
         }
+        // Lien vers un onglet (ex : /profile?tab=planning) : actif si pathname + query correspondent
+        if (href.includes("?")) {
+            const [base, query] = href.split("?");
+            if (pathname !== base) return false;
+            const params = new URLSearchParams(query);
+            for (const [key, value] of params) {
+                if (searchParams.get(key) !== value) return false;
+            }
+            return true;
+        }
         return false;
     };
 
@@ -194,6 +206,7 @@ export function AppSidebar({
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
+        { name: "Planning", href: `/dashboard/${guildId}/profile?tab=planning`, icon: CalendarClock, color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 
     // 5. AUTRES

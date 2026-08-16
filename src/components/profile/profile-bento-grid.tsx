@@ -638,11 +638,11 @@ export function ProfileBentoGrid({
                                     <p className="text-caption text-zinc-500">Vos créneaux de jeu et vos absences, pour la planification des événements.</p>
                                 </div>
                                 <Link
-                                    href={`/dashboard/${guildId}/calendar`}
+                                    href={`/dashboard/${guildId}/calendar?highlight=mine`}
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-sm font-semibold hover:bg-emerald-500/20 transition-colors duration-200"
                                 >
                                     <Calendar className="w-4 h-4" />
-                                    Agenda de guilde
+                                    Planning de Guilde
                                 </Link>
                             </div>
 

@@ -105,6 +105,9 @@ model GuildMemberBan {
   reason       String
   bannedBy     String
   bannedByName String?
+  // #105 — pseudo/nickname du membre exclu, affiché dans l'onglet « Exclus »
+  // (au lieu de l'ID Discord brut) même après anonymisation/purge du profil.
+  memberName   String?
   createdAt    DateTime     @default(now())
   liftedAt     DateTime?
   liftedBy     String?
@@ -391,6 +394,7 @@ model GuildConfig {
   blacklistChannelId               String?
   skinGalleryChannelId             String?
   stuffGalleryChannelId            String?
+  relanceChannelId                 String?
   achievementSubmissions           AchievementSubmission[]
   auditLogs                        AuditLog[]
   blacklistEntries                 BlacklistEntry[]

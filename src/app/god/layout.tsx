@@ -68,7 +68,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
             {/* Sidebar for all God pages */}
             <Suspense fallback={<div className="w-72 bg-black border-r border-white/5 h-full animate-pulse" />}>
                 <GodSidebar 
-                    className="w-72 hidden lg:flex shrink-0" 
+                    className="hidden lg:flex shrink-0" 
                     user={session.user} 
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}

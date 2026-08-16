@@ -29,6 +29,7 @@ import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import { BlacklistSettingsClient } from "../_components/blacklist-settings-client";
+import { RelanceSettingsClient } from "../_components/relance-settings-client";
 import { GallerySettingsClient } from "../_components/gallery-settings-client";
 import { DirectorySettingsClient } from "../_components/directory-settings-client";
 import { ServicesSettingsClient } from "../_components/services-settings-client";
@@ -69,6 +70,7 @@ function buildNavGroups(): SettingsGroup[] {
                 { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald" },
                 { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald" },
                 { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald" },
+                { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald" },
             ]
         },
         {
@@ -282,6 +284,7 @@ export default async function FeatureSettingsPage({
                             {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                             {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
                             { activeTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
+                            { activeTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
                             { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { activeTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
                             { activeTab === "services" && <ServicesSettingsClient guildId={guildId} /> }

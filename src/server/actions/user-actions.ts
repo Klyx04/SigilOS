@@ -13,7 +13,7 @@ import { emitGuildActivity } from "./activity-actions";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { buildDiscordAvatarUrl, buildGuildAvatarUrl } from "@/lib/discord-avatars";
+import { buildDiscordAvatarUrl, buildGuildAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
 
 import { redis } from "@/lib/redis";
 
@@ -955,6 +955,20 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const applyModule = (moduleEnabled: any, perm: boolean): boolean =>
         !!(bypassModules ? perm : (moduleEnabled !== false) && perm);
 
+    // #23 — persiste l'avatar FRAIS (hash live Discord) sur `User.image` quand il est périmé.
+    // Les URLs OAuth persistées (`cdn.discordapp.com/.../hash.png` sans `?size`) deviennent
+    // lourdes ET 404 quand le membre change son avatar → on les rafraîchit en écriture
+    // conditionnelle (aucun écrit si déjà à jour → pas de write amplification).
+    try {
+        if (member?.user?.avatar && session.user.id && discordUserId) {
+            const freshAvatarUrl = buildDiscordAvatarUrl(discordUserId, member.user.avatar);
+            const storedImage = session.user.image;
+            if (freshAvatarUrl && storedImage && storedImage !== freshAvatarUrl && isDiscordAvatarUrl(storedImage)) {
+                void db.user.update({ where: { id: session.user.id }, data: { image: freshAvatarUrl } }).catch(() => { });
+            }
+        }
+    } catch { /* non bloquant */ }
+
     const finalContext = {
         isAuthenticated: true,
         id: session.user.id,
@@ -1677,6 +1691,8 @@ export async function internalUpdateMemberProfileStatus(
     if (banDiscordId) {
         try {
             if (status === "BANNED") {
+                // #105 — pseudo du membre capturé pour l'onglet « Exclus ».
+                const memberName = profile.pseudoDofus || profile.discordNickname || profile.user?.name || null;
                 await db.guildMemberBan.upsert({
                     where: { guildId_discordId: { guildId: profile.guildId, discordId: banDiscordId } },
                     create: {
@@ -1684,13 +1700,15 @@ export async function internalUpdateMemberProfileStatus(
                         discordId: banDiscordId,
                         reason: reason || "MEMBER_BANNED",
                         bannedBy: actorUserId ?? "system",
-                        bannedByName: "Admin"
+                        bannedByName: "Admin",
+                        memberName
                     },
                     update: {
                         reason: reason || "MEMBER_BANNED",
                         liftedAt: null,
                         liftedBy: null,
-                        liftedByName: null
+                        liftedByName: null,
+                        memberName
                     }
                 });
             } else if (status === "ACTIVE") {

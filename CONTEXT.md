@@ -23,6 +23,27 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 19/08 — batch Dashboard (#104 · #105 · #106 · #23)
+
+> **Branche `feat/chantier-2026-08-19`** (base `origin/dev` = `e588f37e5`, PR #483 mergée).
+> **Commit `c9b3fcfce` poussé (19/08)** :
+> - **#104** — Relance : canal préconfiguré par l'admin (`GuildConfig.relanceChannelId`, migration
+>   `20260819010000`) + onglet « Relances » dans Paramètres + modale réécrite (preview du canal
+>   `ChannelPreview`, preview embed côté admin, recherche membre, label « salut @nickname » supprimé,
+>   sécu ID canal re-vérifiée côté serveur).
+> - **#105** — Ban Discord = ban Sigil : `handleBan` crée un tombstone `GuildMemberBan` même sans
+>   profil Sigil (anti-ré-provisionnement F-01) + champ `memberName` peuplé sur tous les chemins de
+>   ban/suppression → onglet « Exclus » affiche les nicknames (+ ID en secondaire).
+> - **#106** — Navbar God redimensionnable par drag + largeur persistée en localStorage
+>   (`sigilos-god-sidebar-width`), badge « scope sous-god » masqué si sidebar étroite.
+> - **#23** — Avatars Discord résilients : `normalizeDiscordAvatarUrl` (URLs OAuth `.png` sans `?size`
+>   → webp 256px) + fallback miroir `media.discordapp.net` via `DiscordAvatarImage` (user-nav/god/admin)
+>   + `getUserContext` rafraîchit `User.image` si hash périmé.
+> Vérifs : tsc 0 · lint 0 erreur · **192/192** · build OK · migration `20260819010000` appliquée en local.
+> ⚠️ **PR `feat/chantier-2026-08-19` → dev à créer** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-08-19
+> ⚠️ Workflow local : après toute modif de `prisma/schema.prisma` → `prisma generate` + `migrate dev`/`deploy`
+> local puis **redémarrer `npm run dev`** (détail dans l'amorce 19/08).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé
 
 > **✅ PR #480 (`feat/design-system-polices` → dev) : 8 commits poussés le 18/08** —

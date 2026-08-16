@@ -29,11 +29,11 @@ export function RecentDjPosts({
         <Card className="glass-premium border-white/5 h-full flex flex-col overflow-hidden group">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+                    <CardTitle className="text-caption font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
                         <Sword className="w-3 h-3" />
                         Groupes & Activités
                     </CardTitle>
-                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-zinc-600 hover:text-indigo-400 uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all">
+                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all">
                         Voir tout
                     </Link>
                 </div>
@@ -50,7 +50,7 @@ export function RecentDjPosts({
 
                         return (
                             <Link key={group.id} href={href}>
-                                <div className={`p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all flex items-center gap-4 group/item ${isDream ? 'hover:border-emerald-500/20' : 'hover:border-indigo-500/20'}`}>
+                                <div className={`p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all flex items-center gap-4 group/item ${isDream ? 'hover:border-emerald-500/20' : 'hover:border-emerald-500/20'}`}>
                                     <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10 relative bg-zinc-900 flex items-center justify-center">
                                         {group.imageUrl ? (
                                             <NextImage 

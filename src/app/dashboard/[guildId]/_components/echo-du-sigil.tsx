@@ -14,7 +14,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
     return (
         <div className="relative group perspective-1000">
             {/* Ambient Background Glow (Subtle) */}
-            <div className="absolute -inset-10 bg-indigo-500/5 rounded-[40px] blur-[100px] opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute -inset-10 bg-emerald-500/5 rounded-[40px] blur-[100px] opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-300" />
 
             <div className="relative glass-premium p-8 md:p-12 rounded-3xl border border-white/5 overflow-hidden group-hover:border-white/10 transition-all duration-300">
                 {/* Decorative Pattern Layer */}
@@ -29,11 +29,11 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
                     <div className="space-y-6 max-w-3xl">
                         <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center ">
-                                <Sparkles className="w-5 h-5 text-indigo-400" />
+                            <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center ">
+                                <Sparkles className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-caption font-black uppercase tracking-widest text-indigo-400">Intelligence Focus</span>
+                                <span className="text-caption font-black uppercase tracking-widest text-emerald-400">Intelligence Focus</span>
                                 <h2 className="text-2xl md:text-5xl font-black tracking-tighter text-white leading-[1.1]">
                                      {data.title}
                                  </h2>
@@ -55,7 +55,7 @@ export function EchoDuSigil({ data }: { data: FocusCardData }) {
                             </Button>
 
                             {data.priority > 80 && (
-                                <Badge variant="outline" className="border-indigo-500/30 bg-indigo-500/5 text-indigo-400/80 font-black uppercase tracking-widest text-caption py-1 px-3 h-8 shadow-[inset_0_0_12px_rgba(99,102,241,0.1)]">
+                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-emerald-400/80 font-black uppercase tracking-widest text-caption py-1 px-3 h-8 shadow-[inset_0_0_12px_rgba(16,185,129,0.1)]">
                                     Priorité Critique
                                 </Badge>
                             )}

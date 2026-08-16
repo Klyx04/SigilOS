@@ -8,7 +8,7 @@ import { db } from "@/lib/prisma";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles, Gem, Layout
+    ShieldAlert, UserCheck, Sparkles, Gem, Layout, Globe
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
@@ -35,6 +35,7 @@ import { ServicesSettingsClient } from "../_components/services-settings-client"
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { GuildStorageCard } from "@/components/admin/guild-storage-card";
+import { InterGuildSettingsClient } from "../_components/inter-guild-settings-client";
 
 // ============================================================================
 // NAV ITEMS
@@ -69,6 +70,7 @@ function buildNavGroups(): SettingsGroup[] {
                 { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald" },
                 { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald" },
                 { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald" },
+                { id: "inter-guilde", label: "Inter-Guilde", icon: Globe, description: "Ouverture aux autres guildes", accent: "emerald" },
             ]
         },
         {
@@ -285,6 +287,7 @@ export default async function FeatureSettingsPage({
                             { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { activeTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
                             { activeTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
+                            { activeTab === "inter-guilde" && <InterGuildSettingsClient guildId={guildId} /> }
                         </>
                     )}
 

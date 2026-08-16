@@ -48,6 +48,9 @@ export type PublicGuildSummary = {
     isRecruiting: boolean;
     bannerType: string | null;
     bannerUrl: string | null;
+    // Chantier Inter-Guilde (19/08) : la guilde est ouverte à l'inter-guilde + son serveur de jeu.
+    interGuildEnabled: boolean;
+    dofusServerName: string | null;
 };
 
 export type PublicGuildShowcase = PublicGuildSummary & {
@@ -201,6 +204,8 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
                 presentationRecruiting: true,
                 presentationBannerType: true,
                 presentationBannerUrl: true,
+                interGuildEnabled: true,
+                dofusServerName: true,
             },
             orderBy: { name: "asc" },
         });
@@ -214,6 +219,8 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
             isRecruiting: g.presentationRecruiting,
             bannerType: g.presentationBannerType as any,
             bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
+            interGuildEnabled: g.interGuildEnabled,
+            dofusServerName: g.dofusServerName,
         }));
     } catch (error) {
         logger.error("Error fetching public guilds:", error);

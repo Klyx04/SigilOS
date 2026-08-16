@@ -75,7 +75,7 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
 }
 
 async function WelcomeTabContent({ guildId, user }: { guildId: string, user: any }) {
-    const { posts, reactorNames } = await getWelcomePosts(guildId);
+    const { posts, reactorNames, nextCursor, hasMore } = await getWelcomePosts(guildId);
     if (posts.length === 0) {
         return (
             <div className="p-12 rounded-2xl border border-white/5 bg-zinc-900/40 text-center space-y-4 max-w-3xl mx-auto">
@@ -97,6 +97,9 @@ async function WelcomeTabContent({ guildId, user }: { guildId: string, user: any
                 reactorNames={reactorNames}
                 currentProfileId={user.profileId || ""}
                 guildId={guildId}
+                ownGuildId={guildId}
+                nextCursor={nextCursor}
+                hasMore={hasMore}
             />
         </div>
     );

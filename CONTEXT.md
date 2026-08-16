@@ -23,6 +23,13 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier Inter-Guilde (#46bis) — branche dédiée `feat/inter-guilde` (NON MERGÉE)
+
+> **📁 Dossier projet (plan/décisions/progression/mémos) : `src/temp/inter-guilde-projet/`** (local, gitignoré).
+> **Branche** : `feat/inter-guilde` (base `origin/dev`), PR **draft** → `dev`, **tests beta plusieurs semaines avant clôture/merge**.
+> **Statut (19/08)** : ✅ Lot 0 (socle) + ✅ Lot 1 (visibilité). ⚪ Lots 2-5 à venir (calendrier, galerie/mini-jeux GLOBAL, ladder/ocre/songes/donjons/services/quetes, God + tours).
+> **Concept** : une guilde peut s'ouvrir aux autres guildes SigilOS — **opt-in bilatéral fail-closed**, par défaut **même serveur Dofus** (`dofusServerId`), `gallery`/`minigames` en `GLOBAL`. Master switch par guilde (`/admin/settings` → Inter-Guilde) + réglage par module. **God** : kill-switch global + overrides par module + canaux (anticipés dans le schéma, interface God en Lot 5). **RBAC** : la permission du module est vérifiée dans la guilde d'origine du membre (aucune élévation). **PII minimale** : pseudo Dofus + tag guilde, jamais d'identité Discord. Migration `20260819000000_add_inter_guild`.
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé
 
 > **✅ PR #480 (`feat/design-system-polices` → dev) : 8 commits poussés le 18/08** —

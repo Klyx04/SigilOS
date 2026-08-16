@@ -173,6 +173,14 @@ model PlatformConfig {
   rbacUsersMappingEnabled Boolean @default(true)
   rbacUsersMappingUpdatedAt DateTime?
   rbacUsersMappingUpdatedBy String?
+  // Chantier Inter-Guilde (19/08) — contrôle God (interface God en Lot 5, schéma anticipé).
+  // Kill-switch global : OFF → toute l'inter-guilde est coupée, partout (fail-closed prioritaire,
+  // s'applique MÊME si une guilde a activé son toggle — effectif = guilde ET God).
+  interGuildGlobalEnabled  Boolean @default(true)
+  // Override global par module `{ [ModuleKey]: "OFF" | "SERVER" | "GLOBAL" }` — le plus restrictif gagne.
+  interGuildModules        Json?
+  // Salons Discord inter-guildes (embeds cross-guildes) — configurés via l'interface God (Lot 5).
+  interGuildChannels       Json?
 }
 
 /// Délégation d'accès au dashboard God (sub-gods) avec scopes granulaires.
@@ -370,6 +378,11 @@ model GuildConfig {
   achievementNotifyRoleId          String?
   kamaNotifyRoleId                 String?
   usersMapping                     Json                    @default("{}")
+  // Chantier Inter-Guilde (19/08) — ouverture inter-guilde de la guilde.
+  // `interGuildEnabled` : master switch (opt-in, fail-closed). `interGuildModules` :
+  // surcharges par module `{ [ModuleKey]: "OFF" | "SERVER" | "GLOBAL" }` (défauts dans src/lib/inter-guild.ts).
+  interGuildEnabled                Boolean                 @default(false)
+  interGuildModules                Json                    @default("{}")
   serviceLoansEnabled              Boolean                 @default(true)
   serviceLoansMessage              String?
   serviceMarketplaceEnabled        Boolean                 @default(true)

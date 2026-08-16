@@ -370,28 +370,68 @@ export async function saveMemberIntroduction(guildId: string, introduction: stri
     }
 }
 
-export async function getWelcomePosts(guildId: string) {
+const WELCOME_PAGE_SIZE = 20;
+
+export type WelcomePostResult = {
+    posts: any[];
+    reactorNames: Record<string, string>;
+    nextCursor: string | null;
+    hasMore: boolean;
+};
+
+export async function getWelcomePosts(guildId: string, cursor?: string | null): Promise<WelcomePostResult> {
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { id: true }
         });
-        if (!guild) return { posts: [], reactorNames: {} };
+        if (!guild) return { posts: [], reactorNames: {}, nextCursor: null, hasMore: false };
 
-        const posts = await db.memberWelcome.findMany({
-            where: { guildId: guild.id },
-            include: {
-                profile: {
-                    include: { user: true }
-                }
-            },
-            orderBy: { createdAt: "desc" },
-            take: 50
-        });
+        const cursorDate = cursor ? new Date(cursor) : null;
+        const createdAtFilter = cursorDate ? { lt: cursorDate } : undefined;
+
+        // Chantier Inter-Guilde (19/08) : posts d'arrivée des guildes pairs (scope « welcome »).
+        // Opt-in bilatéral + même serveur Dofus (par défaut), via getInterGuildPeerGuildIds.
+        let peerIds: string[] = [];
+        try {
+            const { getInterGuildPeerGuildIds } = await import("./inter-guild");
+            peerIds = await getInterGuildPeerGuildIds(guildId, "welcome");
+        } catch (e) {
+            logger.error("[welcome] inter-guild peers failed:", e);
+        }
+
+        const commonInclude = {
+            profile: { include: { user: true } },
+            guild: { select: { id: true, name: true, discordGuildId: true } },
+        };
+
+        const [ownPosts, peerPosts] = await Promise.all([
+            db.memberWelcome.findMany({
+                where: { guildId: guild.id, ...(createdAtFilter ? { createdAt: createdAtFilter } : {}) },
+                include: commonInclude,
+                orderBy: { createdAt: "desc" },
+                take: WELCOME_PAGE_SIZE + 1,
+            }),
+            peerIds.length > 0
+                ? db.memberWelcome.findMany({
+                    where: { guildId: { in: peerIds }, ...(createdAtFilter ? { createdAt: createdAtFilter } : {}) },
+                    include: commonInclude,
+                    orderBy: { createdAt: "desc" },
+                    take: WELCOME_PAGE_SIZE + 1,
+                })
+                : Promise.resolve([] as any[]),
+        ]);
+
+        const fetchedTotal = ownPosts.length + peerPosts.length;
+        const hasMore = fetchedTotal > WELCOME_PAGE_SIZE;
+        const merged = [...ownPosts, ...peerPosts]
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .slice(0, WELCOME_PAGE_SIZE);
+        const nextCursor = hasMore && merged.length > 0 ? merged[merged.length - 1].createdAt.toISOString() : null;
 
         // Collect names of all reactors for tooltips
         const allReactorIds = new Set<string>();
-        posts.forEach(post => {
+        merged.forEach(post => {
             const reactions = (post.reactions as Record<string, string[]>) || {};
             Object.values(reactions).flat().forEach(id => {
                 if (id) allReactorIds.add(id);
@@ -400,11 +440,11 @@ export async function getWelcomePosts(guildId: string) {
 
         const reactorProfiles = await db.userProfile.findMany({
             where: { id: { in: Array.from(allReactorIds) } },
-            select: { 
-                id: true, 
-                pseudoDofus: true, 
+            select: {
+                id: true,
+                pseudoDofus: true,
                 discordNickname: true,
-                user: { select: { name: true } } 
+                user: { select: { name: true } }
             }
         });
 
@@ -414,13 +454,14 @@ export async function getWelcomePosts(guildId: string) {
         });
 
         return {
-            posts: JSON.parse(JSON.stringify(posts, (_, v) => typeof v === "bigint" ? v.toString() : v)),
-
-            reactorNames
+            posts: JSON.parse(JSON.stringify(merged, (_, v) => typeof v === "bigint" ? v.toString() : v)),
+            reactorNames,
+            nextCursor,
+            hasMore,
         };
     } catch (e) {
         logger.error("Failed to get welcome posts", e);
-        return { posts: [], reactorNames: {} };
+        return { posts: [], reactorNames: {}, nextCursor: null, hasMore: false };
     }
 }
 
@@ -442,7 +483,7 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
 
         // FIX: Use direct DB lookup instead of getUserContext (avoids Discord API calls on every emoji click
         // which caused race conditions / "Non membre" errors under spam)
-        const profile = await db.userProfile.findUnique({
+        let profile = await db.userProfile.findUnique({
             where: {
                 userId_guildId: {
                     userId: session.user.id,
@@ -452,8 +493,29 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
             select: { id: true, status: true }
         });
 
+        // Chantier Inter-Guilde (19/08) : si le post appartient à une guilde pair (inter-guilde,
+        // scope welcome), un membre ACTIVE d'UNE de SES guildes peut réagir. Fail-closed sinon.
         if (!profile || profile.status !== "ACTIVE") {
-            return { success: false, error: "Non membre" };
+            const myProfiles = await db.userProfile.findMany({
+                where: { userId: session.user.id, status: "ACTIVE" },
+                select: { id: true, status: true, guild: { select: { discordGuildId: true } } }
+            });
+            for (const p of myProfiles) {
+                if (!p.guild) continue;
+                try {
+                    const { getInterGuildPeerGuildIds } = await import("./inter-guild");
+                    const peerIds = await getInterGuildPeerGuildIds(p.guild.discordGuildId, "welcome");
+                    if (peerIds.includes(welcome.guild.id)) {
+                        profile = { id: p.id, status: p.status };
+                        break;
+                    }
+                } catch (e) {
+                    logger.error("[welcome] inter-guild reaction check failed:", e);
+                }
+            }
+            if (!profile || profile.status !== "ACTIVE") {
+                return { success: false, error: "Non membre" };
+            }
         }
 
         const profileId = profile.id;

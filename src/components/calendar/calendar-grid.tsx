@@ -213,16 +213,13 @@ export function CalendarGrid({
     return (
         <div className="space-y-6">
             {/* ============ CALENDAR GRID ============ */}
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0d1214] overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.7)] relative">
-                {/* Subtle top ambient glow inside the grid */}
-                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent pointer-events-none" />
-
-                {/* Days Header - BOLDER, HIGHER CONTRAST & SLATE BACKED */}
-                <div className="grid grid-cols-7 bg-[#1c262a] border-b-2 border-white/[0.08]">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0d1214] overflow-hidden relative">
+                {/* Days Header - CONTRASTE ÉPURÉ (plus de glow ambre) */}
+                <div className="grid grid-cols-7 bg-[#1c262a] border-b border-white/[0.08]">
                     {weekDays.map((day, i) => (
                         <div key={day} className={cn(
-                            "py-4 text-center text-xs font-black tracking-widest uppercase",
-                            i >= 5 ? "text-amber-400" : "text-zinc-100"
+                            "py-3.5 text-center text-xs font-semibold tracking-wide uppercase",
+                            i >= 5 ? "text-zinc-500" : "text-zinc-100"
                         )}>
                             {day}
                         </div>
@@ -246,7 +243,7 @@ export function CalendarGrid({
                             <div
                                 key={dayKey}
                                 className={cn(
-                                    "group relative border-b border-r border-white/[0.07] p-0 transition-all duration-300 flex flex-col",
+                                    "group relative border-b border-r border-white/[0.07] p-0 transition-colors duration-150 flex flex-col",
                                     minHeight,
                                     canManage && !isPastDay ? "cursor-pointer" : "cursor-default",
                                     isWeekend
@@ -261,19 +258,19 @@ export function CalendarGrid({
                                     }
                                 }}
                             >
-                                {/* Premium Today Highlight Box with High Contrast Amber Border */}
+                                {/* Jour du jour — surlignage plat (emerald, plus de glow ambre) */}
                                 {isCurrentDay && (
-                                    <div className="absolute inset-0 border-2 border-amber-500 bg-amber-500/[0.06] pointer-events-none shadow-[inset_0_0_24px_rgba(245,158,11,0.1)] z-10" />
+                                    <div className="absolute inset-0 border border-emerald-500/60 bg-emerald-500/[0.05] pointer-events-none z-10" />
                                 )}
 
                                 <div className="p-3.5 flex-1 flex flex-col relative z-20 min-h-0">
-                                    {/* Day Number - BIGGER & BRIGHTER */}
+                                    {/* Day Number */}
                                     <div className="flex items-center justify-between mb-3 shrink-0">
                                         <span className={cn(
-                                            "h-9 w-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-300",
+                                            "h-9 w-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-colors duration-150",
                                             isCurrentDay
-                                                ? "bg-gradient-to-r from-amber-400 to-amber-600 text-zinc-950 shadow-[0_4px_16px_rgba(245,158,11,0.5)] scale-105"
-                                                : "text-zinc-100 group-hover:text-amber-400 group-"
+                                                ? "bg-emerald-500 text-zinc-950"
+                                                : "text-zinc-100 group-hover:text-emerald-300"
                                         )}>
                                             {format(day, "d")}
                                         </span>
@@ -284,8 +281,8 @@ export function CalendarGrid({
                                                     onDayEventsClick?.(day, dayEvents);
                                                 }}
                                                 className={cn(
-                                                    "text-xs font-extrabold bg-[#0d1214] border px-2 py-0.5 rounded-full transition-all",
-                                                    "border-white/10 text-zinc-300 hover:border-amber-500/50 hover:text-amber-400 "
+                                                    "text-xs font-semibold bg-[#0d1214] border px-2 py-0.5 rounded-full transition-colors",
+                                                    "border-white/10 text-zinc-300 hover:border-emerald-500/50 hover:text-emerald-400 "
                                                 )}
                                                 title={`Voir les ${dayEvents.length} événements de ce jour`}
                                             >
@@ -344,7 +341,7 @@ export function CalendarGrid({
                                                                 </div>
 
                                                                 <div className="flex flex-col min-w-0">
-                                                                    <span className="text-caption font-black uppercase tracking-wider opacity-60 leading-none mb-0.5">
+                                                                    <span className="text-caption font-semibold uppercase tracking-wide opacity-60 leading-none mb-0.5">
                                                                         {time}
                                                                     </span>
                                                                     <span className="truncate text-zinc-200 group-hover/btn:text-white transition-colors">
@@ -355,7 +352,7 @@ export function CalendarGrid({
                                                                 {/* Completed watermark stamp */}
                                                                 {isCompleted && (
                                                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                        <span className="rotate-[-12deg] border border-emerald-500/50 bg-emerald-500/10 text-emerald-400/90 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-sm backdrop-blur-[1px] ">
+                                                                        <span className="rotate-[-12deg] border border-emerald-500/50 bg-emerald-500/10 text-emerald-400/90 text-caption font-semibold uppercase tracking-wide px-2 py-0.5 rounded-sm">
                                                                             ✓ Terminé
                                                                         </span>
                                                                     </div>

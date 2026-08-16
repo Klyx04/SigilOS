@@ -213,36 +213,36 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="space-y-8 animate-in fade-in duration-150">
             {/* Header / Add Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-1 bg-zinc-900/40 backdrop-blur-xl border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl h-fit border-t border-t-white/10">
+                <Card className="lg:col-span-1 bg-zinc-900/40 border-white/5 rounded-2xl overflow-hidden h-fit border-t border-t-white/10">
                     <CardHeader className="bg-white/[0.02] border-b border-white/5 px-6 py-5">
                         <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                            <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl">
                                 <Plus className="w-5 h-5 text-red-500" />
                             </div>
-                            <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Ajouter une entrée</CardTitle>
+                            <CardTitle className="text-sm font-semibold uppercase tracking-wide text-white">Ajouter une entrée</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between px-1">
-                                <label className="text-caption font-black uppercase text-zinc-500 tracking-widest">Détails de l&apos;individu</label>
+                                <label className="text-caption font-semibold uppercase text-zinc-500 tracking-wide">Détails de l&apos;individu</label>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="p-1.5 cursor-help bg-white/5 hover:bg-red-500/20 rounded-lg transition-all group/tooltip border border-white/5 hover:border-red-500/20">
+                                        <div className="p-1.5 cursor-help bg-white/5 hover:bg-red-500/20 rounded-lg transition-colors group/tooltip border border-white/5 hover:border-red-500/20">
                                             <HelpCircle className="w-4 h-4 text-zinc-400 group-hover/tooltip:text-red-400 transition-colors" />
                                         </div>
                                     </TooltipTrigger>
-                                    <TooltipContent side="right" sideOffset={15} className="bg-zinc-950 border border-white/10 p-5 max-w-[300px] space-y-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 z-[100]">
+                                    <TooltipContent side="right" sideOffset={15} className="bg-zinc-950 border border-white/10 p-5 max-w-[300px] space-y-3 rounded-2xl z-[100]">
                                         <div className="flex items-center gap-3 mb-1">
                                             <div className="w-1.5 h-4 bg-red-600 rounded-full " />
-                                            <p className="text-xs font-black uppercase text-white tracking-widest">Comment remplir ?</p>
+                                            <p className="text-xs font-semibold uppercase text-white tracking-wide">Comment remplir ?</p>
                                         </div>
                                         <div className="space-y-2">
                                             <p className="text-caption text-zinc-300 leading-relaxed italic">
-                                                Tapez <span className="text-red-400 font-black italic">/whois pseudo</span> en jeu ou cliquez sur un joueur <span className="text-white font-bold">&gt; Informations &gt; Détails</span>.
+                                                Tapez <span className="text-red-400 font-semibold italic">/whois pseudo</span> en jeu ou cliquez sur un joueur <span className="text-white font-bold">&gt; Informations &gt; Détails</span>.
                                             </p>
                                             <p className="text-caption text-zinc-400 leading-relaxed">
                                                 Copiez ensuite <span className="text-white font-medium">toute la ligne</span> de log et collez-la ici. SigilOS s&apos;occupe du reste !
@@ -317,29 +317,28 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                             placeholder="Rechercher dans la blacklist..." 
                             value={search}
                             onChange={(e) => handleSearch(e.target.value)}
-                            className="pl-12 h-14 bg-zinc-900/40 backdrop-blur-xl border-white/5 text-white rounded-[1.5rem] focus:ring-red-500/20 focus:border-red-500/50 transition-all placeholder:text-zinc-600 font-medium shadow-2xl"
+                            className="pl-12 h-14 bg-zinc-900/40 border-white/5 text-white rounded-xl focus:ring-red-500/20 focus:border-red-500/50 transition-colors placeholder:text-zinc-600 font-medium"
                         />
                     </div>
 
                     {/* Entries List */}
-                    <div className="rounded-[2.5rem] border border-white/10 bg-zinc-900/40 backdrop-blur-2xl overflow-hidden shadow-2xl relative group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
+                    <div className="rounded-2xl border border-white/10 bg-zinc-900/40 overflow-hidden">
                         <Table>
-                            <TableHeader className="bg-white/[0.02] border-b border-white/5 relative z-10">
+                            <TableHeader className="bg-white/[0.02] border-b border-white/5">
                                 <TableRow className="hover:bg-transparent border-none">
-                                    <TableHead className="pl-8 py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em]">Détails du Signalement</TableHead>
-                                    <TableHead className="py-6 text-caption font-black uppercase text-zinc-500 tracking-[0.2em] w-[200px]">Auteur & Date</TableHead>
-                                    <TableHead className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] pr-8 text-right py-6 w-[80px]"></TableHead>
+                                    <TableHead className="pl-8 py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">Détails du Signalement</TableHead>
+                                    <TableHead className="py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide w-[200px]">Auteur & Date</TableHead>
+                                    <TableHead className="text-caption font-semibold uppercase text-zinc-500 tracking-wide pr-8 text-right py-6 w-[80px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody className="relative z-10">
+                            <TableBody>
                                 <AnimatePresence mode="popLayout">
                                     {loading ? (
                                         <TableRow>
                                             <TableCell colSpan={3} className="h-64 text-center">
                                                 <div className="flex flex-col items-center gap-4">
                                                     <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
-                                                    <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Chargement de la blacklist...</span>
+                                                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Chargement de la blacklist...</span>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -349,7 +348,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                                 <div className="flex flex-col items-center gap-4 opacity-40">
                                                     <BanIcon className="w-12 h-12 text-zinc-600" />
                                                     <div className="space-y-1">
-                                                        <p className="text-sm font-black uppercase tracking-widest text-zinc-300">Blacklist vide</p>
+                                                        <p className="text-sm font-semibold uppercase tracking-wide text-zinc-300">Blacklist vide</p>
                                                         <p className="text-caption text-zinc-500 italic">Aucun signalement ne correspond à votre recherche.</p>
                                                     </div>
                                                 </div>

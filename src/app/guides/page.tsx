@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Clock } from "lucide-react";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { auth } from "@/auth";
@@ -28,11 +27,6 @@ export default async function GuidesPage() {
 
     return (
         <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-teal-500/30 landing-theme">
-            <AuroraBackground className="fixed inset-0 z-0 pointer-events-none opacity-30" />
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-            </div>
 
             <PublicHeader user={session?.user} activePage="guides" isMember={userContext.isMember} />
 
@@ -61,9 +55,8 @@ export default async function GuidesPage() {
                         </Link>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900/90 via-zinc-950/80 to-zinc-900/90 border border-white/10 p-8 sm:p-10 mb-12 shadow-2xl backdrop-blur-xl">
-                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-amber-500/10 pointer-events-none" />
-                        <div className="relative z-10">
+                    <div className="relative rounded-3xl bg-[#101313] border border-white/10 p-8 sm:p-10 mb-12">
+                        <div className="relative">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest mb-3">
                                 <BookOpen className="w-3.5 h-3.5" /> Guides
                             </div>

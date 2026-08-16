@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { RefreshCw, Database, Activity, ShieldCheck } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { User } from "next-auth";
 
 interface HealthData {
@@ -75,12 +74,6 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
 
     return (
         <div className="min-h-screen bg-black flex flex-col relative overflow-hidden landing-theme">
-            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-            </div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_50%)] pointer-events-none" />
 
             <PublicHeader user={user} activePage="status" isMember={isMember} />
 
@@ -94,9 +87,7 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                 </div>
 
                 {/* Global Status Card */}
-                <div className="glass-premium p-8 rounded-3xl border border-white/5 bg-zinc-900/40 backdrop-blur-2xl relative overflow-hidden mb-8 group transition-all hover:scale-[1.01]">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-3xl blur opacity-0 group-hover:opacity-100 transition duration-1000" />
-
+                <div className="rounded-3xl border border-white/10 bg-[#101313] p-8 mb-8">
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-6">
                             <div className="relative">

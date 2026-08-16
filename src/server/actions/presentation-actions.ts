@@ -72,13 +72,15 @@ export async function getPublicGuildShowcase(limit = 6): Promise<PublicGuildShow
         const cached = await (await import("@/lib/redis")).redis.get(redisKey).catch(() => null);
         if (cached) return JSON.parse(cached) as PublicGuildShowcase[];
 
+        // #80 — refonte landing : filtre qualité côté serveur.
+        // On agrège les stats de TOUTES les guildes publiques, puis on ne retient
+        // que celles avec une activité réelle avant de tronquer au `limit`.
         const guilds = await getPublicGuilds();
-        const featured = guilds.slice(0, limit);
-        if (featured.length === 0) return [];
+        if (guilds.length === 0) return [];
 
         // Récupère les IDs internes des guildes publiques
         const guildConfigs = await db.guildConfig.findMany({
-            where: { discordGuildId: { in: featured.map(g => g.discordGuildId) } },
+            where: { discordGuildId: { in: guilds.map(g => g.discordGuildId) } },
             select: { id: true, discordGuildId: true },
         });
         const internalIds = guildConfigs.map(g => g.id);
@@ -133,7 +135,7 @@ export async function getPublicGuildShowcase(limit = 6): Promise<PublicGuildShow
             validatedMap.set(gid, (validatedMap.get(gid) || 0) + s._count);
         }
 
-        const result: PublicGuildShowcase[] = featured.map(g => {
+        const all: PublicGuildShowcase[] = guilds.map(g => {
             const internalId = guildConfigs.find(c => c.discordGuildId === g.discordGuildId)?.id;
             const members = internalId ? (memberMap.get(internalId) || 0) : 0;
             const validated = internalId ? (validatedMap.get(internalId) || 0) : 0;
@@ -151,6 +153,24 @@ export async function getPublicGuildShowcase(limit = 6): Promise<PublicGuildShow
                 dofusCompletionRate: dofusRate,
             };
         });
+
+        // #80 — filtre qualité : garde les guildes avec au moins 3 membres actifs OU
+        // une activité réelle (missions/songes validés), sinon repli sur >= 1 membre.
+        const withActivity = all.filter(
+            (g) => g.memberCount >= 3 || g.missionsValidated + g.songesCompleted > 0
+        );
+        const pool = withActivity.length > 0
+            ? withActivity
+            : all.filter((g) => g.memberCount >= 1);
+        const candidates = pool.length > 0 ? pool : all;
+
+        const result = candidates
+            .sort((a, b) => {
+                const scoreA = a.missionsValidated + a.songesCompleted + a.memberCount * 2;
+                const scoreB = b.missionsValidated + b.songesCompleted + b.memberCount * 2;
+                return scoreB - scoreA;
+            })
+            .slice(0, limit);
 
         const { redis } = await import("@/lib/redis");
         await redis.set(redisKey, JSON.stringify(result), "EX", 300).catch(() => { });

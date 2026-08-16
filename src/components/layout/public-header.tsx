@@ -6,7 +6,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { LogOut, ChevronRight, LayoutDashboard } from "lucide-react";
 import { User } from "next-auth";
-import { Button } from "@/components/ui/button";
 import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,11 +28,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-    { label: "Explorer", href: "/#features", id: "features" },
+    { label: "Produit", href: "/#produit", id: "produit" },
     { label: "Annuaire", href: "/guilds", id: "annuaire" },
     { label: "Guides", href: "/guides", id: "guides" },
     { label: "Changelog", href: "/changelog", id: "changelog" },
-    { label: "Status", href: "/status", id: "status" },
+    { label: "Statut", href: "/status", id: "status" },
 ];
 
 interface PublicHeaderProps {
@@ -48,9 +47,7 @@ interface PublicHeaderProps {
     clientId?: string;
 }
 
-export function PublicHeader({ activePage, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp, isFixed = true, clientId }: PublicHeaderProps) {
-    const isHero = variant === "hero";
-    const [isMember, setIsMember] = useState(isMemberProp ?? false);
+export function PublicHeader({ activePage, user, variant: _variant = "standard", dashboardHref = "/dashboard", isFixed = true, clientId }: PublicHeaderProps) {
     const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
@@ -59,81 +56,50 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    useEffect(() => {
-        if (isMemberProp !== undefined) {
-            setIsMember(isMemberProp);
-            return;
-        }
-
-        async function checkMembership() {
-            if (!user) {
-                setIsMember(false);
-                return;
-            }
-            try {
-                const { getUserContext } = await import("@/server/actions/user-actions");
-                const ctx = await getUserContext();
-                setIsMember(ctx.isMember);
-            } catch {
-                setIsMember(false);
-            }
-        }
-        checkMembership();
-    }, [user, isMemberProp]);
-
     return (
         <motion.header 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className={cn(
                 isFixed ? "fixed top-0 left-0 right-0 z-50" : "relative z-50",
-                "transition-all duration-500 py-4 px-4 sm:px-6 lg:px-8",
-                scrolled ? "py-2" : "py-6"
+                "transition-all duration-300",
+                scrolled
+                    ? "bg-[#0b0d0d]/95 backdrop-blur-md border-b border-white/10 py-2.5"
+                    : "bg-transparent border-b border-transparent py-4"
             )}
         >
-            <div className={cn(
-                "mx-auto transition-all duration-500",
-                scrolled 
-                ? "max-w-5xl rounded-3xl bg-zinc-950/60 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-6" 
-                : "max-w-[1400px] bg-transparent border-b border-white/5 px-4"
-            )}>
-                <div className="flex items-center justify-between h-16 sm:h-20">
+            <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-14">
 
                     {/* Left: Brand */}
                     <div className="flex items-center gap-12">
-                        <Link href="/" className="flex items-center gap-4 group shrink-0 relative">
-                            <div className="absolute -inset-4 bg-emerald-500/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-all duration-700" />
-                            
-                            <div className="relative w-10 h-10 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">
-                                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity" />
-                                <Image
-                                    src="/assets/ui/logo-v2.png"
-                                    alt="SigilOS"
-                                    fill
-                                    className="object-contain relative z-10 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                                    priority
-                                />
-                            </div>
-                            <div className="flex flex-col -space-y-1">
-                                <span className="text-2xl font-black tracking-tighter text-white transition-all group-hover:text-emerald-400 uppercase leading-none">
-                                    Sigil<span className="text-emerald-500 group-hover:text-white transition-colors duration-500">OS</span>
-                                </span>
-                                <span className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] group-hover:text-emerald-500/40 transition-colors">Evolution</span>
-                            </div>
+                        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+                            <Image
+                                src="/assets/ui/logo-v2.png"
+                                alt="SigilOS"
+                                width={34}
+                                height={34}
+                                className="object-contain"
+                                priority
+                            />
+                            <span className="text-lg font-bold tracking-tight text-white leading-none">
+                                Sigil<span className="text-emerald-400">OS</span>
+                            </span>
                         </Link>
 
-                        <nav className="hidden lg:flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full p-1 leading-none shadow-2xl">
+                        <nav className="hidden lg:flex items-center gap-1" aria-label="Navigation principale">
                             {NAV_ITEMS.map((item) => {
                                 const isActive = activePage === item.id;
                                 return (
                                     <Link
                                         key={item.id}
                                         href={item.href}
+                                        aria-current={isActive ? "page" : undefined}
                                         className={cn(
-                                            "px-5 py-2 rounded-full text-[11px] font-black transition-all uppercase tracking-widest leading-none",
+                                            "px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
                                             isActive
-                                                ? "text-white bg-white/20 shadow-lg"
-                                                : "text-zinc-300 hover:text-white hover:bg-white/10"
+                                                ? "text-white bg-white/5"
+                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
                                         )}
                                     >
                                         {item.label}
@@ -155,7 +121,7 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                 >
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <button className="group relative flex items-center gap-3 pl-3 pr-4 py-2 rounded-2xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-emerald-500/30 transition-all shadow-xl active:scale-95 outline-none">
+                                            <button className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-emerald-500/30 transition-colors outline-none">
                                                 <Avatar className="w-10 h-10 border border-white/10 rounded-xl">
                                                     <AvatarImage src={user.image || ""} />
                                                     <AvatarFallback className="bg-zinc-800 text-white font-black">{user.name?.[0]}</AvatarFallback>
@@ -212,8 +178,8 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     className="hidden sm:block"
                                 >
                                     <form action={loginWithDiscord}>
-                                        <button className="group relative flex items-center gap-3 px-8 py-3 rounded-2xl bg-zinc-900 border border-white/10 hover:border-emerald-500/50 text-white text-[11px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] hover:-translate-y-0.5">
-                                            <DiscordIcon className="w-4.5 h-4.5 text-emerald-500" />
+                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.08] text-[13px] font-semibold text-white transition-colors">
+                                            <DiscordIcon className="w-4 h-4 text-emerald-400" />
                                             Connexion
                                         </button>
                                     </form>
@@ -224,7 +190,7 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                         <div className="lg:hidden">
                             <Sheet>
                                 <SheetTrigger asChild>
-                                    <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all outline-none">
+                                    <button aria-label="Ouvrir le menu" className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors outline-none">
                                         <div className="space-y-1.5">
                                             <div className="w-5 h-0.5 bg-white rounded-full" />
                                             <div className="w-3 h-0.5 bg-white rounded-full ml-auto" />
@@ -233,37 +199,32 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     </button>
                                 </SheetTrigger>
                                 <SheetContent side="right" className="w-[300px] bg-zinc-950 border-l border-white/5 p-0 overflow-hidden flex flex-col">
-                                    <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
-                                    
-                                    <div className="p-8 pb-4 relative z-10 flex flex-col items-center gap-6 mt-10">
-                                        <div className="w-16 h-16 relative">
-                                            <Image src="/assets/ui/logo-v2.png" alt="SigilOS" fill className="object-contain" />
-                                        </div>
-                                        <div className="text-center">
-                                            <span className="text-2xl font-black tracking-tighter text-white uppercase italic">Sigil<span className="text-emerald-500">OS</span></span>
-                                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] mt-1">L'excellence Gaming</p>
+                                    <div className="p-6 pb-2 flex flex-col gap-1 mt-8">
+                                        <div className="flex items-center gap-2.5">
+                                            <Image src="/assets/ui/logo-v2.png" alt="SigilOS" width={28} height={28} className="object-contain" />
+                                            <span className="text-lg font-bold tracking-tight text-white">Sigil<span className="text-emerald-400">OS</span></span>
                                         </div>
                                     </div>
 
-                                    <nav className="flex-1 px-4 py-8 space-y-2 relative z-10">
+                                    <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto" aria-label="Navigation mobile">
                                         {NAV_ITEMS.map((item) => (
                                             <Link
                                                 key={item.id}
                                                 href={item.href}
-                                                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+                                                className="flex items-center justify-between p-3 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
                                             >
                                                 {item.label}
-                                                <ChevronRight className="w-4 h-4" />
+                                                <ChevronRight className="w-4 h-4 text-zinc-600" />
                                             </Link>
                                         ))}
                                     </nav>
 
                                     {!user && (
-                                        <div className="p-6 bg-white/[0.02] border-t border-white/5 relative z-10">
+                                        <div className="p-4 border-t border-white/10">
                                             <form action={loginWithDiscord}>
-                                                <button className="w-full h-14 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all">
-                                                    <DiscordIcon className="w-5 h-5" />
-                                                    Connexion
+                                                <button className="w-full h-11 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                                                    <DiscordIcon className="w-4 h-4" />
+                                                    Se connecter
                                                 </button>
                                             </form>
                                         </div>

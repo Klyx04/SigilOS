@@ -20,6 +20,9 @@
 # Testing
 /coverage
 
+# Profil navigateur des captures 4K (script scripts/capture-screenshots.mjs)
+.playwright-profile/
+
 # Environment (NEVER commit secrets)
 .env
 .env.*

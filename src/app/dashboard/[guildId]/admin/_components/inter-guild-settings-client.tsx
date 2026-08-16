@@ -75,6 +75,8 @@ export function InterGuildSettingsClient({ guildId }: InterGuildSettingsClientPr
     if (!state) return null;
 
     const godOff = !state.godGlobalEnabled;
+    // Modifications non sauvegardées ? (compare la config chargée avec l'état du formulaire)
+    const dirty = enabled !== state.enabled || state.modules.some(m => scopes[m.module] !== m.currentScope);
 
     return (
         <div className="space-y-6">
@@ -168,12 +170,39 @@ export function InterGuildSettingsClient({ guildId }: InterGuildSettingsClientPr
                 </CardContent>
             </Card>
 
-            <div className="flex items-center gap-3">
-                <Button onClick={handleSave} disabled={isPending || godOff} className="gap-2">
-                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Enregistrer
-                </Button>
-                <p className="text-xs text-zinc-600">Le changement est immédiat (cache 30 s).</p>
+            {/* Barre d'enregistrement sticky — toujours visible pour les admins */}
+            <div className="sticky bottom-4 z-20">
+                <div className={cn(
+                    "flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border px-4 py-3 backdrop-blur-md",
+                    dirty ? "border-emerald-500/30 bg-zinc-950/85" : "border-white/10 bg-zinc-950/70"
+                )}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        {dirty ? (
+                            <>
+                                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                                <p className="text-sm font-semibold text-amber-300 truncate">Modifications non enregistrées</p>
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                <p className="text-sm font-semibold text-emerald-300 truncate">Configuration enregistrée</p>
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
+                        <p className="hidden lg:block text-xs text-zinc-500">Prise en compte immédiate (cache 30 s)</p>
+                        <Button
+                            onClick={handleSave}
+                            disabled={isPending || godOff || !dirty}
+                            size="xl"
+                            variant="sigil-emerald"
+                            className="w-full sm:w-auto"
+                        >
+                            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                            {isPending ? "Enregistrement…" : "Enregistrer les changements"}
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     );

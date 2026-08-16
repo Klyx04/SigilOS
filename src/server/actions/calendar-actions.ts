@@ -13,6 +13,7 @@ import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
+import { startOfWeek, addDays } from "date-fns";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -401,7 +402,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 /**
  * Get upcoming events for widget
  */
-export async function getUpcomingEvents(guildId: string, days: number = 7) {
+export async function getUpcomingEvents(guildId: string, _days: number = 7) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié", events: [] };
     if (!ctx.isMember) return { success: false, error: "Membre requis", events: [] };
@@ -414,20 +415,25 @@ export async function getUpcomingEvents(guildId: string, days: number = 7) {
         if (!guildConfig) return { success: false, error: "Guilde non trouvée", events: [] };
 
         const now = new Date();
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + days);
+        // Widget « Agenda de Guilde » : on retourne TOUS les événements de la semaine
+        // en cours (LUN→DIM), PUBLISHED + COMPLETED (les événements passés sont
+        // auto-complétés en COMPLETED). Fini le filtre `startDate >= now` qui excluait
+        // les raids EN COURS (ex: Krala démarré la veille) → « Aucun événement cette
+        // semaine » à tort. Le widget filtre ensuite en cours/à venir pour la liste.
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        const weekEnd = addDays(weekStart, 7);
 
         const events = await db.guildEvent.findMany({
             where: {
                 guildId: guildConfig.id,
-                startDate: { gte: now, lte: endDate },
-                status: "PUBLISHED"
+                startDate: { gte: weekStart, lt: weekEnd },
+                status: { in: ["PUBLISHED", "COMPLETED"] }
             },
             include: {
                 _count: { select: { participants: true } }
             },
             orderBy: { startDate: "asc" },
-            take: 5
+            take: 20
         });
 
         return { success: true, events };

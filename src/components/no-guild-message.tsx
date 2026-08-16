@@ -35,24 +35,15 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
     return (
         <div className="relative w-full flex-1 flex flex-col items-center justify-center p-4">
 
-            {/* Background glow effects — same as landing */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[150px]" />
-                <div className="absolute inset-0 bg-[url(/noise.svg)] opacity-[0.03] mix-blend-overlay" />
-            </div>
-
-            <div className="relative z-10 max-w-md w-full text-center space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-700">
+            <div className="relative z-10 max-w-md w-full text-center space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-200">
 
                 {/* Logo */}
                 <div className="mx-auto w-20 h-20 relative">
-                    <div className="absolute inset-0 bg-emerald-500/20 blur-[40px] rounded-full animate-pulse" />
                     <Image
                         src="/assets/ui/logo-v2.png"
                         alt="SigilOS"
                         fill
-                        className="object-contain drop-shadow-[0_0_24px_rgba(16,185,129,0.4)]"
+                        className="object-contain"
                         priority
                     />
                 </div>
@@ -64,7 +55,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
 
                     <div className="space-y-5">
                         <div className="space-y-2">
-                            <h1 className="text-3xl font-black text-white tracking-tight font-heading">
+                            <h1 className="text-display-xl font-bold text-white font-heading tracking-tight">
                                 {rateLimited ? "Vérification indisponible" : "Accès Restreint"}
                             </h1>
                             <p className="text-zinc-400 text-sm leading-relaxed">
@@ -79,7 +70,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                             {rateLimited ? (
                                 <Button
                                     onClick={() => window.location.reload()}
-                                    className="h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-xs hover:bg-zinc-200 transition-all hover:scale-105"
+                                    className="h-12 rounded-xl bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition-colors"
                                 >
                                     <RefreshCw className="h-4 w-4 mr-2 animate-spin-slow" />
                                     Relancer la vérification
@@ -89,10 +80,9 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                     {/* PRIMARY — Demander l'accès */}
                                     <button
                                         onClick={() => setShowModal(true)}
-                                        className="group relative w-full h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black uppercase tracking-[0.12em] text-sm shadow-[0_16px_40px_-8px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_50px_-6px_rgba(16,185,129,0.65)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden flex flex-col items-center justify-center"
+                                        className="group relative w-full h-14 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-colors active:scale-[0.99] overflow-hidden flex flex-col items-center justify-center"
                                     >
-                                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                                        <span className="text-[10px] opacity-70 mb-0.5">Chef de Guilde ?</span>
+                                        <span className="text-[11px] opacity-80 mb-0.5">Chef de Guilde ?</span>
                                         <div className="flex items-center gap-2">
                                             <Crown className="w-4 h-4" />
                                             <span>Inscrire ma Guilde</span>
@@ -102,7 +92,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                     {/* SECONDARY — Changer de compte */}
                                     <button
                                         onClick={() => signOut({ callbackUrl: "/" })}
-                                        className="h-10 rounded-xl border border-white/8 text-zinc-500 hover:text-zinc-300 hover:border-white/15 transition-all text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                                        className="h-10 rounded-xl border border-white/8 text-zinc-400 hover:text-zinc-200 hover:border-white/15 transition-colors text-xs font-medium flex items-center justify-center gap-2"
                                     >
                                         <LogOut className="h-3.5 w-3.5" />
                                         Changer de compte
@@ -113,7 +103,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                     </div>
                 </div>
 
-                <p className="text-[10px] text-zinc-700 uppercase tracking-[0.3em] font-black">
+                <p className="text-caption text-zinc-600 uppercase tracking-wider font-medium">
                     SigilOS · Réseau Sécurisé
                 </p>
             </div>

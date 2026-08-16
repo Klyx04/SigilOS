@@ -301,7 +301,11 @@ export async function updatePlatformConfig(data: {
     // Chantier #68 — choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus
     dofusQuestHeaderIcon?: string,
     // Chantier #72 — toggle God « Membres Spécifiques » (permissions RBAC individuelles)
-    rbacUsersMappingEnabled?: boolean
+    rbacUsersMappingEnabled?: boolean,
+    // Chantier Inter-Guilde (19/08) — contrôle God : kill-switch global + plafonds par module.
+    // Fail-closed : interGuildGlobalEnabled=false coupe l'inter-guilde PARTOUT (même si une guilde a activé son toggle).
+    interGuildGlobalEnabled?: boolean,
+    interGuildModules?: Record<string, string>
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -321,6 +325,19 @@ export async function updatePlatformConfig(data: {
     // Chantier #72 — le toggle « Membres Spécifiques » est un booléen strict (fail-closed).
     if (data.rbacUsersMappingEnabled !== undefined && typeof data.rbacUsersMappingEnabled !== "boolean") {
         return { success: false, error: "Valeur invalide pour rbacUsersMappingEnabled (booléen requis)" };
+    }
+
+    // Chantier Inter-Guilde — kill-switch booléen strict + scopes par module bornés (fail-closed).
+    if (data.interGuildGlobalEnabled !== undefined && typeof data.interGuildGlobalEnabled !== "boolean") {
+        return { success: false, error: "Valeur invalide pour interGuildGlobalEnabled (booléen requis)" };
+    }
+    if (data.interGuildModules !== undefined) {
+        const validScopes = new Set(["OFF", "SERVER", "GLOBAL"]);
+        for (const [mod, scope] of Object.entries(data.interGuildModules)) {
+            if (mod.length > 40 || !validScopes.has(scope)) {
+                return { success: false, error: `Scope inter-guilde invalide pour « ${mod} » (OFF | SERVER | GLOBAL)` };
+            }
+        }
     }
 
     try {
@@ -358,7 +375,10 @@ export async function updatePlatformConfig(data: {
                     rbacUsersMappingEnabled: data.rbacUsersMappingEnabled,
                     rbacUsersMappingUpdatedAt: new Date(),
                     rbacUsersMappingUpdatedBy: actorId,
-                })
+                }),
+                // Chantier Inter-Guilde — kill-switch global + plafonds par module (God).
+                ...(data.interGuildGlobalEnabled !== undefined && { interGuildGlobalEnabled: data.interGuildGlobalEnabled }),
+                ...(data.interGuildModules !== undefined && { interGuildModules: data.interGuildModules })
             },
             create: { 
                 id: "singleton", 
@@ -378,7 +398,9 @@ export async function updatePlatformConfig(data: {
                 questFeedbackChannelId: data.questFeedbackChannelId || null,
                 ladderManualFallback: data.ladderManualFallback ?? false,
                 dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete",
-                rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true
+                rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true,
+                interGuildGlobalEnabled: data.interGuildGlobalEnabled ?? true,
+                interGuildModules: data.interGuildModules ?? undefined
             }
         });
 
@@ -388,6 +410,17 @@ export async function updatePlatformConfig(data: {
             invalidateRbacUsersMappingCache();
             logger.info("[PlatformConfig] Toggle RBAC Membres Spécifiques modifié", {
                 enabled: data.rbacUsersMappingEnabled,
+                by: actorId,
+            });
+        }
+
+        // Chantier Inter-Guilde — invalide le cache God (kill-switch + overrides) pour propagation immédiate.
+        if (data.interGuildGlobalEnabled !== undefined || data.interGuildModules !== undefined) {
+            const { invalidateGodInterGuildCache } = await import("./inter-guild");
+            await invalidateGodInterGuildCache();
+            logger.info("[PlatformConfig] Inter-Guilde God config modifiée", {
+                globalEnabled: data.interGuildGlobalEnabled,
+                modules: data.interGuildModules,
                 by: actorId,
             });
         }

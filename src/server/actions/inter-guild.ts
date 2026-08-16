@@ -8,6 +8,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import {
     INTER_GUILD_MODULES,
+    INTER_GUILD_MODULE_LABELS,
     type InterGuildModuleKey,
     type InterGuildScope,
     type InterGuildAdminState,
@@ -347,27 +348,13 @@ export async function getInterGuildAdminState(discordGuildId: string): Promise<I
     const cfg = await getInterGuildConfig(discordGuildId);
     const peerCount = await getInterGuildPeerGuildCount(discordGuildId);
 
-    const LABELS: Record<InterGuildModuleKey, string> = {
-        welcome: "Fil d'arrivées",
-        members: "Annuaire membres",
-        gallery: "Galerie de stuffs",
-        minigames: "Mini-jeux",
-        calendar: "Calendrier & Raids",
-        ladder: "Ladder",
-        ocre: "Quête Ocre (trades)",
-        songes: "Songes Infinis",
-        donjons: "Donjons & Quêtes",
-        services: "Services",
-        quests: "Suivi par Dofus / Rush",
-    };
-
     return {
         enabled: cfg.enabled,
         godGlobalEnabled: cfg.godGlobalEnabled,
         peerCount,
         modules: INTER_GUILD_MODULES.map(module => ({
             module,
-            label: LABELS[module],
+            label: INTER_GUILD_MODULE_LABELS[module],
             defaultScope: "SERVER",
             currentScope: cfg.scopes[module],
         })),

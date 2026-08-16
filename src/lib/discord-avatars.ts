@@ -7,6 +7,36 @@
  * préfère le format `.webp` (léger). Les avatars animés (préfixe `a_`) restent
  * en `.gif`.
  */
+// Hôtes Discord autorisés pour les URLs d'avatar (whitelist EXACTE — F-29).
+// CodeQL `js/incomplete-url-substring-sanitization` : on compare l'hôte d'un vrai
+// `new URL()` (jamais une sous-chaîne de la string brute), de sorte que
+// `evildiscordapp.com`, `cdn.discordapp.com.evil.io` ou un `cdn.discordapp.com`
+// placé en path/query d'un autre hôte sont rejetés.
+const DISCORD_AVATAR_HOSTS: string[] = [
+    "discordapp.com",
+    "cdn.discordapp.com",
+    "media.discordapp.net",
+    "images.discordapp.net",
+];
+
+/** F-29 — Vrai si `hostname` est un hôte Discord d'avatar de confiance (whitelist exacte). */
+export function isDiscordAvatarHostname(hostname: string | null | undefined): boolean {
+    return !!hostname && DISCORD_AVATAR_HOSTS.includes(hostname);
+}
+
+/**
+ * F-29 — Vrai si `url` est une URL d'avatar Discord (hôte vérifié via parse réel).
+ * Fail-closed : toute URL invalide / hôte inconnu est rejetée, ne lève jamais.
+ */
+export function isDiscordAvatarUrl(url: string | null | undefined): boolean {
+    if (!url) return false;
+    try {
+        return isDiscordAvatarHostname(new URL(url).hostname);
+    } catch {
+        return false;
+    }
+}
+
 const AVATAR_CDN = "https://cdn.discordapp.com";
 
 export function buildDiscordAvatarUrl(userId: string, avatarHash: string | null | undefined, size = 256): string | null {
@@ -38,7 +68,7 @@ export function normalizeDiscordAvatarUrl(url: string | null | undefined, size =
     if (!url) return null;
     try {
         const parsed = new URL(url);
-        if (!parsed.hostname.endsWith("discordapp.com")) return url;
+        if (!isDiscordAvatarHostname(parsed.hostname)) return url;
         const match = parsed.pathname.match(/^\/avatars\/(\d+)\/([^/]+)\.(png|webp|gif|jpg|jpeg)$/i);
         if (!match) return url;
         const [, userId, hash] = match;
@@ -57,8 +87,18 @@ export function normalizeDiscordAvatarUrl(url: string | null | undefined, size =
  */
 export function discordAvatarErrorFallback(url: string | null | undefined): string | null {
     if (!url) return null;
-    if (!url.includes("cdn.discordapp.com")) return null;
-    return url
-        .replace("https://cdn.discordapp.com", "https://media.discordapp.net")
-        .replace(/[?&]size=\d+/, "?width=256&height=256");
+    let parsed: URL;
+    try {
+        parsed = new URL(url);
+    } catch {
+        return null;
+    }
+    // Seul le CDN principal `cdn.discordapp.com` (hôte EXACT) est basculé sur le
+    // miroir `media.discordapp.net`. `evilcdn.discordapp.com` est rejeté (F-29).
+    if (parsed.hostname !== "cdn.discordapp.com") return null;
+    parsed.hostname = "media.discordapp.net";
+    parsed.searchParams.delete("size");
+    parsed.searchParams.set("width", "256");
+    parsed.searchParams.set("height", "256");
+    return parsed.toString();
 }

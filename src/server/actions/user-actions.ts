@@ -13,7 +13,7 @@ import { emitGuildActivity } from "./activity-actions";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { buildDiscordAvatarUrl, buildGuildAvatarUrl } from "@/lib/discord-avatars";
+import { buildDiscordAvatarUrl, buildGuildAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
 
 import { redis } from "@/lib/redis";
 
@@ -963,7 +963,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         if (member?.user?.avatar && session.user.id && discordUserId) {
             const freshAvatarUrl = buildDiscordAvatarUrl(discordUserId, member.user.avatar);
             const storedImage = session.user.image;
-            if (freshAvatarUrl && storedImage && storedImage !== freshAvatarUrl && storedImage.includes("discordapp.com")) {
+            if (freshAvatarUrl && storedImage && storedImage !== freshAvatarUrl && isDiscordAvatarUrl(storedImage)) {
                 void db.user.update({ where: { id: session.user.id }, data: { image: freshAvatarUrl } }).catch(() => { });
             }
         }

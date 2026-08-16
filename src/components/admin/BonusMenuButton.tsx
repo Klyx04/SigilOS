@@ -189,16 +189,16 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-9 px-3 gap-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                    className="h-9 px-3 gap-2 text-info hover:text-info hover:bg-info/10"
                 >
                     <Sparkles className="w-4 h-4" />
                     <span className="hidden sm:inline">Acheter Bonus</span>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
-                <DialogHeader className="p-6 pb-2 border-b border-white/5">
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-background border-border">
+                <DialogHeader className="p-6 pb-2 border-b border-border">
                     <DialogTitle className="text-xl flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-purple-400" />
+                        <Sparkles className="w-5 h-5 text-info" />
                         Bonus de Guilde
                     </DialogTitle>
                     <DialogDescription>
@@ -208,7 +208,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
 
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                        <Loader2 className="w-8 h-8 animate-spin text-info" />
                     </div>
                 ) : (
                     <div className="flex-1 flex flex-col min-h-0 p-6 space-y-6 overflow-hidden">
@@ -232,7 +232,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 disabled={cancellingId === bonus.id}
                                                 variant="outline"
                                                 size="sm"
-                                                className="border-red-500/50 text-red-400 hover:bg-red-500/10 h-7 text-xs"
+                                                className="border-danger/50 text-danger hover:bg-danger/10 h-7 text-xs"
                                             >
                                                 {cancellingId === bonus.id ? (
                                                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -265,8 +265,8 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                     "group relative flex flex-col items-center justify-center p-6 rounded-xl border-2 transition-all duration-300",
                                                     isActive && "border-green-500 bg-green-500/10 ",
                                                     isPurchased && "border-orange-500 bg-orange-500/10 ",
-                                                    !isActive && !isPurchased && !isDisabled && "border-zinc-800 bg-zinc-900/30 hover:border-purple-700 hover:bg-purple-900/20",
-                                                    isDisabled && !isActive && !isPurchased && "opacity-40 cursor-not-allowed border-zinc-900 bg-zinc-950"
+                                                    !isActive && !isPurchased && !isDisabled && "border-border bg-surface/30 hover:border-info hover:bg-info/20",
+                                                    isDisabled && !isActive && !isPurchased && "opacity-40 cursor-not-allowed border-zinc-900 bg-background"
                                                 )}
                                             >
                                                 <div className="mb-4 transform transition-transform group- duration-300 relative">
@@ -282,20 +282,20 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                     "text-sm font-bold text-center mb-2",
                                                     isActive && "text-green-400",
                                                     isPurchased && "text-orange-400",
-                                                    !isActive && !isPurchased && "text-white"
+                                                    !isActive && !isPurchased && "text-foreground"
                                                 )}>
                                                     {bonus.name}
                                                 </span>
-                                                <p className="text-xs text-zinc-400 text-center line-clamp-2">
+                                                <p className="text-xs text-muted-foreground text-center line-clamp-2">
                                                     {bonus.description}
                                                 </p>
                                                 {isActive && (
-                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-green-500 text-white text-caption font-bold uppercase">
+                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-green-500 text-foreground text-caption font-bold uppercase">
                                                         Actif
                                                     </div>
                                                 )}
                                                 {isPurchased && (
-                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-orange-500 text-white text-caption font-bold uppercase">
+                                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-orange-500 text-foreground text-caption font-bold uppercase">
                                                         24h
                                                     </div>
                                                 )}
@@ -308,9 +308,9 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                             /* Purchase Form */
                             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-right-4 duration-300">
                                 {/* Header (Sticky) */}
-                                <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4 shrink-0">
+                                <div className="flex items-center justify-between border-b border-border pb-4 mb-4 shrink-0">
                                     <div className="flex items-center gap-4">
-                                        <div className="relative w-14 h-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-zinc-900 group">
+                                        <div className="relative w-14 h-14 shrink-0 overflow-hidden rounded-2xl border border-border shadow-2xl bg-surface group">
                                             <Image 
                                                 src={ALL_BONUSES.find(b => b.type === selectedBonus)?.icon || ""} 
                                                 alt="Bonus Icon"
@@ -320,10 +320,10 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-black text-white uppercase tracking-tight leading-none mb-1">
+                                            <h3 className="text-lg font-black text-foreground uppercase tracking-tight leading-none mb-1">
                                                 {ALL_BONUSES.find(b => b.type === selectedBonus)?.name}
                                             </h3>
-                                            <p className="text-caption text-purple-400 font-black uppercase tracking-[0.2em]">
+                                            <p className="text-caption text-info font-black uppercase tracking-[0.2em]">
                                                 Configuration tactique
                                             </p>
                                         </div>
@@ -332,7 +332,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                         onClick={() => setSelectedBonus(null)}
                                         variant="ghost"
                                         size="sm"
-                                        className="h-9 px-4 text-zinc-500 hover:text-white hover:bg-white/10 rounded-xl transition-all font-black text-caption uppercase tracking-widest border border-white/5"
+                                        className="h-9 px-4 text-muted-foreground hover:text-foreground hover:bg-surface rounded-xl transition-all font-black text-caption uppercase tracking-widest border border-border"
                                     >
                                         <ChevronLeft className="w-3 h-3 mr-1.5" />
                                         Retour
@@ -343,24 +343,24 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                 <ScrollArea className="flex-1 pr-4 -mr-4">
                                     <div className="space-y-6 pb-4">
                                         {/* Discord Publishing Toggle */}
-                                        <div className="flex items-center justify-between p-5 rounded-3xl bg-zinc-800/40 border border-white/10 shadow-xl backdrop-blur-md group hover:border-purple-500/30 transition-all duration-300">
+                                        <div className="flex items-center justify-between p-5 rounded-3xl bg-elevated/40 border border-border shadow-xl backdrop-blur-md group hover:border-info/30 transition-all duration-300">
                                     <div className="flex gap-4">
-                                        <div className="p-3 bg-indigo-500/20 rounded-2xl text-indigo-400 shrink-0 self-start shadow-inner">
+                                        <div className="p-3 bg-info/20 rounded-2xl text-info shrink-0 self-start shadow-inner">
                                             <Share2 className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-black text-white uppercase tracking-tight">Publier sur Discord</Label>
-                                            <p className="text-caption text-zinc-400 font-medium mt-1 leading-relaxed max-w-[280px]">
+                                            <Label className="text-sm font-black text-foreground uppercase tracking-tight">Publier sur Discord</Label>
+                                            <p className="text-caption text-muted-foreground font-medium mt-1 leading-relaxed max-w-[280px]">
                                                 {configuredChannelName ? (
                                                     <span className="flex items-center gap-1.5">
                                                         Annonce automatique dans 
-                                                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-md border border-indigo-500/20 font-bold">
+                                                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-info/10 text-info rounded-md border border-info/20 font-bold">
                                                             <Hash className="w-3 h-3" />
                                                             {configuredChannelName}
                                                         </span>
                                                     </span>
                                                 ) : (
-                                                    <span className="text-amber-500/80 font-bold flex items-center gap-1.5">
+                                                    <span className="text-warning/80 font-bold flex items-center gap-1.5">
                                                         <AlertCircle className="w-3 h-3" />
                                                         Configuration manquante (Paramètres guilde)
                                                     </span>
@@ -371,7 +371,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                     <Switch
                                         checked={publishToDiscord}
                                         onCheckedChange={setPublishToDiscord}
-                                        className="data-[state=checked]:bg-purple-500"
+                                        className="data-[state=checked]:bg-info"
                                     />
                                 </div>
 
@@ -379,8 +379,8 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                 {publishToDiscord && (
                                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <AtSign className="w-3.5 h-3.5 text-zinc-500" />
-                                            <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Type de Mention</Label>
+                                            <AtSign className="w-3.5 h-3.5 text-muted-foreground" />
+                                            <Label className="text-caption font-black text-muted-foreground uppercase tracking-widest">Type de Mention</Label>
                                         </div>
                                         
                                         <div className="grid grid-cols-3 gap-3">
@@ -389,13 +389,13 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 className={cn(
                                                     "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all text-center group relative overflow-hidden",
                                                     mentionType === MentionType.NONE
-                                                        ? "bg-zinc-800 border-white/30 text-white shadow-xl ring-1 ring-white/10"
-                                                        : "bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10 hover:border-white/20"
+                                                        ? "bg-elevated border-border-strong text-foreground shadow-xl ring-1 ring-white/10"
+                                                        : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-border-strong"
                                                 )}
                                             >
-                                                <BellOff className={cn("w-5 h-5 transition-colors", mentionType === MentionType.NONE ? "text-zinc-300" : "text-zinc-600 group-hover:text-zinc-400")} />
+                                                <BellOff className={cn("w-5 h-5 transition-colors", mentionType === MentionType.NONE ? "text-foreground" : "text-muted-foreground group-hover:text-muted-foreground")} />
                                                 <span className="text-caption font-black uppercase tracking-widest">Personne</span>
-                                                {mentionType === MentionType.NONE && <div className="absolute inset-0 bg-white/5 pointer-events-none" />}
+                                                {mentionType === MentionType.NONE && <div className="absolute inset-0 bg-surface pointer-events-none" />}
                                             </button>
 
                                             <button
@@ -403,13 +403,13 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 className={cn(
                                                     "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all text-center group relative overflow-hidden",
                                                     mentionType === MentionType.EVERYONE
-                                                        ? "bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-xl shadow-rose-500/10 ring-1 ring-rose-500/20"
-                                                        : "bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10 hover:border-white/20"
+                                                        ? "bg-danger/20 border-danger/50 text-danger shadow-xl shadow-rose-500/10 ring-1 ring-danger/20"
+                                                        : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-border-strong"
                                                 )}
                                             >
-                                                <AtSign className={cn("w-5 h-5 transition-colors", mentionType === MentionType.EVERYONE ? "text-rose-400" : "text-zinc-600 group-hover:text-zinc-400")} />
+                                                <AtSign className={cn("w-5 h-5 transition-colors", mentionType === MentionType.EVERYONE ? "text-danger" : "text-muted-foreground group-hover:text-muted-foreground")} />
                                                 <span className="text-caption font-black uppercase tracking-widest">@everyone</span>
-                                                {mentionType === MentionType.EVERYONE && <div className="absolute inset-0 bg-rose-500/5 pointer-events-none" />}
+                                                {mentionType === MentionType.EVERYONE && <div className="absolute inset-0 bg-danger/5 pointer-events-none" />}
                                             </button>
 
                                             <button
@@ -417,27 +417,27 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                 className={cn(
                                                     "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all text-center group relative overflow-hidden",
                                                     mentionType === MentionType.ROLE
-                                                        ? "bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-xl shadow-purple-500/10 ring-1 ring-purple-500/20"
-                                                        : "bg-white/5 border-white/10 text-zinc-500 hover:bg-white/10 hover:border-white/20"
+                                                        ? "bg-info/20 border-info/50 text-info shadow-xl shadow-purple-500/10 ring-1 ring-info/20"
+                                                        : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-border-strong"
                                                 )}
                                             >
-                                                <Share2 className={cn("w-5 h-5 transition-colors", mentionType === MentionType.ROLE ? "text-purple-400" : "text-zinc-600 group-hover:text-zinc-400")} />
+                                                <Share2 className={cn("w-5 h-5 transition-colors", mentionType === MentionType.ROLE ? "text-info" : "text-muted-foreground group-hover:text-muted-foreground")} />
                                                 <span className="text-caption font-black uppercase tracking-widest">Rôle</span>
-                                                {mentionType === MentionType.ROLE && <div className="absolute inset-0 bg-purple-500/5 pointer-events-none" />}
+                                                {mentionType === MentionType.ROLE && <div className="absolute inset-0 bg-info/5 pointer-events-none" />}
                                             </button>
                                         </div>
 
                                         {/* Role Selector List */}
                                         {mentionType === MentionType.ROLE && (
                                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <div className="bg-zinc-800/50 border border-white/10 rounded-2xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar shadow-inner p-2 space-y-1 backdrop-blur-md">
+                                                <div className="bg-elevated/50 border border-border rounded-2xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar shadow-inner p-2 space-y-1 backdrop-blur-md">
                                                     {loadingRoles ? (
-                                                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-zinc-600">
+                                                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
                                                             <Loader2 className="w-5 h-5 animate-spin" />
                                                             <span className="text-caption font-black uppercase tracking-widest">Récupération des rôles...</span>
                                                         </div>
                                                     ) : guildRoles.length === 0 ? (
-                                                        <div className="py-10 text-center text-caption text-zinc-600 font-bold italic">Aucun rôle Discord disponible</div>
+                                                        <div className="py-10 text-center text-caption text-muted-foreground font-bold italic">Aucun rôle Discord disponible</div>
                                                     ) : (
                                                         guildRoles.map(role => {
                                                             const isSelected = roleId === role.id;
@@ -449,11 +449,11 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                                     className={cn(
                                                                         "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group",
                                                                         isSelected 
-                                                                            ? "bg-purple-600 text-white shadow-lg shadow-purple-900/30" 
-                                                                            : "text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                                                                            ? "bg-info text-info-foreground shadow-lg shadow-purple-900/30" 
+                                                                            : "text-muted-foreground hover:bg-surface hover:text-foreground"
                                                                     )}
                                                                 >
-                                                                    <div className="w-3 h-3 rounded-full  border border-white/10" style={{ backgroundColor: hex }} />
+                                                                    <div className="w-3 h-3 rounded-full  border border-border" style={{ backgroundColor: hex }} />
                                                                     <span className="text-xs font-black flex-1 truncate uppercase tracking-tight">@{role.name}</span>
                                                                     {isSelected && <Check className="w-4 h-4 animate-in zoom-in-50 duration-300" />}
                                                                 </button>
@@ -469,20 +469,20 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                             <div className="space-y-3 pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
-                                                        <Label className="text-caption font-black text-indigo-400 uppercase tracking-[0.2em]">Aperçu Discord</Label>
-                                                        <div className="h-[1px] w-8 bg-indigo-500/30" />
+                                                        <Label className="text-caption font-black text-info uppercase tracking-[0.2em]">Aperçu Discord</Label>
+                                                        <div className="h-[1px] w-8 bg-info/30" />
                                                     </div>
-                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest italic">Simulation temps réel</span>
+                                                    <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest italic">Simulation temps réel</span>
                                                 </div>
                                                 
-                                                <div className="bg-[#2b2d31] rounded-lg overflow-hidden border-l-[3px] border-purple-600 shadow-2xl transition-all duration-300 hover:translate-y-[-1px]">
+                                                <div className="bg-[#2b2d31] rounded-lg overflow-hidden border-l-[3px] border-info shadow-2xl transition-all duration-300 hover:translate-y-[-1px]">
                                                     <div className="p-3 space-y-2">
                                                         <div className="flex justify-between gap-3">
                                                             <div className="space-y-1">
                                                                 <h4 className="text-[#00a8fc] hover:underline cursor-pointer font-bold text-body-sm leading-tight">
                                                                     💎 Bonus de Guilde disponible : {ALL_BONUSES.find(b => b.type === selectedBonus)?.name}
                                                                 </h4>
-                                                                <div className="text-zinc-300 text-caption leading-relaxed whitespace-pre-line font-medium">
+                                                                <div className="text-foreground text-caption leading-relaxed whitespace-pre-line font-medium">
                                                                     Un nouveau bonus a été acheté par **vous**.
                                                                     {"\n"}
                                                                     **Comment l'activer ?**
@@ -490,7 +490,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                                                     N'importe quel membre peut l'activer en jeu ! Vous avez **24h** pour le faire dans l'onglet **"Obtenu"** du menu des bonus de guilde.
                                                                 </div>
                                                             </div>
-                                                            <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-zinc-800 border border-white/5">
+                                                            <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-elevated border border-border">
                                                                 <Image 
                                                                     src={ALL_BONUSES.find(b => b.type === selectedBonus)?.icon || ""} 
                                                                     alt="Thumb" 
@@ -503,27 +503,27 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
 
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
-                                                                <div className="text-white text-caption font-bold">✨ Effet du bonus</div>
-                                                                <div className="text-zinc-300 text-caption truncate">{ALL_BONUSES.find(b => b.type === selectedBonus)?.description}</div>
+                                                                <div className="text-foreground text-caption font-bold">✨ Effet du bonus</div>
+                                                                <div className="text-foreground text-caption truncate">{ALL_BONUSES.find(b => b.type === selectedBonus)?.description}</div>
                                                             </div>
                                                             <div>
-                                                                <div className="text-white text-caption font-bold">⏳ Disponibilité restante</div>
-                                                                <div className="text-zinc-300 text-caption px-1 bg-zinc-700/50 rounded inline-block">dans 24 heures</div>
+                                                                <div className="text-foreground text-caption font-bold">⏳ Disponibilité restante</div>
+                                                                <div className="text-foreground text-caption px-1 bg-muted/50 rounded inline-block">dans 24 heures</div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="pt-1.5 border-t border-white/5 flex items-center gap-2">
-                                                            <span className="text-caption text-zinc-400">SigilOS · Pas encore sur le Dashboard ? → beta.sigilos.fr</span>
+                                                        <div className="pt-1.5 border-t border-border flex items-center gap-2">
+                                                            <span className="text-caption text-muted-foreground">SigilOS · Pas encore sur le Dashboard ? → beta.sigilos.fr</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 
                                                 {mentionType !== MentionType.NONE && (
-                                                    <div className="bg-[#2b2d31]/50 px-2 py-1.5 rounded-md border border-white/5 flex items-center gap-2">
-                                                        <span className="text-indigo-400 text-caption font-medium">
+                                                    <div className="bg-[#2b2d31]/50 px-2 py-1.5 rounded-md border border-border flex items-center gap-2">
+                                                        <span className="text-info text-caption font-medium">
                                                             {mentionType === MentionType.EVERYONE ? "@everyone" : `@${guildRoles.find(r => r.id === roleId)?.name || "Rôle"}`}
                                                         </span>
-                                                        <span className="text-zinc-500 text-caption font-medium">Sera envoyé en texte brut.</span>
+                                                        <span className="text-muted-foreground text-caption font-medium">Sera envoyé en texte brut.</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -534,19 +534,19 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                 </ScrollArea>
 
                                 {/* Actions (Sticky at bottom) */}
-                                <div className="flex gap-4 pt-4 border-t border-white/5 relative shrink-0">
+                                <div className="flex gap-4 pt-4 border-t border-border relative shrink-0">
                                     <Button
                                         onClick={() => setSelectedBonus(null)}
                                         disabled={purchasing}
                                         variant="ghost"
-                                        className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-zinc-500 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
+                                        className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-surface border border-transparent hover:border-border transition-all"
                                     >
                                         Annuler
                                     </Button>
                                     <Button
                                         onClick={handlePurchaseSubmit}
                                         disabled={purchasing}
-                                        className="flex-1 h-12 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-purple-900/30 transition-all group overflow-hidden relative"
+                                        className="flex-1 h-12 bg-info hover:bg-info text-info-foreground rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-purple-900/30 transition-all group overflow-hidden relative"
                                     >
                                         {purchasing ? (
                                             <>
@@ -563,7 +563,7 @@ export function BonusMenuButton({ guildId }: BonusMenuButtonProps) {
                                     </Button>
                                     
                                     {/* Ambient background glow for purchase button */}
-                                    <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-purple-500/10 blur-[60px] rounded-full pointer-events-none" />
+                                    <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-info/10 blur-[60px] rounded-full pointer-events-none" />
                                 </div>
                             </div>
                         )}

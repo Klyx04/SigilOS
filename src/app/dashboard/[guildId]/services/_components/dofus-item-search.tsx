@@ -88,7 +88,7 @@ export function DofusItemSearch({
     // If a value is pre-selected, show it
     if (value && !query) {
         return (
-            <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm">
                 <Image
                     src={value.iconUrl}
                     alt={value.name}
@@ -97,11 +97,11 @@ export function DofusItemSearch({
                     className="rounded"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/placeholder-item.png"; }}
                 />
-                <span className="flex-1 font-medium text-white">{value.name}</span>
-                <span className="text-xs text-zinc-500">Niv. {value.level}</span>
+                <span className="flex-1 font-medium text-foreground">{value.name}</span>
+                <span className="text-xs text-muted-foreground">Niv. {value.level}</span>
                 <button
                     onClick={handleClear}
-                    className="ml-1 text-zinc-500 hover:text-white transition-colors"
+                    className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <X className="h-3.5 w-3.5" />
                 </button>
@@ -112,21 +112,21 @@ export function DofusItemSearch({
     return (
         <div ref={containerRef} className="relative">
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     value={query}
                     onChange={(e) => handleChange(e.target.value)}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className="bg-white/5 border-white/10 pl-9 pr-8"
+                    className="bg-surface border-border pl-9 pr-8"
                 />
                 {loading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-zinc-500" />
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
                 {query && !loading && (
                     <button
                         onClick={handleClear}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>
@@ -134,13 +134,13 @@ export function DofusItemSearch({
             </div>
 
             {open && results.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-zinc-950 shadow-xl">
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-background shadow-xl">
                     <ul className="max-h-60 overflow-auto py-1">
                         {results.map((item) => (
                             <li key={item.ankamaId}>
                                 <button
                                     onClick={() => handleSelect(item)}
-                                    className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-white/5 transition-colors text-left"
+                                    className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-surface transition-colors text-left"
                                 >
                                     <Image
                                         src={item.iconUrl}
@@ -150,25 +150,25 @@ export function DofusItemSearch({
                                         className="rounded flex-shrink-0"
                                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/placeholder-item.png"; }}
                                     />
-                                    <span className="flex-1 font-medium text-white leading-tight">
+                                    <span className="flex-1 font-medium text-foreground leading-tight">
                                         {item.name}
                                     </span>
                                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                                        <span className="text-xs text-zinc-400">Niv. {item.level}</span>
-                                        <span className="text-caption text-zinc-600">{item.type}</span>
+                                        <span className="text-xs text-muted-foreground">Niv. {item.level}</span>
+                                        <span className="text-caption text-muted-foreground">{item.type}</span>
                                     </div>
                                 </button>
                             </li>
                         ))}
                     </ul>
-                    <p className="border-t border-white/5 px-3 py-1.5 text-caption text-zinc-600">
+                    <p className="border-t border-border px-3 py-1.5 text-caption text-muted-foreground">
                         Source : Dofusdude (api.dofusdu.de)
                     </p>
                 </div>
             )}
 
             {open && !loading && results.length === 0 && query.length >= 2 && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-zinc-950 p-3 text-center text-sm text-zinc-500 shadow-xl">
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-background p-3 text-center text-sm text-muted-foreground shadow-xl">
                     Aucun résultat pour &quot;{query}&quot;
                 </div>
             )}

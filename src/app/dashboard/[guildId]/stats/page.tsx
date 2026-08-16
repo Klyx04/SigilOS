@@ -38,13 +38,13 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
     if (!result.success || !result.stats) {
         return (
             <div className="space-y-6">
-                <div className="flex items-center gap-4 pb-6 border-b border-white/10">
+                <div className="flex items-center gap-4 pb-6 border-b border-border">
                     <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
                         <BarChart3 className="w-12 h-12 text-violet-500 drop-shadow-[0_0_15px_rgba(139,92,246,0.6)]" strokeWidth={1.5} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Statistiques Guilde</h1>
-                        <p className="text-zinc-400">Erreur lors du téléchargement des données.</p>
+                        <h1 className="text-2xl font-bold text-foreground">Statistiques Guilde</h1>
+                        <p className="text-muted-foreground">Erreur lors du téléchargement des données.</p>
                     </div>
                 </div>
             </div>

@@ -80,21 +80,21 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                 <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-4 rounded-xl border-dashed border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group"
+                    className="h-10 px-4 rounded-xl border-dashed border-border hover:border-warning/50 hover:bg-warning/5 transition-all group"
                     onClick={() => setOpen(true)}
                 >
-                    <Settings2 className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+                    <Settings2 className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-warning transition-colors" />
                     <span className="text-xs font-semibold">Réglages Expert</span>
                 </Button>
             )}
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-lg overflow-hidden p-0 rounded-3xl border-border bg-zinc-950/98 backdrop-blur-2xl  border-white/10">
-                    <div className="relative p-8 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent border-b border-white/5">
+                <DialogContent className="max-w-lg overflow-hidden p-0 rounded-3xl border-border bg-background/98 backdrop-blur-2xl  border-border">
+                    <div className="relative p-8 bg-gradient-to-br from-warning/10 via-transparent to-transparent border-b border-border">
                         <DialogHeader>
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                                    <Settings2 className="h-5 w-5 text-amber-500" />
+                                <div className="h-10 w-10 rounded-2xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                                    <Settings2 className="h-5 w-5 text-warning" />
                                 </div>
                                 <div>
                                     <DialogTitle className="text-xl font-bold">Réglages Metamob</DialogTitle>
@@ -163,7 +163,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                                 Seuils de calcul automatique
                             </h4>
 
-                            <div className="p-4 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
+                            <div className="p-4 rounded-2xl bg-surface/50 border border-border space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-xs font-bold">Seuil d&apos;offre</Label>
@@ -199,7 +199,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                                 Visibilité & Vie Privée
                             </h4>
 
-                            <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900/50 border border-white/5">
+                            <div className="flex items-center justify-between p-4 rounded-2xl bg-surface/50 border border-border">
                                 <div className="space-y-0.5">
                                     <Label className="text-xs font-bold">Afficher mes échanges sur Metamob</Label>
                                     <p className="text-caption text-muted-foreground">Si désactivé, vous n&apos;apparaîtrez pas dans les recherches publiques.</p>
@@ -212,7 +212,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                         </div>
                     </div>
 
-                    <div className="p-6 bg-zinc-900/80 border-t border-white/10 flex items-center justify-between gap-4">
+                    <div className="p-6 bg-surface/80 border-t border-border flex items-center justify-between gap-4">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -224,7 +224,7 @@ export function OcreSettingsModal({ data, guildId, trigger }: OcreSettingsModalP
                         </Button>
                         <Button
                             size="sm"
-                            className="rounded-xl px-6 h-10 font-bold gap-2 bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+                            className="rounded-xl px-6 h-10 font-bold gap-2 bg-warning hover:bg-warning text-warning-foreground shadow-lg shadow-amber-500/20 transition-all active:scale-95"
                             onClick={handleSave}
                             disabled={isLoading}
                         >

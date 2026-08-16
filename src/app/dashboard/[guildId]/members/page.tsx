@@ -28,7 +28,7 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
 
     if (!response.success) {
         return (
-            <div className="p-8 text-center text-red-400">
+            <div className="p-8 text-center text-danger">
                 <p>Impossible de charger l'annuaire.</p>
                 <p className="text-sm opacity-75">{response.error}</p>
             </div>

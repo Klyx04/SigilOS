@@ -35,7 +35,7 @@ export function ActivePollsWidget({
     const activePolls = polls.filter(p => p.status === "ACTIVE").slice(0, 3);
 
     return (
-        <Card className="glass-premium border-white/5 flex flex-col h-full overflow-hidden">
+        <Card className="glass-premium border-border flex flex-col h-full overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
@@ -49,7 +49,7 @@ export function ActivePollsWidget({
                     </CardTitle>
                     <Link
                         href={`/dashboard/${guildId}/sondages`}
-                        className="text-caption font-black text-zinc-600 hover:text-guild uppercase tracking-widest border border-white/5 px-2 py-1 rounded-md transition-all hover:border-guild/20"
+                        className="text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-all hover:border-guild/20"
                     >
                         Voter →
                     </Link>
@@ -75,7 +75,7 @@ export function ActivePollsWidget({
                                 <Link
                                     key={poll.id}
                                     href={`/dashboard/${guildId}/sondages`}
-                                    className="group block bg-zinc-950/40 hover:bg-zinc-900/60 border border-white/5 hover:border-cyan-500/20 rounded-2xl p-3 transition-all duration-200 hover:scale-[1.01] space-y-3"
+                                    className="group block bg-background/40 hover:bg-surface/60 border border-border hover:border-info/20 rounded-2xl p-3 transition-all duration-200 hover:scale-[1.01] space-y-3"
                                 >
                                     {/* Header */}
                                     <div className="flex items-start justify-between gap-2">
@@ -85,17 +85,17 @@ export function ActivePollsWidget({
                                                     {poll.category}
                                                 </span>
                                                 {isExpiringSoon && (
-                                                    <span className="flex items-center gap-1 text-caption font-black uppercase px-1.5 py-0.5 rounded bg-amber-950/40 text-amber-400 border border-amber-500/20 shrink-0">
+                                                    <span className="flex items-center gap-1 text-caption font-black uppercase px-1.5 py-0.5 rounded bg-warning/40 text-warning border border-warning/20 shrink-0">
                                                         <AlertCircle className="w-2.5 h-2.5" />
                                                         Expire bientôt
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-caption font-black text-white/90 group-hover:text-guild transition-colors uppercase italic leading-tight">
+                                            <p className="text-caption font-black text-foreground/90 group-hover:text-guild transition-colors uppercase italic leading-tight">
                                                 {poll.title}
                                             </p>
                                         </div>
-                                        <ArrowRight className="w-4 h-4 text-zinc-700 group-hover:text-guild transition-colors shrink-0 mt-1" />
+                                        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-guild transition-colors shrink-0 mt-1" />
                                     </div>
 
                                     {/* Top options preview with vote bars */}
@@ -106,13 +106,13 @@ export function ActivePollsWidget({
                                                 return (
                                                     <div key={opt.id} className="space-y-1">
                                                         <div className="flex items-center justify-between text-caption font-bold gap-3">
-                                                            <span className="text-zinc-400 break-words whitespace-normal min-w-0">
+                                                            <span className="text-muted-foreground break-words whitespace-normal min-w-0">
                                                                 {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
                                                                 {opt.label}
                                                             </span>
                                                             <span className="text-guild tabular-nums ml-2 shrink-0">{pct}%</span>
                                                         </div>
-                                                        <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
+                                                        <div className="h-1 bg-surface rounded-full overflow-hidden">
                                                             <div
                                                                 className="h-full bg-guild rounded-full transition-all duration-300"
                                                                 style={{ width: `${pct}%` }}
@@ -125,13 +125,13 @@ export function ActivePollsWidget({
                                     )}
 
                                     {/* Footer */}
-                                    <div className="flex items-center justify-between text-caption text-zinc-600 font-bold uppercase tracking-tighter pt-1 border-t border-white/5">
+                                    <div className="flex items-center justify-between text-caption text-muted-foreground font-bold uppercase tracking-tighter pt-1 border-t border-border">
                                         <div className="flex items-center gap-1">
                                             <Users className="w-3 h-3" />
                                             {totalVotes} vote{totalVotes !== 1 ? "s" : ""}
                                         </div>
                                         {timeLeft && (
-                                            <div className={cn("flex items-center gap-1", isExpiringSoon ? "text-amber-500" : "text-zinc-600")}>
+                                            <div className={cn("flex items-center gap-1", isExpiringSoon ? "text-warning" : "text-muted-foreground")}>
                                                 <Clock className="w-3 h-3" />
                                                 {timeLeft}
                                             </div>
@@ -143,21 +143,21 @@ export function ActivePollsWidget({
 
                         <Link
                             href={`/dashboard/${guildId}/sondages`}
-                            className="flex items-center justify-center gap-2 text-caption font-black text-zinc-700 hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-white/5 mt-auto"
+                            className="flex items-center justify-center gap-2 text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-border mt-auto"
                         >
                             Voir tous les sondages
                         </Link>
                     </>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-4 border border-dashed border-white/5 rounded-2xl">
-                        <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center">
-                            <Gavel className="w-6 h-6 text-zinc-700" />
+                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-4 border border-dashed border-border rounded-2xl">
+                        <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center">
+                            <Gavel className="w-6 h-6 text-muted-foreground" />
                         </div>
                         <div className="space-y-1">
-                            <p className="text-caption text-zinc-500 font-black uppercase tracking-widest">
+                            <p className="text-caption text-muted-foreground font-black uppercase tracking-widest">
                                 Aucun sondage actif
                             </p>
-                            <p className="text-caption text-zinc-700 font-medium">
+                            <p className="text-caption text-muted-foreground font-medium">
                                 Les sondages de la guilde apparaîtront ici
                             </p>
                         </div>

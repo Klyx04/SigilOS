@@ -59,10 +59,10 @@ export function SubmissionCountdown({ createdAt, className }: Props) {
         <div className={cn(
             "flex items-center gap-1.5 px-2 py-1 rounded-md text-caption font-bold uppercase tracking-wider transition-all shadow-lg backdrop-blur-sm",
             isUrgent
-                ? "bg-red-500/40 text-red-200 border border-red-500/60 animate-pulse"
+                ? "bg-danger/40 text-danger border border-danger/60 animate-pulse"
                 : percentLeft < 50
                     ? "bg-orange-500/40 text-orange-200 border border-orange-500/60"
-                    : "bg-zinc-800/80 text-zinc-200 border border-zinc-600/80",
+                    : "bg-elevated/80 text-foreground border border-border/80",
             className
         )}>
             <Clock className={cn(
@@ -75,7 +75,7 @@ export function SubmissionCountdown({ createdAt, className }: Props) {
                     className={cn(
                         "h-full transition-all duration-300",
                         isUrgent
-                            ? "bg-red-400"
+                            ? "bg-danger"
                             : percentLeft < 50
                                 ? "bg-orange-400"
                                 : "bg-zinc-400"

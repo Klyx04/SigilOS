@@ -58,17 +58,17 @@ export function MonsterCard({
     const stateConfig: Record<string, { label: string; color: string; icon: string }> = {
         MANQUANT: {
             label: "Manquant",
-            color: "bg-red-500/10 text-red-500 border-red-500/30",
+            color: "bg-danger/10 text-danger border-danger/30",
             icon: "🔴",
         },
         POSSEDE: {
             label: "Possédé",
-            color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
+            color: "bg-success/10 text-success border-success/30",
             icon: "🟢",
         },
         DOUBLON: {
             label: "Doublon",
-            color: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+            color: "bg-warning/10 text-warning border-warning/30",
             icon: "🟡",
         },
     };
@@ -115,7 +115,7 @@ export function MonsterCard({
         <Card className={cn(
             "overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-colors",
             hasAvailableExchange
-                ? "border-emerald-500/50 hover:border-emerald-500/70 ring-1 ring-emerald-500/20"
+                ? "border-success/50 hover:border-success/70 ring-1 ring-success/20"
                 : "hover:border-primary/30"
         )}>
             <CardContent className="p-4">
@@ -132,8 +132,8 @@ export function MonsterCard({
                             />
                             {/* Exchange available indicator */}
                             {hasAvailableExchange && (
-                                <div className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-0.5">
-                                    <Sparkles className="h-3 w-3 text-white" />
+                                <div className="absolute -top-1 -right-1 bg-success rounded-full p-0.5">
+                                    <Sparkles className="h-3 w-3 text-foreground" />
                                 </div>
                             )}
                         </div>
@@ -164,7 +164,7 @@ export function MonsterCard({
                         {hasAvailableExchange && !showOwnersSection && (
                             <Badge
                                 variant="outline"
-                                className="text-caption px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                className="text-caption px-1.5 py-0 h-4 bg-success/10 text-success border-success/30"
                             >
                                 <Sparkles className="h-2.5 w-2.5 mr-1" />
                                 {availableHelpers} membre{availableHelpers > 1 ? "s" : ""}
@@ -182,7 +182,7 @@ export function MonsterCard({
                                 size="sm"
                                 className={cn(
                                     "w-full h-8 text-xs gap-2",
-                                    hasAvailableExchange && "bg-emerald-600 hover:bg-emerald-700"
+                                    hasAvailableExchange && "bg-success hover:bg-success"
                                 )}
                                 onClick={loadOwners}
                                 disabled={loadingOwners}
@@ -248,7 +248,7 @@ export function MonsterCard({
                 {/* Propose indicator for DOUBLON */}
                 {monster.state === "DOUBLON" && (
                     <div className="mt-3 pt-3 border-t border-border/30">
-                        <Badge variant="outline" className="w-full justify-center bg-amber-500/10 text-amber-500 border-amber-500/30">
+                        <Badge variant="outline" className="w-full justify-center bg-warning/10 text-warning border-warning/30">
                             Proposé à l&apos;échange sur Metamob
                         </Badge>
                     </div>
@@ -294,7 +294,7 @@ function OwnerBadge({
                         className="ml-0.5 p-0.5 rounded hover:bg-primary/30 transition-colors"
                     >
                         {isCopied ? (
-                            <Check className="h-3 w-3 text-emerald-500" />
+                            <Check className="h-3 w-3 text-success" />
                         ) : (
                             <Copy className="h-3 w-3 opacity-50 group-hover:opacity-100" />
                         )}

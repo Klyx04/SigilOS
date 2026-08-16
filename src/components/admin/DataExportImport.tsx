@@ -70,19 +70,19 @@ export default function DataExportImport() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 p-6 rounded-lg border border-indigo-500/30">
-                <h3 className="text-lg font-semibold text-white mb-2">📦 Export / Import</h3>
-                <p className="text-sm text-slate-300">
+            <div className="bg-gradient-to-r from-info/20 to-info/20 p-6 rounded-lg border border-info/30">
+                <h3 className="text-lg font-semibold text-foreground mb-2">📦 Export / Import</h3>
+                <p className="text-sm text-foreground">
                     Utilisez ces fonctions pour synchroniser les données entre environnements (local → beta → prod)
                 </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Export */}
-                <div className="bg-slate-800/30 p-6 rounded-lg border border-slate-700/30 space-y-4">
+                <div className="bg-elevated/30 p-6 rounded-lg border border-border/30 space-y-4">
                     <div>
-                        <h4 className="font-semibold text-white mb-2">📤 Export</h4>
-                        <p className="text-sm text-slate-400 mb-4">
+                        <h4 className="font-semibold text-foreground mb-2">📤 Export</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
                             Télécharger toutes les données (familles, challenges, donjons) en JSON
                         </p>
                     </div>
@@ -90,12 +90,12 @@ export default function DataExportImport() {
                     <Button
                         onClick={handleExport}
                         disabled={exporting}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700"
+                        className="w-full bg-info hover:bg-info"
                     >
                         {exporting ? "⏳ Export en cours..." : "📥 Télécharger l'export JSON"}
                     </Button>
 
-                    <div className="text-xs text-slate-500 space-y-1">
+                    <div className="text-xs text-muted-foreground space-y-1">
                         <p>✅ Inclut toutes les familles de monstres</p>
                         <p>✅ Inclut tous les challenges</p>
                         <p>✅ Inclut tous les donjons + succès associés</p>
@@ -103,14 +103,14 @@ export default function DataExportImport() {
                 </div>
 
                 {/* Export to Git (Development Only) */}
-                <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 p-6 rounded-lg border border-green-500/30 space-y-4">
+                <div className="bg-gradient-to-br from-green-900/20 to-success/20 p-6 rounded-lg border border-green-500/30 space-y-4">
                     <div>
-                        <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
+                        <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                             🌱 Export vers Git
                             <span className="text-xs bg-green-600 px-2 py-0.5 rounded-full">DEV ONLY</span>
                         </h4>
-                        <p className="text-sm text-slate-400 mb-4">
-                            Sauvegarder directement dans <code className="px-1.5 py-0.5 bg-slate-900 rounded text-green-400">prisma/seed-data/game-data.json</code>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Sauvegarder directement dans <code className="px-1.5 py-0.5 bg-surface rounded text-green-400">prisma/seed-data/game-data.json</code>
                         </p>
                     </div>
 
@@ -130,10 +130,10 @@ export default function DataExportImport() {
                 </div>
 
                 {/* Import */}
-                <div className="bg-slate-800/30 p-6 rounded-lg border border-slate-700/30 space-y-4">
+                <div className="bg-elevated/30 p-6 rounded-lg border border-border/30 space-y-4">
                     <div>
-                        <h4 className="font-semibold text-white mb-2">📥 Import</h4>
-                        <p className="text-sm text-slate-400 mb-4">
+                        <h4 className="font-semibold text-foreground mb-2">📥 Import</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
                             Importer des données depuis un fichier JSON (upsert)
                         </p>
                     </div>
@@ -150,7 +150,7 @@ export default function DataExportImport() {
                         <Button
                             onClick={() => document.getElementById("import-file")?.click()}
                             disabled={importing}
-                            className="w-full bg-purple-600 hover:bg-purple-700"
+                            className="w-full bg-info hover:bg-info"
                             type="button"
                         >
                             {importing ? "⏳ Import en cours..." : "📤 Choisir un fichier JSON"}
@@ -165,31 +165,31 @@ export default function DataExportImport() {
             </div>
 
             {/* Instructions */}
-            <div className="bg-slate-800/30 p-6 rounded-lg border border-slate-700/30">
-                <h4 className="font-semibold text-white mb-3">🔄 Workflow Local → Beta → Prod</h4>
-                <ol className="space-y-2 text-sm text-slate-300">
+            <div className="bg-elevated/30 p-6 rounded-lg border border-border/30">
+                <h4 className="font-semibold text-foreground mb-3">🔄 Workflow Local → Beta → Prod</h4>
+                <ol className="space-y-2 text-sm text-foreground">
                     <li>
-                        <span className="inline-block w-6 text-indigo-400">1.</span>
+                        <span className="inline-block w-6 text-info">1.</span>
                         Saisir les données en local via cette interface
                     </li>
                     <li>
-                        <span className="inline-block w-6 text-indigo-400">2.</span>
+                        <span className="inline-block w-6 text-info">2.</span>
                         Exporter le JSON en local
                     </li>
                     <li>
-                        <span className="inline-block w-6 text-indigo-400">3.</span>
-                        Déployer le code sur beta (<code className="px-2 py-1 bg-slate-900 rounded">./scripts/deploy.sh beta</code>)
+                        <span className="inline-block w-6 text-info">3.</span>
+                        Déployer le code sur beta (<code className="px-2 py-1 bg-surface rounded">./scripts/deploy.sh beta</code>)
                     </li>
                     <li>
-                        <span className="inline-block w-6 text-indigo-400">4.</span>
-                        Importer le JSON sur <code className="px-2 py-1 bg-slate-900 rounded">beta.sigilos.fr/god/game-data</code>
+                        <span className="inline-block w-6 text-info">4.</span>
+                        Importer le JSON sur <code className="px-2 py-1 bg-surface rounded">beta.sigilos.fr/god/game-data</code>
                     </li>
                     <li>
-                        <span className="inline-block w-6 text-indigo-400">5.</span>
+                        <span className="inline-block w-6 text-info">5.</span>
                         Tester sur beta, puis merger vers main
                     </li>
                     <li>
-                        <span className="inline-block w-6 text-indigo-400">6.</span>
+                        <span className="inline-block w-6 text-info">6.</span>
                         Déployer sur prod et importer le même JSON
                     </li>
                 </ol>

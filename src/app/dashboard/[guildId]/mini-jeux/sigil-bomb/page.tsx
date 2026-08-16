@@ -20,7 +20,7 @@ export default async function SigilBombPage({ params, searchParams }: Props) {
     if (!user.isMember) redirect(`/dashboard/${guildId}`);
 
     return (
-        <div id="sigil-bomb-page" className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0614] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-300 rounded-b-3xl border-b border-white/5 mx-2">
+        <div id="sigil-bomb-page" className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0614] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-300 rounded-b-3xl border-b border-border mx-2">
             <BombGame 
                 roomId={roomId} 
                 guildId={guildId} 

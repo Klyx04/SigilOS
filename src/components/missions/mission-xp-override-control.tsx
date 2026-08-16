@@ -94,7 +94,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
 
     if (loading) {
         return (
-            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Chargement...
             </div>
@@ -102,40 +102,40 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
     }
 
     return (
-        <div className="p-5 rounded-2xl border border-white/10 bg-zinc-900/50 space-y-5">
+        <div className="p-5 rounded-2xl border border-border bg-surface/50 space-y-5">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-amber-500/10">
-                    <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+                <div className="p-2 rounded-xl bg-warning/10">
+                    <SlidersHorizontal className="w-4 h-4 text-warning" />
                 </div>
                 <div>
-                    <h4 className="text-sm font-black text-white">Ajustement manuel XP</h4>
-                    <p className="text-caption text-zinc-500">
+                    <h4 className="text-sm font-black text-foreground">Ajustement manuel XP</h4>
+                    <p className="text-caption text-muted-foreground">
                         Déplace la barre de progression manuellement. Utile si le jeu n'envoie pas les données.
                     </p>
                 </div>
                 {currentOverride !== null && (
-                    <div className="ml-auto flex items-center gap-1.5 text-caption font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <div className="ml-auto flex items-center gap-1.5 text-caption font-bold text-warning bg-warning/10 border border-warning/20 px-2 py-1 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
                         Override actif : {currentOverride.toLocaleString()} XP
                     </div>
                 )}
             </div>
 
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-200/70 leading-relaxed">
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-info/5 border border-info/10">
+                <Info className="w-4 h-4 text-info shrink-0 mt-0.5" />
+                <p className="text-xs text-info/70 leading-relaxed">
                     Les membres ont actuellement vérifié <b>{realXp.toLocaleString()} XP</b>. 
                     Le curseur détermine le total de la jauge et bloque toute pénalité non intentionnelle.
-                    {currentOverride === null && <span className="text-zinc-500"> Aucun override actif — calcul automatique.</span>}
+                    {currentOverride === null && <span className="text-muted-foreground"> Aucun override actif — calcul automatique.</span>}
                 </p>
             </div>
 
             {/* Slider */}
             <div className="space-y-3">
-                <div className="flex items-center justify-between text-caption font-bold text-zinc-500 uppercase tracking-widest">
-                    <span className="text-emerald-400">{realXp.toLocaleString()} XP (Min)</span>
-                    <span className="text-white">{percentage}%</span>
+                <div className="flex items-center justify-between text-caption font-bold text-muted-foreground uppercase tracking-widest">
+                    <span className="text-success">{realXp.toLocaleString()} XP (Min)</span>
+                    <span className="text-foreground">{percentage}%</span>
                     <span>{maxXP.toLocaleString()} XP (Palier {targetTier})</span>
                 </div>
 
@@ -146,14 +146,14 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                     step={100}
                     value={sliderValue}
                     onChange={e => syncFromSlider([Number(e.target.value)])}
-                    className="w-full accent-purple-500 cursor-pointer"
+                    className="w-full accent-info cursor-pointer"
                     style={{ height: '4px' }}
                 />
 
                 {/* Progress preview */}
-                <div className="relative h-3 w-full rounded-full bg-zinc-800 overflow-hidden">
+                <div className="relative h-3 w-full rounded-full bg-elevated overflow-hidden">
                     <div
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-600 via-purple-500 to-fuchsia-500 transition-all duration-300 ease-out rounded-full "
+                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-info via-info to-fuchsia-500 transition-all duration-300 ease-out rounded-full "
                         style={{ width: `${percentage}%` }}
                     />
                 </div>
@@ -169,14 +169,14 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                         value={inputValue}
                         onChange={e => syncFromInput(e.target.value)}
                         placeholder="Valeur XP exacte..."
-                        className="bg-zinc-800/80 border-white/10 text-white placeholder-zinc-600 pr-14 font-mono"
+                        className="bg-elevated/80 border-border text-foreground placeholder-zinc-600 pr-14 font-mono"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-500 pointer-events-none">XP</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">XP</span>
                 </div>
                 <Button
                     onClick={handleSave}
                     disabled={saving || !inputValue}
-                    className="bg-amber-600 hover:bg-amber-500 text-white shadow-lg gap-2 shrink-0"
+                    className="bg-warning hover:bg-warning text-warning-foreground shadow-lg gap-2 shrink-0"
                 >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     Appliquer
@@ -186,7 +186,7 @@ export function MissionXpOverrideControl({ guildId, targetTier = 3 }: MissionXpO
                         variant="ghost"
                         onClick={handleReset}
                         disabled={saving}
-                        className="shrink-0 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 gap-2"
+                        className="shrink-0 text-muted-foreground hover:text-danger hover:bg-danger/10 gap-2"
                         title="Supprimer l'override et revenir au calcul automatique"
                     >
                         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}

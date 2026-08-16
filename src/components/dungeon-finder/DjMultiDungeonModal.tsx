@@ -109,15 +109,15 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="!z-[140] w-[min(95vw,42rem)] max-w-[42rem] sm:min-w-[34rem] bg-zinc-950 border border-white/10 rounded-2xl text-white max-h-[90vh] overflow-y-auto premium-scrollbar">
-                <DialogHeader className="border-b border-white/5 p-5">
+            <DialogContent className="!z-[140] w-[min(95vw,42rem)] max-w-[42rem] sm:min-w-[34rem] bg-background border border-border rounded-2xl text-foreground max-h-[90vh] overflow-y-auto premium-scrollbar">
+                <DialogHeader className="border-b border-border p-5">
                     <DialogTitle className="flex items-center gap-3 text-lg font-black">
-                        <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                            <Plus className="w-4 h-4 text-amber-500" />
+                        <div className="w-9 h-9 rounded-xl bg-warning/10 border border-warning/20 flex items-center justify-center">
+                            <Plus className="w-4 h-4 text-warning" />
                         </div>
                         <div>
                             <span className="block">Multi-donjons</span>
-                            <span className="block text-caption text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                            <span className="block text-caption text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
                                 {MIN_DUNGEONS} à {MAX_DUNGEONS} donjons — un seul message Discord, un seul ping
                             </span>
                         </div>
@@ -126,24 +126,24 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                 <div className="p-5 space-y-5">
                     {/* Recherche */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Rechercher un donjon ou un boss…"
-                            className="w-full h-11 bg-zinc-900/60 border border-white/10 rounded-xl pl-10 pr-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/40"
+                            className="w-full h-11 bg-surface/60 border border-border rounded-xl pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/40"
                         />
                     </div>
 
                     {/* Grille des donjons (multi-sélection) */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Choisis tes donjons</p>
-                            <span className="text-caption font-black text-zinc-400 tabular-nums">{selections.length}/{MAX_DUNGEONS}</span>
+                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">Choisis tes donjons</p>
+                            <span className="text-caption font-black text-muted-foreground tabular-nums">{selections.length}/{MAX_DUNGEONS}</span>
                         </div>
                         {loading ? (
-                            <div className="py-12 text-center text-zinc-500 bg-zinc-900/30 rounded-2xl border border-white/5">Consultation du bestiaire…</div>
+                            <div className="py-12 text-center text-muted-foreground bg-surface/30 rounded-2xl border border-border">Consultation du bestiaire…</div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[280px] overflow-y-auto custom-scrollbar pr-1">
                                 {filtered.map((d) => {
@@ -157,25 +157,25 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                             onClick={() => toggleDungeon(d)}
                                             className={`w-full text-left flex items-center gap-2 p-2.5 rounded-xl border transition-colors ${
                                                 isSelected
-                                                    ? "bg-amber-500/10 border-amber-500/40"
-                                                    : "bg-zinc-900/40 border-white/5 hover:border-white/20 " + (atLimit ? "opacity-40 cursor-not-allowed" : "")
+                                                    ? "bg-warning/10 border-warning/40"
+                                                    : "bg-surface/40 border-border hover:border-border-strong " + (atLimit ? "opacity-40 cursor-not-allowed" : "")
                                             }`}
                                         >
-                                            <span className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center ${isSelected ? "bg-amber-500 border-amber-400" : "border-zinc-600"}`}>
-                                                {isSelected && <CheckCircle2 className="w-3 h-3 text-zinc-950" />}
+                                            <span className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center ${isSelected ? "bg-warning border-warning" : "border-border"}`}>
+                                                {isSelected && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                                             </span>
                                             {d.imageUrl ? (
-                                                <span className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center">
+                                                <span className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border shrink-0 flex items-center justify-center">
                                                     <img src={d.imageUrl} alt="" className="w-full h-full object-contain p-0.5" />
                                                 </span>
                                             ) : (
-                                                <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                                <span className="w-9 h-9 rounded-lg bg-background border border-border shrink-0 flex items-center justify-center text-muted-foreground">
                                                     <Swords className="w-4 h-4" />
                                                 </span>
                                             )}
                                             <span className="flex-1 min-w-0">
-                                                <span className="block text-xs font-bold text-white truncate">{d.name}</span>
-                                                <span className="block text-caption text-zinc-500">Niv. {d.level} — {d.bossName}</span>
+                                                <span className="block text-xs font-bold text-foreground truncate">{d.name}</span>
+                                                <span className="block text-caption text-muted-foreground">Niv. {d.level} — {d.bossName}</span>
                                             </span>
                                         </button>
                                     );
@@ -187,26 +187,26 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                     {/* Configuration par donjon sélectionné */}
                     {selections.length > 0 && (
                         <div className="space-y-3">
-                            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Succès, date & note par donjon</p>
+                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">Succès, date & note par donjon</p>
                             {selections.map((s) => (
-                                <div key={s.dungeon.id} className="rounded-2xl border border-white/5 bg-zinc-900/30 overflow-hidden">
+                                <div key={s.dungeon.id} className="rounded-2xl border border-border bg-surface/30 overflow-hidden">
                                     <button
                                         type="button"
                                         onClick={() => setExpandedId(expandedId === s.dungeon.id ? null : s.dungeon.id)}
                                         className="w-full flex items-center gap-2 p-3 text-left"
                                     >
                                         {s.dungeon.imageUrl ? (
-                                            <span className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center">
+                                            <span className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border shrink-0 flex items-center justify-center">
                                                 <img src={s.dungeon.imageUrl} alt="" className="w-full h-full object-contain p-0.5" />
                                             </span>
                                         ) : (
-                                            <span className="w-9 h-9 rounded-lg bg-zinc-950 border border-white/10 shrink-0 flex items-center justify-center text-zinc-600">
+                                            <span className="w-9 h-9 rounded-lg bg-background border border-border shrink-0 flex items-center justify-center text-muted-foreground">
                                                 <Swords className="w-4 h-4" />
                                             </span>
                                         )}
                                         <span className="flex-1 min-w-0">
-                                            <span className="block text-xs font-bold text-white">{s.dungeon.name}</span>
-                                            <span className="block text-caption text-zinc-500">
+                                            <span className="block text-xs font-bold text-foreground">{s.dungeon.name}</span>
+                                            <span className="block text-caption text-muted-foreground">
                                                 {s.achievements.length} succès
                                                 {s.targetDate ? ` · ${new Date(s.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}
                                                 {s.message ? " · note" : ""}
@@ -215,7 +215,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); toggleDungeon(s.dungeon); }}
-                                            className="text-zinc-600 hover:text-rose-400"
+                                            className="text-muted-foreground hover:text-danger"
                                             title="Retirer"
                                         >
                                             <X className="w-4 h-4" />
@@ -223,14 +223,14 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                     </button>
 
                                     {expandedId === s.dungeon.id && (
-                                        <div className="px-3 pb-3 pt-1 space-y-3 border-t border-white/5">
+                                        <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border">
                                             {/* Succès */}
                                             <div>
-                                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1">
                                                     <Trophy className="w-3 h-3" /> Succès visés
                                                 </p>
                                                 {s.dungeon.achievements.length === 0 ? (
-                                                    <p className="text-caption text-zinc-600">Aucun succès connu pour ce donjon.</p>
+                                                    <p className="text-caption text-muted-foreground">Aucun succès connu pour ce donjon.</p>
                                                 ) : (
                                                     <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar">
                                                         {s.dungeon.achievements.map((a) => {
@@ -242,8 +242,8 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                                     onClick={() => toggleAchievement(s.dungeon.id, a.id)}
                                                                     className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption font-bold border transition-colors ${
                                                                         isOn
-                                                                            ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
-                                                                            : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20"
+                                                                            ? "bg-warning/15 border-warning/40 text-warning"
+                                                                            : "bg-surface border-border text-muted-foreground hover:border-border-strong"
                                                                     }`}
                                                                 >
                                                                     {a.challenge.iconUrl && (
@@ -260,8 +260,8 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
 
                                             {/* Date — OPTIONNELLE (heure facultative) */}
                                             <div className="space-y-1.5">
-                                                <p className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-                                                    <CalendarClock className="w-3 h-3" /> Date prévue <span className="text-zinc-600 normal-case font-medium">(optionnelle — heure facultative)</span>
+                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                                                    <CalendarClock className="w-3 h-3" /> Date prévue <span className="text-muted-foreground normal-case font-medium">(optionnelle — heure facultative)</span>
                                                 </p>
                                                 <DateTimePicker
                                                     value={s.targetDate}
@@ -277,7 +277,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                 onChange={(e) => updateSelection(s.dungeon.id, { message: e.target.value })}
                                                 placeholder="Note pour ce donjon (ex: succès précis, stuff requis…)"
                                                 maxLength={500}
-                                                className="w-full bg-zinc-900/60 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/30"
+                                                className="w-full bg-surface/60 border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/30"
                                                 rows={2}
                                             />
                                         </div>
@@ -289,18 +289,18 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                 </div>
 
                 {/* Footer */}
-                <div className="border-t border-white/5 p-4 flex items-center justify-between gap-3">
-                    <span className="text-caption text-zinc-600 font-bold">
+                <div className="border-t border-border p-4 flex items-center justify-between gap-3">
+                    <span className="text-caption text-muted-foreground font-bold">
                         {selections.length} donjon{selections.length > 1 ? "s" : ""} sélectionné{selections.length > 1 ? "s" : ""} — minimum {MIN_DUNGEONS}
                     </span>
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" onClick={onClose} className="h-10 px-4 rounded-xl text-xs font-black text-zinc-500 hover:text-white">
+                        <Button variant="ghost" onClick={onClose} className="h-10 px-4 rounded-xl text-xs font-black text-muted-foreground hover:text-foreground">
                             Annuler
                         </Button>
                         <Button
                             onClick={handleConfirm}
                             disabled={selections.length < MIN_DUNGEONS}
-                            className="h-10 px-5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-zinc-950 uppercase tracking-wider"
+                            className="h-10 px-5 rounded-xl text-xs font-black bg-warning hover:bg-warning text-warning-foreground uppercase tracking-wider"
                         >
                             Confirmer ({selections.length})
                         </Button>

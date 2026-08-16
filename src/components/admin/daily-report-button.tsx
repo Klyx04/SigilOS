@@ -30,8 +30,8 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
             className={`
                 h-12 w-full rounded-xl font-semibold text-caption transition-colors
                 ${isSuccess 
-                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" 
-                    : "bg-zinc-800/50 hover:bg-zinc-700/50 border-white/5 text-zinc-400"}
+                    ? "bg-success/20 border-success/30 text-success" 
+                    : "bg-elevated/50 hover:bg-muted/50 border-border text-muted-foreground"}
             `}
             variant="outline"
         >

@@ -212,21 +212,21 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                 <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
 
                 {/* Panel */}
-                <div className="relative z-10 w-full max-w-lg bg-zinc-950 rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                <div className="relative z-10 w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 
                     {/* Header */}
-                    <div className="px-6 pt-6 pb-4 border-b border-white/5 bg-gradient-to-r from-amber-500/10 to-transparent">
+                    <div className="px-6 pt-6 pb-4 border-b border-border bg-gradient-to-r from-warning/10 to-transparent">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/15 text-amber-400">
+                                <div className="p-2.5 rounded-xl border border-warning/40 bg-warning/15 text-warning">
                                     <Handshake className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-black text-white">Nouveau prêt</h2>
-                                    <p className="text-xs text-zinc-500">Enregistrer un prêt entre membres</p>
+                                    <h2 className="text-lg font-black text-foreground">Nouveau prêt</h2>
+                                    <p className="text-xs text-muted-foreground">Enregistrer un prêt entre membres</p>
                                 </div>
                             </div>
-                            <button onClick={() => onOpenChange(false)} className="text-zinc-500 hover:text-white transition-colors p-1">
+                            <button onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
@@ -238,12 +238,12 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                         {/* Type + Emprunteur */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Type</Label>
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Type</Label>
                                 <Select value={type} onValueChange={(v) => setType(v as LoanType)}>
-                                    <SelectTrigger className="bg-white/5 border-white/10">
+                                    <SelectTrigger className="bg-surface border-border">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-zinc-950 border-white/10">
+                                    <SelectContent className="bg-background border-border">
                                         {TYPES.map(([key, label]) => (
                                             <SelectItem key={key} value={key}>{label}</SelectItem>
                                         ))}
@@ -252,24 +252,24 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Emprunteur *</Label>
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Emprunteur *</Label>
                                 <button
                                     type="button"
                                     onClick={() => setBorrowerModalOpen(true)}
-                                    className="w-full h-9 px-3 rounded-md border border-white/10 bg-white/5 flex items-center gap-2 text-sm hover:border-amber-500/30 transition-colors text-left"
+                                    className="w-full h-9 px-3 rounded-md border border-border bg-surface flex items-center gap-2 text-sm hover:border-warning/30 transition-colors text-left"
                                 >
                                     {borrower ? (
                                         <>
                                             <Avatar className="h-5 w-5 rounded-md">
                                                 <AvatarImage src={borrower.image || undefined} />
-                                                <AvatarFallback className="text-caption bg-zinc-800">{borrower.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback className="text-caption bg-elevated">{borrower.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
-                                            <span className="font-bold text-white truncate">{borrower.name}</span>
+                                            <span className="font-bold text-foreground truncate">{borrower.name}</span>
                                         </>
                                     ) : (
                                         <>
-                                            <UserSearch className="h-3.5 w-3.5 text-zinc-500" />
-                                            <span className="text-zinc-500">Rechercher...</span>
+                                            <UserSearch className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="text-muted-foreground">Rechercher...</span>
                                         </>
                                     )}
                                 </button>
@@ -278,12 +278,12 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
 
                         {/* Description */}
                         <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Description *</Label>
+                            <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Description *</Label>
                             <Input
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Ex: 2M kamas pour stuff Cra"
-                                className="bg-white/5 border-white/10"
+                                className="bg-surface border-border"
                                 maxLength={200}
                             />
                         </div>
@@ -291,24 +291,24 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                         {/* Montant + Échéance */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Montant / Qté</Label>
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Montant / Qté</Label>
                                 <Input
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
                                     placeholder="Ex: 2 000 000 kamas"
-                                    className="bg-white/5 border-white/10"
+                                    className="bg-surface border-border"
                                     maxLength={100}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Échéance</Label>
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Échéance</Label>
                                 <div className="space-y-2">
                                     <Input
                                         type="date"
                                         value={noDueDate ? "" : dueDate}
                                         onChange={(e) => { setNoDueDate(false); setDueDate(e.target.value); }}
                                         disabled={noDueDate}
-                                        className="bg-white/5 border-white/10 text-white [&::-webkit-calendar-picker-indicator]:invert disabled:opacity-40"
+                                        className="bg-surface border-border text-foreground [&::-webkit-calendar-picker-indicator]:invert disabled:opacity-40"
                                     />
                                     {/* #71 — option « pas d'échéance » */}
                                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -316,9 +316,9 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                             type="checkbox"
                                             checked={noDueDate}
                                             onChange={(e) => { setNoDueDate(e.target.checked); if (e.target.checked) setDueDate(""); }}
-                                            className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-amber-500"
+                                            className="h-3.5 w-3.5 rounded border-border-strong bg-surface accent-warning"
                                         />
-                                        <span className="text-caption text-zinc-400 font-medium">Pas d'échéance (prêt ouvert)</span>
+                                        <span className="text-caption text-muted-foreground font-medium">Pas d'échéance (prêt ouvert)</span>
                                     </label>
                                 </div>
                             </div>
@@ -326,9 +326,9 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
 
                         {/* Item lié (STUFF / RESSOURCES) */}
                         {(type === "STUFF" || type === "RESSOURCES") && (
-                            <div className="space-y-3 rounded-xl border border-white/8 bg-white/[0.02] p-3">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                                    Item lié <span className="text-zinc-600 font-normal">(optionnel)</span>
+                            <div className="space-y-3 rounded-xl border border-white/8 bg-surface p-3">
+                                <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">
+                                    Item lié <span className="text-muted-foreground font-normal">(optionnel)</span>
                                 </Label>
                                 <DofusItemSearch
                                     category={type === "RESSOURCES" ? "resources" : "equipment"}
@@ -338,22 +338,22 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                     placeholder={type === "RESSOURCES" ? "Ex: Bois de Frêne, Fer..." : "Ex: Gelano, Turquoise de Rêve..."}
                                 />
                                 {linkedItem && (
-                                    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2">
                                         {linkedItem.iconUrl && (
                                             <div className="relative h-10 w-10 shrink-0">
                                                 <Image src={linkedItem.iconUrl} alt={linkedItem.name} fill className="object-contain" />
                                             </div>
                                         )}
                                         <div>
-                                            <p className="text-sm font-black text-white">{linkedItem.name}</p>
-                                            <p className="text-caption text-zinc-500">Item sélectionné</p>
+                                            <p className="text-sm font-black text-foreground">{linkedItem.name}</p>
+                                            <p className="text-caption text-muted-foreground">Item sélectionné</p>
                                         </div>
                                     </div>
                                 )}
                                 {type === "RESSOURCES" && (
                                     <div className="space-y-2">
-                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                                            Quantité <span className="text-zinc-600 font-normal">(1 – 100 000)</span>
+                                        <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">
+                                            Quantité <span className="text-muted-foreground font-normal">(1 – 100 000)</span>
                                         </Label>
                                         <Input
                                             type="number"
@@ -366,7 +366,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                                 else setResourceQty(String(Math.min(100000, Math.max(1, v))));
                                             }}
                                             placeholder="Ex: 500"
-                                            className="bg-white/5 border-white/10 w-36"
+                                            className="bg-surface border-border w-36"
                                         />
                                     </div>
                                 )}
@@ -375,29 +375,29 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
 
                         {/* Notes */}
                         <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Notes <span className="text-zinc-600 font-normal">(optionnel)</span></Label>
+                            <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Notes <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
                             <Textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="Détails supplémentaires..."
-                                className="bg-white/5 border-white/10 min-h-[60px] resize-none"
+                                className="bg-surface border-border min-h-[60px] resize-none"
                                 maxLength={1000}
                             />
                         </div>
 
                         {/* Proof Upload */}
                         <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Screenshot preuve</Label>
+                            <Label className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Screenshot preuve</Label>
                             {proofPreview ? (
-                                <div className="relative h-48 rounded-xl overflow-hidden border border-white/10">
+                                <div className="relative h-48 rounded-xl overflow-hidden border border-border">
                                     <Image src={proofPreview} alt="Preuve" fill className="object-cover" />
                                     {nsfwChecking && (
                                         <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
-                                            <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-                                            <span className="text-caption font-black text-white uppercase tracking-widest">Analyse sécurité…</span>
+                                            <Loader2 className="w-5 h-5 animate-spin text-warning" />
+                                            <span className="text-caption font-black text-foreground uppercase tracking-widest">Analyse sécurité…</span>
                                         </div>
                                     )}
-                                    <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-white">
+                                    <Button size="icon" variant="ghost" onClick={() => { setProofFile(null); setProofPreview(null); }} className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-foreground">
                                         <X className="h-3.5 w-3.5" />
                                     </Button>
                                 </div>
@@ -406,32 +406,32 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                     onDrop={handleDrop}
                                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                                     onDragLeave={() => setIsDragging(false)}
-                                    className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 ${isDragging ? "border-amber-500/60 bg-amber-500/5 text-amber-400" : "border-white/10 hover:border-amber-500/30 hover:text-amber-400 text-zinc-500"}`}
+                                    className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 ${isDragging ? "border-warning/60 bg-warning/5 text-warning" : "border-border hover:border-warning/30 hover:text-warning text-muted-foreground"}`}
                                 >
                                     <Upload className="h-5 w-5" />
                                     <p className="text-xs font-medium">
                                         {isDragging ? "Relâcher pour ajouter" : (
                                             <>
-                                                Glisser-déposer, coller ou <button type="button" onClick={() => fileInputRef.current?.click()} className="text-amber-400 hover:text-amber-300 underline font-black">cliquer</button>
+                                                Glisser-déposer, coller ou <button type="button" onClick={() => fileInputRef.current?.click()} className="text-warning hover:text-warning underline font-black">cliquer</button>
                                             </>
                                         )}
                                     </p>
-                                    <p className="text-caption text-zinc-600">PNG, JPEG, WebP — max 5MB</p>
+                                    <p className="text-caption text-muted-foreground">PNG, JPEG, WebP — max 5MB</p>
                                 </div>
                             )}
                             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
                         </div>
 
                         {/* Notif Discord */}
-                        <div className={`p-4 rounded-xl border transition-all duration-300 ${notifyDiscord && isDiscordConfigured ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-white/5 border-white/10'}`}>
+                        <div className={`p-4 rounded-xl border transition-all duration-300 ${notifyDiscord && isDiscordConfigured ? 'bg-info/10 border-info/30' : 'bg-surface border-border'}`}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2.5">
-                                    <Send className={`h-4 w-4 ${notifyDiscord && isDiscordConfigured ? 'text-indigo-400' : 'text-zinc-500'}`} />
+                                    <Send className={`h-4 w-4 ${notifyDiscord && isDiscordConfigured ? 'text-info' : 'text-muted-foreground'}`} />
                                     <div>
-                                        <p className={`text-xs font-bold ${notifyDiscord && isDiscordConfigured ? 'text-indigo-300' : 'text-zinc-300'}`}>Notifier sur Discord</p>
-                                        <p className="text-caption text-zinc-600">
+                                        <p className={`text-xs font-bold ${notifyDiscord && isDiscordConfigured ? 'text-info' : 'text-foreground'}`}>Notifier sur Discord</p>
+                                        <p className="text-caption text-muted-foreground">
                                             {channelName
-                                                ? <>Envoyer un embed dans <span className="text-indigo-400 font-bold">#{channelName}</span></>
+                                                ? <>Envoyer un embed dans <span className="text-info font-bold">#{channelName}</span></>
                                                 : "Envoyer un embed dans le salon prêts"}
                                         </p>
                                     </div>
@@ -440,16 +440,16 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                                     type="button"
                                     disabled={!isDiscordConfigured}
                                     onClick={() => setNotifyDiscord(v => !v)}
-                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifyDiscord && isDiscordConfigured ? "bg-indigo-500" : "bg-zinc-700"} ${!isDiscordConfigured ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifyDiscord && isDiscordConfigured ? "bg-info" : "bg-muted"} ${!isDiscordConfigured ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
-                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${notifyDiscord && isDiscordConfigured ? "translate-x-4" : "translate-x-1"}`} />
+                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow transition-transform ${notifyDiscord && isDiscordConfigured ? "translate-x-4" : "translate-x-1"}`} />
                                 </button>
                             </div>
 
                             {!isDiscordConfigured && (
-                                <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                    <p className="text-caption text-amber-200/70 font-bold uppercase tracking-wider">
+                                <div className="mt-3 p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-center gap-2">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                                    <p className="text-caption text-warning/70 font-bold uppercase tracking-wider">
                                         Le salon Discord n&apos;est pas configuré. Les notifications sont désactivées.
                                     </p>
                                 </div>
@@ -458,14 +458,14 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDisc
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/5">
-                        <button onClick={() => onOpenChange(false)} className="text-sm text-zinc-500 hover:text-white transition-colors font-medium">
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+                        <button onClick={() => onOpenChange(false)} className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
                             Annuler
                         </button>
                         <Button
                             onClick={handleSubmit}
                             disabled={loading || !borrower || !description.trim()}
-                            className="bg-amber-600 hover:bg-amber-500 text-white font-black px-6"
+                            className="bg-warning hover:bg-warning text-warning-foreground font-black px-6"
                         >
                             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "🤝 Enregistrer le prêt"}
                         </Button>

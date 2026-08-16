@@ -4,18 +4,18 @@ import { Info, AlertTriangle, Wrench } from "lucide-react";
 const typeConfig = {
     info: {
         icon: Info,
-        bg: "bg-blue-500/10",
-        border: "border-blue-500/20",
-        text: "text-blue-300",
-        iconColor: "text-blue-400",
+        bg: "bg-info/10",
+        border: "border-info/20",
+        text: "text-info",
+        iconColor: "text-info",
         glow: "",
     },
     warning: {
         icon: AlertTriangle,
-        bg: "bg-amber-500/10",
-        border: "border-amber-500/20",
-        text: "text-amber-200",
-        iconColor: "text-amber-400",
+        bg: "bg-warning/10",
+        border: "border-warning/20",
+        text: "text-warning",
+        iconColor: "text-warning",
         glow: "",
     },
     maintenance: {
@@ -48,7 +48,7 @@ export async function AnnouncementBanner() {
                 {announcement.message}
             </p>
             {announcement.expiresAt && (
-                <span className="text-caption text-zinc-500 font-mono whitespace-nowrap">
+                <span className="text-caption text-muted-foreground font-mono whitespace-nowrap">
                     ⏱ {new Date(announcement.expiresAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
             )}

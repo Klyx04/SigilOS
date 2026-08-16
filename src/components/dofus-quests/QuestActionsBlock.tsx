@@ -88,8 +88,8 @@ export function QuestActionsBlock({
     const autopilotPos = entry.coords || (Array.isArray(entry.positions) ? entry.positions[0] : null);
 
     return (
-        <div className="pt-4 border-t border-white/5 space-y-4">
-            <div className="text-caption font-black text-zinc-500 uppercase tracking-[0.2em] italic mb-1">
+        <div className="pt-4 border-t border-border space-y-4">
+            <div className="text-caption font-black text-muted-foreground uppercase tracking-[0.2em] italic mb-1">
                 Panneau Tactique & Synergies
             </div>
 
@@ -100,7 +100,7 @@ export function QuestActionsBlock({
                     href={entry.dofusdbUrl || `https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#0d0e15]/60 p-4 hover:border-indigo-500/40 hover:bg-[#10121d]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
+                    className="relative group overflow-hidden rounded-2xl border border-info/20 bg-[#0d0e15]/60 p-4 hover:border-info/40 hover:bg-[#10121d]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
@@ -111,15 +111,15 @@ export function QuestActionsBlock({
                             className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(99,102,241,0.5)] group- transition-transform" 
                             onError={(e) => { e.currentTarget.style.display = "none"; }} 
                         />
-                        <span className="text-caption font-black uppercase tracking-wider text-indigo-400/90 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                        <span className="text-caption font-black uppercase tracking-wider text-info/90 bg-info/10 px-1.5 py-0.5 rounded border border-info/20">
                             Base
                         </span>
                     </div>
                     <div>
-                        <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-indigo-400 transition-colors">
+                        <h4 className="text-xs font-black text-foreground italic tracking-tight mt-3 group-hover:text-info transition-colors">
                             DofusDB
                         </h4>
-                        <p className="text-caption text-zinc-500 mt-1 line-clamp-2 leading-tight">
+                        <p className="text-caption text-muted-foreground mt-1 line-clamp-2 leading-tight">
                             Fiche officielle, IDs & structure.
                         </p>
                     </div>
@@ -141,7 +141,7 @@ export function QuestActionsBlock({
                     })()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d0e15]/60 p-4 hover:border-amber-500/40 hover:bg-[#15120e]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
+                    className="relative group overflow-hidden rounded-2xl border border-warning/20 bg-[#0d0e15]/60 p-4 hover:border-warning/40 hover:bg-[#15120e]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
@@ -152,15 +152,15 @@ export function QuestActionsBlock({
                             className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(245,158,11,0.5)] group- transition-transform" 
                             onError={(e) => { e.currentTarget.style.display = "none"; }} 
                         />
-                        <span className="text-caption font-black uppercase tracking-wider text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        <span className="text-caption font-black uppercase tracking-wider text-warning/90 bg-warning/10 px-1.5 py-0.5 rounded border border-warning/20">
                             Tuto
                         </span>
                     </div>
                     <div>
-                        <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-amber-400 transition-colors">
+                        <h4 className="text-xs font-black text-foreground italic tracking-tight mt-3 group-hover:text-warning transition-colors">
                             Noobs
                         </h4>
-                        <p className="text-caption text-zinc-500 mt-1 line-clamp-2 leading-tight">
+                        <p className="text-caption text-muted-foreground mt-1 line-clamp-2 leading-tight">
                             Tutoriel détaillé & images d'étapes.
                         </p>
                     </div>
@@ -170,27 +170,27 @@ export function QuestActionsBlock({
                 <button
                     onClick={copyTravelCoords}
                     disabled={!autopilotPos}
-                    className="relative group overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0d0e15]/60 p-4 hover:border-emerald-500/40 hover:bg-[#0e1512]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
+                    className="relative group overflow-hidden rounded-2xl border border-success/20 bg-[#0d0e15]/60 p-4 hover:border-success/40 hover:bg-[#0e1512]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left disabled:opacity-30 disabled:pointer-events-none"
                 >
                     <div className="flex justify-between items-start">
-                        <Navigation className="w-5 h-5 text-emerald-400/80 group-hover:rotate-12 transition-transform shrink-0" />
-                        <span className="text-caption font-black uppercase tracking-wider text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        <Navigation className="w-5 h-5 text-success/80 group-hover:rotate-12 transition-transform shrink-0" />
+                        <span className="text-caption font-black uppercase tracking-wider text-success/90 bg-success/10 px-1.5 py-0.5 rounded border border-success/20">
                             GPS
                         </span>
                     </div>
                     <div>
-                        <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-emerald-400 transition-colors">
+                        <h4 className="text-xs font-black text-foreground italic tracking-tight mt-3 group-hover:text-success transition-colors">
                             Autopilote
                         </h4>
                         {autopilotPos ? (
                             <div className="flex items-center gap-1 mt-1">
-                                <span className="text-caption font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                <span className="text-caption font-mono text-success bg-success/60 border border-success/20 px-1.5 py-0.5 rounded">
                                     [{autopilotPos.x}, {autopilotPos.y}]
                                 </span>
-                                <Copy className="w-2.5 h-2.5 text-emerald-500/50" />
+                                <Copy className="w-2.5 h-2.5 text-success/50" />
                             </div>
                         ) : (
-                            <p className="text-caption text-zinc-600 mt-1">
+                            <p className="text-caption text-muted-foreground mt-1">
                                 Aucune coordonnée
                             </p>
                         )}
@@ -200,25 +200,25 @@ export function QuestActionsBlock({
                 {/* 4. Guild Radar Card (La Tour de Contrôle avec vrai modal au clic) */}
                 <button
                     onClick={openGuildModal}
-                    className="relative group overflow-hidden rounded-2xl border border-rose-500/20 bg-[#0d0e15]/60 p-4 hover:border-rose-500/40 hover:bg-[#150d10]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"
+                    className="relative group overflow-hidden rounded-2xl border border-danger/20 bg-[#0d0e15]/60 p-4 hover:border-danger/40 hover:bg-[#150d10]/80  transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"
                 >
                     <div className="flex justify-between items-start">
-                        <Users className="w-5 h-5 text-rose-400/80 group- transition-transform shrink-0" />
-                        <span className="text-caption font-black uppercase tracking-wider text-rose-400/90 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                        <Users className="w-5 h-5 text-danger/80 group- transition-transform shrink-0" />
+                        <span className="text-caption font-black uppercase tracking-wider text-danger/90 bg-danger/10 px-1.5 py-0.5 rounded border border-danger/20">
                             Guilde
                         </span>
                     </div>
                     <div>
-                        <h4 className="text-xs font-black text-white italic tracking-tight mt-1 group-hover:text-rose-400 transition-colors">
+                        <h4 className="text-xs font-black text-foreground italic tracking-tight mt-1 group-hover:text-danger transition-colors">
                             Synergies
                         </h4>
 
                         {/* Avatars Stack or Count */}
                         <div className="mt-1 flex items-center gap-1">
                             {loadingMembers ? (
-                                <div className="w-3.5 h-3.5 rounded-full border border-white/10 border-t-rose-400 animate-spin" />
+                                <div className="w-3.5 h-3.5 rounded-full border border-border border-t-rose-400 animate-spin" />
                             ) : members.length === 0 ? (
-                                <span className="text-caption text-zinc-600 font-bold uppercase tracking-wider">
+                                <span className="text-caption text-muted-foreground font-bold uppercase tracking-wider">
                                     0 Membre
                                 </span>
                             ) : (
@@ -226,19 +226,19 @@ export function QuestActionsBlock({
                                     {members.slice(0, 3).map((m) => (
                                         <div
                                             key={m.profileId}
-                                            className="w-5 h-5 rounded-full overflow-hidden border border-zinc-950 bg-zinc-800 flex-shrink-0"
+                                            className="w-5 h-5 rounded-full overflow-hidden border border-zinc-950 bg-elevated flex-shrink-0"
                                         >
                                             {m.image ? (
                                                 <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="text-caption flex items-center justify-center h-full font-black text-white/50 bg-zinc-700">
+                                                <span className="text-caption flex items-center justify-center h-full font-black text-foreground/50 bg-muted">
                                                     {m.pseudo[0]}
                                                 </span>
                                             )}
                                         </div>
                                     ))}
                                     {members.length > 3 && (
-                                        <div className="w-5 h-5 rounded-full bg-zinc-900 border border-rose-500/20 flex items-center justify-center text-caption font-black text-rose-400">
+                                        <div className="w-5 h-5 rounded-full bg-surface border border-danger/20 flex items-center justify-center text-caption font-black text-danger">
                                             +{members.length - 3}
                                         </div>
                                     )}
@@ -259,19 +259,19 @@ export function QuestActionsBlock({
                 }}
                 className={`w-full h-12 rounded-2xl font-black italic uppercase text-body-sm transition-all tracking-widest ${
                     done
-                        ? "bg-zinc-900 border border-white/10 text-zinc-400 hover:bg-zinc-950"
+                        ? "bg-surface border border-border text-muted-foreground hover:bg-background"
                         : lock
-                        ? "bg-zinc-950 text-white/10 border border-white/5 cursor-not-allowed"
-                        : "bg-white text-black hover:bg-zinc-200 hover:scale-[1.01] active:scale-[0.99] "
+                        ? "bg-background text-foreground/10 border border-border cursor-not-allowed"
+                        : "bg-background text-foreground hover:bg-surface hover:scale-[1.01] active:scale-[0.99] "
                 }`}
             >
                 {done ? (
                     <span className="flex items-center justify-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-400" /> Réinitialiser la progression
+                        <Check className="w-4 h-4 text-success" /> Réinitialiser la progression
                     </span>
                 ) : lock ? (
                     <span className="flex items-center justify-center gap-2">
-                        <Lock className="w-4 h-4 text-zinc-700" /> Quête Verrouillée
+                        <Lock className="w-4 h-4 text-muted-foreground" /> Quête Verrouillée
                     </span>
                 ) : (
                     "Valider l'étape de quête"
@@ -280,17 +280,17 @@ export function QuestActionsBlock({
 
             {/* Beautiful Interactive Guild Progress Dialog Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-md bg-[#090a0f] border border-white/10 rounded-[2rem] p-6 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-                    <DialogHeader className="border-b border-white/5 pb-4 mb-4">
+                <DialogContent className="max-w-md bg-[#090a0f] border border-border rounded-[2rem] p-6 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                    <DialogHeader className="border-b border-border pb-4 mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center text-danger shrink-0">
                                 <Users className="w-5 h-5" />
                             </div>
                             <div className="text-left">
-                                <div className="text-caption font-black text-rose-400 uppercase tracking-widest leading-none mb-1">
+                                <div className="text-caption font-black text-danger uppercase tracking-widest leading-none mb-1">
                                     Synergies de Guilde
                                 </div>
-                                <DialogTitle className="text-lg font-black text-white italic uppercase tracking-tight truncate max-w-[280px]">
+                                <DialogTitle className="text-lg font-black text-foreground italic uppercase tracking-tight truncate max-w-[280px]">
                                     {entry.name}
                                 </DialogTitle>
                             </div>
@@ -301,16 +301,16 @@ export function QuestActionsBlock({
                         <div className="space-y-2">
                             {loadingMembers ? (
                                 <div className="py-12 flex flex-col items-center justify-center gap-3">
-                                    <div className="w-6 h-6 rounded-full border-2 border-rose-500/20 border-t-rose-400 animate-spin" />
-                                    <span className="text-caption text-zinc-500 font-bold uppercase">Chargement de la tour de contrôle...</span>
+                                    <div className="w-6 h-6 rounded-full border-2 border-danger/20 border-t-rose-400 animate-spin" />
+                                    <span className="text-caption text-muted-foreground font-bold uppercase">Chargement de la tour de contrôle...</span>
                                 </div>
                             ) : members.length === 0 ? (
-                                <div className="py-12 flex flex-col items-center justify-center text-center gap-2 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl">
-                                    <ShieldAlert className="w-8 h-8 text-zinc-700" />
-                                    <p className="text-xs text-zinc-500 font-black uppercase tracking-wider">
+                                <div className="py-12 flex flex-col items-center justify-center text-center gap-2 bg-surface border border-dashed border-border rounded-2xl">
+                                    <ShieldAlert className="w-8 h-8 text-muted-foreground" />
+                                    <p className="text-xs text-muted-foreground font-black uppercase tracking-wider">
                                         Aucun membre n'a débuté
                                     </p>
-                                    <p className="text-caption text-zinc-600 max-w-[220px]">
+                                    <p className="text-caption text-muted-foreground max-w-[220px]">
                                         Soyez le premier de votre guilde à vous lancer et à guider les autres !
                                     </p>
                                 </div>
@@ -322,21 +322,21 @@ export function QuestActionsBlock({
                                             <Link
                                                 key={m.profileId}
                                                 href={`/dashboard/${guildId}/members/${encodeURIComponent(m.pseudo)}`}
-                                                className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all group/member"
+                                                className="flex items-center gap-3 p-3 rounded-2xl bg-surface border border-border hover:bg-surface hover:border-border transition-all group/member"
                                                 onClick={() => setIsModalOpen(false)}
                                             >
-                                                <div className="w-9 h-9 rounded-xl overflow-hidden bg-zinc-800 border border-white/10 shrink-0 relative shadow-inner">
+                                                <div className="w-9 h-9 rounded-xl overflow-hidden bg-elevated border border-border shrink-0 relative shadow-inner">
                                                     {m.image ? (
                                                         <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <span className="text-caption flex items-center justify-center h-full font-black text-white/50 bg-zinc-700 uppercase">
+                                                        <span className="text-caption flex items-center justify-center h-full font-black text-foreground/50 bg-muted uppercase">
                                                             {m.pseudo[0]}
                                                         </span>
                                                     )}
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-black text-white group-hover/member:text-rose-400 transition-colors truncate leading-none mb-1.5">
+                                                    <p className="text-sm font-black text-foreground group-hover/member:text-danger transition-colors truncate leading-none mb-1.5">
                                                         {m.pseudo}
                                                     </p>
                                                     <div className="flex items-center gap-1.5">
@@ -360,7 +360,7 @@ export function QuestActionsBlock({
                         </div>
                     </ScrollArea>
 
-                    <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-caption font-black text-zinc-600 uppercase tracking-widest">
+                    <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-caption font-black text-muted-foreground uppercase tracking-widest">
                         <span>SigilOS Intelligence</span>
                         <span>{members.length} joueur{members.length > 1 ? "s" : ""}</span>
                     </div>

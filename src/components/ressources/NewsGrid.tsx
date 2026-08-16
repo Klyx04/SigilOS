@@ -96,8 +96,8 @@ function NewsActions({
                 className={cn(
                     "rounded-lg transition-all disabled:opacity-50",
                     variant === "default" 
-                        ? "p-2 bg-[#5865F2]/10 border border-[#5865F2]/20 text-[#5865F2] hover:bg-[#5865F2] hover:text-white"
-                        : "p-1.5 bg-white/5 border border-white/10 text-zinc-400 hover:text-[#5865F2] hover:border-[#5865F2]/30"
+                        ? "p-2 bg-[#5865F2]/10 border border-[#5865F2]/20 text-[#5865F2] hover:bg-[#5865F2] hover:text-foreground"
+                        : "p-1.5 bg-surface border border-border text-muted-foreground hover:text-[#5865F2] hover:border-[#5865F2]/30"
                 )}
                 title="Partager sur Discord"
             >
@@ -111,8 +111,8 @@ function NewsActions({
                     className={cn(
                         "rounded-lg transition-all disabled:opacity-50",
                         variant === "default" 
-                            ? "p-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black"
-                            : "p-1.5 bg-white/5 border border-white/10 text-zinc-400 hover:text-amber-500 hover:border-amber-500/30"
+                            ? "p-2 bg-warning/10 border border-warning/20 text-warning hover:bg-warning hover:text-foreground"
+                            : "p-1.5 bg-surface border border-border text-muted-foreground hover:text-warning hover:border-warning/30"
                     )}
                     title="Diffuser à toutes les guildes (GOD MODE)"
                 >
@@ -192,10 +192,10 @@ function FeaturedCard({
                         </svg>
                         {/* Center icon / Logo */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
-                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden bg-black/40 border border-white/10 group- transition-transform duration-300 shadow-2xl">
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden bg-black/40 border border-border group- transition-transform duration-300 shadow-2xl">
                                 <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-12 h-12 object-contain" />
                             </div>
-                            <span className="text-caption font-black uppercase tracking-widest text-white/40">{feedLabel}</span>
+                            <span className="text-caption font-black uppercase tracking-widest text-foreground/40">{feedLabel}</span>
                         </div>
                     </div>
                 )}
@@ -226,14 +226,14 @@ function FeaturedCard({
                         </span>
                     )}
                     {item.pubDate && (
-                        <span className="text-caption text-zinc-600">{formatPubDate(item.pubDate)}</span>
+                        <span className="text-caption text-muted-foreground">{formatPubDate(item.pubDate)}</span>
                     )}
                 </div>
-                <h3 className="text-lg font-bold text-white leading-tight line-clamp-3 group-hover:opacity-80 transition-opacity">
+                <h3 className="text-lg font-bold text-foreground leading-tight line-clamp-3 group-hover:opacity-80 transition-opacity">
                     {item.title}
                 </h3>
                 {item.description && (
-                    <p className="text-zinc-400 text-sm leading-relaxed line-clamp-2">{item.description}</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">{item.description}</p>
                 )}
                 <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider group-hover:gap-3 transition-all"
                     style={{ color: feedColor }}>
@@ -273,7 +273,7 @@ function SideCard({
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-start gap-4 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/5"
+            className="group flex items-start gap-4 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-surface"
             style={{ border: "1px solid rgba(255,255,255,0.03)" }}
         >
             <div className="relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
@@ -294,11 +294,11 @@ function SideCard({
 
             <div className="flex-1 min-w-0 space-y-1">
                 {item.pubDate && (
-                    <time className="text-caption font-bold uppercase tracking-widest text-zinc-600 block">
+                    <time className="text-caption font-bold uppercase tracking-widest text-muted-foreground block">
                         {formatPubDate(item.pubDate)}
                     </time>
                 )}
-                <h4 className="text-sm font-semibold text-white group-hover:opacity-75 transition-opacity leading-tight line-clamp-2">
+                <h4 className="text-sm font-semibold text-foreground group-hover:opacity-75 transition-opacity leading-tight line-clamp-2">
                     {item.title}
                 </h4>
             </div>
@@ -346,10 +346,10 @@ function ListCard({
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative flex items-center gap-6 p-3 rounded-2xl bg-zinc-950/20 border border-white/5 hover:bg-white/[0.04] transition-all duration-300"
+            className="group relative flex items-center gap-6 p-3 rounded-2xl bg-background/20 border border-border hover:bg-surface transition-all duration-300"
         >
             {/* Dot / Timeline */}
-            <div className="relative z-10 w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.03] border border-white/10 group-hover:border-amber-500/30 transition-colors flex items-center justify-center">
+            <div className="relative z-10 w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-surface border border-border group-hover:border-warning/30 transition-colors flex items-center justify-center">
                 {item.imageUrl && !imgError ? (
                     <img 
                         src={item.imageUrl} 
@@ -359,25 +359,25 @@ function ListCard({
                         onError={() => setImgError(true)}
                     />
                 ) : (
-                    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-500/10 to-transparent">
+                    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-warning/10 to-transparent">
                         {currentFeed.key === "changelog" ? (
                             <img src="/module-dofus/Dofus_Emeraude.png" alt="" className="w-10 h-10 object-contain opacity-80" />
                         ) : (
                             <Scroll className="w-6 h-6" style={{ color: currentFeed.color, opacity: 0.5 }} />
                         )}
-                        <Zap className="absolute top-2 right-2 w-3 h-3 text-amber-500 animate-pulse" />
+                        <Zap className="absolute top-2 right-2 w-3 h-3 text-warning animate-pulse" />
                     </div>
                 )}
             </div>
             
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
-                    <span className="text-caption font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">
                         {formatPubDate(item.pubDate)}
                     </span>
-                    <div className="h-px w-8 bg-white/10" />
+                    <div className="h-px w-8 bg-surface" />
                 </div>
-                <h4 className="text-base font-bold text-white group-hover:text-amber-500 transition-colors line-clamp-1">
+                <h4 className="text-base font-bold text-foreground group-hover:text-warning transition-colors line-clamp-1">
                     {item.title}
                 </h4>
             </div>
@@ -393,7 +393,7 @@ function ListCard({
                 />
             )}
 
-            <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-caption font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+            <div className="px-4 py-1.5 rounded-lg bg-surface border border-border text-caption font-bold uppercase tracking-widest text-muted-foreground group-hover:text-warning group-hover:border-warning/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
                 Détails
             </div>
             <ExternalLink className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 mr-2" />
@@ -406,7 +406,7 @@ function ListCard({
 function Skeleton() {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-            <div className="lg:col-span-3 rounded-2xl bg-white/5 animate-pulse" style={{ minHeight: 380 }} />
+            <div className="lg:col-span-3 rounded-2xl bg-surface animate-pulse" style={{ minHeight: 380 }} />
             <div className="lg:col-span-2 flex flex-col gap-2">
                 {[...Array(5)].map((_, i) => (
                     <div key={i} className="h-20 rounded-xl bg-white/3 animate-pulse" />
@@ -559,13 +559,13 @@ export function NewsGrid({
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${currentFeed.color}15`, border: `1px solid ${currentFeed.color}30` }}>
                             <currentFeed.icon className="h-4 w-4" style={{ color: currentFeed.color }} />
                         </div>
-                        <h3 className="text-sm font-black uppercase tracking-widest text-white">{title}</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground">{title}</h3>
                     </div>
                 ) : !hideSelector ? (
                     <div className="relative">
                         <button
                             onClick={() => setDropdownOpen(o => !o)}
-                            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-white/5"
+                            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-surface"
                             style={{
                                 background: `${currentFeed.color}10`,
                                 border: `1px solid ${currentFeed.color}25`,
@@ -587,8 +587,8 @@ export function NewsGrid({
                                         key={feed.key}
                                         onClick={() => { setActiveFeed(feed.key); setDropdownOpen(false); }}
                                         className={cn(
-                                            "w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all hover:bg-white/5",
-                                            activeFeed === feed.key ? "font-bold" : "font-medium text-zinc-400"
+                                            "w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all hover:bg-surface",
+                                            activeFeed === feed.key ? "font-bold" : "font-medium text-muted-foreground"
                                         )}
                                         style={activeFeed === feed.key ? { color: feed.color } : {}}
                                     >
@@ -610,7 +610,7 @@ export function NewsGrid({
                 <button
                     onClick={() => fetchNews(activeFeed)}
                     disabled={loading}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-zinc-500 hover:text-white transition-all hover:bg-white/5 disabled:opacity-40"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground transition-all hover:bg-surface disabled:opacity-40"
                     style={{ border: "1px solid rgba(255,255,255,0.06)" }}
                 >
                     <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
@@ -631,10 +631,10 @@ export function NewsGrid({
                         <currentFeed.icon className="h-7 w-7" style={{ color: currentFeed.color }} />
                     </div>
                     <div>
-                        <p className="text-white font-semibold">
+                        <p className="text-foreground font-semibold">
                             {error ?? "Aucun article trouvé"}
                         </p>
-                        <p className="text-zinc-500 text-sm mt-1">
+                        <p className="text-muted-foreground text-sm mt-1">
                             Essaie un autre flux ou rafraîchis
                         </p>
                     </div>
@@ -704,22 +704,22 @@ export function NewsGrid({
 
             {/* PREVIEW MODAL */}
             <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
-                <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 rounded-[2rem] p-0 overflow-hidden ">
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
+                <DialogContent className="max-w-2xl bg-background border-border rounded-[2rem] p-0 overflow-hidden ">
+                    <div className="absolute inset-0 bg-gradient-to-br from-info/10 via-transparent to-transparent pointer-events-none" />
                     
                     <DialogHeader className="p-8 pb-4">
                         <div className="flex items-center gap-4 mb-2">
                             <div className={cn(
                                 "p-3 rounded-2xl border flex items-center justify-center",
-                                previewItem?.type === "BROADCAST" ? "bg-amber-500/10 border-amber-500/20" : "bg-indigo-500/10 border-indigo-500/20"
+                                previewItem?.type === "BROADCAST" ? "bg-warning/10 border-warning/20" : "bg-info/10 border-info/20"
                             )}>
-                                {previewItem?.type === "BROADCAST" ? <Megaphone className="w-5 h-5 text-amber-500" /> : <Bell className="w-5 h-5 text-indigo-400" />}
+                                {previewItem?.type === "BROADCAST" ? <Megaphone className="w-5 h-5 text-warning" /> : <Bell className="w-5 h-5 text-info" />}
                             </div>
                             <div>
-                                <DialogTitle className="text-xl font-black uppercase tracking-tight text-white italic">
+                                <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground italic">
                                     {previewItem?.type === "BROADCAST" ? "Diffusion Mondiale" : "Notification de Guilde"}
                                 </DialogTitle>
-                                <DialogDescription className="text-zinc-500 font-medium">
+                                <DialogDescription className="text-muted-foreground font-medium">
                                     {previewItem?.type === "BROADCAST" 
                                         ? "Vous êtes sur le point de diffuser cette annonce à toutes les guildes actives." 
                                         : "Vérifiez le rendu visuel avant l'envoi dans votre salon de notifications."}
@@ -732,21 +732,21 @@ export function NewsGrid({
                         <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                             <div className={cn(
                                 "flex items-center gap-4 p-5 rounded-3xl border shadow-inner transition-all",
-                                previewItem?.type === "BROADCAST" ? "bg-amber-500/5 border-amber-500/20" : "bg-indigo-500/5 border-indigo-500/20"
+                                previewItem?.type === "BROADCAST" ? "bg-warning/5 border-warning/20" : "bg-info/5 border-info/20"
                             )}>
                                 <div className={cn(
                                     "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-sm",
-                                    previewItem?.type === "BROADCAST" ? "bg-amber-500/10 border-amber-500/20" : "bg-indigo-500/10 border-indigo-500/20"
+                                    previewItem?.type === "BROADCAST" ? "bg-warning/10 border-warning/20" : "bg-info/10 border-info/20"
                                 )}>
-                                    <Hash className={cn("w-6 h-6", previewItem?.type === "BROADCAST" ? "text-amber-500" : "text-indigo-400")} />
+                                    <Hash className={cn("w-6 h-6", previewItem?.type === "BROADCAST" ? "text-warning" : "text-info")} />
                                 </div>
                                 <div className="flex flex-col gap-0.5">
-                                    <span className="text-caption font-black uppercase tracking-widest text-zinc-500">Destination de publication</span>
-                                    <span className="text-sm font-bold text-white flex items-center gap-2">
+                                    <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">Destination de publication</span>
+                                    <span className="text-sm font-bold text-foreground flex items-center gap-2">
                                         Posté dans 
                                         <span className={cn(
                                             "italic font-black",
-                                            previewItem?.type === "BROADCAST" ? "text-amber-500" : "text-indigo-400"
+                                            previewItem?.type === "BROADCAST" ? "text-warning" : "text-info"
                                         )}>
                                             #{previewItem?.type === "BROADCAST" ? "annonces-globales" : targetChannelName}
                                         </span>
@@ -754,8 +754,8 @@ export function NewsGrid({
                                 </div>
                             </div>
                             
-                            <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                                <p className="text-caption text-zinc-500 font-medium leading-relaxed italic">
+                            <div className="p-4 bg-surface border border-border rounded-2xl">
+                                <p className="text-caption text-muted-foreground font-medium leading-relaxed italic">
                                     {previewItem?.type === "BROADCAST" 
                                         ? "⚠️ Cette action est irréversible. Le message sera envoyé simultanément à toutes les guildes ayant configuré SigilOS."
                                         : "Le post inclura le titre, la description et l'image de l'article avec un lien direct vers la source officielle."}
@@ -764,10 +764,10 @@ export function NewsGrid({
                         </div>
                     </div>
 
-                    <DialogFooter className="p-8 pt-4 bg-white/[0.02] border-t border-white/5 flex items-center gap-4">
+                    <DialogFooter className="p-8 pt-4 bg-surface border-t border-border flex items-center gap-4">
                         <button
                             onClick={() => setPreviewItem(null)}
-                            className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                            className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                         >
                             Annuler
                         </button>
@@ -776,8 +776,8 @@ export function NewsGrid({
                             className={cn(
                                 "flex-[2] h-12 rounded-xl text-caption font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3",
                                 previewItem?.type === "BROADCAST" 
-                                    ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20" 
-                                    : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
+                                    ? "bg-warning hover:bg-warning text-warning-foreground shadow-amber-500/20" 
+                                    : "bg-info hover:bg-info text-info-foreground shadow-indigo-600/20"
                             )}
                         >
                             {previewItem?.type === "BROADCAST" ? <Megaphone className="w-4 h-4" /> : <Send className="w-4 h-4" />}

@@ -770,12 +770,12 @@ export function AppSidebar({
             </div>
 
             {/* 3. FOOTER: COMMAND CENTER HUD */}
-            <div className="p-4 bg-zinc-950/40 border-t border-white/5 space-y-4 backdrop-blur-3xl relative overflow-hidden">
+            <div className="p-4 bg-background/40 border-t border-border space-y-4 backdrop-blur-3xl relative overflow-hidden">
                 {/* Background Ambient Hud Glow */}
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5  -z-10" />
                 
                 {!mounted ? (
-                    <div className="w-full h-24 bg-white/5 animate-pulse rounded-2xl" />
+                    <div className="w-full h-24 bg-surface animate-pulse rounded-2xl" />
                 ) : (
                     <div className="space-y-4">
                         {/* Search Module */}
@@ -783,20 +783,20 @@ export function AppSidebar({
                             <SidebarSearch guildId={guildId} />
                             {/* Decorative Corner Accents */}
                             <div className="absolute top-0 left-0 w-1 h-1 " />
-                            <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-white/20 rounded-tr-[2px]" />
+                            <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-border-strong rounded-tr-[2px]" />
                         </div>
 
                         {/* Quick Access Grid */}
                         <div className="flex items-center gap-1">
-                            <Link href="/docs" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Documentation">
+                            <Link href="/docs" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Documentation">
                                 <BookOpen className="w-4 h-4" />
                                 <span className="text-caption font-medium">Docs</span>
                             </Link>
-                            <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Changelog">
+                            <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
                                 <History className="w-4 h-4" />
                                 <span className="text-caption font-medium">Maj</span>
                             </Link>
-                            <Link href={`/dashboard/${guildId}/tracker`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors duration-150" title="Tracker de bugs">
+                            <Link href={`/dashboard/${guildId}/tracker`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Tracker de bugs">
                                 <Bug className="w-4 h-4" />
                                 <span className="text-caption font-medium">Bugs</span>
                             </Link>
@@ -819,16 +819,16 @@ function SectionTitle({ label, collapsible: _collapsible, isOpen: _isOpen, onTog
     return (
         <div className="flex items-center gap-3 px-4 py-1 mb-1 mt-2.5 group/title select-none relative">
             {/* Background Pill - UI 2026 */}
-            <div className="absolute inset-x-2 inset-y-0 bg-white/[0.02] dark:bg-white/[0.03] rounded-2xl -z-10 group-hover/title:bg-white/[0.05] transition-colors duration-150" />
+            <div className="absolute inset-x-2 inset-y-0 bg-surface bg-surface rounded-2xl -z-10 group-hover/title:bg-surface transition-colors duration-150" />
             
             <div className={cn(
                 "h-5 w-[2.5px] rounded-full transition-colors duration-150  flex shrink-0",
-                isSupervision ? "bg-emerald-500 " : 
-                isInfo ? "bg-emerald-500 " :
-                isOutils ? "bg-emerald-500 " :
-                isAutres ? "bg-emerald-500 " :
-                isPinned ? "bg-emerald-500 " :
-                "bg-emerald-500 "
+                isSupervision ? "bg-success " : 
+                isInfo ? "bg-success " :
+                isOutils ? "bg-success " :
+                isAutres ? "bg-success " :
+                isPinned ? "bg-success " :
+                "bg-success "
             )} />
             
             <h4 className="text-caption font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors duration-150 whitespace-nowrap group-hover/title:text-foreground">
@@ -837,11 +837,11 @@ function SectionTitle({ label, collapsible: _collapsible, isOpen: _isOpen, onTog
             
             <div className={cn(
                 "flex-1 h-[1px] transition-all duration-150 opacity-20 group-hover:opacity-40",
-                isSupervision ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" : 
-                isInfo ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
-                isOutils ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
-                isAutres ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
-                "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent"
+                isSupervision ? "bg-gradient-to-r from-success via-success/50 to-transparent" : 
+                isInfo ? "bg-gradient-to-r from-success via-success/50 to-transparent" :
+                isOutils ? "bg-gradient-to-r from-success via-success/50 to-transparent" :
+                isAutres ? "bg-gradient-to-r from-success via-success/50 to-transparent" :
+                "bg-gradient-to-r from-success via-success/50 to-transparent"
             )} />        </div>
     );
 }
@@ -866,12 +866,12 @@ function NavItem({
     unreadCount?: number;
 }) {
     const colorMap: Record<string, { text: string, bg: string, border: string, glow: string, muted: string, accent: string }> = {
-        emerald: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
-        amber: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
-        indigo: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
-        rose: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
-        cyan: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
-        zinc: { text: "text-foreground", bg: "bg-white/5", border: "border-white/10", glow: "", muted: "text-muted-foreground", accent: "bg-zinc-400" },
+        emerald: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        amber: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        indigo: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        rose: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        cyan: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        zinc: { text: "text-foreground", bg: "bg-surface", border: "border-border", glow: "", muted: "text-muted-foreground", accent: "bg-zinc-400" },
     };
 
     const scheme = colorMap[item.color || "emerald"];
@@ -901,10 +901,10 @@ function NavItem({
                 "px-3 py-1",
                 isActive 
                     ? cn(
-                        "z-10 bg-white/[0.03] border-white/10",
+                        "z-10 bg-surface border-border",
                         scheme.glow
                     )
-                    : "text-muted-foreground/70 border-transparent hover:text-foreground hover:bg-white/[0.04] hover:border-white/5  "
+                    : "text-muted-foreground/70 border-transparent hover:text-foreground hover:bg-surface hover:border-border  "
             )}
         >
             {/* Glassmorphism Shine Effect */}
@@ -927,7 +927,7 @@ function NavItem({
             {/* Icon Container */}
             <div className={cn(
                 "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
-                "p-1.5 bg-white/[0.06] border border-white/10 group-hover:border-white/20",
+                "p-1.5 bg-surface border border-border group-hover:border-border-strong",
                 isActive 
                     ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
                     : (!item.imgSrc ? cn(scheme.text, "opacity-70 group-hover:opacity-100") : "text-muted-foreground group-hover:text-foreground")
@@ -976,8 +976,8 @@ function NavItem({
 
             {/* Notification Badge */}
             {unreadCount !== undefined && unreadCount > 0 && (
-                <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-red-500 rounded-full  z-20 animate-in zoom-in">
-                    <span className="text-caption font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-danger rounded-full  z-20 animate-in zoom-in">
+                    <span className="text-caption font-semibold text-foreground">{unreadCount > 9 ? "9+" : unreadCount}</span>
                 </div>
             )}
 
@@ -994,8 +994,8 @@ function NavItem({
                         className={cn(
                             "p-2 rounded-xl transition-colors duration-150 group/pin flex items-center justify-center relative z-20",
                             isPinned 
-                                ? "text-emerald-500 bg-emerald-500/10 opacity-100 border border-emerald-500/20" 
-                                : "opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-emerald-500 hover:bg-emerald-500/10 hover:border-emerald-500/20"
+                                ? "text-success bg-success/10 opacity-100 border border-success/20" 
+                                : "opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-success hover:bg-success/10 hover:border-success/20"
                         )}
                     >
                         {isPinned ? (
@@ -1022,27 +1022,27 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
             prefetch={false}
             className={cn(
                 "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
-                isActive ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/5" : "text-muted-foreground hover:text-emerald-500 hover:bg-foreground/[0.02]"
+                isActive ? "text-success text-success bg-success/5" : "text-muted-foreground hover:text-success hover:bg-foreground/[0.02]"
             )}
         >
             {/* Active Glow Background */}
             {isActive && (
-                <div className="absolute inset-0 bg-emerald-500/5  pointer-events-none" />
+                <div className="absolute inset-0 bg-success/5  pointer-events-none" />
             )}
 
             <div className={cn(
-                "w-1.5 h-1.5 rounded-full border border-emerald-500/30 transition-all shrink-0 z-10",
-                isActive ? "bg-emerald-500 " : "bg-muted-foreground/30 group-hover:bg-emerald-400 group-hover:border-emerald-500"
+                "w-1.5 h-1.5 rounded-full border border-success/30 transition-all shrink-0 z-10",
+                isActive ? "bg-success " : "bg-muted-foreground/30 group-hover:bg-success group-hover:border-success"
             )} />
             <span className={cn(
                 "text-body-sm font-medium z-10",
-                isActive ? "text-emerald-600 dark:text-emerald-200" : "text-muted-foreground/60 group-hover:text-emerald-500"
+                isActive ? "text-success text-success" : "text-muted-foreground/60 group-hover:text-success"
             )}>
                 {item.name}
             </span>
 
             {isActive && (
-                <div className="ml-auto h-1 w-1 rounded-full bg-emerald-500  z-10" />
+                <div className="ml-auto h-1 w-1 rounded-full bg-success  z-10" />
             )}
         </Link>
     );

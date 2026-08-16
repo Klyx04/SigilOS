@@ -58,7 +58,7 @@ export function NpcName({ npcId, fallback }: { npcId?: string; fallback?: string
     }, [npcId]);
 
     if (!npcId) return <span>{fallback || "PNJ"}</span>;
-    return <span className="text-indigo-400 font-bold italic">{data?.name || fallback || `PNJ #${npcId}`}</span>;
+    return <span className="text-info font-bold italic">{data?.name || fallback || `PNJ #${npcId}`}</span>;
 }
 
 // ─── Item Resolver with Icon ──────────────────────────────────────────────────
@@ -79,7 +79,7 @@ export function ItemInline({ itemId }: { itemId: string }) {
         <a 
             href={`https://dofusdb.fr/fr/database/item/${itemId}`} 
             target="_blank" 
-            className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-0.5 hover:bg-amber-500/20 transition-all cursor-pointer group/item"
+            className="inline-flex items-center gap-1.5 bg-warning/10 border border-warning/20 rounded-lg px-2 py-0.5 hover:bg-warning/20 transition-all cursor-pointer group/item"
         >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -90,7 +90,7 @@ export function ItemInline({ itemId }: { itemId: string }) {
                 className="object-contain group-hover/item:scale-125 transition-transform"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-            <span className="text-amber-400 font-bold italic text-label">
+            <span className="text-warning font-bold italic text-label">
                 {item?.name || `Objet #${itemId}`}
             </span>
         </a>
@@ -118,7 +118,7 @@ export function MonsterInline({ monsterId }: { monsterId: string }) {
         <a 
             href={`https://dofusdb.fr/fr/database/monster/${monsterId}`} 
             target="_blank"
-            className="inline-flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg px-2 py-0.5 hover:bg-rose-500/20 transition-all cursor-pointer group/monster"
+            className="inline-flex items-center gap-1.5 bg-danger/10 border border-danger/20 rounded-lg px-2 py-0.5 hover:bg-danger/20 transition-all cursor-pointer group/monster"
         >
             <img
                 src={imgUrl}
@@ -128,7 +128,7 @@ export function MonsterInline({ monsterId }: { monsterId: string }) {
                 className="object-contain group-hover/monster:scale-125 transition-transform"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-            <span className="text-rose-400 font-bold italic text-label">
+            <span className="text-danger font-bold italic text-label">
                 {monster?.name || `Monstre #${monsterId}`}
             </span>
         </a>
@@ -213,7 +213,7 @@ export function MapLink({ x, y, guildId, zone, worldId }: { x: string; y: string
     return (
         <Link
             href={`/dashboard/${guildId}/worldmap?x=${x}&y=${y}&zoom=4&world=${resolvedWorldId}`}
-            className="text-emerald-400 font-bold italic hover:text-emerald-300 underline decoration-emerald-400/30 transition-colors"
+            className="text-success font-bold italic hover:text-success underline decoration-emerald-400/30 transition-colors"
         >
             📍 [{x}, {y}]
         </Link>

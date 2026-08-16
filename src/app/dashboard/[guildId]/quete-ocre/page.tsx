@@ -126,23 +126,23 @@ export default async function QueteOcrePage({
                         </Suspense>
 
                         {/* Quick Tips */}
-                        <Card className="bg-card/30 backdrop-blur-sm border-white/10" data-tour="ocre-tips">
+                        <Card className="bg-card/30 backdrop-blur-sm border-border" data-tour="ocre-tips">
                             <CardContent className="p-4 space-y-3">
                                 <h3 className="text-sm font-medium flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-amber-400" />
+                                    <Sparkles className="h-4 w-4 text-warning" />
                                     Astuces
                                 </h3>
                                 <ul className="text-xs text-muted-foreground space-y-2">
                                     <li className="flex gap-2">
-                                        <span className="text-amber-500">•</span>
+                                        <span className="text-warning">•</span>
                                         Mettez à jour votre compte Metamob régulièrement
                                     </li>
                                     <li className="flex gap-2">
-                                        <span className="text-emerald-500">•</span>
+                                        <span className="text-success">•</span>
                                         Les monstres verts peuvent être échangés par des guildeux
                                     </li>
                                     <li className="flex gap-2">
-                                        <span className="text-purple-500">•</span>
+                                        <span className="text-info">•</span>
                                         Surveillez les apparitions de Kralamoure
                                     </li>
                                 </ul>

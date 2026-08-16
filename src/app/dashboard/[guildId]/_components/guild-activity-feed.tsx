@@ -37,7 +37,7 @@ export function GuildActivityFeed({
     });
 
     return (
-        <Card className="glass-premium border-white/5 h-full overflow-hidden flex flex-col group">
+        <Card className="glass-premium border-border h-full overflow-hidden flex flex-col group">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
@@ -45,7 +45,7 @@ export function GuildActivityFeed({
                         Flux de Vie de la Guilde
                     </CardTitle>
                     {logs.length > 0 && (
-                        <span className="text-caption font-black text-zinc-600 bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-800/40">
+                        <span className="text-caption font-black text-muted-foreground bg-surface/80 px-2.5 py-1 rounded-full border border-border/40">
                             {uniqueActorsToday.size} actif{uniqueActorsToday.size > 1 ? "s" : ""} aujourd'hui
                         </span>
                     )}
@@ -60,19 +60,19 @@ export function GuildActivityFeed({
                             
                             // Visual config based on type
                             const typeConfig: Record<string, { icon: any, color: string, label: string, bg: string, border: string }> = {
-                                "SERVICE": { icon: Package, color: "text-blue-400", label: "Service", bg: "bg-blue-500/10", border: "border-blue-500/25" },
-                                "LOAN": { icon: RotateCcw, color: "text-amber-400", label: "Prêt", bg: "bg-amber-500/10", border: "border-amber-500/25" },
-                                "VAULT": { icon: Shield, color: "text-purple-400", label: "Coffre", bg: "bg-purple-500/10", border: "border-purple-500/25" },
-                                "MISSION_VALIDATED": { icon: Gamepad2, color: "text-emerald-400", label: "Mission", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
+                                "SERVICE": { icon: Package, color: "text-info", label: "Service", bg: "bg-info/10", border: "border-info/25" },
+                                "LOAN": { icon: RotateCcw, color: "text-warning", label: "Prêt", bg: "bg-warning/10", border: "border-warning/25" },
+                                "VAULT": { icon: Shield, color: "text-info", label: "Coffre", bg: "bg-info/10", border: "border-info/25" },
+                                "MISSION_VALIDATED": { icon: Gamepad2, color: "text-success", label: "Mission", bg: "bg-success/10", border: "border-success/25" },
                                 "ACHIEVEMENT_VALIDATED": { icon: Sparkles, color: "text-yellow-400", label: "Succès", bg: "bg-yellow-500/10", border: "border-yellow-500/25" },
                                 "OCRE_TRADE": { icon: Activity, color: "text-orange-400", label: "Metamob", bg: "bg-orange-500/10", border: "border-orange-500/25" },
-                                "DONATION_VALIDATED": { icon: Flame, color: "text-red-400", label: "Don", bg: "bg-red-500/10", border: "border-red-500/25" },
-                                "DJ_POST": { icon: Activity, color: "text-cyan-400", label: "Donjon", bg: "bg-cyan-500/10", border: "border-cyan-500/25" },
+                                "DONATION_VALIDATED": { icon: Flame, color: "text-danger", label: "Don", bg: "bg-danger/10", border: "border-danger/25" },
+                                "DJ_POST": { icon: Activity, color: "text-info", label: "Donjon", bg: "bg-info/10", border: "border-info/25" },
                                 "STUFF_UPLOAD": { icon: Sparkles, color: "text-pink-400", label: "Stuff", bg: "bg-pink-500/10", border: "border-pink-500/25" },
-                                "CONNECTION": { icon: Activity, color: "text-emerald-400", label: "Connexion", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
+                                "CONNECTION": { icon: Activity, color: "text-success", label: "Connexion", bg: "bg-success/10", border: "border-success/25" },
                             };
 
-                            const config = typeConfig[log.type] || { icon: Activity, color: "text-zinc-400", label: log.type, bg: "bg-zinc-500/10", border: "border-zinc-500/25" };
+                            const config = typeConfig[log.type] || { icon: Activity, color: "text-muted-foreground", label: log.type, bg: "bg-muted/10", border: "border-border/25" };
                             const Icon = config.icon;
 
                             return (
@@ -84,26 +84,26 @@ export function GuildActivityFeed({
                                     className="flex items-start gap-3 group/log"
                                 >
                                     <div className="relative">
-                                        <Avatar className="h-9 w-9 shrink-0 border border-white/10 ring-2 ring-transparent group-hover/log:ring-emerald-500/20 transition-all">
+                                        <Avatar className="h-9 w-9 shrink-0 border border-border ring-2 ring-transparent group-hover/log:ring-success/20 transition-all">
                                             <AvatarImage src={log.actor?.image ?? undefined} />
-                                            <AvatarFallback className="text-caption font-black bg-zinc-900">{actorName[0]}</AvatarFallback>
+                                            <AvatarFallback className="text-caption font-black bg-surface">{actorName[0]}</AvatarFallback>
                                         </Avatar>
-                                        <div className={`absolute -bottom-1 -right-1 p-0.5 rounded-full bg-zinc-950 border border-white/10 ${config.color}`}>
+                                        <div className={`absolute -bottom-1 -right-1 p-0.5 rounded-full bg-background border border-border ${config.color}`}>
                                             <Icon className="w-2.5 h-2.5" />
                                         </div>
                                     </div>
                                     
                                     <div className="flex-1 min-w-0 space-y-0.5">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-caption font-black text-white group-hover/log:text-emerald-400 transition-colors">{actorName}</span>
+                                            <span className="text-caption font-black text-foreground group-hover/log:text-success transition-colors">{actorName}</span>
                                             <span className={`text-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${config.bg} ${config.color} ${config.border} border`}>
                                                 {config.label}
                                             </span>
-                                            <span className="text-caption text-zinc-600 font-bold ml-auto tabular-nums">
+                                            <span className="text-caption text-muted-foreground font-bold ml-auto tabular-nums">
                                                 {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true, locale: fr })}
                                             </span>
                                         </div>
-                                        <p className="text-caption text-zinc-400 font-medium leading-tight line-clamp-2">
+                                        <p className="text-caption text-muted-foreground font-medium leading-tight line-clamp-2">
                                             {log.summary}
                                         </p>
                                     </div>
@@ -111,7 +111,7 @@ export function GuildActivityFeed({
                             );
                         })
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center py-12 text-zinc-600 italic">
+                        <div className="flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground italic">
                             <Activity className="w-10 h-10 opacity-10 mb-2" />
                             <p className="text-caption uppercase font-black tracking-widest text-center">Aucune activité récente</p>
                         </div>
@@ -119,10 +119,10 @@ export function GuildActivityFeed({
                 </div>
 
                 {logs.length > 0 && guildId && (
-                    <div className="mt-4 pt-3 border-t border-white/5 text-center">
+                    <div className="mt-4 pt-3 border-t border-border text-center">
                         <Link
                             href={`/dashboard/${guildId}/admin/logs`}
-                            className="text-caption font-black text-zinc-600 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                            className="text-caption font-black text-muted-foreground hover:text-success uppercase tracking-widest transition-colors"
                         >
                             Voir tout l'historique →
                         </Link>

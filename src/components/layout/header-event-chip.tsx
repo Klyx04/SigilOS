@@ -12,15 +12,15 @@ import { useSession } from "next-auth/react";
 
 // ─── Type color mapping ───────────────────────────────────────────────────────
 const TYPE_COLOR: Record<string, { dot: string; badge: string; label: string }> = {
-    RAID_OFFICIAL:    { dot: "bg-red-500",    badge: "text-red-400",    label: "Raid" },
-    EVENT_GUILD:      { dot: "bg-purple-500", badge: "text-purple-400", label: "Event" },
-    SESSION_MISSIONS: { dot: "bg-amber-500",  badge: "text-amber-400",  label: "Missions" },
-    SORTIE_FARM:      { dot: "bg-emerald-500",badge: "text-emerald-400",label: "Farm" },
+    RAID_OFFICIAL:    { dot: "bg-danger",    badge: "text-danger",    label: "Raid" },
+    EVENT_GUILD:      { dot: "bg-info", badge: "text-info", label: "Event" },
+    SESSION_MISSIONS: { dot: "bg-warning",  badge: "text-warning",  label: "Missions" },
+    SORTIE_FARM:      { dot: "bg-success",badge: "text-success",label: "Farm" },
     KRALAMOURE:       { dot: "bg-pink-500",   badge: "text-pink-400",   label: "Krala" },
 };
 
 function getTypeConfig(type: string) {
-    return TYPE_COLOR[type] ?? { dot: "bg-zinc-500", badge: "text-zinc-400", label: "Event" };
+    return TYPE_COLOR[type] ?? { dot: "bg-muted", badge: "text-muted-foreground", label: "Event" };
 }
 
 // ─── Relative time label ──────────────────────────────────────────────────────
@@ -54,14 +54,14 @@ function EventsPopover({
         <div
             className={cn(
                 "absolute right-0 top-full mt-2 z-[40]",
-                "w-72 rounded-xl border border-white/10 bg-zinc-950/98 shadow-2xl",
+                "w-72 rounded-xl border border-border bg-background/98 shadow-2xl",
                 "animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden"
             )}
         >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-caption font-bold text-zinc-400 uppercase tracking-wider">
+            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-success" />
+                <span className="text-caption font-bold text-muted-foreground uppercase tracking-wider">
                     {events.length} événement{events.length > 1 ? "s" : ""} à venir
                 </span>
             </div>
@@ -82,34 +82,34 @@ function EventsPopover({
                             disabled={!!loadingId}
                             className={cn(
                                 "w-full px-4 py-3 flex items-center gap-3 text-left transition-colors",
-                                "hover:bg-white/5 disabled:cursor-not-allowed group"
+                                "hover:bg-surface disabled:cursor-not-allowed group"
                             )}
                         >
                             {/* Colored dot or spinner */}
                             {isLoading ? (
-                                <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />
+                                <Loader2 className="w-3.5 h-3.5 text-success animate-spin shrink-0" />
                             ) : (
                                 <span className={cn("w-2 h-2 rounded-full shrink-0 mt-0.5", cfg.dot)} />
                             )}
 
                             {/* Info */}
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-zinc-200 truncate group-hover:text-white transition-colors">
+                                <p className="text-xs font-semibold text-foreground truncate group-hover:text-foreground transition-colors">
                                     {ev.title}
                                 </p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                     <span className={cn("text-caption font-bold uppercase tracking-wider", cfg.badge)}>
                                         {cfg.label}
                                     </span>
-                                    <span className="text-caption text-zinc-600">·</span>
-                                    <span className="text-caption text-zinc-500 flex items-center gap-1">
+                                    <span className="text-caption text-muted-foreground">·</span>
+                                    <span className="text-caption text-muted-foreground flex items-center gap-1">
                                         <Clock className="w-2.5 h-2.5" />
                                         {relativeTime(ev.startDate)}
                                     </span>
                                     {ev.participantsCount > 0 && (
                                         <>
-                                            <span className="text-caption text-zinc-600">·</span>
-                                            <span className="text-caption text-zinc-500 flex items-center gap-1">
+                                            <span className="text-caption text-muted-foreground">·</span>
+                                            <span className="text-caption text-muted-foreground flex items-center gap-1">
                                                 <Users className="w-2.5 h-2.5" />
                                                 {ev.participantsCount}
                                             </span>
@@ -118,7 +118,7 @@ function EventsPopover({
                                 </div>
                             </div>
 
-                            <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 shrink-0 transition-colors" />
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-muted-foreground shrink-0 transition-colors" />
                         </button>
                     );
                 })}
@@ -212,14 +212,14 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
                     {/* Icon — spinner when loading single event */}
                     <span className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
                         {isChipLoading ? (
-                            <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                            <Loader2 className="w-3.5 h-3.5 text-success animate-spin" />
                         ) : (
                             <>
                                 <span className={cn(
                                     "absolute w-full h-full rounded-full opacity-25 animate-ping",
                                     cfg.dot
                                 )} />
-                                <Calendar className="relative w-3.5 h-3.5 text-emerald-400" />
+                                <Calendar className="relative w-3.5 h-3.5 text-success" />
                             </>
                         )}
                     </span>
@@ -233,7 +233,7 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
                     {!multi && (
                         <span className={cn(
                             "hidden xl:inline-flex items-center text-caption font-bold px-1.5 py-0.5 rounded-md",
-                            "bg-white/5 border border-white/10",
+                            "bg-surface border border-border",
                             cfg.badge
                         )}>
                             {mounted ? relativeTime(first.startDate) : "…"}

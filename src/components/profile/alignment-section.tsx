@@ -61,11 +61,11 @@ export function AlignmentSection({
     };
 
     return (
-        <div className="p-4 bg-zinc-900/40 backdrop-blur-md rounded-xl border border-white/10 transition-all hover:border-white/20 group">
+        <div className="p-4 bg-surface/40 backdrop-blur-md rounded-xl border border-border transition-all hover:border-border-strong group">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-indigo-400" />
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-info" />
                         Alignement & Ordre
                     </h3>
                     {!readOnly && (
@@ -73,7 +73,7 @@ export function AlignmentSection({
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-zinc-400 hover:text-indigo-400 hover:bg-indigo-500/10 border border-transparent hover:border-indigo-500/20 transition-all duration-300"
+                                className="h-8 w-8 text-muted-foreground hover:text-info hover:bg-info/10 border border-transparent hover:border-info/20 transition-all duration-300"
                                 onClick={handleOpen}
                             >
                                 <Pencil className="w-4 h-4" strokeWidth={2.5} />
@@ -82,13 +82,13 @@ export function AlignmentSection({
                     )}
                 </div>
 
-                <div className="relative overflow-hidden rounded-lg border border-white/5 bg-gradient-to-br from-zinc-900 to-black p-4 mb-1 transition-colors group-hover:border-white/10">
+                <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-zinc-900 to-black p-4 mb-1 transition-colors group-hover:border-border">
                     <div className="flex items-center gap-4">
                         <div className={cn(
                             "relative flex items-center justify-center w-16 h-16 rounded-xl border shadow-lg shrink-0 overflow-hidden",
-                            alignment === "bontarien" ? "border-blue-500/30 bg-blue-500/10" : 
-                            alignment === "brakmarien" ? "border-red-500/30 bg-red-500/10" : 
-                            "border-white/10 bg-zinc-950"
+                            alignment === "bontarien" ? "border-info/30 bg-info/10" : 
+                            alignment === "brakmarien" ? "border-danger/30 bg-danger/10" : 
+                            "border-border bg-background"
                         )}>
                             {currentOrder ? (
                                 <Image 
@@ -105,7 +105,7 @@ export function AlignmentSection({
                                     className="object-cover scale-[1.35]"
                                 />
                             ) : (
-                                <Shield className="w-8 h-8 text-zinc-600" />
+                                <Shield className="w-8 h-8 text-muted-foreground" />
                             )}
                         </div>
 
@@ -114,26 +114,26 @@ export function AlignmentSection({
                                 <Badge 
                                     className={cn(
                                         "text-caption uppercase font-black tracking-widest",
-                                        alignment === "bontarien" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : 
-                                        alignment === "brakmarien" ? "bg-red-500/20 text-red-400 border-red-500/30" : 
-                                        "bg-zinc-800 text-zinc-400 border-white/5"
+                                        alignment === "bontarien" ? "bg-info/20 text-info border-info/30" : 
+                                        alignment === "brakmarien" ? "bg-danger/20 text-danger border-danger/30" : 
+                                        "bg-elevated text-muted-foreground border-border"
                                     )}
                                 >
                                     {currentAlignment?.name || "Neutre"}
                                 </Badge>
                                 {alignmentLevel !== null && alignmentLevel > 0 && (
-                                    <span className="text-caption font-bold text-zinc-500">
+                                    <span className="text-caption font-bold text-muted-foreground">
                                         Niveau {alignmentLevel}
                                     </span>
                                 )}
                             </div>
 
-                            <h4 className="text-lg font-black text-white italic tracking-tight uppercase">
+                            <h4 className="text-lg font-black text-foreground italic tracking-tight uppercase">
                                 {currentOrder ? currentOrder.name : "Aucun ordre"}
                             </h4>
 
                             {alignment && alignmentOrder && (
-                                <p className="text-xs font-bold text-indigo-400/80 uppercase tracking-widest">
+                                <p className="text-xs font-bold text-info/80 uppercase tracking-widest">
                                     {getLevelTitle(alignment, alignmentOrder, alignmentLevel || 0)}
                                 </p>
                             )}
@@ -141,16 +141,16 @@ export function AlignmentSection({
                     </div>
                 </div>
 
-                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-                    <DialogHeader className="p-8 pb-4 border-b border-white/5 shrink-0">
+                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-background border-border rounded-3xl overflow-hidden shadow-2xl">
+                    <DialogHeader className="p-8 pb-4 border-b border-border shrink-0">
                         <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">Alignement & Ordres</DialogTitle>
-                        <DialogDescription className="text-base text-zinc-400">Choisissez votre camp et votre spécialisation.</DialogDescription>
+                        <DialogDescription className="text-base text-muted-foreground">Choisissez votre camp et votre spécialisation.</DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
                         {/* Alignment Selection */}
                         <section className="space-y-4">
-                            <h4 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
                                 <Shield className="w-4 h-4" /> 1. Choisir l'Alignement
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -164,15 +164,15 @@ export function AlignmentSection({
                                         className={cn(
                                             "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 overflow-hidden",
                                             selectedAlignment === align.id
-                                                ? "border-indigo-500/50 bg-indigo-500/10"
-                                                : "border-white/5 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/10"
+                                                ? "border-info/50 bg-info/10"
+                                                : "border-border bg-surface/40 hover:bg-surface/60 hover:border-border"
                                         )}
                                     >
                                         <div className={cn(
                                             "relative w-16 h-16 rounded-full flex items-center justify-center border shadow-2xl transition-transform duration-300 group- overflow-hidden",
-                                            align.id === "bontarien" ? "bg-blue-500/20 border-blue-500/30" :
-                                            align.id === "brakmarien" ? "bg-red-500/20 border-red-500/30" :
-                                            "bg-zinc-800 border-white/10"
+                                            align.id === "bontarien" ? "bg-info/20 border-info/30" :
+                                            align.id === "brakmarien" ? "bg-danger/20 border-danger/30" :
+                                            "bg-elevated border-border"
                                         )}>
                                             <Image 
                                                 src={align.icon} 
@@ -183,14 +183,14 @@ export function AlignmentSection({
                                         </div>
                                         <span className={cn(
                                             "font-black uppercase tracking-widest text-sm italic",
-                                            selectedAlignment === align.id ? "text-white" : "text-zinc-500"
+                                            selectedAlignment === align.id ? "text-foreground" : "text-muted-foreground"
                                         )}>
                                             {align.name}
                                         </span>
 
                                         {selectedAlignment === align.id && (
-                                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center ">
-                                                <Check className="w-4 h-4 text-white" />
+                                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-info flex items-center justify-center ">
+                                                <Check className="w-4 h-4 text-foreground" />
                                             </div>
                                         )}
                                     </button>
@@ -202,7 +202,7 @@ export function AlignmentSection({
                             <>
                                 {/* Order Selection (Moved before level for better flow) */}
                                 <section className="space-y-4">
-                                    <h4 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
                                         <Sparkles className="w-4 h-4" /> 2. Choisir l'Ordre
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -215,11 +215,11 @@ export function AlignmentSection({
                                                     className={cn(
                                                         "relative group flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 h-full",
                                                         isSelected
-                                                            ? "border-amber-500/50 bg-amber-500/10"
-                                                            : "border-white/5 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/10"
+                                                            ? "border-warning/50 bg-warning/10"
+                                                            : "border-border bg-surface/40 hover:bg-surface/60 hover:border-border"
                                                     )}
                                                 >
-                                                    <div className="relative w-20 h-20 bg-zinc-950 border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-transform duration-300 group-">
+                                                    <div className="relative w-20 h-20 bg-background border border-border rounded-xl overflow-hidden shadow-2xl transition-transform duration-300 group-">
                                                         <Image 
                                                             src={order.icon} 
                                                             alt={order.name} 
@@ -230,15 +230,15 @@ export function AlignmentSection({
                                                     <div className="text-center space-y-1">
                                                         <span className={cn(
                                                             "font-black uppercase tracking-tighter text-sm block leading-tight",
-                                                            isSelected ? "text-white" : "text-zinc-400"
+                                                            isSelected ? "text-foreground" : "text-muted-foreground"
                                                         )}>
                                                             {order.name}
                                                         </span>
                                                     </div>
 
                                                     {isSelected && (
-                                                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center ">
-                                                            <Check className="w-4 h-4 text-white" />
+                                                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-warning flex items-center justify-center ">
+                                                            <Check className="w-4 h-4 text-foreground" />
                                                         </div>
                                                     )}
                                                 </button>
@@ -249,9 +249,9 @@ export function AlignmentSection({
 
                                 {/* Level/Tranche Selection */}
                                 {selectedOrder && (
-                                    <section className="space-y-4 bg-zinc-900/30 p-6 rounded-2xl border border-white/5">
+                                    <section className="space-y-4 bg-surface/30 p-6 rounded-2xl border border-border">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
                                                 <Info className="w-4 h-4" /> 3. Niveau d'Alignement (Tranche)
                                             </h4>
                                         </div>
@@ -265,25 +265,25 @@ export function AlignmentSection({
                                                         className={cn(
                                                             "relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 text-center gap-2",
                                                             isExactSelected
-                                                                ? "border-amber-500 bg-amber-500/20 "
-                                                                : "border-white/5 bg-zinc-950/50 hover:border-white/20 hover:bg-zinc-900"
+                                                                ? "border-warning bg-warning/20 "
+                                                                : "border-border bg-background/50 hover:border-border-strong hover:bg-surface"
                                                         )}
                                                     >
                                                         <span className={cn(
                                                             "text-lg font-black italic",
-                                                            isExactSelected ? "text-amber-400" : "text-zinc-500"
+                                                            isExactSelected ? "text-warning" : "text-muted-foreground"
                                                         )}>
                                                             Niv {level}
                                                         </span>
                                                         <span className={cn(
                                                             "text-caption uppercase font-bold leading-tight",
-                                                            isExactSelected ? "text-white" : "text-zinc-600"
+                                                            isExactSelected ? "text-foreground" : "text-muted-foreground"
                                                         )}>
                                                             {title || getLevelTitle(selectedAlignment, selectedOrder, level)}
                                                         </span>
                                                         {isExactSelected && (
-                                                            <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
-                                                                <Check className="w-3 h-3 text-white" />
+                                                            <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-warning flex items-center justify-center">
+                                                                <Check className="w-3 h-3 text-foreground" />
                                                             </div>
                                                         )}
                                                     </button>
@@ -297,9 +297,9 @@ export function AlignmentSection({
                         )}
                     </div>
 
-                    <div className="p-6 border-t border-white/5 bg-zinc-900/40 flex justify-end gap-3 shrink-0">
+                    <div className="p-6 border-t border-border bg-surface/40 flex justify-end gap-3 shrink-0">
                         <DialogClose asChild>
-                            <Button variant="ghost" className="text-zinc-400 hover:text-white">
+                            <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
                                 Annuler
                             </Button>
                         </DialogClose>

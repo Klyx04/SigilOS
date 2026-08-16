@@ -53,24 +53,24 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
     const [hoveredFloor, setHoveredFloor] = useState<number | null>(null);
 
     return (
-        <div className="rounded-xl bg-gradient-to-b from-[#0a0118] to-[#1a0933] border border-purple-500/30 p-6 overflow-hidden">
+        <div className="rounded-xl bg-gradient-to-b from-[#0a0118] to-[#1a0933] border border-info/30 p-6 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h2 className="text-xl font-bold text-white">Carte des Songes</h2>
-                    <p className="text-purple-300/70 text-sm">Progression: {currentFloor} / 26 étages</p>
+                    <h2 className="text-xl font-bold text-foreground">Carte des Songes</h2>
+                    <p className="text-info/70 text-sm">Progression: {currentFloor} / 26 étages</p>
                 </div>
                 <div className="text-center">
-                    <div className="text-3xl font-bold text-amber-400">{currentFloor}</div>
-                    <div className="text-xs text-purple-300/50">Étage actuel</div>
+                    <div className="text-3xl font-bold text-warning">{currentFloor}</div>
+                    <div className="text-xs text-info/50">Étage actuel</div>
                 </div>
             </div>
 
             {/* Progress bar */}
             <div className="mb-6">
-                <div className="h-3 bg-purple-900/50 rounded-full overflow-hidden">
+                <div className="h-3 bg-info/50 rounded-full overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-amber-500 transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-info via-info to-warning transition-all duration-300"
                         style={{ width: `${(currentFloor / 26) * 100}%` }}
                     />
                 </div>
@@ -109,12 +109,12 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                                         key={floor}
                                         className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all duration-200 cursor-pointer
                                             ${isCurrent
-                                                ? "border-amber-400 ring-2 ring-amber-400/50 scale-105 z-10"
+                                                ? "border-warning ring-2 ring-warning/50 scale-105 z-10"
                                                 : isCompleted
                                                     ? "border-green-500/50 opacity-60"
                                                     : isNext && isLeader
-                                                        ? "border-purple-400/50 hover:border-purple-400"
-                                                        : "border-purple-700/30"
+                                                        ? "border-info/50 hover:border-info"
+                                                        : "border-info/30"
                                             }
                                             ${canClick ? " hover:z-10" : ""}
                                         `}
@@ -134,7 +134,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                                         {/* Floor number overlay */}
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <span className={`text-xs font-bold px-1.5 py-0.5 rounded bg-black/60
-                                                ${isCurrent ? "text-amber-400" : isCompleted ? "text-green-400" : "text-white"}
+                                                ${isCurrent ? "text-warning" : isCompleted ? "text-green-400" : "text-foreground"}
                                             `}>
                                                 {floor}
                                             </span>
@@ -143,7 +143,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                                         {/* Completed checkmark */}
                                         {isCompleted && (
                                             <div className="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                                <span className="text-white text-xs">✓</span>
+                                                <span className="text-foreground text-xs">✓</span>
                                             </div>
                                         )}
 
@@ -166,16 +166,16 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
 
             {/* Hover tooltip */}
             {hoveredFloor !== null && (
-                <div className="mt-4 p-3 rounded-lg bg-purple-900/50 border border-purple-500/30">
+                <div className="mt-4 p-3 rounded-lg bg-info/50 border border-info/30">
                     <div className="flex items-center justify-between">
                         <div>
-                            <span className="text-white font-medium">Étage {hoveredFloor}</span>
-                            <span className="text-purple-300/70 ml-2">
+                            <span className="text-foreground font-medium">Étage {hoveredFloor}</span>
+                            <span className="text-info/70 ml-2">
                                 {ROOM_LABELS[getFloorType(hoveredFloor)]}
                             </span>
                         </div>
                         {isLeader && (hoveredFloor === currentFloor - 1 || hoveredFloor === currentFloor + 1) && (
-                            <span className="text-xs text-amber-400">Cliquez pour naviguer</span>
+                            <span className="text-xs text-warning">Cliquez pour naviguer</span>
                         )}
                     </div>
                 </div>
@@ -194,7 +194,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                                 sizes="16px"
                             />
                         </div>
-                        <span className="text-purple-300/70">{label}</span>
+                        <span className="text-info/70">{label}</span>
                     </div>
                 ))}
             </div>

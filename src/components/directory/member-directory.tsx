@@ -151,35 +151,35 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
         <div className="w-full">
             {/* Effectif de guilde — bloc centré (module Disponibilités dédié : onglet retiré de l'annuaire) */}
             <div className="flex flex-col items-center text-center mb-10" data-tour="annuaire-grid">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-4">
-                    <Users className="w-7 h-7 text-indigo-400" />
+                <div className="w-14 h-14 rounded-2xl bg-info/10 border border-info/30 flex items-center justify-center mb-4">
+                    <Users className="w-7 h-7 text-info" />
                 </div>
-                <h2 className="text-2xl font-bold text-white">Effectif de guilde</h2>
-                <p className="text-sm text-zinc-500 mt-1.5">
+                <h2 className="text-2xl font-bold text-foreground">Effectif de guilde</h2>
+                <p className="text-sm text-muted-foreground mt-1.5">
                     {members.length} membre{members.length > 1 ? "s" : ""} — recherchez par pseudo, classe, métier ou alignement.
                 </p>
             </div>
 
 
             {/* FILTER BAR — UI UX 2026 PREMIUM */}
-            <div className="relative p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 bg-zinc-950 group/filterbar border border-white/5 mb-6" data-tour="annuaire-filters">
+            <div className="relative p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 bg-background group/filterbar border border-border mb-6" data-tour="annuaire-filters">
 
                 {/* Search Input — High Fidelity */}
                 <div className="relative flex-1 group/search" data-tour="annuaire-search">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within/search:text-indigo-400 transition-colors duration-300" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within/search:text-info transition-colors duration-300" />
                     <Input
                         placeholder="Rechercher par pseudo, alt, discord..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-11 bg-white/[0.02] border-white/5 hover:border-white/10 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-500/50 transition-all duration-300 h-11 rounded-xl text-sm font-medium placeholder:text-zinc-600"
+                        className="pl-11 bg-surface border-border hover:border-border focus-visible:ring-ring/30 focus-visible:border-info/50 transition-all duration-300 h-11 rounded-xl text-sm font-medium placeholder:text-muted-foreground"
                     />
                     {/* Inner Focus Glint */}
-                    <div className="absolute inset-px rounded-[inherit] border border-white/5 pointer-events-none group-focus-within/search:border-indigo-500/20 transition-all duration-300" />
+                    <div className="absolute inset-px rounded-[inherit] border border-border pointer-events-none group-focus-within/search:border-info/20 transition-all duration-300" />
 
                     {search && (
                         <button
                             onClick={() => setSearch("")}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-indigo-400 transition-colors"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-info transition-colors"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -193,20 +193,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedClass && "border-indigo-500/40 bg-indigo-500/20 text-indigo-400 shadow-indigo-500/10"
+                                    "h-11 border-info/10 bg-info/5 hover:bg-info/10 hover:border-info/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
+                                    selectedClass && "border-info/40 bg-info/20 text-info shadow-indigo-500/10"
                                 )}
                             >
                                 <Swords className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400",
-                                    selectedClass && "text-indigo-400 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-info/50 group-hover/btn:text-info",
+                                    selectedClass && "text-info opacity-100"
                                 )} />
                                 {selectedClass ? <span className="truncate min-w-0 max-w-[160px]">{getSelectedClassName()}</span> : "Classe"}
                                 {selectedClass && (
                                     <span
                                         role="button"
                                         tabIndex={0}
-                                        className="ml-1 rounded-full hover:bg-indigo-400/20 p-0.5 transition-colors cursor-pointer"
+                                        className="ml-1 rounded-full hover:bg-info/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             e.preventDefault();
@@ -215,17 +215,17 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                         onKeyDown={(e) => e.key === 'Enter' && setSelectedClass(null)}
                                         aria-label="Supprimer le filtre classe"
                                     >
-                                        <X className="w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400" />
+                                        <X className="w-3.5 h-3.5 text-info/60 hover:text-info" />
                                     </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-border shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher une classe..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
                                     <CommandEmpty>Aucune classe trouvée.</CommandEmpty>
-                                    <CommandGroup heading="Classes" className="text-zinc-500 font-black uppercase text-caption tracking-widest p-2">
+                                    <CommandGroup heading="Classes" className="text-muted-foreground font-black uppercase text-caption tracking-widest p-2">
                                         <div className="grid grid-cols-4 gap-2">
                                             {DOFUS_CLASSES.map((c) => (
                                                 <CommandItem
@@ -238,8 +238,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                      className={cn(
                                                         "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all gap-1.5 border h-auto",
                                                         selectedClass === c.id
-                                                            ? "bg-indigo-500/20 border-indigo-500/40 text-foreground aria-selected:bg-indigo-500/30 "
-                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground hover:text-foreground aria-selected:bg-white/[0.05]"
+                                                            ? "bg-info/20 border-info/40 text-foreground aria-selected:bg-info/30 "
+                                                            : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface"
                                                     )}
                                                 >
                                                     <ClassIcon classId={c.id} size={36} className="filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
@@ -259,20 +259,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedJob && "border-amber-500/40 bg-amber-500/20 text-amber-500 shadow-amber-500/10"
+                                    "h-11 border-warning/10 bg-warning/5 hover:bg-warning/10 hover:border-warning/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
+                                    selectedJob && "border-warning/40 bg-warning/20 text-warning shadow-amber-500/10"
                                 )}
                             >
                                 <Briefcase className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-amber-500/50 group-hover/btn:text-amber-500",
-                                    selectedJob && "text-amber-500 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-warning/50 group-hover/btn:text-warning",
+                                    selectedJob && "text-warning opacity-100"
                                 )} />
                                 {selectedJob ? <span className="truncate min-w-0 max-w-[160px]">{getSelectedJobName()}</span> : "Métier (200)"}
                                 {selectedJob && (
                                     <span
                                         role="button"
                                         tabIndex={0}
-                                        className="ml-1 rounded-full hover:bg-amber-400/20 p-0.5 transition-colors cursor-pointer"
+                                        className="ml-1 rounded-full hover:bg-warning/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             e.preventDefault();
@@ -281,12 +281,12 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                         onKeyDown={(e) => e.key === 'Enter' && setSelectedJob(null)}
                                         aria-label="Supprimer le filtre métier"
                                     >
-                                        <X className="w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400" />
+                                        <X className="w-3.5 h-3.5 text-warning/60 hover:text-warning" />
                                     </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-border shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un métier..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -294,7 +294,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     <CommandGroup className="p-0">
                                         {Object.entries(DOFUS_JOBS).map(([category, jobs]) => (
                                             <div key={category} className="mb-2">
-                                                <div className="px-4 py-2 text-caption font-black text-zinc-500 bg-white/[0.03] border-y border-white/5 sticky top-0 z-10 backdrop-blur-md uppercase tracking-widest">
+                                                <div className="px-4 py-2 text-caption font-black text-muted-foreground bg-surface border-y border-border sticky top-0 z-10 backdrop-blur-md uppercase tracking-widest">
                                                     {category}
                                                 </div>
                                                 <div className="grid grid-cols-4 gap-2 p-3">
@@ -309,8 +309,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                             className={cn(
                                                                 "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all gap-1.5 border h-auto",
                                                                 selectedJob === job.id
-                                                                    ? "bg-amber-500/20 border-amber-500/40 text-foreground aria-selected:bg-amber-500/30 "
-                                                                    : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground hover:text-foreground aria-selected:bg-white/[0.05]"
+                                                                    ? "bg-warning/20 border-warning/40 text-foreground aria-selected:bg-warning/30 "
+                                                                    : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface"
                                                             )}
                                                         >
                                                             <div className="relative w-9 h-9 flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
@@ -344,13 +344,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedAlignment && "border-indigo-500/40 bg-indigo-500/20 text-indigo-400 shadow-indigo-500/10"
+                                    "h-11 border-info/10 bg-info/5 hover:bg-info/10 hover:border-info/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
+                                    selectedAlignment && "border-info/40 bg-info/20 text-info shadow-indigo-500/10"
                                 )}
                             >
                                 <Shield className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-indigo-400/50 group-hover/btn:text-indigo-400",
-                                    selectedAlignment && "text-indigo-400 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-info/50 group-hover/btn:text-info",
+                                    selectedAlignment && "text-info opacity-100"
                                 )} />
                                 <span className="truncate min-w-0 max-w-[160px]">
                                     {selectedAlignment ? (ALIGNMENTS as any).find((a: any) => a.id === selectedAlignment)?.name || selectedAlignment : "Alignement"}
@@ -359,7 +359,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     <span
                                         role="button"
                                         tabIndex={0}
-                                        className="ml-1 rounded-full hover:bg-indigo-400/20 p-0.5 transition-colors cursor-pointer"
+                                        className="ml-1 rounded-full hover:bg-info/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             e.preventDefault();
@@ -369,14 +369,14 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                         onKeyDown={(e) => e.key === 'Enter' && (setSelectedAlignment(null), setSelectedOrder(null))}
                                         aria-label="Supprimer le filtre alignement"
                                     >
-                                        <X className="w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400" />
+                                        <X className="w-3.5 h-3.5 text-info/60 hover:text-info" />
                                     </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[320px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-border shadow-xl" align="end">
                             <div className="space-y-3">
-                                <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
+                                <h4 className="text-caption font-black uppercase text-muted-foreground tracking-[0.2em] mb-2 flex items-center gap-2">
                                     <Shield className="w-3 h-3" /> Factions
                                 </h4>
                                 <div className="grid grid-cols-3 gap-2">
@@ -393,11 +393,11 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                 className={cn(
                                                     "relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors",
                                                     isSelected
-                                                        ? "border-indigo-500 bg-indigo-500/10 "
-                                                        : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
+                                                        ? "border-info bg-info/10 "
+                                                        : "border-border bg-black/20 hover:border-border-strong hover:bg-surface"
                                                 )}
                                             >
-                                                <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/10">
+                                                <div className="relative w-10 h-10 rounded-full overflow-hidden border border-border">
                                                     <Image
                                                         src={a.icon}
                                                         alt={a.name}
@@ -407,7 +407,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                 </div>
                                                 <span className={cn(
                                                     "text-caption font-semibold truncate w-full text-center px-1 min-w-0",
-                                                    isSelected ? "text-indigo-400" : "text-zinc-400"
+                                                    isSelected ? "text-info" : "text-muted-foreground"
                                                 )}>
                                                     {a.name}
                                                 </span>
@@ -426,13 +426,13 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 <Button
                                     variant="outline"
                                     className={cn(
-                                        "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors group/btn",
-                                        selectedOrder && "border-amber-500/40 bg-amber-500/20 text-amber-500"
+                                        "h-11 border-warning/10 bg-warning/5 hover:bg-warning/10 hover:border-warning/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors group/btn",
+                                        selectedOrder && "border-warning/40 bg-warning/20 text-warning"
                                     )}
                                 >
                                     <Sparkles className={cn(
-                                        "w-4 h-4 transition-colors text-amber-500/50 group-hover/btn:text-amber-500",
-                                        selectedOrder && "text-amber-500 opacity-100"
+                                        "w-4 h-4 transition-colors text-warning/50 group-hover/btn:text-warning",
+                                        selectedOrder && "text-warning opacity-100"
                                     )} />
                                     <span className="truncate min-w-0 max-w-[200px]">
                                     {selectedOrder ? (ORDERS as any)[selectedAlignment].find((o: any) => o.id === selectedOrder)?.name || "Ordre" : "Ordre"}
@@ -441,7 +441,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                         <span
                                             role="button"
                                             tabIndex={0}
-                                            className="ml-1 rounded-full hover:bg-amber-400/20 p-0.5 transition-colors cursor-pointer"
+                                            className="ml-1 rounded-full hover:bg-warning/20 p-0.5 transition-colors cursor-pointer"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 e.preventDefault();
@@ -450,14 +450,14 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                             onKeyDown={(e) => e.key === 'Enter' && setSelectedOrder(null)}
                                             aria-label="Supprimer le filtre ordre"
                                         >
-                                            <X className="w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400" />
+                                            <X className="w-3.5 h-3.5 text-warning/60 hover:text-warning" />
                                         </span>
                                     )}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[360px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-white/10 shadow-xl" align="end">
+                            <PopoverContent className="w-[360px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-border shadow-xl" align="end">
                                 <div className="space-y-3">
-                                    <h4 className="text-caption font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
+                                    <h4 className="text-caption font-black uppercase text-muted-foreground tracking-[0.2em] mb-2 flex items-center gap-2">
                                         <Sparkles className="w-3 h-3" /> Ordres ({selectedAlignment})
                                     </h4>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -473,8 +473,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     className={cn(
                                                         "relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-colors text-center h-24",
                                                         isSelected
-                                                            ? "border-amber-500 bg-amber-500/10 "
-                                                            : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
+                                                            ? "border-warning bg-warning/10 "
+                                                            : "border-border bg-black/20 hover:border-border-strong hover:bg-surface"
                                                     )}
                                                 >
                                                     <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0">
@@ -487,7 +487,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     </div>
                                                     <span className={cn(
                                                         "text-caption font-black uppercase leading-tight line-clamp-2 px-1 w-full min-w-0 break-words",
-                                                        isSelected ? "text-amber-400" : "text-zinc-400"
+                                                        isSelected ? "text-warning" : "text-muted-foreground"
                                                     )}>
                                                         {o.name}
                                                     </span>
@@ -508,20 +508,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-11 border-purple-500/10 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedLegendary && "border-purple-500/40 bg-purple-500/20 text-purple-400 shadow-purple-500/10"
+                                    "h-11 border-info/10 bg-info/5 hover:bg-info/10 hover:border-info/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
+                                    selectedLegendary && "border-info/40 bg-info/20 text-info shadow-purple-500/10"
                                 )}
                             >
                                 <Sparkles className={cn(
-                                    "w-4 h-4 transition-all duration-300 text-purple-400/50 group-hover/btn:text-purple-400",
-                                    selectedLegendary && "scale-110 -rotate-6 text-purple-400 opacity-100"
+                                    "w-4 h-4 transition-all duration-300 text-info/50 group-hover/btn:text-info",
+                                    selectedLegendary && "scale-110 -rotate-6 text-info opacity-100"
                                 )} />
                                 {selectedLegendary ? <span className="truncate min-w-0 max-w-[160px]">{getSelectedLegendaryName()}</span> : "Légendaire"}
                                 {selectedLegendary && (
                                     <span
                                         role="button"
                                         tabIndex={0}
-                                        className="ml-1 rounded-full hover:bg-purple-400/20 p-0.5 transition-colors cursor-pointer"
+                                        className="ml-1 rounded-full hover:bg-info/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             e.preventDefault();
@@ -530,17 +530,17 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                         onKeyDown={(e) => e.key === 'Enter' && setSelectedLegendary(null)}
                                         aria-label="Supprimer le filtre légendaire"
                                     >
-                                        <X className="w-3.5 h-3.5 text-purple-400/60 hover:text-purple-400" />
+                                        <X className="w-3.5 h-3.5 text-info/60 hover:text-info" />
                                     </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-white/10 shadow-xl" align="end">
+                        <PopoverContent className="w-[300px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-border shadow-xl" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un objet..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[300px]">
                                     <CommandEmpty>Aucun objet trouvé.</CommandEmpty>
-                                    <CommandGroup heading="Objets Légendaires" className="text-zinc-500 font-black uppercase text-caption tracking-widest p-2">
+                                    <CommandGroup heading="Objets Légendaires" className="text-muted-foreground font-black uppercase text-caption tracking-widest p-2">
                                         <div className="grid grid-cols-2 gap-2 p-2">
                                             {legendaryItems.map((item) => (
                                                 <CommandItem
@@ -553,28 +553,28 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                     className={cn(
                                                         "flex flex-col items-center justify-center gap-2 p-3 rounded-xl cursor-pointer transition-colors border text-center h-28",
                                                         selectedLegendary === item.id
-                                                            ? "bg-purple-500/20 border-purple-500/40  text-white"
-                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground"
+                                                            ? "bg-info/20 border-info/40  text-foreground"
+                                                            : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground"
                                                     )}
                                                 >
-                                                    <div className="relative w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-white/10 overflow-hidden shadow-inner shrink-0">
+                                                    <div className="relative w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-border overflow-hidden shadow-inner shrink-0">
                                                         {item.imageUrl ? (
                                                             <img src={item.imageUrl.startsWith("/") ? item.imageUrl : `/api/proxy-image?url=${encodeURIComponent(item.imageUrl)}`} alt={item.name} width={32} height={32} className="object-contain" />
                                                         ) : (
-                                                            <Sparkles className="w-5 h-5 text-purple-500/50" />
+                                                            <Sparkles className="w-5 h-5 text-info/50" />
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col items-center px-1">
                                                         <span className="text-caption font-black uppercase leading-tight line-clamp-2 text-center">
                                                             {item.name}
                                                         </span>
-                                                        <span className="text-caption text-zinc-500 uppercase mt-1 tracking-widest">
+                                                        <span className="text-caption text-muted-foreground uppercase mt-1 tracking-widest">
                                                             {item.jobRequired}
                                                         </span>
                                                     </div>
                                                     {selectedLegendary === item.id && (
-                                                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center ">
-                                                            <Check className="w-2.5 h-2.5 text-white" />
+                                                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-info flex items-center justify-center ">
+                                                            <Check className="w-2.5 h-2.5 text-foreground" />
                                                         </div>
                                                     )}
                                                 </CommandItem>
@@ -591,8 +591,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                         variant="outline"
                         onClick={() => setFilterLegendaryPet(!filterLegendaryPet)}
                         className={cn(
-                            "h-11 border-amber-400/10 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors group/btn shrink-0",
-                            filterLegendaryPet && "border-amber-400/40 bg-amber-400/20 text-amber-300"
+                            "h-11 border-warning/10 bg-warning/5 hover:bg-warning/10 hover:border-warning/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors group/btn shrink-0",
+                            filterLegendaryPet && "border-warning/40 bg-warning/20 text-warning"
                         )}
                     >
                         <Image
@@ -612,7 +612,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             <span
                                 role="button"
                                 tabIndex={0}
-                                className="ml-1 rounded-full hover:bg-amber-300/20 p-0.5 transition-colors cursor-pointer"
+                                className="ml-1 rounded-full hover:bg-warning/20 p-0.5 transition-colors cursor-pointer"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
@@ -621,7 +621,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 onKeyDown={(e) => e.key === 'Enter' && setFilterLegendaryPet(false)}
                                 aria-label="Supprimer le filtre familier"
                             >
-                                <X className="w-3.5 h-3.5 text-amber-300/60 hover:text-amber-300" />
+                                <X className="w-3.5 h-3.5 text-warning/60 hover:text-warning" />
                             </span>
                         )}
                     </Button>
@@ -632,7 +632,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             variant="ghost"
                             size="icon"
                             onClick={resetFilters}
-                            className="h-11 w-11 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/5 transition-colors"
+                            className="h-11 w-11 text-muted-foreground hover:text-danger hover:bg-danger/5 transition-colors"
                             title="Réinitialiser les filtres"
                         >
                             <X className="w-5 h-5" />

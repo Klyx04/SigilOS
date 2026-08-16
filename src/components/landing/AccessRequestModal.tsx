@@ -18,12 +18,12 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-            <DialogContent className="max-w-md bg-zinc-950 border-white/10">
+            <DialogContent className="max-w-md bg-background border-border">
                 <DialogHeader className="text-left">
-                    <DialogTitle className="text-lg font-bold text-white">
+                    <DialogTitle className="text-lg font-bold text-foreground">
                         Demander l&apos;accès pour votre guilde
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-zinc-400 leading-relaxed">
+                    <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                         Un chef ou admin Discord ouvre un ticket sur le serveur SigilOS.
                         Après validation, vous configurez vos modules puis invitez vos membres.
                     </DialogDescription>
@@ -33,15 +33,15 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
                     href={discordInvite}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-3 w-full h-12 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-sm transition-colors"
+                    className="inline-flex items-center justify-center gap-3 w-full h-12 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-foreground font-semibold text-sm transition-colors"
                 >
                     <DiscordIcon className="w-5 h-5" />
                     Ouvrir un ticket sur Discord
                 </a>
 
-                <p className="text-label text-zinc-500 leading-relaxed">
+                <p className="text-label text-muted-foreground leading-relaxed">
                     Réponse généralement sous 24-48h. Déjà membre ? Fermez cette fenêtre et{" "}
-                    <button onClick={onClose} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+                    <button onClick={onClose} className="text-success hover:text-success font-medium transition-colors">
                         connectez-vous avec Discord
                     </button>.
                 </p>

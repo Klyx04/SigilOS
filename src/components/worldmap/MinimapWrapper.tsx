@@ -73,7 +73,7 @@ export default function MinimapWrapper({
         return (
             <button
                 onClick={() => setIsHidden(false)}
-                className="fixed bottom-10 right-10 z-[300] p-4 bg-slate-900/90 backdrop-blur-xl border border-emerald-500/50 rounded-full shadow-2xl text-emerald-500  transition-all pointer-events-auto shadow-emerald-500/20 animate-in fade-in zoom-in-50"
+                className="fixed bottom-10 right-10 z-[300] p-4 bg-surface/90 backdrop-blur-xl border border-success/50 rounded-full shadow-2xl text-success  transition-all pointer-events-auto shadow-emerald-500/20 animate-in fade-in zoom-in-50"
             >
                 <Eye size={24} />
             </button>
@@ -96,7 +96,7 @@ export default function MinimapWrapper({
         >
             {/* Map Area */}
             <div
-                className="relative flex-1 bg-slate-950 border-2 border-white/10 rounded-t-[2rem] overflow-hidden group shadow-2xl"
+                className="relative flex-1 bg-background border-2 border-border rounded-t-[2rem] overflow-hidden group shadow-2xl"
                 onMouseDown={handleMouseDown}
             >
                 <div className="absolute inset-0 z-0">
@@ -105,37 +105,37 @@ export default function MinimapWrapper({
 
                 {/* Controls Overlay */}
                 <div className="absolute top-4 right-4 z-50 flex flex-col gap-2 map-controls opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="flex bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden">
-                        <button onClick={onZoomIn} className="p-2 hover:bg-white/10 text-white/60 hover:text-white transition-all"><Plus size={16} /></button>
-                        <div className="px-2 py-2 text-caption font-black text-emerald-400 border-x border-white/5 flex items-center">{Math.round((zoomLevel + 4) * 20)}%</div>
-                        <button onClick={onZoomOut} className="p-2 hover:bg-white/10 text-white/60 hover:text-white transition-all"><Minus size={16} /></button>
+                    <div className="flex bg-surface/80 backdrop-blur-md border border-border rounded-xl overflow-hidden">
+                        <button onClick={onZoomIn} className="p-2 hover:bg-surface text-foreground/60 hover:text-foreground transition-all"><Plus size={16} /></button>
+                        <div className="px-2 py-2 text-caption font-black text-success border-x border-border flex items-center">{Math.round((zoomLevel + 4) * 20)}%</div>
+                        <button onClick={onZoomOut} className="p-2 hover:bg-surface text-foreground/60 hover:text-foreground transition-all"><Minus size={16} /></button>
                     </div>
 
-                    <button onClick={onRecenter} className="p-2 bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-xl text-white/60 hover:text-white transition-all flex items-center justify-center">
+                    <button onClick={onRecenter} className="p-2 bg-surface/80 backdrop-blur-md border border-border rounded-xl text-foreground/60 hover:text-foreground transition-all flex items-center justify-center">
                         <Home size={16} />
                     </button>
 
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-xl text-white/60 hover:text-white transition-all flex items-center justify-center">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 bg-surface/80 backdrop-blur-md border border-border rounded-xl text-foreground/60 hover:text-foreground transition-all flex items-center justify-center">
                         {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                     </button>
 
-                    <button onClick={() => setIsHidden(true)} className="p-2 bg-slate-900/80 backdrop-blur-md border border-red-500/30 rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
+                    <button onClick={() => setIsHidden(true)} className="p-2 bg-surface/80 backdrop-blur-md border border-danger/30 rounded-xl text-danger hover:bg-danger hover:text-foreground transition-all flex items-center justify-center">
                         <EyeOff size={16} />
                     </button>
                 </div>
 
                 {/* Drag Handle Icon */}
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none opacity-20 transition-opacity group-hover:opacity-60">
-                    <Move size={16} className="text-white" />
+                    <Move size={16} className="text-foreground" />
                 </div>
             </div>
 
             {/* Validation Button Area */}
-            <div className="h-[60px] bg-slate-900/10 border-x-2 border-b-2 border-white/10 rounded-b-[2rem] overflow-hidden">
+            <div className="h-[60px] bg-surface/10 border-x-2 border-b-2 border-border rounded-b-[2rem] overflow-hidden">
                 <button
                     disabled={!canValidate}
                     onClick={onValidate}
-                    className={`w-full h-full font-black uppercase italic text-xs tracking-[0.2em] transition-all active:scale-95 ${canValidate ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20' : 'bg-white/5 text-white/10 cursor-not-allowed'}`}
+                    className={`w-full h-full font-black uppercase italic text-xs tracking-[0.2em] transition-all active:scale-95 ${canValidate ? 'bg-success hover:bg-success text-success-foreground shadow-lg shadow-emerald-500/20' : 'bg-surface text-foreground/10 cursor-not-allowed'}`}
                 >
                     {validateLabel}
                 </button>

@@ -186,7 +186,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
     };
 
     return (
-        <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-[#09090b] shadow-2xl transition-all duration-300">
+        <div className="relative w-full overflow-hidden rounded-2xl border border-border bg-[#09090b] shadow-2xl transition-all duration-300">
             {/* Background Effects */}
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 via-blue-900/5 to-transparent pointer-events-none" />
             <div
@@ -214,9 +214,9 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
 
             <div className={`relative p-6 md:p-8 flex flex-col gap-8 z-10 transition-opacity duration-300 ${isCompleted ? "opacity-90 grayscale-[0.3]" : ""}`}>
                 {/* Top Row: Back link & Title Row */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
                     <div className="flex flex-col gap-3">
-                        <Link href={`/dashboard/${guildId}/songes`} className="text-xs text-white/40 font-bold hover:text-white transition-colors flex items-center gap-1 group uppercase tracking-widest">
+                        <Link href={`/dashboard/${guildId}/songes`} className="text-xs text-foreground/40 font-bold hover:text-foreground transition-colors flex items-center gap-1 group uppercase tracking-widest">
                             <ArrowLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" />
                             RETOUR AUX SONGES
                         </Link>
@@ -236,7 +236,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                             />
                             <h1 className={cn(
                                 "text-3xl md:text-5xl font-black tracking-tighter transition-colors duration-300 uppercase",
-                                isCompleted ? "text-amber-500/80" : "text-white"
+                                isCompleted ? "text-amber-500/80" : "text-foreground"
                             )}>
                                 {difficulty?.label || "Rêve Inconnu"}
                             </h1>
@@ -256,20 +256,20 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                     </div>
 
                     {/* Floor Counter - Integrated into top row but on the right */}
-                    <div className="flex items-center gap-4 self-start md:self-end bg-white/5 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md shadow-xl">
+                    <div className="flex items-center gap-4 self-start md:self-end bg-surface px-6 py-3 rounded-2xl border border-border backdrop-blur-md shadow-xl">
                         <div className="flex flex-col items-center leading-none">
-                            <span className="text-caption uppercase text-white/30 font-black tracking-widest mb-1">Étage Actuel</span>
+                            <span className="text-caption uppercase text-foreground/30 font-black tracking-widest mb-1">Étage Actuel</span>
                             <span className={cn(
                                 "text-4xl font-black transition-all duration-300",
-                                isCompleted ? "text-amber-500" : "text-white"
+                                isCompleted ? "text-amber-500" : "text-foreground"
                             )}>
                                 {run.currentFloor}
                             </span>
                         </div>
-                        <div className="h-8 w-px bg-white/10" />
+                        <div className="h-8 w-px bg-surface" />
                         <div className="flex flex-col items-center leading-none">
-                            <span className="text-caption uppercase text-white/30 font-black tracking-widest mb-1">Objectif</span>
-                            <span className="text-lg font-black text-white/60">26</span>
+                            <span className="text-caption uppercase text-foreground/30 font-black tracking-widest mb-1">Objectif</span>
+                            <span className="text-lg font-black text-foreground/60">26</span>
                         </div>
                     </div>
                 </div>
@@ -285,7 +285,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 href="https://www.dofuspourlesnoobs.com/songes-infinis.html"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-blue-500/30 bg-blue-600/10 text-blue-200 hover:bg-blue-500/20 hover:text-white hover:border-blue-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-blue-500/30 bg-blue-600/10 text-blue-200 hover:bg-blue-500/20 hover:text-foreground hover:border-blue-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                             >
                                 <div className="w-2.5 h-2.5 rounded-full bg-blue-400  animate-pulse" />
                                 <span>Guide Songes</span>
@@ -296,7 +296,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                             {onOpenBossGuide && (
                                 <button
                                     onClick={onOpenBossGuide}
-                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-600/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-white hover:border-emerald-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-600/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-foreground hover:border-emerald-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                                 >
                                     <BookOpen className="w-6 h-6 group-hover:rotate-12 transition-transform drop-shadow-[0_0_10px_rgba(217,70,239,1)]" />
                                     <span>Guide Boss Songes</span>
@@ -329,8 +329,8 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                             </span>
                                             <div className="h-px flex-1" style={{ backgroundColor: `${epreuve.color}20` }} />
                                         </div>
-                                        <h3 className="text-xl font-black text-white/90 mb-2 uppercase tracking-tight">{epreuve.label}</h3>
-                                        <p className="text-sm text-white/50 leading-relaxed max-w-2xl">
+                                        <h3 className="text-xl font-black text-foreground/90 mb-2 uppercase tracking-tight">{epreuve.label}</h3>
+                                        <p className="text-sm text-foreground/50 leading-relaxed max-w-2xl">
                                             {epreuve.description}
                                         </p>
                                         <div className="mt-4 flex items-center gap-2">
@@ -344,15 +344,15 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                     </div>
 
                     {/* RIGHT COLUMN: 4/12 - ACTIONS & METADATA */}
-                    <div className="lg:col-span-12 xl:col-span-4 flex flex-col gap-6 lg:border-l lg:border-white/5 lg:pl-8">
+                    <div className="lg:col-span-12 xl:col-span-4 flex flex-col gap-6 lg:border-l lg:border-border lg:pl-8">
                         {/* Leader Actions */}
                         {isLeader && (
                             <div className="flex flex-col gap-3">
-                                <span className="text-caption font-black text-white/20 uppercase tracking-widest pl-1">Actions Chef de Run</span>
+                                <span className="text-caption font-black text-foreground/20 uppercase tracking-widest pl-1">Actions Chef de Run</span>
                                 {!isCompleted && (
                                     <Button
                                         onClick={openEdit}
-                                        className="w-full bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest h-14 border border-white/10"
+                                        className="w-full bg-surface hover:bg-surface text-foreground font-black uppercase tracking-widest h-14 border border-border"
                                     >
                                         <Pencil className="w-5 h-5 mr-3" />
                                         Modifier la Run
@@ -362,13 +362,13 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
                                         <DialogTrigger asChild>
                                             <Button
-                                                className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest h-14 shadow-lg shadow-amber-900/20 active:scale-95"
+                                                className="w-full bg-amber-500 hover:bg-amber-400 text-foreground font-black uppercase tracking-widest h-14 shadow-lg shadow-amber-900/20 active:scale-95"
                                             >
                                                 <CheckCircle2 className="w-5 h-5 mr-3" />
                                                 Clôturer la Run
                                             </Button>
                                         </DialogTrigger>
-                                        <DialogContent className="bg-[#09090b] border-white/10 text-white sm:max-w-md">
+                                        <DialogContent className="bg-[#09090b] border-border text-foreground sm:max-w-md">
                                             <DialogHeader>
                                                 <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                                                     <Trophy className="w-5 h-5 text-amber-500" />
@@ -376,14 +376,14 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                                 </DialogTitle>
                                             </DialogHeader>
                                             <div className="py-4 space-y-3">
-                                                <p className="text-white/80">Voulez-vous vraiment terminer cette aventure ?</p>
-                                                <p className="text-xs text-white/40 leading-relaxed bg-white/5 p-3 rounded-lg">
+                                                <p className="text-foreground/80">Voulez-vous vraiment terminer cette aventure ?</p>
+                                                <p className="text-xs text-foreground/40 leading-relaxed bg-surface p-3 rounded-lg">
                                                     Une fois clôturée, la run est archivée dans l'historique et les récompenses finales sont figées.
                                                 </p>
                                             </div>
                                             <div className="flex justify-end gap-3 mt-4">
                                                 <Button variant="ghost" onClick={() => setCloseDialogOpen(false)}>Annuler</Button>
-                                                <Button onClick={handleCloseRun} disabled={loading} className="bg-amber-600 hover:bg-amber-500 text-white">
+                                                <Button onClick={handleCloseRun} disabled={loading} className="bg-amber-600 hover:bg-amber-500 text-foreground">
                                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Terminer la Run"}
                                                 </Button>
                                             </div>
@@ -394,7 +394,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     <Button
                                         onClick={handleReopenRun}
                                         disabled={loading}
-                                        className="w-full bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest h-14 border border-white/10"
+                                        className="w-full bg-surface hover:bg-surface text-foreground font-black uppercase tracking-widest h-14 border border-border"
                                     >
                                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-5 h-5 mr-3" />}
                                         Réouvrir la Run
@@ -405,7 +405,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
 
                         {/* Chantier Songes — Modale d'édition de la run */}
                         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                            <DialogContent className="bg-[#09090b] border-white/10 text-white sm:max-w-md max-h-[85vh] overflow-y-auto">
+                            <DialogContent className="bg-[#09090b] border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                                         <Pencil className="w-5 h-5 text-purple-400" />
@@ -414,12 +414,12 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 </DialogHeader>
                                 <div className="py-4 space-y-5">
                                     <div className="space-y-2">
-                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Difficulté</label>
+                                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Difficulté</label>
                                         <Select value={editForm.difficulty} onValueChange={(v) => setEditForm(prev => ({ ...prev, difficulty: v }))}>
-                                            <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
+                                            <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                                 <SelectValue placeholder="Choisir la difficulté" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-zinc-950 border-white/10">
+                                            <SelectContent className="bg-background border-border">
                                                 {Object.entries(DIFFICULTIES).map(([key, d]) => (
                                                     <SelectItem key={key} value={key}>{d.label}</SelectItem>
                                                 ))}
@@ -428,12 +428,12 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Épreuve (optionnel)</label>
                                         <Select value={editForm.epreuveCode} onValueChange={(v) => setEditForm(prev => ({ ...prev, epreuveCode: v }))}>
-                                            <SelectTrigger className="w-full bg-white/5 border-white/10 text-sm font-medium">
+                                            <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                                 <SelectValue placeholder="Run standard" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-zinc-950 border-white/10">
+                                            <SelectContent className="bg-background border-border">
                                                 <SelectItem value="">Run standard</SelectItem>
                                                 {EPREUVES_SONGE.map((e) => (
                                                     <SelectItem key={e.code} value={e.code}>{e.icon} {e.label}</SelectItem>
@@ -442,7 +442,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                         </Select>
                                         {!editForm.epreuveCode && (
                                             <div className="space-y-1.5">
-                                                <label className="text-caption font-black text-white/40 uppercase tracking-widest">Objectifs</label>
+                                                <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Objectifs</label>
                                                 <div className="grid grid-cols-1 gap-2">
                                                     {Object.entries(OBJECTIVES).map(([key, obj]) => (
                                                         <button
@@ -451,8 +451,8 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                                             onClick={() => toggleEditObjective(key)}
                                                             className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
                                                                 editForm.objectives.includes(key)
-                                                                    ? "bg-purple-500/10 border-purple-500/40 text-white"
-                                                                    : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                                    ? "bg-purple-500/10 border-purple-500/40 text-foreground"
+                                                                    : "bg-surface border-border text-foreground/60 hover:border-border-strong"
                                                             }`}
                                                         >
                                                             <span className="text-sm">{obj.icon}</span>
@@ -466,40 +466,40 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-2">
-                                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Date de départ</label>
+                                            <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Date de départ</label>
                                             <Input
                                                 type="date"
                                                 value={editForm.date}
                                                 onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
-                                                className="bg-white/5 border-white/10 text-sm"
+                                                className="bg-surface border-border text-sm"
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-caption font-black text-white/40 uppercase tracking-widest">Heure</label>
+                                            <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Heure</label>
                                             <Input
                                                 type="time"
                                                 value={editForm.time}
                                                 onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
-                                                className="bg-white/5 border-white/10 text-sm"
+                                                className="bg-surface border-border text-sm"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-caption font-black text-white/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Étage actuel (0-26)</label>
                                         <Input
                                             type="number"
                                             min={0}
                                             max={26}
                                             value={editForm.currentFloor}
                                             onChange={(e) => setEditForm(prev => ({ ...prev, currentFloor: e.target.value }))}
-                                            className="bg-white/5 border-white/10 text-sm"
+                                            className="bg-surface border-border text-sm"
                                         />
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-3 mt-4">
-                                    <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-white/60 hover:text-white">Annuler</Button>
-                                    <Button onClick={handleEditSubmit} disabled={editPending} className="bg-purple-600 hover:bg-purple-500 text-white">
+                                    <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-foreground/60 hover:text-foreground">Annuler</Button>
+                                    <Button onClick={handleEditSubmit} disabled={editPending} className="bg-purple-600 hover:bg-purple-500 text-foreground">
                                         {editPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
                                         Enregistrer
                                     </Button>
@@ -508,30 +508,30 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                         </Dialog>
 
                         {/* Metadata Card */}
-                        <div className="bg-white/3 rounded-2xl p-5 border border-white/5 flex flex-col gap-4">
-                            <span className="text-caption font-black text-white/20 uppercase tracking-widest">Détails de l'expédition</span>
+                        <div className="bg-white/3 rounded-2xl p-5 border border-border flex flex-col gap-4">
+                            <span className="text-caption font-black text-foreground/20 uppercase tracking-widest">Détails de l'expédition</span>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-1.5 col-span-2">
                                     <div className="flex items-center gap-2 text-amber-500/60">
                                         <Crown className="w-3.5 h-3.5" />
                                         <span className="text-caption font-bold uppercase tracking-tighter">Chef d'expédition</span>
                                     </div>
-                                    <span className="text-sm font-black text-white/90">{leaderName || "Chargement..."}</span>
+                                    <span className="text-sm font-black text-foreground/90">{leaderName || "Chargement..."}</span>
                                 </div>
-                                <div className="h-px bg-white/5 col-span-2 my-1" />
+                                <div className="h-px bg-surface col-span-2 my-1" />
                                 <div className="flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-2 text-white/40">
+                                    <div className="flex items-center gap-2 text-foreground/40">
                                         <Users className="w-3.5 h-3.5" />
                                         <span className="text-caption font-bold uppercase tracking-tighter">Équipage</span>
                                     </div>
-                                    <span className="text-sm font-black text-white/80">{run.members.length} / 4</span>
+                                    <span className="text-sm font-black text-foreground/80">{run.members.length} / 4</span>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-2 text-white/40">
+                                    <div className="flex items-center gap-2 text-foreground/40">
                                         <Clock className="w-3.5 h-3.5" />
                                         <span className="text-caption font-bold uppercase tracking-tighter">Créée</span>
                                     </div>
-                                    <span className="text-sm font-black text-white/80">{formatDate(run.createdAt)}</span>
+                                    <span className="text-sm font-black text-foreground/80">{formatDate(run.createdAt)}</span>
                                 </div>
                             </div>
                         </div>

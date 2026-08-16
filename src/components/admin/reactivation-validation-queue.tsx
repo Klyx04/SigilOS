@@ -71,60 +71,60 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-surface/50 p-4 rounded-2xl border border-border">
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm text-zinc-400 border-r border-white/10 pr-4">
-                        <span className="text-white font-medium">{requests.length}</span> demandes en attente
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground border-r border-border pr-4">
+                        <span className="text-foreground font-medium">{requests.length}</span> demandes en attente
                     </div>
                 </div>
 
                 <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Chercher un membre..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9 h-9 bg-black/20 border-white/10 text-xs"
+                        className="pl-9 h-9 bg-black/20 border-border text-xs"
                     />
                 </div>
             </div>
 
             {filteredRequests.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[30vh] text-zinc-500 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/20">
+                <div className="flex flex-col items-center justify-center h-[30vh] text-muted-foreground border border-dashed border-border rounded-2xl bg-surface/20">
                     <UserCheck className="w-12 h-12 mb-4 opacity-20" />
                     <p className="font-medium">Aucune demande de réintégration en cours.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredRequests.map((req) => (
-                        <Card key={req.id} className="bg-zinc-900/40 border-white/5 overflow-hidden rounded-2xl group hover:border-emerald-500/20 transition-all duration-300">
+                        <Card key={req.id} className="bg-surface/40 border-border overflow-hidden rounded-2xl group hover:border-success/20 transition-all duration-300">
                             <CardHeader className="p-6 pb-4 space-y-4">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="relative">
-                                            <Avatar className="h-12 w-12 border-2 border-white/5">
+                                            <Avatar className="h-12 w-12 border-2 border-border">
                                                 <AvatarImage src={req.user.image} />
                                                 <AvatarFallback>{(getGameDisplayName(req) || "?")[0]}</AvatarFallback>
                                             </Avatar>
-                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-zinc-900 flex items-center justify-center">
-                                                <RefreshCcw className="w-3 h-3 text-white" />
+                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-success border-2 border-zinc-900 flex items-center justify-center">
+                                                <RefreshCcw className="w-3 h-3 text-foreground" />
                                             </div>
                                         </div>
                                         <div className="space-y-0.5">
-                                            <h3 className="text-sm font-black text-white uppercase tracking-tight">{getGameDisplayName(req)}</h3>
+                                            <h3 className="text-sm font-black text-foreground uppercase tracking-tight">{getGameDisplayName(req)}</h3>
                                             <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="text-caption bg-amber-500/5 text-amber-500 border-amber-500/20 h-4 uppercase">
+                                                <Badge variant="outline" className="text-caption bg-warning/5 text-warning border-warning/20 h-4 uppercase">
                                                     Archivé
                                                 </Badge>
-                                                <span className="text-caption text-zinc-500 font-medium italic">
+                                                <span className="text-caption text-muted-foreground font-medium italic">
                                                     {req.archivedAt ? `depuis ${formatDistanceToNow(new Date(req.archivedAt), { locale: fr })}` : "Archive indéterminée"}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-caption text-emerald-400 font-black uppercase tracking-widest block">Demande</span>
-                                        <span className="text-caption text-zinc-500 font-medium">
+                                        <span className="text-caption text-success font-black uppercase tracking-widest block">Demande</span>
+                                        <span className="text-caption text-muted-foreground font-medium">
                                             {req.reactivationRequestedAt ? formatDistanceToNow(new Date(req.reactivationRequestedAt), { addSuffix: true, locale: fr }) : "?"}
                                         </span>
                                     </div>
@@ -132,31 +132,31 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                             </CardHeader>
 
                             <CardContent className="px-6 pb-6 space-y-4">
-                                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-                                    <div className="flex items-center gap-2 text-caption font-black uppercase tracking-wider text-emerald-500">
+                                <div className="p-3 rounded-xl bg-surface border border-border space-y-2">
+                                    <div className="flex items-center gap-2 text-caption font-black uppercase tracking-wider text-success">
                                         <MessageSquare className="w-3 h-3" />
                                         Motif du retour
                                     </div>
-                                    <p className="text-xs text-zinc-300 italic leading-relaxed">
+                                    <p className="text-xs text-foreground italic leading-relaxed">
                                         "{req.reactivationRequestReason || "Aucun motif précisé"}"
                                     </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2">
-                                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
-                                        <span className="block text-caption text-zinc-500 uppercase font-bold">Raison Archive</span>
-                                        <span className="text-caption text-zinc-300 font-medium">{req.archiveReason || "Action Admin"}</span>
+                                    <div className="p-2 rounded-lg bg-black/20 border border-border">
+                                        <span className="block text-caption text-muted-foreground uppercase font-bold">Raison Archive</span>
+                                        <span className="text-caption text-foreground font-medium">{req.archiveReason || "Action Admin"}</span>
                                     </div>
-                                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
-                                        <span className="block text-caption text-zinc-500 uppercase font-bold">Suppression</span>
-                                        <span className="text-xs text-red-400 font-black tabular-nums">
+                                    <div className="p-2 rounded-lg bg-black/20 border border-border">
+                                        <span className="block text-caption text-muted-foreground uppercase font-bold">Suppression</span>
+                                        <span className="text-xs text-danger font-black tabular-nums">
                                             {req.scheduledDeletion ? `J-${Math.ceil((new Date(req.scheduledDeletion).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}` : "Jamais"}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-caption font-black uppercase tracking-wider text-zinc-500">
+                                    <div className="flex items-center gap-2 text-caption font-black uppercase tracking-wider text-muted-foreground">
                                         <MessageSquare className="w-3 h-3" />
                                         Message au membre (optionnel)
                                     </div>
@@ -164,7 +164,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                         placeholder="Ex: Bon retour parmi nous ! ou Précise ton pseudo..."
                                         value={adminMessages[req.id] || ""}
                                         onChange={(e) => setAdminMessages(prev => ({ ...prev, [req.id]: e.target.value }))}
-                                        className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/50 transition-colors placeholder:text-zinc-600 resize-none h-20"
+                                        className="w-full bg-black/20 border border-border rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-success/50 transition-colors placeholder:text-muted-foreground resize-none h-20"
                                     />
                                 </div>
 
@@ -172,7 +172,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                     <Button 
                                         onClick={() => handleDecision(req.id, "ACTIVE")}
                                         disabled={processingId === req.id}
-                                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-caption h-10 rounded-xl"
+                                        className="flex-1 bg-success hover:bg-success text-success-foreground font-black uppercase tracking-widest text-caption h-10 rounded-xl"
                                     >
                                         {processingId === req.id ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : <Check className="w-3.5 h-3.5 mr-2" />}
                                         Accepter
@@ -181,7 +181,7 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                         variant="outline"
                                         onClick={() => handleDecision(req.id, "ARCHIVED")}
                                         disabled={processingId === req.id}
-                                        className="flex-1 border-white/5 hover:border-red-500/30 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 font-black uppercase tracking-widest text-caption h-10 rounded-xl transition-all"
+                                        className="flex-1 border-border hover:border-danger/30 hover:bg-danger/10 text-muted-foreground hover:text-danger font-black uppercase tracking-widest text-caption h-10 rounded-xl transition-all"
                                     >
                                         <X className="w-3.5 h-3.5 mr-2" />
                                         Refuser

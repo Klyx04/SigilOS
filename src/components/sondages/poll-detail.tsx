@@ -26,11 +26,11 @@ const CATEGORY_CONFIG: Record<string, {
     label: string; emoji: string; color: string;
     gradient: string; glowColor: string; barColor: string;
 }> = {
-    SUGGESTION: { label: "Suggestion", emoji: "💡", color: "text-cyan-400", gradient: "from-cyan-500 to-cyan-600", glowColor: "rgba(6,182,212,0.4)", barColor: "bg-cyan-500" },
-    AMELIORATION: { label: "Amélioration", emoji: "🔧", color: "text-emerald-400", gradient: "from-emerald-500 to-emerald-600", glowColor: "rgba(16,185,129,0.4)", barColor: "bg-emerald-500" },
-    EVENT: { label: "Événement", emoji: "🎉", color: "text-amber-400", gradient: "from-amber-500 to-amber-600", glowColor: "rgba(245,158,11,0.4)", barColor: "bg-amber-500" },
-    MISSION: { label: "Mission", emoji: "🎯", color: "text-rose-400", gradient: "from-rose-500 to-rose-600", glowColor: "rgba(244,63,94,0.4)", barColor: "bg-rose-500" },
-    AUTRE: { label: "Autres", emoji: "📋", color: "text-indigo-400", gradient: "from-indigo-500 to-indigo-600", glowColor: "rgba(99,102,241,0.4)", barColor: "bg-indigo-500" },
+    SUGGESTION: { label: "Suggestion", emoji: "💡", color: "text-info", gradient: "from-info to-info", glowColor: "rgba(6,182,212,0.4)", barColor: "bg-info" },
+    AMELIORATION: { label: "Amélioration", emoji: "🔧", color: "text-success", gradient: "from-success to-success", glowColor: "rgba(16,185,129,0.4)", barColor: "bg-success" },
+    EVENT: { label: "Événement", emoji: "🎉", color: "text-warning", gradient: "from-warning to-warning", glowColor: "rgba(245,158,11,0.4)", barColor: "bg-warning" },
+    MISSION: { label: "Mission", emoji: "🎯", color: "text-danger", gradient: "from-danger to-danger", glowColor: "rgba(244,63,94,0.4)", barColor: "bg-danger" },
+    AUTRE: { label: "Autres", emoji: "📋", color: "text-info", gradient: "from-info to-info", glowColor: "rgba(99,102,241,0.4)", barColor: "bg-info" },
 };
 
 interface PollOption {
@@ -165,9 +165,9 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
             <div className="flex items-center justify-between px-2">
                 <Link
                     href={`/dashboard/${guildId}/sondages`}
-                    className="flex items-center gap-3 text-caption font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-all group"
+                    className="flex items-center gap-3 text-caption font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-all group"
                 >
-                    <div className="h-8 w-8 rounded-full border border-white/5 bg-zinc-900/50 flex items-center justify-center group-hover:bg-white/5 transition-all group-hover:-translate-x-1">
+                    <div className="h-8 w-8 rounded-full border border-border bg-surface/50 flex items-center justify-center group-hover:bg-surface transition-all group-hover:-translate-x-1">
                         <ArrowLeft className="h-4 w-4" />
                     </div>
                     Retour à la liste
@@ -183,7 +183,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 gap-2 text-caption font-black uppercase tracking-widest text-zinc-500 hover:text-cyan-400 hover:bg-cyan-500/5"
+                                    className="h-8 gap-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-info hover:bg-info/5"
                                 >
                                     <Edit2 className="w-3 h-3" />
                                     Modifier
@@ -196,7 +196,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowDeleteConfirm(true)}
-                            className="h-8 gap-2 text-caption font-black uppercase tracking-widest text-zinc-500 hover:text-red-400 hover:bg-red-500/5 underline decoration-red-500/30 decoration-dotted"
+                            className="h-8 gap-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-danger hover:bg-danger/5 underline decoration-red-500/30 decoration-dotted"
                         >
                             <Trash2 className="w-3 h-3" />
                             Supprimer
@@ -213,14 +213,14 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                     style={{ backgroundColor: cat.glowColor }}
                 />
 
-                <div className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#030303]/60 backdrop-blur-md shadow-2xl">
+                <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-[#030303]/60 backdrop-blur-md shadow-2xl">
                     <div className="p-8 md:p-12 space-y-10">
                         {/* Status + Category Row */}
                         <div className="flex items-center justify-between flex-wrap gap-4">
                             <div className={cn(
                                 "flex items-center gap-3 px-4 py-2 rounded-2xl border text-caption font-black uppercase tracking-[0.15em]",
                                 cat.color,
-                                "bg-white/[0.03] border-white/5"
+                                "bg-surface border-border"
                             )}>
                                 <span className="text-sm">{cat.emoji}</span>
                                 {cat.label}
@@ -230,28 +230,28 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 {poll.isAnonymous && (
                                     <TooltipProvider>
                                         <Tooltip>
-                                            <TooltipTrigger className="bg-white/[0.03] border border-white/5 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 transition-colors">
+                                            <TooltipTrigger className="bg-surface border border-border p-2 rounded-xl text-muted-foreground hover:text-foreground transition-colors">
                                                 <Lock className="w-4 h-4" />
                                             </TooltipTrigger>
-                                            <TooltipContent className="bg-zinc-950 border-white/10 text-caption uppercase font-bold tracking-widest">Votes anonymes</TooltipContent>
+                                            <TooltipContent className="bg-background border-border text-caption uppercase font-bold tracking-widest">Votes anonymes</TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
                                 {poll.allowMultipleVotes && (
                                     <TooltipProvider>
                                         <Tooltip>
-                                            <TooltipTrigger className="bg-white/[0.03] border border-white/5 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 transition-colors">
+                                            <TooltipTrigger className="bg-surface border border-border p-2 rounded-xl text-muted-foreground hover:text-foreground transition-colors">
                                                 <Users className="w-4 h-4" />
                                             </TooltipTrigger>
-                                            <TooltipContent className="bg-zinc-950 border-white/10 text-caption uppercase font-bold tracking-widest">Multi-vote activé</TooltipContent>
+                                            <TooltipContent className="bg-background border-border text-caption uppercase font-bold tracking-widest">Multi-vote activé</TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
                                 <div className={cn(
                                     "px-5 py-2 rounded-2xl text-caption font-black uppercase tracking-[0.2em] shadow-lg",
-                                    isActive ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-emerald-900/10" :
-                                        poll.status === "CLOSED" ? "bg-amber-500/10 border border-amber-500/20 text-amber-400 shadow-amber-900/10" :
-                                            "bg-red-500/10 border border-red-500/20 text-red-400 shadow-red-900/10"
+                                    isActive ? "bg-success/10 border border-success/20 text-success shadow-emerald-900/10" :
+                                        poll.status === "CLOSED" ? "bg-warning/10 border border-warning/20 text-warning shadow-amber-900/10" :
+                                            "bg-danger/10 border border-danger/20 text-danger shadow-red-900/10"
                                 )}>
                                     {isActive ? "Sondage Ouvert" : poll.status === "CLOSED" ? "Archivé / Terminé" : "Consultation Annulée"}
                                 </div>
@@ -260,11 +260,11 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
                         {/* Title & Description */}
                         <div className="space-y-4">
-                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-[0.95] max-w-2xl">
+                            <h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tighter leading-[0.95] max-w-2xl">
                                 {poll.title}
                             </h1>
                             {poll.description && (
-                                <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-3xl font-medium">
+                                <p className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-3xl font-medium">
                                     {poll.description}
                                 </p>
                             )}
@@ -273,11 +273,11 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                     href={poll.externalUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700/60 hover:text-white hover:border-white/20 transition-all group w-fit"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-elevated/60 text-foreground border border-border hover:bg-muted/60 hover:text-foreground hover:border-border-strong transition-all group w-fit"
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
+                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-info transition-colors" />
                                     Source externe
-                                    <span className="text-zinc-600 group-hover:text-zinc-400 transition-colors normal-case font-medium truncate max-w-[200px]">
+                                    <span className="text-muted-foreground group-hover:text-muted-foreground transition-colors normal-case font-medium truncate max-w-[200px]">
                                         {(() => { try { return new URL(poll.externalUrl).hostname; } catch { return poll.externalUrl; } })()}
                                     </span>
                                 </a>
@@ -285,34 +285,34 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                         </div>
 
                         {/* Meta Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 border-t border-white/[0.03]">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 border-t border-border">
                             <div className="space-y-1">
-                                <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest">Initiateur</p>
-                                <p className="text-sm text-zinc-300 font-bold flex items-center gap-2 group cursor-default">
-                                    <span className="w-5 h-5 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                                        <Crown className="w-3 h-3 text-amber-500" />
+                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Initiateur</p>
+                                <p className="text-sm text-foreground font-bold flex items-center gap-2 group cursor-default">
+                                    <span className="w-5 h-5 rounded-full bg-warning/10 flex items-center justify-center border border-warning/20">
+                                        <Crown className="w-3 h-3 text-warning" />
                                     </span>
-                                    <span className="group-hover:text-cyan-400 transition-colors">{poll.creatorName}</span>
+                                    <span className="group-hover:text-info transition-colors">{poll.creatorName}</span>
                                 </p>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest">Date</p>
-                                <p className="text-sm text-zinc-300 font-bold flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-zinc-700" />
+                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Date</p>
+                                <p className="text-sm text-foreground font-bold flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-muted-foreground" />
                                     {new Date(poll.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                                 </p>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest">Participation</p>
-                                <p className="text-sm text-zinc-300 font-bold flex items-center gap-2">
-                                    <BarChart3 className="w-4 h-4 text-zinc-700" />
+                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Participation</p>
+                                <p className="text-sm text-foreground font-bold flex items-center gap-2">
+                                    <BarChart3 className="w-4 h-4 text-muted-foreground" />
                                     {localTotalVotes} votant{localTotalVotes !== 1 ? "s" : ""}
                                 </p>
                             </div>
                             {poll.expiresAt && isActive && (
                                 <div className="space-y-1">
-                                    <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest">Status temps</p>
-                                    <p className="text-sm text-amber-500/80 font-bold border-l-2 border-amber-500/30 pl-3">
+                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Status temps</p>
+                                    <p className="text-sm text-warning/80 font-bold border-l-2 border-warning/30 pl-3">
                                         Fin {new Date(poll.expiresAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                                     </p>
                                 </div>
@@ -328,23 +328,23 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                     <motion.div
                         initial={{ opacity: 0, scale: 0.98, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="bg-emerald-500/5 border border-emerald-500/10 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden shadow-2xl shadow-emerald-950/20"
+                        className="bg-success/5 border border-success/10 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden shadow-2xl shadow-emerald-950/20"
                     >
                         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-                            <CheckCircle2 className="w-32 h-32 text-emerald-400" />
+                            <CheckCircle2 className="w-32 h-32 text-success" />
                         </div>
 
                         <div className="max-w-3xl relative z-10">
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="bg-emerald-500/20 p-3 rounded-2xl border border-emerald-500/30">
-                                    <Crown className="w-6 h-6 text-emerald-400" />
+                                <div className="bg-success/20 p-3 rounded-2xl border border-success/30">
+                                    <Crown className="w-6 h-6 text-success" />
                                 </div>
                                 <div>
-                                    <h4 className="text-emerald-400 font-black tracking-widest text-caption uppercase">Décision Officielle</h4>
-                                    <p className="text-zinc-500 text-caption font-bold uppercase tracking-tighter">Status: Clôturé avec succès</p>
+                                    <h4 className="text-success font-black tracking-widest text-caption uppercase">Décision Officielle</h4>
+                                    <p className="text-muted-foreground text-caption font-bold uppercase tracking-tighter">Status: Clôturé avec succès</p>
                                 </div>
                             </div>
-                            <p className="text-zinc-100 text-xl md:text-2xl leading-relaxed italic font-bold max-w-[90%] decoration-emerald-500/20 underline decoration-double underline-offset-8">
+                            <p className="text-foreground text-xl md:text-2xl leading-relaxed italic font-bold max-w-[90%] decoration-emerald-500/20 underline decoration-double underline-offset-8">
                                 &quot;{poll.outcome}&quot;
                             </p>
                         </div>
@@ -355,11 +355,11 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
             {/* Voting Section */}
             <div className="grid grid-cols-1 gap-4">
                 <div className="flex items-center justify-between mb-4 px-4">
-                    <h2 className="text-caption font-black uppercase tracking-widest text-zinc-600">Propositions et resultats</h2>
+                    <h2 className="text-caption font-black uppercase tracking-widest text-muted-foreground">Propositions et resultats</h2>
                     {isActive && (
                         <span className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                            <span className="text-caption font-bold text-cyan-400 uppercase tracking-widest">En direct</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-info animate-pulse" />
+                            <span className="text-caption font-bold text-info uppercase tracking-widest">En direct</span>
                         </span>
                     )}
                 </div>
@@ -380,13 +380,13 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 transition={{ delay: i * 0.05 }}
                                 className={cn(
                                     "w-full group relative overflow-hidden rounded-3xl border transition-all duration-300 text-left",
-                                    "bg-zinc-900/40 backdrop-blur-sm",
+                                    "bg-surface/40 backdrop-blur-sm",
                                     isActive
-                                        ? "hover:bg-zinc-900/80 cursor-pointer"
+                                        ? "hover:bg-surface/80 cursor-pointer"
                                         : "cursor-default opacity-80",
                                     isVoted
-                                        ? "border-cyan-500/30 shadow-lg shadow-cyan-900/10"
-                                        : "border-white/5"
+                                        ? "border-info/30 shadow-lg shadow-cyan-900/10"
+                                        : "border-border"
                                 )}
                             >
                                 {/* Results fill */}
@@ -394,14 +394,14 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                     <motion.div
                                         className={cn(
                                             "h-full transition-colors",
-                                            isVoted ? "bg-cyan-500/10" : "bg-white/[0.03]"
+                                            isVoted ? "bg-info/10" : "bg-surface"
                                         )}
                                         initial={{ width: 0 }}
                                         animate={{ width: `${percent}%` }}
                                         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: i * 0.05 + 0.2 }}
                                     />
                                     {isWinning && localTotalVotes > 0 && (
-                                        <div className="absolute inset-0 border-2 border-amber-500/10 rounded-3xl pointer-events-none" />
+                                        <div className="absolute inset-0 border-2 border-warning/10 rounded-3xl pointer-events-none" />
                                     )}
                                 </div>
 
@@ -411,8 +411,8 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                         <div className={cn(
                                             "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0",
                                             isVoted
-                                                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 scale-110"
-                                                : "bg-white/[0.05] text-zinc-600 group-hover:bg-white/10"
+                                                ? "bg-info text-info-foreground shadow-lg shadow-cyan-500/20 scale-110"
+                                                : "bg-surface text-muted-foreground group-hover:bg-surface"
                                         )}>
                                             {isVoted ? <CheckCircle2 className="w-6 h-6" /> : <div className="text-xl font-black">{option.emoji || (i + 1)}</div>}
                                         </div>
@@ -420,7 +420,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                         <div className="min-w-0">
                                             <p className={cn(
                                                 "text-lg font-black transition-colors break-words whitespace-normal",
-                                                isVoted ? "text-white" : "text-zinc-300 group-hover:text-white"
+                                                isVoted ? "text-foreground" : "text-foreground group-hover:text-foreground"
                                             )}>
                                                 {option.label}
                                             </p>
@@ -435,11 +435,11 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                                     {option.votes.slice(0, 5).map((v) => {
                                                                         // Couleur déterministe basée sur le nom
                                                                         const colors = [
-                                                                            "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-                                                                            "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                                                                            "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                                                                            "bg-rose-500/20 text-rose-300 border-rose-500/30",
-                                                                            "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+                                                                            "bg-info/20 text-info border-info/30",
+                                                                            "bg-warning/20 text-warning border-warning/30",
+                                                                            "bg-success/20 text-success border-success/30",
+                                                                            "bg-danger/20 text-danger border-danger/30",
+                                                                            "bg-info/20 text-info border-info/30",
                                                                             "bg-violet-500/20 text-violet-300 border-violet-500/30",
                                                                         ];
                                                                         const colorClass = colors[v.voterName.charCodeAt(0) % colors.length];
@@ -458,30 +458,30 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                                     })}
                                                                 </div>
                                                                 {option.votes.length > 5 && (
-                                                                    <span className="text-caption text-zinc-500 font-black group-hover/voters:text-zinc-300 transition-colors">
+                                                                    <span className="text-caption text-muted-foreground font-black group-hover/voters:text-foreground transition-colors">
                                                                         +{option.votes.length - 5} autres
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         </TooltipTrigger>
                                                         <TooltipContent
-                                                            className="bg-zinc-950 border border-white/10 p-0 rounded-2xl max-w-xs shadow-2xl overflow-hidden"
+                                                            className="bg-background border border-border p-0 rounded-2xl max-w-xs shadow-2xl overflow-hidden"
                                                             side="bottom"
                                                             align="start"
                                                         >
-                                                            <div className="px-4 py-3 border-b border-white/5">
-                                                                <p className="text-caption font-black text-zinc-400 uppercase tracking-widest">
+                                                            <div className="px-4 py-3 border-b border-border">
+                                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">
                                                                     {option.votes.length} votant{option.votes.length > 1 ? "s" : ""}
                                                                 </p>
                                                             </div>
                                                             <div className="max-h-48 overflow-y-auto">
                                                                 {option.votes.map((v, idx) => {
                                                                     const colors = [
-                                                                        "bg-cyan-500/20 text-cyan-300",
-                                                                        "bg-amber-500/20 text-amber-300",
-                                                                        "bg-emerald-500/20 text-emerald-300",
-                                                                        "bg-rose-500/20 text-rose-300",
-                                                                        "bg-indigo-500/20 text-indigo-300",
+                                                                        "bg-info/20 text-info",
+                                                                        "bg-warning/20 text-warning",
+                                                                        "bg-success/20 text-success",
+                                                                        "bg-danger/20 text-danger",
+                                                                        "bg-info/20 text-info",
                                                                         "bg-violet-500/20 text-violet-300",
                                                                     ];
                                                                     const colorClass = colors[v.voterName.charCodeAt(0) % colors.length];
@@ -490,7 +490,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                                             key={v.id}
                                                                             className={cn(
                                                                                 "flex items-center gap-3 px-4 py-2.5 transition-colors",
-                                                                                idx % 2 === 0 ? "bg-white/[0.01]" : "bg-transparent"
+                                                                                idx % 2 === 0 ? "bg-surface" : "bg-transparent"
                                                                             )}
                                                                         >
                                                                             <div className={cn(
@@ -499,7 +499,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                                             )}>
                                                                                 {v.voterName.charAt(0)}
                                                                             </div>
-                                                                            <span className="text-label text-zinc-200 font-medium truncate">{v.voterName}</span>
+                                                                            <span className="text-label text-foreground font-medium truncate">{v.voterName}</span>
                                                                         </div>
                                                                     );
                                                                 })}
@@ -512,21 +512,21 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                     </div>
 
                                     {/* Stats block */}
-                                    <div className="flex items-center gap-6 shrink-0 md:pl-8 border-l border-white/[0.03]">
+                                    <div className="flex items-center gap-6 shrink-0 md:pl-8 border-l border-border">
                                         <div className="text-right">
                                             <div className={cn(
                                                 "text-2xl font-black tabular-nums leading-none tracking-tighter",
-                                                isWinning ? (isVoted ? "text-cyan-400" : "text-amber-400") : "text-zinc-700"
+                                                isWinning ? (isVoted ? "text-info" : "text-warning") : "text-muted-foreground"
                                             )}>
                                                 {Math.round(percent)}%
                                             </div>
-                                            <p className="text-caption text-zinc-600 font-bold uppercase tracking-widest mt-1">
+                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">
                                                 {option.voteCount} vote{option.voteCount !== 1 ? "s" : ""}
                                             </p>
                                         </div>
                                         {isWinning && localTotalVotes > 0 && (
-                                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                                <Crown className="w-5 h-5 text-amber-500/60" />
+                                            <div className="p-2 rounded-xl bg-warning/10 border border-warning/20">
+                                                <Crown className="w-5 h-5 text-warning/60" />
                                             </div>
                                         )}
                                     </div>
@@ -539,11 +539,11 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
             {/* Footer Admin Actions */}
             {canManage && isActive && (
-                <div className="pt-12 border-t border-white/5">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 bg-zinc-900/40 p-10 rounded-[2.5rem] border border-white/5">
+                <div className="pt-12 border-t border-border">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 bg-surface/40 p-10 rounded-[2.5rem] border border-border">
                         <div className="space-y-2 text-center sm:text-left">
-                            <h3 className="text-white font-black text-xl tracking-tight">Fin de consultation ?</h3>
-                            <p className="text-zinc-500 text-caption font-medium max-w-xs">
+                            <h3 className="text-foreground font-black text-xl tracking-tight">Fin de consultation ?</h3>
+                            <p className="text-muted-foreground text-caption font-medium max-w-xs">
                                 Clôturez le sondage pour valider une décision officielle et notifier les membres sur Discord.
                             </p>
                         </div>
@@ -552,15 +552,15 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                             <Dialog open={showOutcomeModal} onOpenChange={setShowOutcomeModal}>
                                 <DialogTrigger asChild>
                                     <Button
-                                        className="h-14 px-8 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-caption shadow-lg shadow-emerald-900/20 gap-3"
+                                        className="h-14 px-8 rounded-2xl bg-success hover:bg-success text-success-foreground font-black uppercase tracking-widest text-caption shadow-lg shadow-emerald-900/20 gap-3"
                                     >
                                         <CheckCircle2 className="w-5 h-5" />
                                         Clôturer avec décision
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="bg-zinc-950 border-white/10 max-w-xl p-8 rounded-[2rem]">
+                                <DialogContent className="bg-background border-border max-w-xl p-8 rounded-[2rem]">
                                     <DialogHeader className="mb-6">
-                                        <DialogTitle className="flex items-center gap-4 text-emerald-400 text-2xl font-black tracking-tighter">
+                                        <DialogTitle className="flex items-center gap-4 text-success text-2xl font-black tracking-tighter">
                                             <Megaphone className="w-8 h-8" />
                                             Acter la décision
                                         </DialogTitle>
@@ -568,12 +568,12 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
                                     <div className="space-y-8">
                                         <div className="space-y-3">
-                                            <Label className="text-caption font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Conclusion de la guilde</Label>
+                                            <Label className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Conclusion de la guilde</Label>
                                             <Textarea
                                                 placeholder="Ex: Suite aux votes, nous lançons l'extension du coffre dès demain !"
                                                 value={outcomeText}
                                                 onChange={(e) => setOutcomeText(e.target.value)}
-                                                className="bg-zinc-900/80 border-white/5 focus:border-emerald-500/30 min-h-[160px] rounded-2xl p-4 text-white font-medium text-base resize-none"
+                                                className="bg-surface/80 border-border focus:border-success/30 min-h-[160px] rounded-2xl p-4 text-foreground font-medium text-base resize-none"
                                             />
                                         </div>
 
@@ -583,8 +583,8 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                     <Megaphone className="w-5 h-5 text-[#5865F2]" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-black text-white uppercase tracking-tight">Annonce Discord</p>
-                                                    <p className="text-caption text-zinc-500">Notifier tous les membres instantanément</p>
+                                                    <p className="text-sm font-black text-foreground uppercase tracking-tight">Annonce Discord</p>
+                                                    <p className="text-caption text-muted-foreground">Notifier tous les membres instantanément</p>
                                                 </div>
                                             </div>
                                             <Switch
@@ -596,9 +596,9 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                         </div>
 
                                         {!isDiscordConfigured && (
-                                            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 animate-in fade-in slide-in-from-top-2">
-                                                <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                                <p className="text-caption font-bold text-amber-500/80 uppercase tracking-tight leading-relaxed">
+                                            <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/5 border border-warning/10 animate-in fade-in slide-in-from-top-2">
+                                                <Info className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                                                <p className="text-caption font-bold text-warning/80 uppercase tracking-tight leading-relaxed">
                                                     Le salon Discord pour les sondages n&apos;est pas configuré. L&apos;annonce ne sera pas envoyée.
                                                 </p>
                                             </div>
@@ -609,14 +609,14 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                 variant="outline"
                                                 onClick={() => handleClose()}
                                                 disabled={isPending}
-                                                className="h-14 rounded-2xl border-white/5 text-zinc-500 hover:text-white uppercase font-black text-caption tracking-widest"
+                                                className="h-14 rounded-2xl border-border text-muted-foreground hover:text-foreground uppercase font-black text-caption tracking-widest"
                                             >
                                                 Fermer sans texte
                                             </Button>
                                             <Button
                                                 onClick={() => handleClose(outcomeText)}
                                                 disabled={isPending || !outcomeText.trim()}
-                                                className="h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/40 uppercase font-black text-caption tracking-widest gap-2"
+                                                className="h-14 rounded-2xl bg-success hover:bg-success text-success-foreground shadow-xl shadow-emerald-950/40 uppercase font-black text-caption tracking-widest gap-2"
                                             >
                                                 {isPending ? "Publication..." : <>Valider <Send className="w-4 h-4" /></>}
                                             </Button>
@@ -631,26 +631,26 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
             {/* Delete Confirmation */}
             <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                <DialogContent className="bg-zinc-950 border-white/10 max-w-md rounded-[2rem]">
+                <DialogContent className="bg-background border-border max-w-md rounded-[2rem]">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-3 text-red-400 font-black text-xl">
+                        <DialogTitle className="flex items-center gap-3 text-danger font-black text-xl">
                             <AlertTriangle className="w-6 h-6" />
                             Suppression Définitive
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 pt-4">
-                        <p className="text-zinc-400 text-sm leading-relaxed font-medium">
-                            Vous êtes sur le point de supprimer <span className="text-white font-bold">&quot;{poll.title}&quot;</span>. 
+                        <p className="text-muted-foreground text-sm leading-relaxed font-medium">
+                            Vous êtes sur le point de supprimer <span className="text-foreground font-bold">&quot;{poll.title}&quot;</span>. 
                             Cette action effacera également les votes et l&apos;embed Discord associé.
                         </p>
                         <div className="grid grid-cols-2 gap-4">
-                            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} className="h-12 rounded-xl text-zinc-500 hover:text-white uppercase font-black text-caption tracking-widest">
+                            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} className="h-12 rounded-xl text-muted-foreground hover:text-foreground uppercase font-black text-caption tracking-widest">
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleDelete}
                                 disabled={isPending}
-                                className="h-12 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 uppercase font-black text-caption tracking-widest"
+                                className="h-12 rounded-xl bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 uppercase font-black text-caption tracking-widest"
                             >
                                 {isPending ? "..." : "Confirmer"}
                             </Button>

@@ -20,30 +20,30 @@ export default function DashboardError({
     return (
         <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 relative overflow-hidden">
             {/* Effets arrière-plan (localisés au container) */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-rose-600/10 rounded-full blur-[100px] pointer-events-none opacity-40" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] bg-rose-500/20 rounded-full blur-[60px] pointer-events-none opacity-30 mix-blend-screen" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-danger/10 rounded-full blur-[100px] pointer-events-none opacity-40" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] bg-danger/20 rounded-full blur-[60px] pointer-events-none opacity-30 mix-blend-screen" />
 
             <div className="relative z-10 max-w-lg w-full animate-in fade-in zoom-in-95 duration-300 mt-8">
-                <div className="bg-black/40 backdrop-blur-3xl border border-white/10 p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-rose-900/20 text-center ring-1 ring-white/5 relative overflow-hidden">
+                <div className="bg-black/40 backdrop-blur-3xl border border-border p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-rose-900/20 text-center ring-1 ring-white/5 relative overflow-hidden">
 
                     {/* Ligne rouge décorative */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500/0 via-rose-500 to-rose-500/0 opacity-70" />
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-danger/0 via-danger to-danger/0 opacity-70" />
 
-                    <div className="mx-auto w-20 h-20 bg-rose-500/10 rounded-[1.5rem] flex items-center justify-center mb-8 border border-rose-500/20 rotate-3 ">
-                        <ServerCrash className="w-10 h-10 text-rose-400 rotate-[-3deg]" />
+                    <div className="mx-auto w-20 h-20 bg-danger/10 rounded-[1.5rem] flex items-center justify-center mb-8 border border-danger/20 rotate-3 ">
+                        <ServerCrash className="w-10 h-10 text-danger rotate-[-3deg]" />
                     </div>
 
-                    <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white mb-4 drop-shadow-md">
+                    <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground mb-4 drop-shadow-md">
                         Section Indisponible
                     </h2>
-                    <p className="text-zinc-400 text-sm leading-relaxed mb-6 max-w-[95%] mx-auto">
+                    <p className="text-muted-foreground text-sm leading-relaxed mb-6 max-w-[95%] mx-auto">
                         Une erreur logicielle s'est produite lors du chargement de cette page. Les équipes de maintenance ont été alertées en arrière-plan.
                     </p>
 
                     {error.digest && (
-                        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/60 border border-white/5 mb-8">
-                            <AlertOctagon className="w-3.5 h-3.5 text-rose-500" />
-                            <span className="text-zinc-500 font-mono text-caption uppercase tracking-widest">
+                        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/60 border border-border mb-8">
+                            <AlertOctagon className="w-3.5 h-3.5 text-danger" />
+                            <span className="text-muted-foreground font-mono text-caption uppercase tracking-widest">
                                 Réf : {error.digest.slice(0, 16)}
                             </span>
                         </div>
@@ -73,7 +73,7 @@ export default function DashboardError({
             </div>
 
             <div className="mt-8 text-center opacity-40">
-                <span className="text-caption font-black uppercase tracking-widest text-zinc-600">
+                <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">
                     SigilOS • Module Failure
                 </span>
             </div>

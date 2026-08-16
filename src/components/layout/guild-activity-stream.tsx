@@ -42,12 +42,12 @@ const TYPE_CONFIG: Record<LocalActivityType, {
     border: string;
     barColor: string;
 }> = {
-    LOGIN: { icon: LogIn, label: "vient de se connecter", accent: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/25", barColor: "#22d3ee" },
-    LEAVE: { icon: LogOut, label: "a quitté le dashboard", accent: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/25", barColor: "#fb7185" },
+    LOGIN: { icon: LogIn, label: "vient de se connecter", accent: "text-info", bg: "bg-info/10", border: "border-info/25", barColor: "#22d3ee" },
+    LEAVE: { icon: LogOut, label: "a quitté le dashboard", accent: "text-danger", bg: "bg-danger/10", border: "border-danger/25", barColor: "#fb7185" },
     NEW_MEMBER: { icon: UserPlus, label: "a rejoint la plateforme 🎉", accent: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/25", barColor: "#a78bfa" },
-    ARCHIVED: { icon: Archive, label: "a été archivé", accent: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/25", barColor: "#fbbf24" },
-    BANNED: { icon: Ban, label: "a été banni", accent: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/25", barColor: "#fb7185" },
-    UNARCHIVED: { icon: UserCheck, label: "a été réactivé", accent: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25", barColor: "#34d399" },
+    ARCHIVED: { icon: Archive, label: "a été archivé", accent: "text-warning", bg: "bg-warning/10", border: "border-warning/25", barColor: "#fbbf24" },
+    BANNED: { icon: Ban, label: "a été banni", accent: "text-danger", bg: "bg-danger/10", border: "border-danger/25", barColor: "#fb7185" },
+    UNARCHIVED: { icon: UserCheck, label: "a été réactivé", accent: "text-success", bg: "bg-success/10", border: "border-success/25", barColor: "#34d399" },
 };
 
 // Dedup côté client — LOGIN/LEAVE (même personne) dans une fenêtre courte.
@@ -93,7 +93,7 @@ function PopupCard({ popup, onDismiss }: { popup: PopupItem; onDismiss: (id: str
                     : "slideIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards",
             }}
             className={`relative flex items-center gap-3 w-72
-                bg-zinc-900/95 border ${cfg.border} rounded-2xl px-3.5 py-3
+                bg-surface/95 border ${cfg.border} rounded-2xl px-3.5 py-3
                 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden`}
         >
             {/* Left color bar */}
@@ -117,17 +117,17 @@ function PopupCard({ popup, onDismiss }: { popup: PopupItem; onDismiss: (id: str
 
             {/* Text */}
             <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-white leading-tight truncate">{popup.actorName}</p>
+                <p className="text-xs font-black text-foreground leading-tight truncate">{popup.actorName}</p>
                 <p className={`text-caption font-semibold ${cfg.accent} leading-tight mt-0.5`}>{cfg.label}</p>
                 {popup.meta?.reason && (
-                    <p className="text-caption text-zinc-600 mt-0.5 truncate">"{popup.meta.reason}"</p>
+                    <p className="text-caption text-muted-foreground mt-0.5 truncate">"{popup.meta.reason}"</p>
                 )}
             </div>
 
             {/* Close */}
             <button
                 onClick={() => onDismiss(popup.id)}
-                className="shrink-0 text-zinc-700 hover:text-zinc-400 transition-colors"
+                className="shrink-0 text-muted-foreground hover:text-muted-foreground transition-colors"
                 aria-label="Fermer"
             >
                 <X className="w-3.5 h-3.5" />

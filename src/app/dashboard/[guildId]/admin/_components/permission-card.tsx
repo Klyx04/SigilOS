@@ -39,10 +39,10 @@ export function PermissionCard({
             className={cn(
                 "group relative flex flex-col gap-5 p-5 rounded-2xl border transition-colors duration-200",
                 locked
-                    ? "bg-zinc-900/40 border-white/5 opacity-50 cursor-not-allowed select-none"
+                    ? "bg-surface/40 border-border opacity-50 cursor-not-allowed select-none"
                     : isConfigured
-                        ? "bg-zinc-800/60 border-white/15"
-                        : "bg-zinc-800/20 border-white/10 hover:bg-zinc-800/40"
+                        ? "bg-elevated/60 border-border-strong"
+                        : "bg-elevated/20 border-border hover:bg-elevated/40"
             )}
             style={{
                 borderColor: !locked && isConfigured ? `${moduleColor}50` : undefined
@@ -51,8 +51,8 @@ export function PermissionCard({
             {/* Locked overlay */}
             {locked && (
                 <div className="absolute inset-0 rounded-2xl z-20 flex flex-col items-center justify-center gap-2 pointer-events-auto cursor-not-allowed">
-                    <Lock className="w-5 h-5 text-zinc-500" />
-                    <p className="text-xs text-zinc-500 font-medium text-center px-4">
+                    <Lock className="w-5 h-5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground font-medium text-center px-4">
                         Configurez d&apos;abord<br />🚪 Accès Dashboard
                     </p>
                 </div>
@@ -67,7 +67,7 @@ export function PermissionCard({
                                 backgroundColor: isConfigured && !locked ? moduleColor : '#52525b'
                             }}
                         />
-                        <h3 className="text-sm font-semibold text-white tracking-tight leading-none">
+                        <h3 className="text-sm font-semibold text-foreground tracking-tight leading-none">
                             {details.label}
                         </h3>
                         {details.sensitive && (
@@ -84,17 +84,17 @@ export function PermissionCard({
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-zinc-300 leading-relaxed max-w-[240px]">
+                    <p className="text-xs text-foreground leading-relaxed max-w-[240px]">
                         {details.description}
                     </p>
                     
                     {/* Modules / paramètres débloqués (#66) */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-xs font-medium text-zinc-400">Débloque :</span>
+                        <span className="text-xs font-medium text-muted-foreground">Débloque :</span>
                         {details.modules.map((mod, i) => (
                             <span 
                                 key={i}
-                                className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-xs text-zinc-300"
+                                className="px-2 py-0.5 rounded-md bg-surface border border-border text-xs text-foreground"
                             >
                                 {mod}
                             </span>
@@ -114,7 +114,7 @@ export function PermissionCard({
 
             <div className="grid gap-4 relative z-10">
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-white/60 uppercase tracking-wide ml-1 flex items-center gap-2">
+                    <label className="text-xs font-semibold text-foreground/60 uppercase tracking-wide ml-1 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                         Rôles Discord
                     </label>
@@ -123,12 +123,12 @@ export function PermissionCard({
                         selected={selectedRoleIds}
                         onChange={locked ? () => {} : onRolesChange}
                         placeholder="Public (Tous les membres)"
-                        className="bg-black/50 border-white/10 hover:border-white/20 transition-colors text-white"
+                        className="bg-black/50 border-border hover:border-border-strong transition-colors text-foreground"
                     />
                 </div>
                 {!hideUsers && (
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-white/60 uppercase tracking-wide ml-1 flex items-center gap-2">
+                        <label className="text-xs font-semibold text-foreground/60 uppercase tracking-wide ml-1 flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                             Membres Spécifiques
                         </label>
@@ -137,7 +137,7 @@ export function PermissionCard({
                             selected={selectedUserIds}
                             onChange={locked ? () => {} : onUsersChange}
                             placeholder="Aucun membre assigné"
-                            className="bg-black/50 border-white/10 hover:border-white/20 transition-colors text-white"
+                            className="bg-black/50 border-border hover:border-border-strong transition-colors text-foreground"
                         />
                     </div>
                 )}

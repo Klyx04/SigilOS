@@ -66,8 +66,8 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 text-caption font-black text-white/40 uppercase tracking-widest">
-                    <Shield className="w-4 h-4 text-emerald-400" />
+                <div className="flex items-center gap-2.5 text-caption font-black text-foreground/40 uppercase tracking-widest">
+                    <Shield className="w-4 h-4 text-success" />
                     Points attribués à la clôture — réservé aux administrateurs
                 </div>
                 <div className="flex items-center gap-3">
@@ -75,7 +75,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
                         variant="outline"
                         onClick={handleReset}
                         disabled={isPending}
-                        className="h-10 border-white/10 bg-white/5 hover:bg-white/10 text-white/70 text-caption font-black uppercase tracking-widest"
+                        className="h-10 border-border bg-surface hover:bg-surface text-foreground/70 text-caption font-black uppercase tracking-widest"
                     >
                         <RotateCcw className="w-3.5 h-3.5 mr-2" />
                         Défauts
@@ -83,7 +83,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
                     <Button
                         onClick={handleSave}
                         disabled={isPending}
-                        className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white text-caption font-black uppercase tracking-widest"
+                        className="h-10 bg-success hover:bg-success text-success-foreground text-caption font-black uppercase tracking-widest"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                         Enregistrer
@@ -93,20 +93,20 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
 
             {!loaded ? (
                 <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-success animate-spin" />
                 </div>
             ) : (
                 GROUPS.map((group) => (
-                    <div key={group} className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                        <div className="px-5 py-3 border-b border-white/5">
-                            <h3 className="text-xs font-black text-white uppercase tracking-widest">{group}</h3>
+                    <div key={group} className="rounded-2xl border border-border bg-surface overflow-hidden">
+                        <div className="px-5 py-3 border-b border-border">
+                            <h3 className="text-xs font-black text-foreground uppercase tracking-widest">{group}</h3>
                         </div>
                         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {FIELDS.filter((f) => f.group === group).map((f) => (
                                 <label key={f.key} className="space-y-1.5 block">
-                                    <span className="flex items-center justify-between text-caption font-bold text-white/60 uppercase tracking-wider">
+                                    <span className="flex items-center justify-between text-caption font-bold text-foreground/60 uppercase tracking-wider">
                                         {f.label}
-                                        <span className="text-white/25 normal-case font-medium">{f.hint}</span>
+                                        <span className="text-foreground/25 normal-case font-medium">{f.hint}</span>
                                     </span>
                                     <Input
                                         type="number"
@@ -114,7 +114,7 @@ export function PointsSettingsClient({ guildId }: { guildId: string }) {
                                         max={100}
                                         value={form[f.key]}
                                         onChange={(e) => setField(f.key, e.target.value)}
-                                        className="bg-white/5 border-white/10 text-sm font-bold h-10"
+                                        className="bg-surface border-border text-sm font-bold h-10"
                                     />
                                 </label>
                             ))}

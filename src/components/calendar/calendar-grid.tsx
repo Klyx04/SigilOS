@@ -60,34 +60,34 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     RAID_OFFICIAL: {
         label: "Raid 3.6",
         icon: Swords,
-        color: "text-red-400",
-        bg: "bg-red-500/15",
-        border: "border-red-500/40",
-        dot: "bg-red-500"
+        color: "text-danger",
+        bg: "bg-danger/15",
+        border: "border-danger/40",
+        dot: "bg-danger"
     },
     EVENT_GUILD: {
         label: "Event Guilde",
         icon: PartyPopper,
-        color: "text-purple-400",
-        bg: "bg-purple-500/15",
-        border: "border-purple-500/40",
-        dot: "bg-purple-500"
+        color: "text-info",
+        bg: "bg-info/15",
+        border: "border-info/40",
+        dot: "bg-info"
     },
     SESSION_MISSIONS: {
         label: "Missions Guilde",
         icon: Target,
-        color: "text-amber-400",
-        bg: "bg-amber-500/15",
-        border: "border-amber-500/40",
-        dot: "bg-amber-500"
+        color: "text-warning",
+        bg: "bg-warning/15",
+        border: "border-warning/40",
+        dot: "bg-warning"
     },
     SORTIE_FARM: {
         label: "Sortie Farm",
         icon: Wheat,
-        color: "text-emerald-400",
-        bg: "bg-emerald-500/15",
-        border: "border-emerald-500/40",
-        dot: "bg-emerald-500"
+        color: "text-success",
+        bg: "bg-success/15",
+        border: "border-success/40",
+        dot: "bg-success"
     },
     KRALAMOURE: {
         label: "Kralamoure",
@@ -213,13 +213,13 @@ export function CalendarGrid({
     return (
         <div className="space-y-6">
             {/* ============ CALENDAR GRID ============ */}
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0d1214] overflow-hidden relative">
+            <div className="rounded-2xl border border-border bg-[#0d1214] overflow-hidden relative">
                 {/* Days Header - CONTRASTE ÉPURÉ (plus de glow ambre) */}
-                <div className="grid grid-cols-7 bg-[#1c262a] border-b border-white/[0.08]">
+                <div className="grid grid-cols-7 bg-[#1c262a] border-b border-border">
                     {weekDays.map((day, i) => (
                         <div key={day} className={cn(
                             "py-3.5 text-center text-xs font-semibold tracking-wide uppercase",
-                            i >= 5 ? "text-zinc-500" : "text-zinc-100"
+                            i >= 5 ? "text-muted-foreground" : "text-foreground"
                         )}>
                             {day}
                         </div>
@@ -243,7 +243,7 @@ export function CalendarGrid({
                             <div
                                 key={dayKey}
                                 className={cn(
-                                    "group relative border-b border-r border-white/[0.07] p-0 transition-colors duration-150 flex flex-col",
+                                    "group relative border-b border-r border-border p-0 transition-colors duration-150 flex flex-col",
                                     minHeight,
                                     canManage && !isPastDay ? "cursor-pointer" : "cursor-default",
                                     isWeekend
@@ -260,7 +260,7 @@ export function CalendarGrid({
                             >
                                 {/* Jour du jour — surlignage plat (emerald, plus de glow ambre) */}
                                 {isCurrentDay && (
-                                    <div className="absolute inset-0 border border-emerald-500/60 bg-emerald-500/[0.05] pointer-events-none z-10" />
+                                    <div className="absolute inset-0 border border-success/60 bg-success/[0.05] pointer-events-none z-10" />
                                 )}
 
                                 <div className="p-3.5 flex-1 flex flex-col relative z-20 min-h-0">
@@ -269,8 +269,8 @@ export function CalendarGrid({
                                         <span className={cn(
                                             "h-9 w-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-colors duration-150",
                                             isCurrentDay
-                                                ? "bg-emerald-500 text-zinc-950"
-                                                : "text-zinc-100 group-hover:text-emerald-300"
+                                                ? "bg-success text-success-foreground"
+                                                : "text-foreground group-hover:text-success"
                                         )}>
                                             {format(day, "d")}
                                         </span>
@@ -282,7 +282,7 @@ export function CalendarGrid({
                                                 }}
                                                 className={cn(
                                                     "text-xs font-semibold bg-[#0d1214] border px-2 py-0.5 rounded-full transition-colors",
-                                                    "border-white/10 text-zinc-300 hover:border-emerald-500/50 hover:text-emerald-400 "
+                                                    "border-border text-foreground hover:border-success/50 hover:text-success "
                                                 )}
                                                 title={`Voir les ${dayEvents.length} événements de ce jour`}
                                             >
@@ -316,25 +316,25 @@ export function CalendarGrid({
                                                                 }}
                                                                 className={cn(
                                                                     "w-full group/btn relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left",
-                                                                    "bg-zinc-950/70 border",
+                                                                    "bg-background/70 border",
                                                                     "hover:bg-[#1c262a]",
                                                                     isCompleted
-                                                                        ? "border-white/[0.03] opacity-60 grayscale-[0.8] hover:border-white/10"
-                                                                        : "border-white/[0.06] hover:border-white/15"
+                                                                        ? "border-border opacity-60 grayscale-[0.8] hover:border-border"
+                                                                        : "border-border hover:border-border-strong"
                                                                 )}
                                                             >
                                                                 {/* Side Accent Line */}
                                                                 <div className={cn(
                                                                     "absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full transition-colors",
-                                                                    isCompleted ? "bg-emerald-500/70" : config.dot
+                                                                    isCompleted ? "bg-success/70" : config.dot
                                                                 )} />
 
                                                                 <div className={cn(
-                                                                    "h-7 w-7 rounded-lg flex items-center justify-center shrink-0 border border-white/5",
-                                                                    isCompleted ? "bg-emerald-500/10" : config.bg
+                                                                    "h-7 w-7 rounded-lg flex items-center justify-center shrink-0 border border-border",
+                                                                    isCompleted ? "bg-success/10" : config.bg
                                                                 )}>
                                                                     {isCompleted ? (
-                                                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/80" />
+                                                                        <CheckCircle2 className="h-3.5 w-3.5 text-success/80" />
                                                                     ) : (
                                                                         <Icon className={cn("h-3.5 w-3.5", config.color)} />
                                                                     )}
@@ -344,7 +344,7 @@ export function CalendarGrid({
                                                                     <span className="text-caption font-semibold uppercase tracking-wide opacity-60 leading-none mb-0.5">
                                                                         {time}
                                                                     </span>
-                                                                    <span className="truncate text-zinc-200 group-hover/btn:text-white transition-colors">
+                                                                    <span className="truncate text-foreground group-hover/btn:text-foreground transition-colors">
                                                                         {event.title}
                                                                     </span>
                                                                 </div>
@@ -352,7 +352,7 @@ export function CalendarGrid({
                                                                 {/* Completed watermark stamp */}
                                                                 {isCompleted && (
                                                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                        <span className="rotate-[-12deg] border border-emerald-500/50 bg-emerald-500/10 text-emerald-400/90 text-caption font-semibold uppercase tracking-wide px-2 py-0.5 rounded-sm">
+                                                                        <span className="rotate-[-12deg] border border-success/50 bg-success/10 text-success/90 text-caption font-semibold uppercase tracking-wide px-2 py-0.5 rounded-sm">
                                                                             ✓ Terminé
                                                                         </span>
                                                                     </div>
@@ -361,20 +361,20 @@ export function CalendarGrid({
                                                         </TooltipTrigger>
                                                         <TooltipContent
                                                             side="right"
-                                                            className="bg-[#0e1417] border-white/10 p-3.5 max-w-[240px] rounded-xl"
+                                                            className="bg-[#0e1417] border-border p-3.5 max-w-[240px] rounded-xl"
                                                         >
-                                                            <p className="font-bold text-zinc-100 text-sm">{event.title}</p>
-                                                            <p className="text-xs text-zinc-400 mt-1 font-medium">
+                                                            <p className="font-bold text-foreground text-sm">{event.title}</p>
+                                                            <p className="text-xs text-muted-foreground mt-1 font-medium">
                                                                 {time} → {format(new Date(event.endDate), "HH:mm")}
                                                             </p>
                                                             {isCompleted && (
-                                                                <span className="mt-2 inline-flex items-center gap-1.5 text-emerald-400 font-bold text-xs">
+                                                                <span className="mt-2 inline-flex items-center gap-1.5 text-success font-bold text-xs">
                                                                     <CheckCircle2 className="h-3.5 w-3.5" />
                                                                     Terminé
                                                                 </span>
                                                             )}
                                                             {event._count && (
-                                                                <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-500 font-bold">
+                                                                <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground font-bold">
                                                                     <Users className="h-3.5 w-3.5" />
                                                                     {event._count.participants}
                                                                     {event.maxParticipants && ` / ${event.maxParticipants}`}
@@ -394,17 +394,17 @@ export function CalendarGrid({
             </div>
 
             {/* ============ LÉGENDE ============ */}
-            <div className="flex flex-wrap items-center justify-center gap-2 py-3 bg-zinc-900/40 border border-white/5 rounded-xl px-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 py-3 bg-surface/40 border border-border rounded-xl px-4">
                 {Object.entries(TYPE_CONFIG).map(([type, config]) => (
                     <div key={type} className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
                         <div className={cn("h-2 w-2 rounded-full", config.dot)} />
-                        <span className="text-xs font-medium text-zinc-400">{config.label}</span>
+                        <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
                     </div>
                 ))}
                 {/* Les événements terminés sont grisés avec un tampon « Terminé » dans la grille */}
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500/80" />
-                    <span className="text-xs font-medium text-zinc-400">Terminé</span>
+                    <CheckCircle2 className="h-3 w-3 text-success/80" />
+                    <span className="text-xs font-medium text-muted-foreground">Terminé</span>
                 </div>
             </div>
         </div>

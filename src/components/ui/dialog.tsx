@@ -89,7 +89,7 @@ function DialogContent({
             <DialogPrimitive.Close
               data-slot="dialog-close"
               aria-label="Fermer"
-              className="ring-offset-background focus:ring-ring absolute top-4 right-4 z-[120] rounded-lg border border-white/10 bg-white/10 opacity-90 transition-colors hover:bg-white/20 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+              className="ring-offset-background focus:ring-ring absolute top-4 right-4 z-[120] rounded-lg border border-border bg-surface opacity-90 transition-colors hover:bg-elevated hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
             >
               <XIcon className="text-foreground" />
               <span className="sr-only">Fermer</span>

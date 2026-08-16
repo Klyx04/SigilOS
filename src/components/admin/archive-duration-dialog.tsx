@@ -57,15 +57,15 @@ export function ArchiveDurationDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md bg-zinc-950 border-white/5 p-0 overflow-hidden rounded-3xl">
-                <div className="bg-amber-500/10 p-8 flex flex-col items-center gap-4 text-center border-b border-amber-500/10">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-500/20 flex items-center justify-center border border-amber-500/20 shadow-lg shadow-amber-500/10">
-                        <Archive className="w-8 h-8 text-amber-500" />
+            <DialogContent className="sm:max-w-md bg-background border-border p-0 overflow-hidden rounded-3xl">
+                <div className="bg-warning/10 p-8 flex flex-col items-center gap-4 text-center border-b border-warning/10">
+                    <div className="w-16 h-16 rounded-2xl bg-warning/20 flex items-center justify-center border border-warning/20 shadow-lg shadow-amber-500/10">
+                        <Archive className="w-8 h-8 text-warning" />
                     </div>
                     <div className="space-y-1">
-                        <DialogTitle className="text-2xl font-black tracking-tight text-white uppercase">Archivage</DialogTitle>
-                        <DialogDescription className="text-amber-500/60 font-medium">
-                            Définissez la durée de conservation pour <span className="text-amber-400 font-bold">{memberName}</span>
+                        <DialogTitle className="text-2xl font-black tracking-tight text-foreground uppercase">Archivage</DialogTitle>
+                        <DialogDescription className="text-warning/60 font-medium">
+                            Définissez la durée de conservation pour <span className="text-warning font-bold">{memberName}</span>
                         </DialogDescription>
                     </div>
                 </div>
@@ -81,51 +81,51 @@ export function ArchiveDurationDialog({
                                     onClick={() => setSelectedDuration(duration.value)}
                                     className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left group ${
                                         isSelected 
-                                            ? "bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20" 
-                                            : "bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]"
+                                            ? "bg-warning/10 border-warning/30 ring-1 ring-warning/20" 
+                                            : "bg-surface border-border hover:border-border hover:bg-surface"
                                     }`}
                                 >
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                                        isSelected ? "bg-amber-500/20 text-amber-500" : "bg-white/5 text-zinc-500 group-hover:text-zinc-400"
+                                        isSelected ? "bg-warning/20 text-warning" : "bg-surface text-muted-foreground group-hover:text-muted-foreground"
                                     }`}>
                                         <Icon className="w-5 h-5" />
                                     </div>
                                     <div className="flex-1">
-                                        <p className={`font-bold text-sm ${isSelected ? "text-amber-400" : "text-zinc-300"}`}>
+                                        <p className={`font-bold text-sm ${isSelected ? "text-warning" : "text-foreground"}`}>
                                             {duration.label}
                                         </p>
-                                        <p className="text-caption text-zinc-500 font-medium leading-tight">
+                                        <p className="text-caption text-muted-foreground font-medium leading-tight">
                                             {duration.description}
                                         </p>
                                     </div>
                                     {isSelected && (
-                                        <div className="w-2 h-2 rounded-full bg-amber-500 " />
+                                        <div className="w-2 h-2 rounded-full bg-warning " />
                                     )}
                                 </button>
                             );
                         })}
                     </div>
 
-                    <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 flex items-start gap-3">
-                        <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                        <p className="text-caption text-zinc-500 italic leading-snug">
+                    <div className="p-4 rounded-xl bg-danger/5 border border-danger/10 flex items-start gap-3">
+                        <ShieldAlert className="w-4 h-4 text-danger shrink-0 mt-0.5" />
+                        <p className="text-caption text-muted-foreground italic leading-snug">
                             Attention : À l'issue de cette période, toutes les données du membre (missions, succès, progression) seront **définitivement supprimées** du système pour respecter le RGPD.
                         </p>
                     </div>
                 </div>
 
-                <DialogFooter className="p-6 bg-white/[0.02] border-t border-white/5 gap-2 sm:gap-0">
+                <DialogFooter className="p-6 bg-surface border-t border-border gap-2 sm:gap-0">
                     <Button 
                         variant="ghost" 
                         onClick={() => onOpenChange(false)}
-                        className="text-zinc-500 hover:text-white font-bold uppercase tracking-widest text-caption"
+                        className="text-muted-foreground hover:text-foreground font-bold uppercase tracking-widest text-caption"
                     >
                         Annuler
                     </Button>
                     <Button 
                         disabled={isSubmitting}
                         onClick={handleConfirm}
-                        className="bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest text-caption px-8 rounded-xl shadow-lg shadow-amber-600/20"
+                        className="bg-warning hover:bg-warning text-warning-foreground font-black uppercase tracking-widest text-caption px-8 rounded-xl shadow-lg shadow-amber-600/20"
                     >
                         {isSubmitting ? "Archivage..." : "Confirmer l'archivage"}
                     </Button>

@@ -671,7 +671,7 @@ function MapNarrativeGPS({ activeWorld, triggerCoords, triggerWorldId, currentWo
             <div class="relative flex items-center justify-center w-12 h-12">
                 <div class="absolute w-12 h-12 bg-emerald-500/40 rounded-full gps-pulse-outer"></div>
                 <div class="absolute w-8 h-8 bg-emerald-500/60 rounded-full animate-pulse blur-sm"></div>
-                <div class="relative w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white "></div>
+                <div class="relative w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-border "></div>
             </div>
         `,
         iconSize: [48, 48],
@@ -980,7 +980,7 @@ function ZoomControls() {
                     e.stopPropagation();
                     map.setZoom(Math.min(map.getZoom() + 1, map.getMaxZoom()), { animate: true });
                 }}
-                className="w-10 h-10 rounded-xl bg-slate-900/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-slate-800 transition-all shadow-xl active:scale-95 group pointer-events-auto"
+                className="w-10 h-10 rounded-xl bg-surface/80 backdrop-blur-md border border-border flex items-center justify-center text-foreground/40 hover:text-foreground hover:bg-elevated transition-all shadow-xl active:scale-95 group pointer-events-auto"
                 title="Zoomer (x2)"
             >
                 <Plus size={18} className="group- transition-transform" />
@@ -990,7 +990,7 @@ function ZoomControls() {
                     e.stopPropagation();
                     map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()), { animate: true });
                 }}
-                className="w-10 h-10 rounded-xl bg-slate-900/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-slate-800 transition-all shadow-xl active:scale-95 group pointer-events-auto"
+                className="w-10 h-10 rounded-xl bg-surface/80 backdrop-blur-md border border-border flex items-center justify-center text-foreground/40 hover:text-foreground hover:bg-elevated transition-all shadow-xl active:scale-95 group pointer-events-auto"
                 title="Dézoomer (/2)"
             >
                 <Minus size={18} className="group- transition-transform" />
@@ -1098,20 +1098,20 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 <div 
                     id="sigil-map-hover-hud"
                     style={{ display: 'none' }}
-                    className="absolute bottom-8 left-1/2 -translate-x-[50%] z-[1000] bg-[#2d3139] shadow-[0_8px_32px_rgba(0,0,0,0.6)] rounded-lg pointer-events-auto transition-all duration-200 flex items-center border border-white/10 overflow-visible px-6 py-4 group"
+                    className="absolute bottom-8 left-1/2 -translate-x-[50%] z-[1000] bg-[#2d3139] shadow-[0_8px_32px_rgba(0,0,0,0.6)] rounded-lg pointer-events-auto transition-all duration-200 flex items-center border border-border overflow-visible px-6 py-4 group"
                 >
                     {/* Tooltip visible on group hover */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-[#1a1b1e] text-white text-caption font-bold px-4 py-2 rounded shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-white/5 pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-[#1a1b1e] text-foreground text-caption font-bold px-4 py-2 rounded shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-border pointer-events-none">
                         Copier la commande d'auto-pilotage
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#1a1b1e]"></div>
                     </div>
 
                     <div className="flex flex-col justify-center min-w-[200px]">
-                        <span id="sigil-map-hover-zone" className="text-white font-black text-xl uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors"></span>
+                        <span id="sigil-map-hover-zone" className="text-foreground font-black text-xl uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors"></span>
                         <div className="flex items-center gap-3 mt-2">
-                            <span id="sigil-map-hover-world" className="text-white/30 font-bold text-caption uppercase tracking-[0.2em]"></span>
-                            <span className="w-1 h-1 rounded-full bg-white/10" />
-                            <div className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded border border-white/5">
+                            <span id="sigil-map-hover-world" className="text-foreground/30 font-bold text-caption uppercase tracking-[0.2em]"></span>
+                            <span className="w-1 h-1 rounded-full bg-surface" />
+                            <div className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded border border-border">
                                 <Rocket size={10} className="text-emerald-500" />
                                 <span id="sigil-map-hover-coords" className="text-emerald-400 font-black text-body-sm tracking-tight"></span>
                             </div>
@@ -1286,10 +1286,10 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                     const isOcre = !!(group as any).isOcreQuest;
                     const iconHtml = `
-                    <div class="w-7 h-7 rounded-full bg-slate-900/90 border-2 border-amber-500/80  flex items-center justify-center text-amber-400 group-hover:scale-125 group-hover:border-amber-400 transition-all duration-200 relative">
+                    <div class="w-7 h-7 rounded-full bg-surface/90 border-2 border-amber-500/80  flex items-center justify-center text-amber-400 group-hover:scale-125 group-hover:border-amber-400 transition-all duration-200 relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 20v-9H2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2Z"/><path d="M18 11V4H6v7"/><path d="M15 22v-4a3 3 0 0 0-3-3v0a3 3 0 0 0-3 3v4"/><path d="M22 11V9"/><path d="M2 11V9"/><path d="M6 4V2"/><path d="M18 4V2"/><path d="M10 4V2"/><path d="M14 4V2"/></svg>
-                        ${isOcre ? `<img src="/module-dofus/Dofus_Ocre.png" alt="Quête Ocre" class="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full object-contain border border-white/20 bg-slate-950 " title="Donjon Quête Ocre" />` : ''}
-                        ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-black text-caption font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
+                        ${isOcre ? `<img src="/module-dofus/Dofus_Ocre.png" alt="Quête Ocre" class="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full object-contain border border-border-strong bg-background " title="Donjon Quête Ocre" />` : ''}
+                        ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-foreground text-caption font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
                     </div>`;
 
                     return (
@@ -1339,11 +1339,11 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                         initial={{ opacity: 0, y: 10, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                        className="absolute bottom-6 left-6 z-[1000] px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl flex items-center gap-3 pointer-events-none"
+                        className="absolute bottom-6 left-6 z-[1000] px-4 py-2 bg-surface/80 backdrop-blur-md border border-border rounded-xl shadow-2xl flex items-center gap-3 pointer-events-none"
                     >
-                        <div className={`w-2 h-2 rounded-full ${hoveredCoords.found ? 'bg-emerald-500 ' : 'bg-white/10'}`} />
-                        <span className="text-caption font-black text-white/40 uppercase tracking-widest italic">Position</span>
-                        <span className="text-white font-black text-sm italic tracking-tighter">[{hoveredCoords.x}, {hoveredCoords.y}]</span>
+                        <div className={`w-2 h-2 rounded-full ${hoveredCoords.found ? 'bg-emerald-500 ' : 'bg-surface'}`} />
+                        <span className="text-caption font-black text-foreground/40 uppercase tracking-widest italic">Position</span>
+                        <span className="text-foreground font-black text-sm italic tracking-tighter">[{hoveredCoords.x}, {hoveredCoords.y}]</span>
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -100,7 +100,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-amber-500/50" />
+                <Loader2 className="w-8 h-8 animate-spin text-warning/50" />
             </div>
         );
     }
@@ -111,10 +111,10 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* SECTION 1: PUBLICATION */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
+                    <Card className="bg-surface/60 border-border overflow-hidden">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-white">
-                                <span className="bg-amber-500/20 text-amber-400 p-2 rounded-lg">
+                            <CardTitle className="flex items-center gap-2 text-foreground">
+                                <span className="bg-warning/20 text-warning p-2 rounded-lg">
                                     <Target className="w-5 h-5" />
                                 </span>
                                 Publication Hebdomadaire
@@ -126,26 +126,26 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                         <Hash className="w-3 h-3" /> Salon de Publication
                                     </label>
                                     <Input
                                         value={channelId}
                                         onChange={(e) => setChannelId(e.target.value)}
                                         placeholder="ID du salon..."
-                                        className="font-mono bg-black/20 border-white/10 h-10"
+                                        className="font-mono bg-black/20 border-border h-10"
                                     />
                                     <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                         <Users className="w-3 h-3" /> Rôle à Mentionner
                                     </label>
                                     <RoleSelector value={roleId} onChange={setRoleId} roles={roles} className="h-10" />
                                 </div>
                             </div>
-                            <div className="pt-4 border-t border-white/5">
-                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2 mb-2">
+                            <div className="pt-4 border-t border-border">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-2">
                                     <Users className="w-3 h-3" /> Ping Rôles Autorisés (Whitelist)
                                 </label>
                                 <PingRolesSelector
@@ -160,26 +160,26 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
 
                     {/* SECTION 2: NOTIFICATIONS UPLOADS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <Card className="bg-zinc-900/60 border-white/5">
+                        <Card className="bg-surface/60 border-border">
                             <CardHeader className="pb-4">
-                                <CardTitle className="text-sm flex items-center gap-2 text-purple-400 uppercase tracking-tight">
+                                <CardTitle className="text-sm flex items-center gap-2 text-info uppercase tracking-tight">
                                     <ShieldCheck className="w-4 h-4" /> Validation Missions
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Salon ID</label>
-                                    <Input value={validationChannelId} onChange={(e) => setValidationChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-9" />
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon ID</label>
+                                    <Input value={validationChannelId} onChange={(e) => setValidationChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-9" />
                                     <ChannelPreview guildId={guildId} channelId={validationChannelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Staff à alerter</label>
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Staff à alerter</label>
                                     <RoleSelector value={validationRoleId} onChange={setValidationRoleId} roles={roles} className="h-9" />
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-zinc-900/60 border-white/5">
+                        <Card className="bg-surface/60 border-border">
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-sm flex items-center gap-2 text-yellow-400 uppercase tracking-tight">
                                     <Coins className="w-4 h-4" /> Contributions Kamas
@@ -187,12 +187,12 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Salon ID</label>
-                                    <Input value={kamaChannelId} onChange={(e) => setKamaChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-9" />
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon ID</label>
+                                    <Input value={kamaChannelId} onChange={(e) => setKamaChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-9" />
                                     <ChannelPreview guildId={guildId} channelId={kamaChannelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Staff à alerter</label>
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Staff à alerter</label>
                                     <RoleSelector value={kamaRoleId} onChange={setKamaRoleId} roles={roles} className="h-9" />
                                 </div>
                             </CardContent>
@@ -200,34 +200,34 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                     </div>
 
                     {/* SECTION 3: RAPPEL RESET */}
-                    <Card className="bg-zinc-900/60 border-white/5">
+                    <Card className="bg-surface/60 border-border">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-indigo-400 text-sm uppercase tracking-tight">
+                            <CardTitle className="flex items-center gap-2 text-info text-sm uppercase tracking-tight">
                                 <Bell className="w-4 h-4" /> Rappel Reset Hebdo (Mardi 08:00)
                             </CardTitle>
                             <CardDescription>Rappelle aux officiers de générer les missions après la maintenance Dofus.</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Salon de Rappel</label>
-                                <Input value={managementChannelId} onChange={(e) => setManagementChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-10" />
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon de Rappel</label>
+                                <Input value={managementChannelId} onChange={(e) => setManagementChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-10" />
                                 <ChannelPreview guildId={guildId} channelId={managementChannelId} color="indigo" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-caption font-black uppercase tracking-widest text-zinc-500">Rôle Staff</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Rôle Staff</label>
                                 <RoleSelector value={managementRoleId} onChange={setManagementRoleId} roles={roles} className="h-10" />
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* SECTION 4: MODE VITRINE */}
-                    <Card className="bg-zinc-900/60 border-white/5">
+                    <Card className="bg-surface/60 border-border">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                             <div className="space-y-1">
-                                <CardTitle className="flex items-center gap-2 text-blue-400 text-sm uppercase tracking-tight">
+                                <CardTitle className="flex items-center gap-2 text-info text-sm uppercase tracking-tight">
                                     <Eye className="w-4 h-4" /> Mode Vitrine (Lecture seule)
                                 </CardTitle>
-                                <CardDescription className="text-zinc-400 text-xs">
+                                <CardDescription className="text-muted-foreground text-xs">
                                     Masque la possibilité d'uploader des captures (bouton PREUVE), le statut "Validé" sur les missions, et cache les ladders aux membres.
                                 </CardDescription>
                             </div>
@@ -236,7 +236,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                     </Card>
 
                     <div className="flex justify-end pt-4">
-                        <Button onClick={handleSave} disabled={isPending} className="bg-amber-600 hover:bg-amber-500 text-white min-w-[200px] font-bold h-12 shadow-xl shadow-amber-600/20">
+                        <Button onClick={handleSave} disabled={isPending} className="bg-warning hover:bg-warning text-warning-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-amber-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             SAUVEGARDER TOUT
                         </Button>
@@ -245,31 +245,31 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
 
                 {/* Preview Panel */}
                 <div className="space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Validation</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Validation</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative text-left px-4">
                             <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
-                                    <ShieldCheck className="w-4 h-4 text-white" />
+                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-foreground" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-purple-400 text-xs">SigilOS</span>
-                                        <span className="text-caption text-zinc-500 uppercase">Maintenant</span>
+                                        <span className="font-medium text-info text-xs">SigilOS</span>
+                                        <span className="text-caption text-muted-foreground uppercase">Maintenant</span>
                                     </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-purple-400 p-3 max-w-sm shadow-xl">
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm shadow-xl">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">🛡️</span>
-                                            <h4 className="font-semibold text-white text-caption">Preuve de Mission</h4>
+                                            <h4 className="font-semibold text-foreground text-caption">Preuve de Mission</h4>
                                         </div>
-                                        <p className="text-zinc-300 text-caption mb-3 leading-relaxed">
-                                            <span className="text-purple-400 font-medium">@Wylan</span> a soumis une preuve pour **Donjon Kralamoure**.
+                                        <p className="text-foreground text-caption mb-3 leading-relaxed">
+                                            <span className="text-info font-medium">@Wylan</span> a soumis une preuve pour **Donjon Kralamoure**.
                                         </p>
                                         <div className="flex gap-2">
-                                            <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-caption font-bold rounded">VALIDER</div>
-                                            <div className="px-3 py-1 bg-rose-500/20 border border-rose-500/30 text-rose-400 text-caption font-bold rounded">REFUSER</div>
+                                            <div className="px-3 py-1 bg-success/20 border border-success/30 text-success text-caption font-bold rounded">VALIDER</div>
+                                            <div className="px-3 py-1 bg-danger/20 border border-danger/30 text-danger text-caption font-bold rounded">REFUSER</div>
                                         </div>
                                     </div>
                                 </div>
@@ -277,29 +277,29 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Reset Hebdo</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Reset Hebdo</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative text-left px-4">
                             <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
-                                    <Bell className="w-4 h-4 text-white" />
+                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <Bell className="w-4 h-4 text-foreground" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-indigo-400 text-xs">SigilOS</span>
-                                        <span className="text-caption text-zinc-500 uppercase font-black">Mardi 08:00</span>
+                                        <span className="font-medium text-info text-xs">SigilOS</span>
+                                        <span className="text-caption text-muted-foreground uppercase font-black">Mardi 08:00</span>
                                     </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-indigo-400 p-3 max-w-sm">
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-sm">🚀</span>
-                                            <h4 className="font-semibold text-white text-caption">Reset Hebdomadaire</h4>
+                                            <h4 className="font-semibold text-foreground text-caption">Reset Hebdomadaire</h4>
                                         </div>
-                                        <p className="text-zinc-300 text-caption leading-relaxed mb-3">
+                                        <p className="text-foreground text-caption leading-relaxed mb-3">
                                             Le reset Dofus a eu lieu. Il est temps de générer les missions !
                                         </p>
-                                        <div className="w-full py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-caption font-bold rounded flex items-center justify-center gap-2">
+                                        <div className="w-full py-1.5 bg-muted hover:bg-muted text-foreground text-caption font-bold rounded flex items-center justify-center gap-2">
                                             <span>🛠️</span> GÉRER LES MISSIONS
                                         </div>
                                     </div>

@@ -79,11 +79,11 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
     }, [searchQuery, statusFilter, members]);
 
     const getProgressColor = (percent?: number) => {
-        if (!percent) return "bg-zinc-600";
-        if (percent === 100) return "bg-emerald-500";
-        if (percent > 70) return "bg-emerald-400";
-        if (percent > 30) return "bg-amber-400";
-        return "bg-red-400";
+        if (!percent) return "bg-muted";
+        if (percent === 100) return "bg-success";
+        if (percent > 70) return "bg-success";
+        if (percent > 30) return "bg-warning";
+        return "bg-danger";
     };
 
     return (
@@ -95,20 +95,20 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Rechercher un membre, pseudo Dofus ou Metamob..."
-                        className="pl-10 h-11 bg-zinc-900/50 border-white/5 rounded-2xl text-xs placeholder:text-zinc-500 focus-visible:ring-amber-500/30 transition-all"
+                        className="pl-10 h-11 bg-surface/50 border-border rounded-2xl text-xs placeholder:text-muted-foreground focus-visible:ring-warning/30 transition-all"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
 
                 {/* Filter buttons */}
-                <div className="flex items-center gap-1.5 p-1 bg-zinc-900/50 border border-white/5 rounded-2xl shrink-0">
+                <div className="flex items-center gap-1.5 p-1 bg-surface/50 border border-border rounded-2xl shrink-0">
                     <Button
                         size="sm"
                         variant="ghost"
                         className={`h-9 px-4 rounded-xl text-xs font-bold transition-all ${
                             statusFilter === "all"
-                                ? "bg-zinc-800 text-amber-500 border border-amber-500/10 shadow-lg"
+                                ? "bg-elevated text-warning border border-warning/10 shadow-lg"
                                 : "text-muted-foreground hover:text-foreground"
                         }`}
                         onClick={() => setStatusFilter("all")}
@@ -120,7 +120,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                         variant="ghost"
                         className={`h-9 px-4 rounded-xl text-xs font-bold transition-all ${
                             statusFilter === "linked"
-                                ? "bg-zinc-800 text-emerald-400 border border-emerald-500/10 shadow-lg"
+                                ? "bg-elevated text-success border border-success/10 shadow-lg"
                                 : "text-muted-foreground hover:text-foreground"
                         }`}
                         onClick={() => setStatusFilter("linked")}
@@ -132,7 +132,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                         variant="ghost"
                         className={`h-9 px-4 rounded-xl text-xs font-bold transition-all ${
                             statusFilter === "unlinked"
-                                ? "bg-zinc-800 text-red-400 border border-red-500/10 shadow-lg"
+                                ? "bg-elevated text-danger border border-danger/10 shadow-lg"
                                 : "text-muted-foreground hover:text-foreground"
                         }`}
                         onClick={() => statusFilter !== "unlinked" ? setStatusFilter("unlinked") : setStatusFilter("all")}
@@ -143,11 +143,11 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-9 w-9 rounded-xl hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+                        className="h-9 w-9 rounded-xl hover:bg-elevated text-muted-foreground hover:text-foreground"
                         onClick={fetchDirectory}
                         disabled={loading}
                     >
-                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-amber-500" : ""}`} />
+                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-warning" : ""}`} />
                     </Button>
                 </div>
             </div>
@@ -156,19 +156,19 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
             {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[1, 2, 3, 4, 5, 6].map(i => (
-                        <Card key={i} className="bg-card/20 border-white/5 h-44 animate-pulse">
+                        <Card key={i} className="bg-card/20 border-border h-44 animate-pulse">
                             <CardContent className="p-5 flex gap-4">
-                                <div className="h-12 w-12 rounded-2xl bg-zinc-800" />
+                                <div className="h-12 w-12 rounded-2xl bg-elevated" />
                                 <div className="flex-1 space-y-2 mt-1">
-                                    <div className="h-4 bg-zinc-800 rounded w-2/3" />
-                                    <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                                    <div className="h-4 bg-elevated rounded w-2/3" />
+                                    <div className="h-3 bg-elevated rounded w-1/2" />
                                 </div>
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             ) : filteredMembers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center bg-zinc-900/20 rounded-3xl border border-dashed border-white/5">
+                <div className="flex flex-col items-center justify-center py-16 text-center bg-surface/20 rounded-3xl border border-dashed border-border">
                     <Users className="h-16 w-16 text-muted-foreground/10 mb-4" />
                     <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/60">Aucun membre trouvé</h3>
                     <p className="text-xs text-muted-foreground/40 mt-1 max-w-xs leading-relaxed">
@@ -184,14 +184,14 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                         return (
                             <Card 
                                 key={member.id} 
-                                className={`relative group overflow-hidden bg-card/20 backdrop-blur-md border border-white/5 hover:border-white/10 hover:bg-card/30 transition-all duration-300 ${
+                                className={`relative group overflow-hidden bg-card/20 backdrop-blur-md border border-border hover:border-border hover:bg-card/30 transition-all duration-300 ${
                                     isLinked ? "" : "opacity-80 hover:opacity-100"
                                 }`}
                             >
                                 <CardContent className="p-5 flex flex-col justify-between h-full min-h-[170px] gap-4">
                                     <div className="flex gap-4 items-start">
                                         {/* Avatar */}
-                                        <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-white/5 shrink-0 bg-zinc-950/50 flex items-center justify-center group- transition-transform">
+                                        <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border shrink-0 bg-background/50 flex items-center justify-center group- transition-transform">
                                             {member.user.image ? (
                                                 <Image 
                                                     src={member.user.image} 
@@ -201,7 +201,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                                     className="object-cover" 
                                                 />
                                             ) : (
-                                                <Users className="h-5 w-5 text-zinc-600" />
+                                                <Users className="h-5 w-5 text-muted-foreground" />
                                             )}
                                         </div>
 
@@ -212,11 +212,11 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                                     {getDisplayName(member) || "Dofusien"}
                                                 </span>
                                                 {isLinked ? (
-                                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-none px-2 py-0.5 text-caption font-black tracking-wider uppercase shrink-0">
+                                                    <Badge className="bg-success/10 text-success border-none px-2 py-0.5 text-caption font-black tracking-wider uppercase shrink-0">
                                                         Lié
                                                     </Badge>
                                                 ) : (
-                                                    <Badge className="bg-red-500/10 text-red-400 border-none px-2 py-0.5 text-caption font-black tracking-wider uppercase shrink-0">
+                                                    <Badge className="bg-danger/10 text-danger border-none px-2 py-0.5 text-caption font-black tracking-wider uppercase shrink-0">
                                                         Non lié
                                                     </Badge>
                                                 )}
@@ -225,7 +225,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                             <div className="flex flex-col gap-0.5 text-caption text-muted-foreground">
                                                 {member.pseudoDofus && (
                                                     <span className="truncate">
-                                                        Dofus : <span className="text-zinc-300 font-semibold">{member.pseudoDofus}</span>
+                                                        Dofus : <span className="text-foreground font-semibold">{member.pseudoDofus}</span>
                                                     </span>
                                                 )}
                                                 {isLinked && member.metamobPseudo && (
@@ -235,7 +235,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                                             href={`https://www.metamob.fr/profile/${encodeURIComponent(member.metamobPseudo)}`} 
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
-                                                            className="text-amber-500 hover:text-amber-400 font-bold hover:underline transition-colors flex items-center gap-0.5"
+                                                            className="text-warning hover:text-warning font-bold hover:underline transition-colors flex items-center gap-0.5"
                                                         >
                                                             {member.metamobPseudo}
                                                             <ExternalLink className="h-2.5 w-2.5 inline" />
@@ -248,7 +248,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
 
                                     {/* Stats & Progress */}
                                     {isLinked ? (
-                                        <div className="space-y-2 pt-2 border-t border-white/5">
+                                        <div className="space-y-2 pt-2 border-t border-border">
                                             {hasSnapshot ? (
                                                 <>
                                                     <div className="flex items-center justify-between text-caption">
@@ -269,24 +269,24 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                                         />
                                                     </div>
                                                     {member.metamobLastSync && (
-                                                        <div className="flex items-center gap-1 text-caption text-zinc-500 italic mt-1 justify-end">
+                                                        <div className="flex items-center gap-1 text-caption text-muted-foreground italic mt-1 justify-end">
                                                             <Clock className="h-2.5 w-2.5" />
                                                             Sync {formatDistanceToNow(new Date(member.metamobLastSync), { addSuffix: true, locale: fr })}
                                                         </div>
                                                     )}
                                                 </>
                                             ) : (
-                                                <div className="flex items-center gap-2 p-2.5 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                                                    <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                                                    <span className="text-caption text-amber-400 font-semibold leading-normal">
+                                                <div className="flex items-center gap-2 p-2.5 bg-warning/5 border border-warning/10 rounded-xl">
+                                                    <AlertCircle className="h-4 w-4 text-warning shrink-0" />
+                                                    <span className="text-caption text-warning font-semibold leading-normal">
                                                         Compte lié mais aucune synchronisation effectuée.
                                                     </span>
                                                 </div>
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="flex items-center justify-center p-4 bg-zinc-950/40 rounded-xl border border-white/5 text-center mt-2">
-                                            <span className="text-caption text-zinc-500 italic leading-normal">
+                                        <div className="flex items-center justify-center p-4 bg-background/40 rounded-xl border border-border text-center mt-2">
+                                            <span className="text-caption text-muted-foreground italic leading-normal">
                                                 Ce membre n&apos;a pas configuré son compte Metamob. Les échanges automatiques ne sont pas disponibles.
                                             </span>
                                         </div>
@@ -294,7 +294,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                 </CardContent>
 
                                 {/* Aesthetic border glow on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -z-10" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-warning/0 via-warning/5 to-warning/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -z-10" />
                             </Card>
                         );
                     })}

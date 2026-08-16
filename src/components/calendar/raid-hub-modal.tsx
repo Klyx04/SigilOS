@@ -100,16 +100,16 @@ function LinkPreviewCard({
                 if (isEditing) e.preventDefault();
             }}
             className={cn(
-                "group relative flex items-stretch gap-3.5 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 hover:border-amber-500/40 hover:bg-zinc-900/90 shadow-md transition-all duration-200 overflow-hidden",
+                "group relative flex items-stretch gap-3.5 p-3 rounded-xl bg-background/80 border border-border/80 hover:border-warning/40 hover:bg-surface/90 shadow-md transition-all duration-200 overflow-hidden",
                 !isEditing && "cursor-pointer"
             )}
         >
             {/* Ambient hover glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/0 to-amber-500/5 group-hover:from-amber-500/5 transition-all pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-warning/0 via-warning/0 to-warning/5 group-hover:from-warning/5 transition-all pointer-events-none" />
 
             {/* Thumbnail */}
             {link.thumbnail ? (
-                <div className="shrink-0 w-24 h-16 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800/80 relative">
+                <div className="shrink-0 w-24 h-16 rounded-lg overflow-hidden bg-surface border border-border/80 relative">
                     <img
                         src={link.thumbnail}
                         alt={link.title ?? "Aperçu"}
@@ -120,7 +120,7 @@ function LinkPreviewCard({
                     />
                 </div>
             ) : (
-                <div className="shrink-0 w-12 h-16 rounded-lg bg-zinc-900/80 border border-zinc-800/80 flex items-center justify-center text-amber-500/60 group-hover:text-amber-400 transition-colors">
+                <div className="shrink-0 w-12 h-16 rounded-lg bg-surface/80 border border-border/80 flex items-center justify-center text-warning/60 group-hover:text-warning transition-colors">
                     <Link className="h-5 w-5" />
                 </div>
             )}
@@ -128,29 +128,29 @@ function LinkPreviewCard({
             {/* Content */}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-caption font-black text-amber-400/90 uppercase tracking-widest bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    <span className="text-caption font-black text-warning/90 uppercase tracking-widest bg-warning/10 px-1.5 py-0.5 rounded border border-warning/20">
                         {domain}
                     </span>
                 </div>
                 {link.title && (
-                    <p className="text-xs font-bold text-zinc-100 group-hover:text-amber-200 leading-snug line-clamp-1 transition-colors">
+                    <p className="text-xs font-bold text-foreground group-hover:text-warning leading-snug line-clamp-1 transition-colors">
                         {link.title}
                     </p>
                 )}
                 {link.description && (
-                    <p className="text-caption text-zinc-400 leading-snug line-clamp-1 mt-0.5">
+                    <p className="text-caption text-muted-foreground leading-snug line-clamp-1 mt-0.5">
                         {link.description}
                     </p>
                 )}
                 {!link.title && (
-                    <p className="text-xs text-zinc-400 truncate">{link.url}</p>
+                    <p className="text-xs text-muted-foreground truncate">{link.url}</p>
                 )}
             </div>
 
             {/* Actions */}
             <div className="shrink-0 flex items-center gap-2 pl-2">
                 {!isEditing && (
-                    <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 group-hover:bg-amber-500 group-hover:text-zinc-950 text-zinc-400 transition-all shadow-sm">
+                    <div className="p-2 rounded-lg bg-surface border border-border group-hover:bg-warning group-hover:text-foreground text-muted-foreground transition-all shadow-sm">
                         <ExternalLink className="h-3.5 w-3.5" />
                     </div>
                 )}
@@ -162,7 +162,7 @@ function LinkPreviewCard({
                             e.stopPropagation();
                             onRemove();
                         }}
-                        className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                        className="p-2 rounded-lg bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 transition-all"
                         title="Supprimer le lien"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -216,8 +216,8 @@ function AddLinkForm({
     };
 
     return (
-        <div className="space-y-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm">
-            <p className="text-caption font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+        <div className="space-y-3 p-3.5 rounded-xl border border-warning/30 bg-warning/5 backdrop-blur-sm">
+            <p className="text-caption font-black uppercase tracking-widest text-warning flex items-center gap-1.5">
                 <Link className="h-3.5 w-3.5" /> Ajouter un lien externe
             </p>
 
@@ -229,15 +229,15 @@ function AddLinkForm({
                     onChange={(e) => { setUrl(e.target.value); setPreview(null); }}
                     onKeyDown={(e) => e.key === "Enter" && handleFetchPreview()}
                     placeholder="https://www.dofuspourlesnoobs.com/..."
-                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700/80 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                    className="flex-1 px-3 py-2 rounded-lg bg-background border border-border/80 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/50 transition-colors"
                 />
                 <button
                     type="button"
                     onClick={handleFetchPreview}
                     disabled={!url.trim() || loading}
-                    className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-40 transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 border border-zinc-700"
+                    className="px-3 py-2 rounded-lg bg-elevated hover:bg-muted text-foreground hover:text-foreground disabled:opacity-40 transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 border border-border"
                 >
-                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5 text-amber-400" />}
+                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5 text-warning" />}
                     Aperçu
                 </button>
             </div>
@@ -252,7 +252,7 @@ function AddLinkForm({
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-400 hover:text-zinc-200 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
                 >
                     Annuler
                 </button>
@@ -260,7 +260,7 @@ function AddLinkForm({
                     type="button"
                     onClick={handleAdd}
                     disabled={!url.trim() && !preview}
-                    className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs disabled:opacity-40 transition-all shadow-md"
+                    className="px-4 py-1.5 rounded-lg bg-warning hover:bg-warning text-warning-foreground font-black text-xs disabled:opacity-40 transition-all shadow-md"
                 >
                     Ajouter le lien
                 </button>
@@ -308,11 +308,11 @@ function TipSectionEditor({
     };
 
     return (
-        <div className="group/card relative rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/60 to-zinc-950/80 backdrop-blur-md shadow-lg overflow-hidden transition-all duration-200 hover:border-zinc-700/80">
+        <div className="group/card relative rounded-2xl border border-border/90 bg-gradient-to-b from-zinc-900/60 to-zinc-950/80 backdrop-blur-md shadow-lg overflow-hidden transition-all duration-200 hover:border-border/80">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/70 border-b border-zinc-800/80">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-surface/70 border-b border-border/80">
                 <div className="flex items-center gap-2">
-                    <span className="h-5 px-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-caption font-black uppercase tracking-widest flex items-center">
+                    <span className="h-5 px-2 rounded-md bg-warning/10 border border-warning/20 text-warning text-caption font-black uppercase tracking-widest flex items-center">
                         Conseil #{index + 1}
                     </span>
                 </div>
@@ -322,7 +322,7 @@ function TipSectionEditor({
                             <button
                                 type="button"
                                 onClick={() => { setIsEditing(true); setEditContent(section.content); }}
-                                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-all"
+                                className="p-1.5 rounded-lg hover:bg-elevated text-muted-foreground hover:text-foreground transition-all"
                                 title="Modifier ce conseil"
                             >
                                 <Edit3 className="h-3.5 w-3.5" />
@@ -332,7 +332,7 @@ function TipSectionEditor({
                                 <button
                                     type="button"
                                     onClick={handleSave}
-                                    className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all flex items-center gap-1 text-xs font-bold px-2"
+                                    className="p-1.5 rounded-lg bg-success/10 hover:bg-success/20 text-success border border-success/20 transition-all flex items-center gap-1 text-xs font-bold px-2"
                                     title="Sauvegarder"
                                 >
                                     <Save className="h-3.5 w-3.5" /> OK
@@ -340,7 +340,7 @@ function TipSectionEditor({
                                 <button
                                     type="button"
                                     onClick={() => setIsEditing(false)}
-                                    className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-all"
+                                    className="p-1.5 rounded-lg hover:bg-elevated text-muted-foreground hover:text-foreground transition-all"
                                     title="Annuler"
                                 >
                                     <X className="h-3.5 w-3.5" />
@@ -350,7 +350,7 @@ function TipSectionEditor({
                         <button
                             type="button"
                             onClick={onDelete}
-                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400/70 hover:text-red-400 transition-all"
+                            className="p-1.5 rounded-lg hover:bg-danger/20 text-danger/70 hover:text-danger transition-all"
                             title="Supprimer ce conseil"
                         >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -367,15 +367,15 @@ function TipSectionEditor({
                         onChange={(e) => setEditContent(e.target.value)}
                         rows={4}
                         placeholder="Ex: Lumière 0–4 : baisse toutes les 2 min, remonte avec Sel aux machines..."
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 resize-none transition-colors"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/50 resize-none transition-colors"
                     />
                 ) : (
                     section.content ? (
-                        <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap font-medium">
+                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-medium">
                             {section.content}
                         </p>
                     ) : (
-                        <p className="text-sm text-zinc-600 italic">Aucun texte pour ce conseil — cliquez sur modifier pour remplir</p>
+                        <p className="text-sm text-muted-foreground italic">Aucun texte pour ce conseil — cliquez sur modifier pour remplir</p>
                     )
                 )}
 
@@ -398,9 +398,9 @@ function TipSectionEditor({
                     <button
                         type="button"
                         onClick={() => setShowAddLink(true)}
-                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-zinc-800 hover:border-amber-500/40 bg-zinc-950/40 hover:bg-amber-500/5 text-zinc-500 hover:text-amber-400 text-xs font-bold w-full transition-all group"
+                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-border hover:border-warning/40 bg-background/40 hover:bg-warning/5 text-muted-foreground hover:text-warning text-xs font-bold w-full transition-all group"
                     >
-                        <Plus className="h-3.5 w-3.5 group-hover:text-amber-400" />
+                        <Plus className="h-3.5 w-3.5 group-hover:text-warning" />
                         Ajouter une ressource ou un lien de guide
                     </button>
                 )}
@@ -442,17 +442,17 @@ function RaidTabPanel({
         ? {
             name: "Sanctuaire des Jardins Éternels",
             subtitle: "Raid officiel",
-            color: "text-red-400",
-            border: "border-red-500/20",
-            bg: "bg-red-500/5",
+            color: "text-danger",
+            border: "border-danger/20",
+            bg: "bg-danger/5",
             badge: "RAID_OFFICIAL",
         }
         : {
             name: "Gigalodon",
             subtitle: "Raid officiel",
-            color: "text-cyan-400",
-            border: "border-cyan-500/20",
-            bg: "bg-cyan-500/5",
+            color: "text-info",
+            border: "border-info/20",
+            bg: "bg-info/5",
             badge: "RAID_OFFICIAL",
         };
 
@@ -478,7 +478,7 @@ function RaidTabPanel({
     return (
         <div className="space-y-6">
             {/* Raid Banner Image */}
-            <div className="relative h-44 rounded-2xl overflow-hidden border border-zinc-800 shadow-md">
+            <div className="relative h-44 rounded-2xl overflow-hidden border border-border shadow-md">
                 <Image
                     src={raidType === "jardin" ? "/assets/raids/sanctuaire.webp" : "/assets/raids/gigalodon.webp"}
                     alt={config.name}
@@ -489,19 +489,19 @@ function RaidTabPanel({
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
                     <div>
-                        <h3 className="text-xl font-black uppercase tracking-tighter text-white drop-shadow-sm">
+                        <h3 className="text-xl font-black uppercase tracking-tighter text-foreground drop-shadow-sm">
                             {config.name}
                         </h3>
-                        <p className="text-xs text-zinc-300 font-bold drop-shadow-sm">{config.subtitle}</p>
+                        <p className="text-xs text-foreground font-bold drop-shadow-sm">{config.subtitle}</p>
                     </div>
-                    <Badge className="bg-black/60 text-zinc-300 border border-zinc-800 text-caption font-black uppercase px-2 py-0.5 backdrop-blur-sm">
+                    <Badge className="bg-black/60 text-foreground border border-border text-caption font-black uppercase px-2 py-0.5 backdrop-blur-sm">
                         {config.badge}
                     </Badge>
                 </div>
             </div>
 
             {/* Description */}
-            <div className="bg-zinc-900/10 border border-zinc-900 rounded-xl p-4">
+            <div className="bg-surface/10 border border-zinc-900 rounded-xl p-4">
                 {editingDesc ? (
                     <div className="space-y-2">
                         <textarea
@@ -509,13 +509,13 @@ function RaidTabPanel({
                             onChange={(e) => setEditDesc(e.target.value)}
                             rows={3}
                             placeholder="Description générale de ce raid..."
-                            className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 resize-none"
+                            className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border resize-none"
                         />
                         <div className="flex gap-2 justify-end">
-                            <button onClick={() => setEditingDesc(false)} className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1">Annuler</button>
+                            <button onClick={() => setEditingDesc(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1">Annuler</button>
                             <button
                                 onClick={() => { onUpdateDescription(editDesc); setEditingDesc(false); }}
-                                className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-bold"
+                                className="px-3 py-1 rounded-lg bg-elevated hover:bg-muted border border-border text-foreground text-xs font-bold"
                             >
                                 Sauvegarder
                             </button>
@@ -523,13 +523,13 @@ function RaidTabPanel({
                     </div>
                 ) : (
                     <div className="flex items-start gap-2 group">
-                        <p className={cn("text-sm flex-1 leading-relaxed", description ? "text-zinc-300" : "text-zinc-600 italic")}>
+                        <p className={cn("text-sm flex-1 leading-relaxed", description ? "text-foreground" : "text-muted-foreground italic")}>
                             {description || "Aucune description générale. Cliquez sur modifier pour en ajouter une."}
                         </p>
                         {isAdmin && (
                             <button
                                 onClick={() => { setEditDesc(description ?? ""); setEditingDesc(true); }}
-                                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-all shrink-0"
+                                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-elevated text-muted-foreground hover:text-foreground transition-all shrink-0"
                             >
                                 <Edit3 className="h-3.5 w-3.5" />
                             </button>
@@ -542,18 +542,18 @@ function RaidTabPanel({
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-zinc-500" />
-                        <span className="text-sm font-black uppercase tracking-widest text-zinc-500">
+                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                             Conseils & Stratégies
                         </span>
-                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-caption font-black">
+                        <Badge className="bg-elevated text-muted-foreground border-border text-caption font-black">
                             {tips.length}
                         </Badge>
                     </div>
                     {isAdmin && (
                         <button
                             onClick={handleAddSection}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-zinc-400 hover:text-zinc-200 text-xs font-bold transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-elevated border border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-bold transition-all"
                         >
                             <Plus className="h-3.5 w-3.5" />
                             Ajouter un conseil
@@ -562,13 +562,13 @@ function RaidTabPanel({
                 </div>
 
                 {tips.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 rounded-2xl border-2 border-dashed border-zinc-800 text-center">
-                        <BookOpen className="h-8 w-8 text-zinc-700 mb-3" />
-                        <p className="text-zinc-600 text-sm font-bold">Aucun conseil pour ce raid</p>
+                    <div className="flex flex-col items-center justify-center py-12 rounded-2xl border-2 border-dashed border-border text-center">
+                        <BookOpen className="h-8 w-8 text-muted-foreground mb-3" />
+                        <p className="text-muted-foreground text-sm font-bold">Aucun conseil pour ce raid</p>
                         {isAdmin && (
                             <button
                                 onClick={handleAddSection}
-                                className="mt-3 px-4 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold border border-amber-500/20 transition-all"
+                                className="mt-3 px-4 py-2 rounded-lg bg-warning/10 hover:bg-warning/20 text-warning text-xs font-bold border border-warning/20 transition-all"
                             >
                                 Ajouter le premier conseil
                             </button>
@@ -649,39 +649,39 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
             id: "jardin",
             label: "Jardins",
             icon: Swords,
-            color: "text-red-400",
-            activeBg: "bg-red-500/10",
-            activeBorder: "border-red-500/40",
+            color: "text-danger",
+            activeBg: "bg-danger/10",
+            activeBorder: "border-danger/40",
         },
         {
             id: "gigalodon",
             label: "Gigalodon",
             icon: Waves,
-            color: "text-cyan-400",
-            activeBg: "bg-cyan-500/10",
-            activeBorder: "border-cyan-500/40",
+            color: "text-info",
+            activeBg: "bg-info/10",
+            activeBorder: "border-info/40",
         },
     ];
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950/98 border border-white/10 ring-1 ring-red-500/20  p-0">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-background/98 border border-border ring-1 ring-danger/20  p-0">
                 {/* Header */}
-                <div className="relative overflow-hidden px-6 pt-6 pb-4 border-b border-zinc-800/80 shrink-0">
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
+                <div className="relative overflow-hidden px-6 pt-6 pb-4 border-b border-border/80 shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-r from-danger/5 via-transparent to-info/5 pointer-events-none" />
                     <div className="relative flex items-start justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 to-cyan-500/20 rounded-xl blur-lg" />
-                                <div className="relative h-12 w-12 rounded-xl bg-gradient-to-br from-red-500/10 to-cyan-500/10 flex items-center justify-center border border-white/10">
-                                    <Swords className="h-6 w-6 text-red-400" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-danger/20 to-info/20 rounded-xl blur-lg" />
+                                <div className="relative h-12 w-12 rounded-xl bg-gradient-to-br from-danger/10 to-info/10 flex items-center justify-center border border-border">
+                                    <Swords className="h-6 w-6 text-danger" />
                                 </div>
                             </div>
                             <div>
-                                <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-zinc-100">
+                                <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                                     Hub Raid
                                 </DialogTitle>
-                                <DialogDescription className="text-zinc-500 font-bold text-xs mt-0.5">
+                                <DialogDescription className="text-muted-foreground font-bold text-xs mt-0.5">
                                     Guides & conseils pour les raids de guilde
                                 </DialogDescription>
                             </div>
@@ -695,9 +695,9 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
 
                     {/* Unsaved changes warning */}
                     {isAdmin && hasChanges && !saving && (
-                        <div className="relative flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                            <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                            <p className="text-xs text-amber-400 font-bold">Modifications non sauvegardées</p>
+                        <div className="relative flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-warning/10 border border-warning/20">
+                            <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0" />
+                            <p className="text-xs text-warning font-bold">Modifications non sauvegardées</p>
                         </div>
                     )}
                 </div>
@@ -715,7 +715,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
                                     "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider border transition-all",
                                     isActive
                                         ? cn(tab.activeBg, tab.color, tab.activeBorder, "shadow-md")
-                                        : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                        : "bg-surface/50 text-muted-foreground border-border hover:border-border hover:text-foreground"
                                 )}
                             >
                                 <Icon className={cn("h-4 w-4", isActive ? tab.color : "")} />
@@ -732,7 +732,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
                     <button
                         onClick={loadConfig}
                         disabled={loading}
-                        className="ml-auto p-2 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-all"
+                        className="ml-auto p-2 rounded-lg hover:bg-elevated text-muted-foreground hover:text-foreground transition-all"
                         title="Rafraîchir"
                     >
                         <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
@@ -744,12 +744,12 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 space-y-4">
                             <div className="relative">
-                                <div className="h-14 w-14 rounded-full bg-red-500/10 flex items-center justify-center animate-pulse">
-                                    <Swords className="h-7 w-7 text-red-500/50" />
+                                <div className="h-14 w-14 rounded-full bg-danger/10 flex items-center justify-center animate-pulse">
+                                    <Swords className="h-7 w-7 text-danger/50" />
                                 </div>
-                                <Loader2 className="absolute -top-1 -right-1 h-5 w-5 text-red-400 animate-spin" />
+                                <Loader2 className="absolute -top-1 -right-1 h-5 w-5 text-danger animate-spin" />
                             </div>
-                            <p className="text-zinc-500 text-sm">Chargement du Hub Raid...</p>
+                            <p className="text-muted-foreground text-sm">Chargement du Hub Raid...</p>
                         </div>
                     ) : activeTab === "jardin" ? (
                         <RaidTabPanel
@@ -774,15 +774,15 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
 
                 {/* Footer */}
                 {isAdmin && (
-                    <div className="px-6 py-4 border-t border-zinc-800/80 shrink-0 flex items-center justify-between">
-                        <p className="text-xs text-zinc-600 font-bold">
+                    <div className="px-6 py-4 border-t border-border/80 shrink-0 flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground font-bold">
                             {isAdmin ? "Mode édition — visible par tous les membres" : "Vue lecture seule"}
                         </p>
                         {hasChanges && (
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-sm transition-all  disabled:opacity-50"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-warning to-orange-500 hover:from-warning hover:to-orange-400 text-foreground font-bold text-sm transition-all  disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 Sauvegarder les modifications

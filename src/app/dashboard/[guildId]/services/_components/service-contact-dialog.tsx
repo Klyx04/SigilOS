@@ -119,19 +119,19 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                     className={cn(
                         "font-black uppercase tracking-wider text-caption sm:text-xs rounded-xl h-9 px-4 sm:px-5 transition-all shrink-0 w-fit",
                         isDiscordConfigured 
-                            ? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-900/20" 
-                            : "bg-zinc-800 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-60"
+                            ? "bg-info hover:bg-info text-info-foreground shadow-lg shadow-cyan-900/20" 
+                            : "bg-elevated text-muted-foreground border border-border/50 cursor-not-allowed opacity-60"
                     )}
                 >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     {isDiscordConfigured ? "Contacter" : "Non configuré"}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg bg-zinc-950 border border-white/10 shadow-2xl rounded-3xl text-white p-0 gap-0 overflow-hidden backdrop-blur-xl">
-                <div className="p-5 pb-4 border-b border-white/5 bg-slate-900/30">
+            <DialogContent className="max-w-lg bg-background border border-border shadow-2xl rounded-3xl text-foreground p-0 gap-0 overflow-hidden backdrop-blur-xl">
+                <div className="p-5 pb-4 border-b border-border bg-surface/30">
                     <DialogTitle className="text-base font-black flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                            <MessageSquare className="w-4 h-4 text-cyan-400" strokeWidth={2.5} />
+                        <div className="w-8 h-8 rounded-xl bg-info/20 border border-info/30 flex items-center justify-center shrink-0 shadow-inner">
+                            <MessageSquare className="w-4 h-4 text-info" strokeWidth={2.5} />
                         </div>
                         Contacter {name}
                     </DialogTitle>
@@ -139,18 +139,18 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
 
                 <div className="p-6 space-y-6">
                     {/* Readonly Context Box */}
-                    <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 space-y-3">
+                    <div className="rounded-2xl border border-white/8 bg-surface p-4 space-y-3">
                         <div className="flex items-center gap-3">
                             {listing.category === "PASSAGE_DONJON" && listing.dungeonImageUrl ? (
-                                <div className="relative h-10 w-10 rounded-xl shrink-0 overflow-hidden border border-cyan-500/20 shadow-inner">
+                                <div className="relative h-10 w-10 rounded-xl shrink-0 overflow-hidden border border-info/20 shadow-inner">
                                     <Image src={listing.dungeonImageUrl} alt={listing.dungeonName || ""} fill className="object-cover" />
                                 </div>
                             ) : listing.category === "PASSAGE_DONJON" ? (
-                                <div className="h-10 w-10 rounded-xl shrink-0 bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-inner">
-                                    <Swords className="h-5 w-5 text-cyan-400" />
+                                <div className="h-10 w-10 rounded-xl shrink-0 bg-info/10 flex items-center justify-center border border-info/20 shadow-inner">
+                                    <Swords className="h-5 w-5 text-info" />
                                 </div>
                             ) : singleProfessionIcon ? (
-                                <div className="relative h-10 w-10 rounded-xl shrink-0 bg-white/[0.02] border border-white/10 p-1.5 flex items-center justify-center shadow-inner overflow-hidden">
+                                <div className="relative h-10 w-10 rounded-xl shrink-0 bg-surface border border-border p-1.5 flex items-center justify-center shadow-inner overflow-hidden">
                                     <Image src={singleProfessionIcon} alt={professionsList[0]} fill className="object-contain p-1" />
                                 </div>
                             ) : (
@@ -159,8 +159,8 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                                 </div>
                             )}
                             <div>
-                                <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider leading-none">Service demandé</p>
-                                <p className="text-sm font-black text-white mt-1 leading-tight">{listing.title}</p>
+                                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider leading-none">Service demandé</p>
+                                <p className="text-sm font-black text-foreground mt-1 leading-tight">{listing.title}</p>
                             </div>
                         </div>
                     </div>
@@ -168,7 +168,7 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                     {/* Options Selection */}
                     {options.length > 0 && (
                         <div className="space-y-3">
-                            <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Options du service (Sélectionnez)</Label>
+                            <Label className="text-muted-foreground text-xs font-black uppercase tracking-widest">Options du service (Sélectionnez)</Label>
                             <div className="grid grid-cols-1 gap-2.5">
                                 {options.map((option) => {
                                     const isChecked = selectedOptions.includes(option);
@@ -201,8 +201,8 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                                             className={cn(
                                                 "flex items-center gap-3 justify-between rounded-xl border p-3.5 text-left transition-all duration-300",
                                                 isChecked
-                                                    ? "border-cyan-500/40 bg-cyan-500/5 text-white"
-                                                    : "border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/10 hover:text-white"
+                                                    ? "border-info/40 bg-info/5 text-foreground"
+                                                    : "border-border bg-surface text-muted-foreground hover:border-border hover:text-foreground"
                                             )}
                                         >
                                             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -222,10 +222,10 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
                                             <div className={cn(
                                                 "h-5 w-5 rounded-lg border flex items-center justify-center transition-all shrink-0",
                                                 isChecked
-                                                    ? "border-cyan-500 bg-cyan-500 text-black"
-                                                    : "border-white/20 bg-black/20"
+                                                    ? "border-info bg-info text-info-foreground"
+                                                    : "border-border-strong bg-black/20"
                                             )}>
-                                                {isChecked && <CheckCircle2 className="h-3.5 w-3.5 text-zinc-950" strokeWidth={3} />}
+                                                {isChecked && <CheckCircle2 className="h-3.5 w-3.5 text-foreground" strokeWidth={3} />}
                                             </div>
                                         </button>
                                     );
@@ -236,29 +236,29 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
 
                     {/* Custom Message */}
                     <div className="space-y-2">
-                        <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Votre message (Optionnel)</Label>
+                        <Label className="text-muted-foreground text-xs font-black uppercase tracking-widest">Votre message (Optionnel)</Label>
                         <Textarea
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Ex: Salut ! Je suis dispo ce soir à 21h, j'ai mes clés. Merci !"
-                            className="bg-black/30 border-white/10 text-white rounded-xl placeholder:text-zinc-600 focus:border-cyan-500/50 resize-none h-24 text-xs leading-relaxed"
+                            className="bg-black/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:border-info/50 resize-none h-24 text-xs leading-relaxed"
                             maxLength={1000}
                         />
                     </div>
                 </div>
 
-                <div className="px-6 pb-6 flex gap-3 border-t border-white/5 pt-5 bg-slate-900/30">
+                <div className="px-6 pb-6 flex gap-3 border-t border-border pt-5 bg-surface/30">
                     <Button
                         variant="ghost"
                         onClick={() => setOpen(false)}
-                        className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all rounded-xl"
+                        className="flex-1 border border-border bg-surface text-foreground hover:text-foreground hover:bg-surface font-bold h-12 transition-all rounded-xl"
                     >
                         Annuler
                     </Button>
                     <Button
                         onClick={handleSubmit}
                         disabled={isPending}
-                        className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-12 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
+                        className="flex-1 bg-info hover:bg-info text-info-foreground font-black h-12 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
                     >
                         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Envoyer la demande"}
                     </Button>

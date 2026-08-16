@@ -77,17 +77,17 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-zinc-950 border-white/10 sm:max-w-[425px]">
+            <DialogContent className="bg-background border-border sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-white uppercase tracking-widest text-sm font-black">
-                        <Users className="w-4 h-4 text-indigo-400" />
+                    <DialogTitle className="flex items-center gap-2 text-foreground uppercase tracking-widest text-sm font-black">
+                        <Users className="w-4 h-4 text-info" />
                         {isSearchActive ? "Recherche de membres" : `Membres En Ligne (${users.length})`}
                     </DialogTitle>
                 </DialogHeader>
 
                 {canSearch && (
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
                             type="text"
                             value={query}
@@ -96,13 +96,13 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                             aria-label="Rechercher un membre de la guilde"
                             autoComplete="off"
                             maxLength={60}
-                            className="w-full h-10 rounded-xl bg-white/[0.03] border border-white/10 pl-9 pr-8 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-indigo-400/50 transition-colors"
+                            className="w-full h-10 rounded-xl bg-surface border border-border pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50 transition-colors"
                         />
                         {query && (
                             <button
                                 type="button"
                                 onClick={() => setQuery("")}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white transition-colors"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
                                 aria-label="Effacer la recherche"
                             >
                                 <X className="w-4 h-4" />
@@ -115,8 +115,8 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                     {isSearchActive ? (
                         searching ? (
                             <div className="py-8 flex flex-col items-center gap-3">
-                                <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                                <p className="text-xs text-zinc-500">Recherche dans la guilde…</p>
+                                <Loader2 className="w-6 h-6 animate-spin text-info" />
+                                <p className="text-xs text-muted-foreground">Recherche dans la guilde…</p>
                             </div>
                         ) : results.length > 0 ? (
                             results.map((member) => {
@@ -126,23 +126,23 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                         key={member.profileId}
                                         href={`/dashboard/${guildId}/members/${encodeURIComponent(member.slug)}`}
                                         onClick={() => onOpenChange(false)}
-                                        className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-indigo-400/40 hover:bg-white/[0.06] transition-colors group"
+                                        className="flex items-center gap-3 p-2.5 rounded-xl bg-surface border border-border hover:border-info/40 hover:bg-surface transition-colors group"
                                     >
                                         <div className="relative">
-                                            <Avatar className="h-10 w-10 border border-white/10 group-hover:border-indigo-400/50 transition-all">
+                                            <Avatar className="h-10 w-10 border border-border group-hover:border-info/50 transition-all">
                                                 <AvatarImage src={member.image || ""} />
-                                                <AvatarFallback className="bg-zinc-800 text-xs font-bold">
+                                                <AvatarFallback className="bg-elevated text-xs font-bold">
                                                     {member.name.substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors truncate">
+                                            <span className="text-sm font-bold text-foreground group-hover:text-foreground transition-colors truncate">
                                                 {member.name}
                                             </span>
-                                            <span className="text-caption font-medium text-zinc-500 truncate">
+                                            <span className="text-caption font-medium text-muted-foreground truncate">
                                                 {member.pseudoDofus
-                                                    ? <>Dofus : <span className="text-indigo-400/80">{member.pseudoDofus}</span></>
+                                                    ? <>Dofus : <span className="text-info/80">{member.pseudoDofus}</span></>
                                                     : "Membre de la guilde"}
                                                 {cls && (
                                                     <span className="inline-flex items-center gap-1 ml-2">
@@ -157,7 +157,7 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                             })
                         ) : (
                             <div className="py-8 text-center">
-                                <p className="text-zinc-500 text-sm">Aucun membre trouvé pour « {query.trim()} ».</p>
+                                <p className="text-muted-foreground text-sm">Aucun membre trouvé pour « {query.trim()} ».</p>
                             </div>
                         )
                     ) : users.length > 0 ? (
@@ -167,12 +167,12 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                             const isAfk = user.isAfk || diffMinutes > 15;
 
                             return (
-                                <div key={user.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors group">
+                                <div key={user.id} className="flex items-center justify-between p-2.5 rounded-xl bg-surface border border-border hover:border-border transition-colors group">
                                     <div className="flex items-center gap-3">
                                         <div className="relative">
-                                            <Avatar className={`h-10 w-10 border transition-all ${isAfk ? 'border-amber-500/40 group-hover:border-amber-400' : 'border-white/10 group-hover:border-emerald-500/50'}`}>
+                                            <Avatar className={`h-10 w-10 border transition-all ${isAfk ? 'border-warning/40 group-hover:border-warning' : 'border-border group-hover:border-success/50'}`}>
                                                 <AvatarImage src={user.image || ""} />
-                                                <AvatarFallback className="bg-zinc-800 text-xs font-bold">
+                                                <AvatarFallback className="bg-elevated text-xs font-bold">
                                                     {(user.name || "??").substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -180,22 +180,22 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                             {/* Status Indicator Light: Yellow/Amber if AFK > 15min, Green if Active <= 15min */}
                                             <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-[#09090b] rounded-full transition-all ${
                                                 isAfk 
-                                                    ? 'bg-amber-400 ' 
-                                                    : 'bg-emerald-500 '
+                                                    ? 'bg-warning ' 
+                                                    : 'bg-success '
                                             }`} />
                                         </div>
                                         <div className="flex flex-col">
                                             <Link href={`/dashboard/${guildId}/members/${user.id}`} onClick={() => onOpenChange(false)}>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors cursor-pointer hover:underline">{user.name}</span>
+                                                    <span className="text-sm font-bold text-foreground group-hover:text-foreground transition-colors cursor-pointer hover:underline">{user.name}</span>
                                                     {isAfk && (
-                                                        <span className="px-1.5 py-0.5 rounded text-caption font-black uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                                                        <span className="px-1.5 py-0.5 rounded text-caption font-black uppercase tracking-wider bg-warning/10 text-warning border border-warning/20">
                                                             AFK
                                                         </span>
                                                     )}
                                                 </div>
                                             </Link>
-                                            <span className={`text-caption font-medium ${isAfk ? 'text-amber-400/80' : 'text-zinc-500'}`}>
+                                            <span className={`text-caption font-medium ${isAfk ? 'text-warning/80' : 'text-muted-foreground'}`}>
                                                 {isAfk 
                                                     ? (lastActiveDate ? `AFK depuis ${formatDistanceToNow(lastActiveDate, { locale: fr })}` : "AFK (> 15 min)")
                                                     : (lastActiveDate ? `Actif ${formatDistanceToNow(lastActiveDate, { addSuffix: true, locale: fr })}` : "Actif à l'instant")
@@ -203,13 +203,13 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                             </span>
                                         </div>
                                     </div>
-                                    <div className={`h-2 w-2 rounded-full animate-pulse ${isAfk ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+                                    <div className={`h-2 w-2 rounded-full animate-pulse ${isAfk ? 'bg-warning' : 'bg-success'}`} />
                                 </div>
                             );
                         })
                     ) : (
                         <div className="py-8 text-center">
-                            <p className="text-zinc-500 italic text-sm">Personne n'est connecté pour le moment.</p>
+                            <p className="text-muted-foreground italic text-sm">Personne n'est connecté pour le moment.</p>
                         </div>
                     )}
                 </div>

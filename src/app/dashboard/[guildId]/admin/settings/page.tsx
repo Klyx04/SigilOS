@@ -96,8 +96,8 @@ function buildNavGroups(): SettingsGroup[] {
 }
 
 const ACCENT: Record<string, { border: string; text: string; bg: string; pill: string }> = {
-    emerald: { border: "border-emerald-500/30", text: "text-emerald-400", bg: "bg-emerald-500/10", pill: "bg-emerald-500/20 text-emerald-400" },
-    slate: { border: "border-slate-500/30", text: "text-slate-400", bg: "bg-slate-500/10", pill: "bg-slate-500/20 text-slate-400" },
+    emerald: { border: "border-success/30", text: "text-success", bg: "bg-success/10", pill: "bg-success/20 text-success" },
+    slate: { border: "border-border/30", text: "text-muted-foreground", bg: "bg-muted/10", pill: "bg-muted/20 text-muted-foreground" },
 };
 
 // ============================================================================
@@ -160,7 +160,7 @@ export default async function FeatureSettingsPage({
             <div className="flex flex-col lg:flex-row gap-8 items-start relative">
                 {/* ── SIDEBAR NAVIGATION ── */}
                 <nav data-tour="admin-settings-nav" className={cn(
-                    "w-full lg:w-72 shrink-0 lg:sticky lg:top-4 z-20 space-y-1 lg:space-y-1.5 p-2 rounded-2xl border border-white/8 bg-zinc-900/40 backdrop-blur-xl",
+                    "w-full lg:w-72 shrink-0 lg:sticky lg:top-4 z-20 space-y-1 lg:space-y-1.5 p-2 rounded-2xl border border-white/8 bg-surface/40 backdrop-blur-xl",
                     "flex lg:flex-col items-center lg:items-stretch overflow-x-auto lg:overflow-visible no-scrollbar hide-scrollbar"
                 )}>
                     {/* Shadow indicators for mobile horizontal scroll (Standard 2026) */}
@@ -168,7 +168,7 @@ export default async function FeatureSettingsPage({
                     
                     {navGroups.map((group, idx) => (
                         <div key={idx} className="flex flex-row lg:flex-col items-center lg:items-stretch mb-0 lg:mb-4 lg:last:mb-0 shrink-0">
-                            <h3 className="hidden lg:block text-caption font-black uppercase tracking-widest text-zinc-500 px-4 mb-2 mt-1">{group.title}</h3>
+                            <h3 className="hidden lg:block text-caption font-black uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-1">{group.title}</h3>
                             {group.items.map((item) => {
                                 const isActive = item.id === activeTab;
                                 const ac = ACCENT[item.accent] ?? ACCENT.slate;
@@ -181,20 +181,20 @@ export default async function FeatureSettingsPage({
                                             "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 whitespace-nowrap lg:whitespace-normal shrink-0",
                                             isActive
                                                 ? `${ac.bg} ${ac.border} border `
-                                                : "border border-transparent hover:bg-white/[0.03] hover:border-white/8 text-zinc-400 hover:text-white"
+                                                : "border border-transparent hover:bg-surface hover:border-white/8 text-muted-foreground hover:text-foreground"
                                         )}
                                     >
                                         <div className={cn(
                                             "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
-                                            isActive ? ac.bg : "bg-white/5 group-hover:bg-white/10 group-"
+                                            isActive ? ac.bg : "bg-surface group-hover:bg-surface group-"
                                         )}>
-                                            <Icon className={cn("w-4 h-4", isActive ? ac.text : "text-zinc-500 group-hover:text-zinc-200")} />
+                                            <Icon className={cn("w-4 h-4", isActive ? ac.text : "text-muted-foreground group-hover:text-foreground")} />
                                         </div>
                                         <div className="min-w-0 flex-1 hidden lg:block">
-                                            <p className={cn("text-xs font-black uppercase tracking-widest leading-none mb-1", isActive ? ac.text : "text-zinc-400 group-hover:text-white")}>
+                                            <p className={cn("text-xs font-black uppercase tracking-widest leading-none mb-1", isActive ? ac.text : "text-muted-foreground group-hover:text-foreground")}>
                                                 {item.label}
                                             </p>
-                                            <p className="text-caption text-zinc-500 truncate font-medium group-hover:text-zinc-400 transition-colors">
+                                            <p className="text-caption text-muted-foreground truncate font-medium group-hover:text-muted-foreground transition-colors">
                                                 {item.description}
                                             </p>
                                         </div>
@@ -230,7 +230,7 @@ export default async function FeatureSettingsPage({
                             <h2 className={cn("text-title font-bold leading-tight", a.text)}>
                                 {activeItem.label}
                             </h2>
-                            <p className="text-sm text-zinc-500 font-medium max-w-xl opacity-80">
+                            <p className="text-sm text-muted-foreground font-medium max-w-xl opacity-80">
                                 {activeItem.description} — Gérez les paramètres de ce module pour votre guilde.
                             </p>
                         </div>
@@ -238,17 +238,17 @@ export default async function FeatureSettingsPage({
 
                     {/* Content pane */}
                     {!isDofusConfigured && activeTab !== "dofus" ? (
-                        <div className="p-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in slide-in-from-bottom-4 min-h-[300px]">
-                            <div className="p-4 rounded-full bg-amber-500/20 mb-2">
-                                <Sword className="w-8 h-8 text-amber-500" />
+                        <div className="p-6 rounded-2xl border border-warning/20 bg-warning/10 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in slide-in-from-bottom-4 min-h-[300px]">
+                            <div className="p-4 rounded-full bg-warning/20 mb-2">
+                                <Sword className="w-8 h-8 text-warning" />
                             </div>
-                            <h3 className="text-xl font-black text-amber-400 tracking-tight uppercase">Configuration Dofus Requise</h3>
-                            <p className="text-sm text-amber-500/80 max-w-md">
+                            <h3 className="text-xl font-black text-warning tracking-tight uppercase">Configuration Dofus Requise</h3>
+                            <p className="text-sm text-warning/80 max-w-md">
                                 Pour pouvoir utiliser et configurer les autres modules, vous devez d'abord lier votre guilde à un serveur Dofus.
                             </p>
                             <Link
                                 href={`/dashboard/${guildId}/admin/settings?tab=dofus`}
-                                className="mt-4 inline-flex items-center justify-center px-6 py-3 rounded-xl bg-amber-500 text-amber-950 text-sm font-bold uppercase tracking-wider hover:bg-amber-400 transition-colors "
+                                className="mt-4 inline-flex items-center justify-center px-6 py-3 rounded-xl bg-warning text-warning-foreground text-sm font-bold uppercase tracking-wider hover:bg-warning transition-colors "
                             >
                                 Configurer le Serveur
                             </Link>
@@ -261,7 +261,7 @@ export default async function FeatureSettingsPage({
                             {activeTab === "donjons" && (
                                 <div className="space-y-8">
                                     <DjSettingsClient guildId={guildId} />
-                                    <div className="pt-8 border-t border-white/5">
+                                    <div className="pt-8 border-t border-border">
                                         <SongesSettingsClient guildId={guildId} />
                                     </div>
                                 </div>
@@ -269,7 +269,7 @@ export default async function FeatureSettingsPage({
                             {activeTab === "missions" && (
                                 <div className="space-y-8">
                                     <MissionSettingsClient guildId={guildId} />
-                                    <div className="pt-8 border-t border-white/5">
+                                    <div className="pt-8 border-t border-border">
                                         <BonusSettingsClient guildId={guildId} />
                                     </div>
                                 </div>
@@ -278,12 +278,12 @@ export default async function FeatureSettingsPage({
                             {activeTab === "metamob" && (
                                 <div className="space-y-8">
                                     <OcreSettingsClient guildId={guildId} />
-                                    <div className="pt-6 border-t border-white/5 max-w-4xl">
-                                        <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                                            <ShieldAlert className="w-4 h-4 text-amber-400" />
+                                    <div className="pt-6 border-t border-border max-w-4xl">
+                                        <h3 className="text-base font-bold text-foreground mb-1 flex items-center gap-2">
+                                            <ShieldAlert className="w-4 h-4 text-warning" />
                                             Zone de Maintenance
                                         </h3>
-                                        <p className="text-sm text-zinc-500 mb-4">Outils de dépannage pour les cas particuliers.</p>
+                                        <p className="text-sm text-muted-foreground mb-4">Outils de dépannage pour les cas particuliers.</p>
                                         <MetamobUnlocker guildId={guildId} />
                                     </div>
                                 </div>

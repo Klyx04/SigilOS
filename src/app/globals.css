@@ -1,76 +1,144 @@
 @import "tailwindcss";
 
+/* Dark mode basé sur la classe .dark (next-themes pose la classe sur <html>).
+   Sans ce @custom-variant, les variantes dark:* suivraient prefers-color-scheme
+   (défaut Tailwind v4) au lieu du toggle applicatif. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 html {
   /* removed scrollbar-gutter to fix double scrollbar track issues */
 }
 
-:root, .dark {
-  /* ── #5 Tokens OKLCH — design system §4.2 (mode sombre) ─────────────
-     Neutres à chroma très faible (0.004–0.012) teintés 260° (bleuté) ;
-     accents chromatiques issus de la palette Tailwind v4 (OKLCH natif). */
+:root,
+.dark {
+  /* ── V2 Phase 0 (GROK) — Tokens sémantiques OKLCH (mode sombre) ─────
+     Neutres à chroma très faible teintés 260° (bleuté).
+     Contrastes mesurés WCAG 2.2 : foreground L=0.83 (~11.7:1, sous le
+     plafond anti-halation 12:1) ; muted 6.87:1 ; accent L=0.72. */
   color-scheme: dark;
-  --sigil-bg: oklch(0.145 0.008 260);
-  --sigil-fg: oklch(0.92 0.005 260);
-  --sigil-card: oklch(0.185 0.010 260);
-  --sigil-card-fg: oklch(0.92 0.005 260);
-  --sigil-popover: oklch(0.225 0.012 260);
-  --sigil-popover-fg: oklch(0.92 0.005 260);
-  --sigil-primary: oklch(0.696 0.17 163);
-  --sigil-primary-fg: oklch(0.145 0.008 260);
-  --sigil-secondary: oklch(0.225 0.012 260);
-  --sigil-secondary-fg: oklch(0.92 0.005 260);
-  --sigil-muted: oklch(0.225 0.012 260);
-  --sigil-muted-fg: oklch(0.68 0.01 260);
-  --sigil-accent: oklch(0.828 0.189 84);
-  --sigil-accent-fg: oklch(0.16 0.02 84);
-  --sigil-dest: oklch(0.577 0.245 27);
-  --sigil-dest-fg: oklch(0.95 0.005 260);
-  --sigil-border: oklch(1 0 0 / 7%);
-  --sigil-border-strong: oklch(1 0 0 / 13%);
-  --sigil-input: oklch(1 0 0 / 7%);
-  --sigil-ring: oklch(0.75 0.15 85);
-  
-  --sigil-gold: oklch(0.828 0.189 84);
-  --sigil-teal: oklch(0.696 0.17 163);
+
+  --guild-hue: 155;
+  --guild-chroma-dark: 0.15;
+  --guild-chroma-light: 0.17;
+  --success-hue: 150;
+
+  --background: oklch(0.145 0.008 260);
+  --surface: oklch(0.185 0.010 260);
+  --elevated: oklch(0.225 0.012 260);
+  --foreground: oklch(0.83 0.005 260);
+  --muted: oklch(0.225 0.012 260);
+  --muted-foreground: oklch(0.68 0.01 260);
+  --subtle-foreground: oklch(0.55 0.01 260);
+  --border: oklch(1 0 0 / 7%);
+  --border-strong: oklch(1 0 0 / 13%);
+  --input: oklch(1 0 0 / 7%);
+
+  --accent: oklch(0.72 var(--guild-chroma-dark) var(--guild-hue));
+  --accent-foreground: oklch(0.16 0.02 var(--guild-hue));
+  --ring: var(--accent);
+
+  --accent-soft-bg: color-mix(in oklch, var(--accent) 12%, transparent);
+  --accent-soft-bg-hover: color-mix(in oklch, var(--accent) 18%, transparent);
+  --accent-soft-border: color-mix(in oklch, var(--accent) 30%, transparent);
+
+  --success: oklch(0.72 0.14 var(--success-hue));
+  --success-foreground: oklch(0.16 0.02 var(--success-hue));
+  --warning: oklch(0.78 0.14 80);
+  --warning-foreground: oklch(0.20 0.03 80);
+  --danger: oklch(0.68 0.18 25);
+  --danger-foreground: oklch(0.98 0.005 25);
+  --info: oklch(0.72 0.12 250);
+  --info-foreground: oklch(0.16 0.02 250);
+
+  --shadow-card: none;
+  --shadow-modal: 0 8px 32px rgb(0 0 0 / 0.4);
+  --shadow-elevated: 0 8px 32px rgb(0 0 0 / 0.4);
+
+  /* ── Compat V1 (ne pas supprimer : gold-glow / teal-glow + landings) ── */
+  --accent-gold: var(--sigil-gold);
+  --accent-teal: var(--sigil-teal);
+
+  /* ── Alias de compat (références directes var(--primary), var(--card), etc.
+     dans composants legacy — valeurs runtime thème-aware) ── */
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--elevated);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--foreground);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+
+  --sigil-bg: var(--background);
+  --sigil-fg: var(--foreground);
+  --sigil-card: var(--surface);
+  --sigil-card-fg: var(--foreground);
+  --sigil-popover: var(--elevated);
+  --sigil-popover-fg: var(--foreground);
+  --sigil-primary: var(--accent);
+  --sigil-primary-fg: var(--accent-foreground);
+  --sigil-secondary: var(--surface);
+  --sigil-secondary-fg: var(--foreground);
+  --sigil-muted: var(--muted);
+  --sigil-muted-fg: var(--muted-foreground);
+  --sigil-accent: var(--accent);
+  --sigil-accent-fg: var(--accent-foreground);
+  --sigil-dest: var(--danger);
+  --sigil-dest-fg: var(--danger-foreground);
+  --sigil-border: var(--border);
+  --sigil-border-strong: var(--border-strong);
+  --sigil-input: var(--input);
+  --sigil-ring: var(--ring);
+  --sigil-gold: oklch(0.78 0.14 80);
+  --sigil-teal: var(--accent);
 }
 
 .light {
   color-scheme: light;
-  --sigil-bg: oklch(0.975 0.004 260);
-  --sigil-fg: oklch(0.21 0.01 260);
-  --sigil-card: oklch(0.995 0.002 260);
-  --sigil-card-fg: oklch(0.21 0.01 260);
-  --sigil-popover: oklch(1 0 0);
-  --sigil-popover-fg: oklch(0.21 0.01 260);
-  --sigil-primary: oklch(0.55 0.17 163);
-  --sigil-primary-fg: oklch(0.98 0.005 260);
-  --sigil-secondary: oklch(0.96 0.006 260);
-  --sigil-secondary-fg: oklch(0.21 0.01 260);
-  --sigil-muted: oklch(0.96 0.006 260);
-  --sigil-muted-fg: oklch(0.45 0.01 260);
-  --sigil-accent: oklch(0.60 0.15 84);
-  --sigil-accent-fg: oklch(0.98 0.005 84);
-  --sigil-dest: oklch(0.505 0.213 27);
-  --sigil-dest-fg: oklch(0.98 0.005 260);
-  --sigil-border: oklch(0 0 0 / 9%);
-  --sigil-border-strong: oklch(0 0 0 / 16%);
-  --sigil-input: oklch(0 0 0 / 9%);
-  --sigil-ring: oklch(0.55 0.13 84);
 
-  --sigil-gold: oklch(0.60 0.15 84);
-  --sigil-teal: oklch(0.55 0.17 163);
+  /* Contrastes mesurés : foreground L=0.21 (16.48:1) ; muted 6.92:1 ;
+     accent L=0.48 (5.32:1 sur emeraude, >=4.5:1) - PAS 0.52 (4.53:1 trop juste). */
+  --background: oklch(0.975 0.004 260);
+  --surface: oklch(0.995 0.002 260);
+  --elevated: oklch(0.98 0.002 260);
+  --foreground: oklch(0.21 0.01 260);
+  --muted: oklch(0.96 0.006 260);
+  --muted-foreground: oklch(0.45 0.01 260);
+  --subtle-foreground: oklch(0.58 0.01 260);
+  --border: oklch(0 0 0 / 9%);
+  --border-strong: oklch(0 0 0 / 16%);
+  --input: oklch(0 0 0 / 9%);
+
+  --accent: oklch(0.48 var(--guild-chroma-light) var(--guild-hue));
+  --accent-foreground: oklch(0.98 0.005 var(--guild-hue));
+  --ring: var(--accent);
+
+  --success: oklch(0.48 0.14 var(--success-hue));
+  --success-foreground: oklch(0.98 0.005 var(--success-hue));
+  --warning: oklch(0.52 0.14 80);
+  --warning-foreground: oklch(0.20 0.03 80);
+  --danger: oklch(0.50 0.19 25);
+  --danger-foreground: oklch(0.98 0.005 25);
+  --info: oklch(0.48 0.14 250);
+  --info-foreground: oklch(0.98 0.005 250);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-modal: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shadow-elevated: 0 8px 24px rgb(0 0 0 / 0.12);
+
+  --sigil-gold: oklch(0.52 0.14 80);
 }
 
-@theme {
+@theme inline {
   --font-sans: var(--font-inter);
   --font-heading: var(--font-space-grotesk);
   --font-mono: var(--font-geist-mono);
 
   /* ── Type scale (design system §6.2 — base 8pt, ratio 1.25) ─────────
      Usage : text-display-xl / text-title / text-body / text-body-sm /
-             text-label / text-caption.
-     Le tier « micro » (<11px) est SUPPRIMÉ — rien sous 11px.
-     Chiffres KPI/scores : tabular-nums.                                */
+             text-label / text-caption.                                  */
   --text-display-xl: 28px;
   --text-display-xl--line-height: 1.15;
   --text-display-lg: 24px;
@@ -86,50 +154,62 @@ html {
   --text-caption: 11px;
   --text-caption--line-height: 1.4;
 
-  /* Dofus Lore Palette - Semantic Mapping */
-  --background: var(--sigil-bg);
-  --foreground: var(--sigil-fg);
-  --card: var(--sigil-card);
-  --card-foreground: var(--sigil-card-fg);
-  --popover: var(--sigil-popover);
-  --popover-foreground: var(--sigil-popover-fg);
-  --primary: var(--sigil-primary);
-  --primary-foreground: var(--sigil-primary-fg);
-  --secondary: var(--sigil-secondary);
-  --secondary-foreground: var(--sigil-secondary-fg);
-  --muted: var(--sigil-muted);
-  --muted-foreground: var(--sigil-muted-fg);
-  --accent: var(--sigil-accent);
-  --accent-foreground: var(--sigil-accent-fg);
-  --destructive: var(--sigil-dest);
-  --destructive-foreground: var(--sigil-dest-fg);
-  --border: var(--sigil-border);
-  --border-strong: var(--sigil-border-strong);
-  --input: var(--sigil-input);
-  --ring: var(--sigil-ring);
+  /* ── Mapping Tailwind v4 : --color-* → utilitaires bg-surface / text-accent / ring-ring ── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--elevated);
+  --color-popover-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft-bg);
+  --color-accent-soft-hover: var(--accent-soft-bg-hover);
+  --color-accent-soft-border: var(--accent-soft-border);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-foreground);
+  --color-secondary: var(--surface);
+  --color-secondary-foreground: var(--foreground);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--danger-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-guild: var(--accent);
+  --color-gold: var(--sigil-gold);
 
-  --accent-gold: var(--sigil-gold);
-  --accent-teal: var(--sigil-teal);
-  /* #5 V1 — Couleur de guilde : token sémantique pour les éléments visibles
-     (titres de bloc, liens, hovers). Par défaut = teal/émeraude ; le layout
-     dashboard le surcharge avec la teinte de la guilde quand elle est définie.
-     V2 : généraliser le remplacement des couleurs en dur par ce token. */
-  --color-guild: var(--sigil-teal);
-  --bg-primary: var(--sigil-bg);
-  --bg-secondary: var(--sigil-card);
-  --bg-tertiary: var(--sigil-muted);
-  /* #5 — alias design system §4.2 (élevation) */
-  --surface: var(--sigil-card);
-  --elevated: var(--sigil-popover);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-modal: var(--shadow-modal);
+  --shadow-elevated: var(--shadow-elevated);
+
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .landing-theme {
   --background: var(--sigil-bg);
   --foreground: var(--sigil-fg);
-  --primary: var(--sigil-teal);
-  --accent: var(--sigil-gold);
+  --primary: var(--accent);
+  --accent: var(--accent);
 }
-
 
 @layer utilities {
   /* --- HUD SCANLINES --- */
@@ -258,7 +338,7 @@ html {
 
   /* Accessibility: Premium Focus Rings */
   .focus-premium {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-all;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all;
   }
 }
 

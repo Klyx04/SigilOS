@@ -57,18 +57,18 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="w-[95vw] max-w-lg bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white p-0 gap-0">
+            <DialogContent className="w-[95vw] max-w-lg bg-background border border-border shadow-2xl rounded-2xl text-foreground p-0 gap-0">
                 {/* Header */}
-                <DialogHeader className="p-6 pb-4 border-b border-white/5">
+                <DialogHeader className="p-6 pb-4 border-b border-border">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-                            <Bell className="w-5 h-5 text-amber-400" />
+                        <div className="w-10 h-10 rounded-xl bg-warning/15 border border-warning/25 flex items-center justify-center shrink-0">
+                            <Bell className="w-5 h-5 text-warning" />
                         </div>
                         <div>
-                            <DialogTitle className="text-base font-black text-white">
+                            <DialogTitle className="text-base font-black text-foreground">
                                 Envoyer une relance
                             </DialogTitle>
-                            <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                                 Pinge les participants acceptés sur Discord
                             </DialogDescription>
                         </div>
@@ -77,15 +77,15 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
 
                 <div className="p-6 space-y-5">
                     {/* Participants to ping */}
-                    <div className="bg-slate-900/50 rounded-xl p-3.5 border border-white/5 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                            <Users className="w-4 h-4 text-indigo-400" />
+                    <div className="bg-surface/50 rounded-xl p-3.5 border border-border flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-info/10 border border-info/20 flex items-center justify-center shrink-0">
+                            <Users className="w-4 h-4 text-info" />
                         </div>
                         <div>
-                            <p className="text-caption text-slate-500 uppercase tracking-widest font-bold">
+                            <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">
                                 Participants à pinger
                             </p>
-                            <p className="text-sm font-bold text-white mt-0.5">
+                            <p className="text-sm font-bold text-foreground mt-0.5">
                                 {acceptedParticipants.length > 0
                                     ? `${acceptedParticipants.length} participant${acceptedParticipants.length > 1 ? "s" : ""} accepté${acceptedParticipants.length > 1 ? "s" : ""}`
                                     : "Aucun participant accepté"
@@ -96,9 +96,9 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
 
                     {/* Cooldown warning */}
                     {!canSend && (
-                        <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-3.5 flex items-center gap-3">
-                            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                            <p className="text-sm text-rose-300">
+                        <div className="bg-danger/20 border border-danger/40 rounded-xl p-3.5 flex items-center gap-3">
+                            <AlertTriangle className="w-4 h-4 text-danger shrink-0" />
+                            <p className="text-sm text-danger">
                                 Anti-spam : prochaine relance possible dans <strong>{cooldownHoursLeft}h</strong>.
                             </p>
                         </div>
@@ -107,10 +107,10 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                     {/* Message input */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <label className="text-caption text-slate-500 uppercase tracking-widest font-bold">
+                            <label className="text-caption text-muted-foreground uppercase tracking-widest font-bold">
                                 Message libre
                             </label>
-                            <span className={`text-caption font-bold tabular-nums ${remaining < 50 ? "text-rose-400" : "text-slate-600"}`}>
+                            <span className={`text-caption font-bold tabular-nums ${remaining < 50 ? "text-danger" : "text-muted-foreground"}`}>
                                 {remaining}/{MAX_CHARS}
                             </span>
                         </div>
@@ -119,10 +119,10 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                             onChange={(e) => setMessage(e.target.value.slice(0, MAX_CHARS))}
                             placeholder="Ex: On se retrouve à 20h sur le serveur, préparez votre stuff farm !"
                             rows={4}
-                            className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500/40 resize-none transition-all"
+                            className="w-full bg-surface/60 border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-warning/40 resize-none transition-all"
                             disabled={isPending || !canSend}
                         />
-                        <p className="text-caption text-slate-600">
+                        <p className="text-caption text-muted-foreground">
                             Ce message sera envoyé en embed Discord avec vos infos de leader.
                         </p>
                     </div>
@@ -131,14 +131,14 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                     <div className="flex gap-3 pt-1">
                         <Button
                             variant="outline"
-                            className="flex-1 border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 font-bold h-11"
+                            className="flex-1 border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-surface font-bold h-11"
                             onClick={handleClose}
                             disabled={isPending}
                         >
                             Annuler
                         </Button>
                         <Button
-                            className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-black h-11 shadow-lg shadow-amber-900/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            className="flex-1 bg-warning hover:bg-warning text-warning-foreground font-black h-11 shadow-lg shadow-amber-900/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                             onClick={handleSend}
                             disabled={isPending || !canSend || !message.trim() || acceptedParticipants.length === 0}
                         >

@@ -82,11 +82,11 @@ export default async function AdminLogsPage({ params }: Props) {
             </div>
 
             {/* Security Notice */}
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-6 flex items-start gap-4 mb-8">
-                    <Shield className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
+                <div className="bg-warning/10 border border-warning/20 rounded-xl p-6 flex items-start gap-4 mb-8">
+                    <Shield className="w-6 h-6 text-warning shrink-0 mt-1" />
                     <div>
-                        <h2 className="text-amber-500 font-black uppercase tracking-wider mb-1">Journal de Transparence</h2>
-                        <p className="text-zinc-400 text-sm leading-relaxed">
+                        <h2 className="text-warning font-black uppercase tracking-wider mb-1">Journal de Transparence</h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
                             Ces entrées sont enregistrées pour garantir la sécurité de la guilde et la traçabilité des actions administratives. 
                             Conformément à notre politique de confidentialité, ces journaux sont <strong>automatiquement supprimés après 30 jours</strong>.
                         </p>

@@ -63,7 +63,7 @@ export function DofusPageOptions({ guildId, dofusSlug, baseColor }: DofusPageOpt
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-zinc-900/60 border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 text-xs font-bold transition-colors"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-surface/60 border border-border text-muted-foreground hover:text-foreground hover:border-border-strong text-xs font-bold transition-colors"
             title="Options de la page"
           >
             <Settings2 className="w-3.5 h-3.5" />
@@ -71,19 +71,19 @@ export function DofusPageOptions({ guildId, dofusSlug, baseColor }: DofusPageOpt
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 p-3">
-          <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">Ambiance</p>
+          <p className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-2">Ambiance</p>
           <button
             type="button"
             onClick={() => toggleParticles(!particles)}
-            className="flex items-center gap-2.5 w-full p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
+            className="flex items-center gap-2.5 w-full p-2 rounded-lg hover:bg-surface transition-colors text-left"
           >
             <Sparkles className="w-4 h-4 shrink-0" style={{ color: particles ? baseColor : undefined }} />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-white">Particules Dofus</p>
-              <p className="text-caption text-zinc-500">Braises teintées à la couleur du Dofus</p>
+              <p className="text-xs font-bold text-foreground">Particules Dofus</p>
+              <p className="text-caption text-muted-foreground">Braises teintées à la couleur du Dofus</p>
             </div>
-            <span className={`inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${particles ? "bg-emerald-500" : "bg-zinc-700"}`}>
-              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${particles ? "translate-x-3.5" : "translate-x-0.5"}`} />
+            <span className={`inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${particles ? "bg-success" : "bg-muted"}`}>
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-background transition-transform ${particles ? "translate-x-3.5" : "translate-x-0.5"}`} />
             </span>
           </button>
         </PopoverContent>

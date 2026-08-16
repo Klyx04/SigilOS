@@ -122,11 +122,11 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
             </div>
 
             {vitrineMode && (
-                <div className="mx-1 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-start gap-3 shadow-lg shadow-blue-500/5 animate-in fade-in duration-300">
+                <div className="mx-1 p-4 rounded-xl bg-info/10 border border-info/20 text-info flex items-start gap-3 shadow-lg shadow-blue-500/5 animate-in fade-in duration-300">
                     <Eye className="w-5 h-5 shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                        <h4 className="font-bold text-sm tracking-wide text-blue-300 uppercase">Mode Vitrine Actif</h4>
-                        <p className="text-xs text-zinc-400 leading-relaxed">
+                        <h4 className="font-bold text-sm tracking-wide text-info uppercase">Mode Vitrine Actif</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
                             Les missions de guilde sont en mode lecture seule pour le moment. Vous pouvez consulter les objectifs de la semaine, mais l'upload de captures d'écran (bouton PREUVE) et l'accès aux classements d'activité et de guildatons sont désactivés.
                         </p>
                     </div>

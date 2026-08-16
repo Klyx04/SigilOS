@@ -45,7 +45,7 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-info" />
             </div>
         );
     }
@@ -55,40 +55,40 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
+                    <Card className="bg-surface/60 border-border overflow-hidden">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2 text-white font-black uppercase tracking-tighter">
-                                    <span className="bg-indigo-500/20 text-indigo-400 p-2 rounded-lg">
+                                <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter">
+                                    <span className="bg-info/20 text-info p-2 rounded-lg">
                                         <UserCheck className="w-5 h-5" />
                                     </span>
                                     Salon des Sollicitations
                                 </CardTitle>
                                 {channelId ? (
-                                    <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Configuré</Badge>
+                                    <Badge className="bg-info/10 text-info border-info/20">Configuré</Badge>
                                 ) : (
-                                    <Badge variant="outline" className="text-zinc-600 border-white/5 uppercase text-caption font-black tracking-widest">Défaut</Badge>
+                                    <Badge variant="outline" className="text-muted-foreground border-border uppercase text-caption font-black tracking-widest">Défaut</Badge>
                                 )}
                             </div>
-                            <CardDescription className="text-xs font-medium text-zinc-500">
+                            <CardDescription className="text-xs font-medium text-muted-foreground">
                                 Ce salon Discord recevra les pings lorsque vos membres se sollicitent depuis l'annuaire (craft, forgemagie, etc).
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-caption uppercase font-black text-zinc-500 ml-1">ID du Salon Discord</Label>
+                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon Discord</Label>
                                     <div className="relative group/input">
                                         <Input
                                             value={channelId}
                                             onChange={(e) => setChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678"
-                                            className="font-mono bg-black/20 border-white/10 h-11 pl-10 focus:border-indigo-500/50 transition-colors"
+                                            className="font-mono bg-black/20 border-border h-11 pl-10 focus:border-info/50 transition-colors"
                                         />
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-indigo-400 transition-colors" />
+                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-info transition-colors" />
                                     </div>
                                     <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
-                                    <p className="text-caption text-zinc-500 ml-1">
+                                    <p className="text-caption text-muted-foreground ml-1">
                                         Laissez vide pour désactiver les notifications Discord (les notifications resteront actives sur le tableau de bord SigilOS).
                                     </p>
                                 </div>
@@ -97,7 +97,7 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
                     </Card>
 
                     <div className="flex justify-end pt-4">
-                        <Button onClick={handleSave} disabled={isPending} className="bg-indigo-600 hover:bg-indigo-500 text-white min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
+                        <Button onClick={handleSave} disabled={isPending} className="bg-info hover:bg-info text-info-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             SAUVEGARDER
                         </Button>
@@ -106,23 +106,23 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
 
                 {/* Preview Panel */}
                 <div className="space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-3 px-4 py-3">
-                            <CardTitle className="text-caption font-black uppercase tracking-widest text-zinc-400">Aperçu : Sollicitation</CardTitle>
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-3 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Sollicitation</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 relative px-4">
                             <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
-                                    <MessageSquare className="w-4 h-4 text-white" />
+                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <MessageSquare className="w-4 h-4 text-foreground" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-indigo-400 text-xs">SigilOS</span>
-                                        <span className="bg-indigo-500/20 text-indigo-300 text-caption px-1 rounded">BOT</span>
+                                        <span className="font-medium text-info text-xs">SigilOS</span>
+                                        <span className="bg-info/20 text-info text-caption px-1 rounded">BOT</span>
                                     </div>
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-indigo-500 p-3 max-w-sm shadow-xl">
-                                        <p className="text-zinc-300 text-caption leading-relaxed mb-2">
-                                            <span className="text-indigo-400 font-bold">@Wylan</span> a besoin de toi pour un Craft Légendaire !
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm shadow-xl">
+                                        <p className="text-foreground text-caption leading-relaxed mb-2">
+                                            <span className="text-info font-bold">@Wylan</span> a besoin de toi pour un Craft Légendaire !
                                         </p>
                                     </div>
                                 </div>

@@ -81,15 +81,15 @@ export default function AlignmentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white outline-none">
+      <DialogContent className="max-w-md bg-background/95 border border-border rounded-[2rem] p-6 text-foreground outline-none">
         <DialogHeader className="mb-4">
-          <DialogTitle className="text-sm font-black uppercase tracking-widest text-zinc-500">
+          <DialogTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">
             Alignement & Ordre
           </DialogTitle>
         </DialogHeader>
 
         {/* Alignement */}
-        <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">Alignement</p>
+        <p className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-2">Alignement</p>
         <div className="flex gap-2 mb-4">
           {ALIGNMENTS.map(alg => (
             <button
@@ -111,7 +111,7 @@ export default function AlignmentModal({
         {/* Ordre (si alignement non neutre) */}
         {a && (
           <>
-            <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">Ordre</p>
+            <p className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-2">Ordre</p>
             <div className="space-y-1.5 mb-4">
               {orders.map((ord: any) => (
                 <button
@@ -128,7 +128,7 @@ export default function AlignmentModal({
 
             {selectedOrder && (
               <>
-                <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">Tranche</p>
+                <p className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-2">Tranche</p>
                 <div className="flex flex-wrap gap-1.5 mb-4">
                   <button
                     type="button"

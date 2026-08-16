@@ -37,7 +37,7 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xl font-black uppercase tracking-tighter text-white">
+                <div className="flex items-center gap-2 text-xl font-black uppercase tracking-tighter text-foreground">
                     <Image
                         src="/assets/icons/croquette.png"
                         alt="Croquette légendaire"
@@ -47,8 +47,8 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                     />
                     Service Légendaire — Familier & Monture
                 </div>
-                <p className="text-zinc-400 text-sm">
-                    Déclarez si vous êtes en mesure de <strong className="text-zinc-200">rendre un familier, montilier ou une monture légendaire</strong> pour d'autres membres de la guilde.
+                <p className="text-muted-foreground text-sm">
+                    Déclarez si vous êtes en mesure de <strong className="text-foreground">rendre un familier, montilier ou une monture légendaire</strong> pour d'autres membres de la guilde.
                     Cela implique d'avoir complété la quête prérequis et de posséder les croquettes nécessaires.
                 </p>
 
@@ -57,10 +57,10 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                     href="https://www.dofuspourlesnoobs.com/les-animaux-fantastiques.html"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 group flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 border border-white/10 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all duration-300"
+                    className="mt-2 group flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-border hover:border-warning/30 hover:bg-warning/5 transition-all duration-300"
                 >
                     {/* Dofus pour les noobs miniature */}
-                    <div className="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-zinc-800 flex items-center justify-center">
+                    <div className="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-border bg-elevated flex items-center justify-center">
                         <Image
                             src="https://www.dofuspourlesnoobs.com/favicon.ico"
                             alt="Dofus pour les noobs"
@@ -71,23 +71,23 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                         />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-caption font-black uppercase tracking-widest text-amber-400/80 group-hover:text-amber-400 transition-colors">
+                        <p className="text-caption font-black uppercase tracking-widest text-warning/80 group-hover:text-warning transition-colors">
                             Prérequis — Les Animaux Fantastiques
                         </p>
-                        <p className="text-caption text-zinc-500 truncate mt-0.5">
+                        <p className="text-caption text-muted-foreground truncate mt-0.5">
                             dofuspourlesnoobs.com · Guide complet de la quête
                         </p>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-600 group-hover:text-amber-400 transition-colors shrink-0" />
+                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-warning transition-colors shrink-0" />
                 </a>
             </div>
 
             {/* Toggle — editable */}
             {!readOnly && (
-                <Card className="p-6 bg-zinc-900/40 border-white/5 rounded-2xl">
+                <Card className="p-6 bg-surface/40 border-border rounded-2xl">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 flex items-center gap-4">
-                            <div className={`relative w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-300 ${canOffer ? "bg-amber-500/15 border-amber-500/40 " : "bg-zinc-800/50 border-white/5"}`}>
+                            <div className={`relative w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-300 ${canOffer ? "bg-warning/15 border-warning/40 " : "bg-elevated/50 border-border"}`}>
                                 <Image
                                     src="/assets/icons/croquette.png"
                                     alt="Croquette"
@@ -97,10 +97,10 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                                 />
                             </div>
                             <div>
-                                <h4 className="text-white font-bold uppercase tracking-widest text-sm">
+                                <h4 className="text-foreground font-bold uppercase tracking-widest text-sm">
                                     Peut rendre un familier / monture légendaire
                                 </h4>
-                                <p className="text-zinc-400 text-sm mt-1">
+                                <p className="text-muted-foreground text-sm mt-1">
                                     {canOffer
                                         ? "✅ Vous proposez ce service — les membres peuvent vous contacter."
                                         : "Activez si vous avez complété la quête et pouvez offrir ce service."}
@@ -111,7 +111,7 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                             checked={canOffer}
                             onCheckedChange={handleToggle}
                             disabled={loading}
-                            className="data-[state=checked]:bg-amber-500"
+                            className="data-[state=checked]:bg-warning"
                         />
                     </div>
                 </Card>
@@ -119,8 +119,8 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
 
             {/* Read-only view */}
             {readOnly && (
-                <Card className={`p-6 rounded-2xl flex items-center gap-4 ${canOffer ? "bg-amber-500/10 border-amber-500/30" : "bg-zinc-900/20 border-white/5"}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${canOffer ? "bg-amber-500/15 border-amber-500/30" : "bg-zinc-800/30 border-white/5"}`}>
+                <Card className={`p-6 rounded-2xl flex items-center gap-4 ${canOffer ? "bg-warning/10 border-warning/30" : "bg-surface/20 border-border"}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${canOffer ? "bg-warning/15 border-warning/30" : "bg-elevated/30 border-border"}`}>
                         <Image
                             src="/assets/icons/croquette.png"
                             alt="Croquette"
@@ -130,10 +130,10 @@ export function LegendaryPetToggle({ guildId, initialValue = false, readOnly = f
                         />
                     </div>
                     <div>
-                        <p className={`font-bold text-sm uppercase tracking-widest ${canOffer ? "text-amber-400" : "text-zinc-500"}`}>
+                        <p className={`font-bold text-sm uppercase tracking-widest ${canOffer ? "text-warning" : "text-muted-foreground"}`}>
                             {canOffer ? "Propose le service légendaire" : "Service non disponible"}
                         </p>
-                        <p className="text-zinc-500 text-xs mt-0.5">
+                        <p className="text-muted-foreground text-xs mt-0.5">
                             {canOffer
                                 ? "Ce joueur peut rendre un familier, montilier ou monture légendaire."
                                 : "Ce joueur ne propose pas ce service."}

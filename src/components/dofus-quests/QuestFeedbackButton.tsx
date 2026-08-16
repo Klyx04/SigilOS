@@ -70,23 +70,23 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                 onClick={() => setOpen(true)}
                 className={className
                     ? `group inline-flex items-center gap-1.5 ${className}`
-                    : `group inline-flex items-center gap-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 ring-1 ring-inset ring-rose-400/60 transition-all ${
+                    : `group inline-flex items-center gap-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 ring-1 ring-inset ring-danger/60 transition-all ${
                         compact
-                            ? "px-3 py-2 text-caption bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 "
-                            : "px-4 py-2.5 text-xs bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 "
+                            ? "px-3 py-2 text-caption bg-gradient-to-r from-danger to-danger text-foreground hover:from-danger hover:to-danger "
+                            : "px-4 py-2.5 text-xs bg-gradient-to-r from-danger to-danger text-foreground hover:from-danger hover:to-danger "
                     }`}
                 title="Signaler un bug, proposer une amélioration ou un ajout"
             >
                 <Bug className={`${compact ? "w-3.5 h-3.5" : "w-4 h-4"} transition-transform group-hover:rotate-12`} />
                 <span className={className ? "whitespace-nowrap" : "hidden sm:inline"}>Signaler</span>
-                {!className && <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse ml-0.5" />}
+                {!className && <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-elevated animate-pulse ml-0.5" />}
             </button>
 
             <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else setOpen(true); }}>
-                <DialogContent className="sm:max-w-[560px] bg-zinc-950/95 border-white/10 rounded-2xl p-0 overflow-hidden">
-                    <DialogHeader className="p-5 border-b border-white/5 bg-zinc-900/30">
-                        <DialogTitle className="text-lg font-black text-white flex items-center gap-3 tracking-tight">
-                            <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                <DialogContent className="sm:max-w-[560px] bg-background/95 border-border rounded-2xl p-0 overflow-hidden">
+                    <DialogHeader className="p-5 border-b border-border bg-surface/30">
+                        <DialogTitle className="text-lg font-black text-foreground flex items-center gap-3 tracking-tight">
+                            <div className="p-2 rounded-xl bg-danger/10 border border-danger/20 text-danger">
                                 <Bug className="w-5 h-5" />
                             </div>
                             Faire un retour
@@ -94,7 +94,7 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                     </DialogHeader>
 
                     <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-                        <p className="text-xs text-zinc-400 font-medium">
+                        <p className="text-xs text-muted-foreground font-medium">
                             Ton retour est transmis directement à l'équipe (tracker interne + Discord). Choisis une catégorie :
                         </p>
 
@@ -109,8 +109,8 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                                         onClick={() => setSelectedType(type)}
                                         className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all ${
                                             active
-                                                ? "border-indigo-500/50 bg-indigo-500/10 text-white"
-                                                : "border-white/10 bg-white/[0.02] text-zinc-300 hover:border-white/25 hover:bg-white/[0.04]"
+                                                ? "border-info/50 bg-info/10 text-foreground"
+                                                : "border-border bg-surface text-foreground hover:border-border-strong hover:bg-surface"
                                         }`}
                                     >
                                         <span className="text-base">{meta.emoji}</span>
@@ -122,24 +122,24 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
 
                         {/* Description */}
                         <div className="space-y-2">
-                            <label className="text-caption font-black uppercase tracking-widest text-zinc-500">
+                            <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">
                                 Description
                             </label>
                             <Textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Explique brièvement ton problème ou ton idée…"
-                                className="bg-zinc-900/50 border-white/10 text-zinc-200 placeholder:text-zinc-600 min-h-[110px] resize-none focus-visible:ring-1 focus-visible:ring-indigo-500/50"
+                                className="bg-surface/50 border-border text-foreground placeholder:text-muted-foreground min-h-[110px] resize-none focus-visible:ring-1 focus-visible:ring-ring/50"
                             />
-                            <p className="text-caption text-zinc-600 text-right">{description.length}/2000</p>
+                            <p className="text-caption text-muted-foreground text-right">{description.length}/2000</p>
                         </div>
                     </div>
 
-                    <DialogFooter className="px-5 py-4 border-t border-white/5 bg-zinc-900/30 flex gap-3 sm:justify-end">
-                        <Button type="button" variant="ghost" onClick={close} disabled={isPending} className="text-zinc-400 hover:text-white hover:bg-white/5">
+                    <DialogFooter className="px-5 py-4 border-t border-border bg-surface/30 flex gap-3 sm:justify-end">
+                        <Button type="button" variant="ghost" onClick={close} disabled={isPending} className="text-muted-foreground hover:text-foreground hover:bg-surface">
                             Annuler
                         </Button>
-                        <Button onClick={handleSubmit} disabled={isPending || !selectedType || !description.trim()} className="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-7  transition-all">
+                        <Button onClick={handleSubmit} disabled={isPending || !selectedType || !description.trim()} className="bg-info hover:bg-info text-info-foreground font-bold px-7  transition-all">
                             <Send className="w-3.5 h-3.5 mr-2" />
                             {isPending ? "Envoi…" : "Envoyer"}
                         </Button>

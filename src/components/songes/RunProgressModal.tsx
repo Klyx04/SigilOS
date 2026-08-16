@@ -56,7 +56,7 @@ export function RunProgressModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-2xl bg-[#0a0514] border-white/10 text-white overflow-hidden p-0">
+            <DialogContent className="sm:max-w-2xl bg-[#0a0514] border-border text-foreground overflow-hidden p-0">
                 {/* Background Decor */}
                 <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
                     <div className="absolute top-0 left-1/4 w-64 h-64 bg-purple-600/30 blur-[100px] rounded-full" />
@@ -69,7 +69,7 @@ export function RunProgressModal({
                             <Sparkles className="w-6 h-6 text-purple-400" />
                             Progression du Rêve
                         </DialogTitle>
-                        <DialogDescription className="text-white/50 font-medium">
+                        <DialogDescription className="text-foreground/50 font-medium">
                             Sélectionnez l'étage actuel de la run pour mettre à jour la progression.
                         </DialogDescription>
                     </DialogHeader>
@@ -86,7 +86,7 @@ export function RunProgressModal({
                                         <div 
                                             className={cn(
                                                 "relative w-10 h-10 rounded-lg border-2 flex items-center justify-center overflow-hidden transition-all",
-                                                isCurrentPalier ? "scale-110  border-current" : "opacity-40 border-white/10"
+                                                isCurrentPalier ? "scale-110  border-current" : "opacity-40 border-border"
                                             )}
                                             style={{ 
                                                 color: palier.couleur,
@@ -132,10 +132,10 @@ export function RunProgressModal({
                                                     className={cn(
                                                         "relative h-12 flex flex-col items-center justify-center rounded-xl border transition-all  active:scale-95 disabled:opacity-50 disabled:hover:scale-100",
                                                         isActive 
-                                                            ? "bg-white text-black border-white  z-10" 
+                                                            ? "bg-background text-foreground border-border  z-10" 
                                                             : isDone
-                                                                ? "bg-white/5 border-white/10 text-white/30"
-                                                                : "bg-black/40 border-white/5 text-white/60 hover:border-white/20 hover:bg-white/10"
+                                                                ? "bg-surface border-border text-foreground/30"
+                                                                : "bg-black/40 border-border text-foreground/60 hover:border-border-strong hover:bg-surface"
                                                     )}
                                                 >
                                                     <span className="text-sm font-black">{floor}</span>
@@ -155,14 +155,14 @@ export function RunProgressModal({
                         })}
 
                         {/* Special Floor: Final Boss */}
-                        <div className="pt-4 border-t border-white/5">
+                        <div className="pt-4 border-t border-border">
                             <button
                                 disabled={isUpdating}
                                 onClick={() => handleFloorClick(26)}
                                 className={cn(
                                     "w-full h-16 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50",
                                     currentFloor === 26
-                                        ? "bg-amber-500 text-black border-amber-400 "
+                                        ? "bg-amber-500 text-foreground border-amber-400 "
                                         : "bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20"
                                 )}
                             >

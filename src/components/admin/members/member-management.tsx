@@ -91,28 +91,28 @@ import { RelanceModal, type RelanceTarget } from "@/components/admin/members/rel
 // Static color map to avoid Tailwind CSS purging dynamic class names
 const STAT_COLORS = [
     {
-        glow: "bg-blue-500/10",
-        label: "text-blue-400",
-        indicator: "bg-blue-500",
-        sublabel: "text-blue-500/70",
+        glow: "bg-info/10",
+        label: "text-info",
+        indicator: "bg-info",
+        sublabel: "text-info/70",
     },
     {
-        glow: "bg-emerald-500/10",
-        label: "text-emerald-400",
-        indicator: "bg-emerald-500",
-        sublabel: "text-emerald-500/70",
+        glow: "bg-success/10",
+        label: "text-success",
+        indicator: "bg-success",
+        sublabel: "text-success/70",
     },
     {
-        glow: "bg-amber-500/10",
-        label: "text-amber-400",
-        indicator: "bg-amber-500",
-        sublabel: "text-amber-500/70",
+        glow: "bg-warning/10",
+        label: "text-warning",
+        indicator: "bg-warning",
+        sublabel: "text-warning/70",
     },
     {
-        glow: "bg-purple-500/10",
-        label: "text-purple-400",
-        indicator: "bg-purple-500",
-        sublabel: "text-purple-500/70",
+        glow: "bg-info/10",
+        label: "text-info",
+        indicator: "bg-info",
+        sublabel: "text-info/70",
     },
 ];
 
@@ -124,7 +124,7 @@ function getDiscordAvatarUrl(discordId: string, avatar: string | null | undefine
 }
 
 /** Deterministic fallback color based on Discord user ID (matches Discord client) */
-const DISCORD_COLORS = ["bg-violet-600", "bg-indigo-600", "bg-blue-600", "bg-cyan-600", "bg-emerald-600"];
+const DISCORD_COLORS = ["bg-violet-600", "bg-info", "bg-info", "bg-info", "bg-success"];
 function getDiscordFallbackColor(discordId: string): string {
     const hash = parseInt(discordId.slice(-4), 10) || 0;
     return DISCORD_COLORS[hash % DISCORD_COLORS.length];
@@ -197,12 +197,12 @@ function ManualAuditButton({ guildId, roleId }: { guildId: string, roleId: strin
                         variant="ghost" 
                         disabled={isPending}
                         onClick={handleSend}
-                        className={`h-7 w-7 p-0 rounded-lg transition-all ${isSuccess ? 'text-emerald-500 bg-emerald-500/10' : 'text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10'}`}
+                        className={`h-7 w-7 p-0 rounded-lg transition-all ${isSuccess ? 'text-success bg-success/10' : 'text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10'}`}
                     >
                         {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : isSuccess ? <Check className="w-3 h-3" /> : <Send className="w-3 h-3" />}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-black border-white/10 text-caption font-black uppercase tracking-widest">
+                <TooltipContent className="bg-black border-border text-caption font-black uppercase tracking-widest">
                     {isPending ? "Envoi..." : isSuccess ? "Envoyé !" : "Envoyer Audit sur Discord"}
                 </TooltipContent>
             </Tooltip>
@@ -362,7 +362,7 @@ export default function MemberManagement({
 
     // Mounting guard MUST be after all hook declarations (useState, useEffect, useMemo)
     if (!mounted) {
-        return <div className="min-h-[800px] animate-pulse bg-zinc-900/10 rounded-3xl" />;
+        return <div className="min-h-[800px] animate-pulse bg-surface/10 rounded-3xl" />;
     }
 
     return (
@@ -370,8 +370,8 @@ export default function MemberManagement({
             {/* Background Decorative Elements */}
             <div className="absolute inset-0 -z-10 bg-[#030303] overflow-hidden pointer-events-none rounded-3xl">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full animate-pulse" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full" />
-                <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-emerald-600/5 blur-[80px] rounded-full" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-info/10 blur-[100px] rounded-full" />
+                <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-success/5 blur-[80px] rounded-full" />
             </div>
 
             {/* Header Section */}
@@ -382,11 +382,11 @@ export default function MemberManagement({
                             <Users className="w-8 h-8 text-violet-400" />
                         </div>
                         <div>
-                            <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-white italic uppercase leading-none">
+                            <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-foreground italic uppercase leading-none">
                                 Gestion <span className="text-violet-500">Membres</span>
                             </h1>
-                            <p className="text-zinc-500 font-black mt-1.5 flex items-center gap-2 uppercase text-caption tracking-[0.2em] italic">
-                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            <p className="text-muted-foreground font-black mt-1.5 flex items-center gap-2 uppercase text-caption tracking-[0.2em] italic">
+                                <ShieldCheck className="w-3.5 h-3.5 text-success" />
                                 Audit et réconciliation Discord / Dashboard
                             </p>
                         </div>
@@ -397,7 +397,7 @@ export default function MemberManagement({
                         variant="outline" 
                         onClick={() => fetchData(true)}
                         disabled={refreshing || loading}
-                        className="bg-zinc-900/60 border-white/10 hover:bg-zinc-800 hover:border-violet-500/30 transition-all rounded-2xl px-6 h-12 backdrop-blur-xl group text-caption font-black uppercase tracking-widest"
+                        className="bg-surface/60 border-border hover:bg-elevated hover:border-violet-500/30 transition-all rounded-2xl px-6 h-12 backdrop-blur-xl group text-caption font-black uppercase tracking-widest"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 mr-2.5 group-hover:text-violet-400 transition-colors ${refreshing ? 'animate-spin' : ''}`} />
                         {refreshing ? "Mise à jour..." : "Actualiser"}
@@ -416,26 +416,26 @@ export default function MemberManagement({
                     ].map((stat, i) => {
                         const colors = STAT_COLORS[i];
                         return (
-                            <Card key={i} className="bg-zinc-900/30 border-white/5 rounded-xl relative overflow-hidden">
+                            <Card key={i} className="bg-surface/30 border-border rounded-xl relative overflow-hidden">
                                 <CardHeader className="pb-3">
                                     <CardDescription className={`flex items-center gap-2 ${colors.label} font-semibold uppercase text-caption tracking-wide`}>
                                         <stat.icon className="w-3 h-3" />
                                         {stat.label}
                                     </CardDescription>
-                                    <CardTitle className="text-3xl font-bold text-white">{stat.value}</CardTitle>
+                                    <CardTitle className="text-3xl font-bold text-foreground">{stat.value}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     {stat.progress ? (
                                         <div className="space-y-1.5">
                                             <Progress 
                                                 value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
-                                                className="h-1.5 bg-white/5"
+                                                className="h-1.5 bg-surface"
                                                 indicatorClassName={colors.indicator}
                                             />
                                             <p className={`text-caption ${colors.sublabel} font-medium uppercase tracking-wide`}>{stat.sub}</p>
                                         </div>
                                     ) : (
-                                        <p className="text-caption text-zinc-500 font-medium uppercase tracking-wide">{stat.sub}</p>
+                                        <p className="text-caption text-muted-foreground font-medium uppercase tracking-wide">{stat.sub}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -447,7 +447,7 @@ export default function MemberManagement({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 {/* Tabs with scroll on mobile */}
                 <div className="overflow-x-auto no-scrollbar -mx-2 px-2 pb-2">
-                    <TabsList className="bg-zinc-950/80 p-1.5 rounded-xl border border-white/10 w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-1.5">
+                    <TabsList className="bg-background/80 p-1.5 rounded-xl border border-border w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-1.5">
                     {[
                         { id: "audit", label: "📊 Audit Discord vs Dashboard", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "👥 Liste Roster & Membres", icon: UserCircle, requiresFull: true },
@@ -463,15 +463,15 @@ export default function MemberManagement({
                                             <TabsTrigger 
                                                 value={tab.id} 
                                                 disabled={isDisabled}
-                                                className={`w-full rounded-lg px-4 py-2.5 text-xs font-semibold text-zinc-400 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 transition-colors gap-2 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
+                                                className={`w-full rounded-lg px-4 py-2.5 text-xs font-semibold text-muted-foreground data-[state=active]:bg-surface data-[state=active]:text-foreground transition-colors gap-2 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
                                             >
-                                                {isDisabled ? <ShieldAlert className="w-4 h-4 text-zinc-500" /> : <tab.icon className="w-4 h-4" />}
+                                                {isDisabled ? <ShieldAlert className="w-4 h-4 text-muted-foreground" /> : <tab.icon className="w-4 h-4" />}
                                                 {tab.label}
                                             </TabsTrigger>
                                         </div>
                                     </TooltipTrigger>
                                     {isDisabled && (
-                                        <TooltipContent className="bg-zinc-900 border-white/10 text-caption font-black uppercase tracking-widest text-amber-500">
+                                        <TooltipContent className="bg-surface border-border text-caption font-black uppercase tracking-widest text-warning">
                                             Permission &quot;Gestion des Membres&quot; requise
                                         </TooltipContent>
                                     )}
@@ -484,49 +484,49 @@ export default function MemberManagement({
 
                 {/* --- TAB 1: AUDIT --- */}
                 <TabsContent value="audit" className="space-y-8 animate-in fade-in duration-150 min-h-[600px]">
-                    <p className="text-sm text-zinc-500 -mt-4">
+                    <p className="text-sm text-muted-foreground -mt-4">
                         Compare les membres présents sur Discord avec les profils enregistrés sur le Dashboard : couverture, rôles mappés et profils manquants.
                     </p>
                     <div className="space-y-8">
                         {/* Bottom Utility Cards */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Embedded Sync Card */}
-                            <Card className="bg-zinc-900/40 border-white/5 rounded-2xl overflow-hidden">
-                                <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
+                            <Card className="bg-surface/40 border-border rounded-2xl overflow-hidden">
+                                <CardHeader className="bg-surface py-5 border-b border-border px-6">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-indigo-600/20 flex items-center justify-center">
-                                            <RefreshCw className="w-4 h-4 text-indigo-400" />
+                                        <div className="w-8 h-8 rounded-xl bg-info/20 flex items-center justify-center">
+                                            <RefreshCw className="w-4 h-4 text-info" />
                                         </div>
-                                        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-white">Outils & Sync</CardTitle>
+                                        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-foreground">Outils & Sync</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-4 relative z-10">
                                     <MemberSyncButton guildId={guildId} />
                                     <DailyReportButton guildId={guildId} />
-                                    <div className="flex flex-col gap-1 pt-4 border-t border-white/5">
-                                        <span className="text-caption font-semibold text-zinc-400">Rapport automatique hebdomadaire</span>
-                                        <p className="text-caption text-zinc-500 leading-relaxed">
+                                    <div className="flex flex-col gap-1 pt-4 border-t border-border">
+                                        <span className="text-caption font-semibold text-muted-foreground">Rapport automatique hebdomadaire</span>
+                                        <p className="text-caption text-muted-foreground leading-relaxed">
                                             Un récap des membres et de l'activité de la guilde est envoyé automatiquement chaque lundi à 04h00 dans le canal de notifications système. Le bouton « Envoyer le rapport » le génère immédiatement.
                                         </p>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="bg-zinc-900/40 border-white/5 rounded-2xl overflow-hidden">
-                                <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
+                            <Card className="bg-surface/40 border-border rounded-2xl overflow-hidden">
+                                <CardHeader className="bg-surface py-5 border-b border-border px-6">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-emerald-600/20 flex items-center justify-center">
-                                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                        <div className="w-8 h-8 rounded-xl bg-success/20 flex items-center justify-center">
+                                            <ShieldCheck className="w-4 h-4 text-success" />
                                         </div>
-                                        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-white">Audit & Rôles</CardTitle>
+                                        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-foreground">Audit & Rôles</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
                                     {data?.stats.length === 0 ? (
                                         <div className="text-center py-6 space-y-2">
-                                            <Settings2 className="w-8 h-8 text-zinc-600 mx-auto" />
-                                            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aucun rôle mappé</p>
-                                            <p className="text-caption text-zinc-600 leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
+                                            <Settings2 className="w-8 h-8 text-muted-foreground mx-auto" />
+                                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Aucun rôle mappé</p>
+                                            <p className="text-caption text-muted-foreground leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
                                         </div>
                                     ) : (
                                         data?.stats.map(s => {
@@ -539,27 +539,27 @@ export default function MemberManagement({
                                                                 className="w-1.5 h-1.5 rounded-full shrink-0"
                                                                 style={{ backgroundColor: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : '#71717a' }}
                                                             />
-                                                            <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
+                                                            <span className="text-xs font-black text-foreground truncate group-hover/role:text-foreground transition-colors">{s.roleName}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-caption font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
+                                                            <span className="text-caption font-black text-muted-foreground bg-surface px-2 py-0.5 rounded-lg tabular-nums">
                                                                 {s.totalDashboard}/{s.totalDiscord}
                                                             </span>
                                                             <ManualAuditButton guildId={guildId} roleId={s.roleId} />
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
-                                                        <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/5 p-[1px]">
+                                                        <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-border p-[1px]">
                                                             <div 
                                                                 className={`h-full rounded-full transition-all duration-300  ${
-                                                                    percent === 100 ? 'bg-emerald-500' : 
+                                                                    percent === 100 ? 'bg-success' : 
                                                                     percent > 70 ? 'bg-violet-500' : 
-                                                                    percent > 30 ? 'bg-indigo-500' : 'bg-amber-600'
+                                                                    percent > 30 ? 'bg-info' : 'bg-warning'
                                                                 }`}
                                                                 style={{ width: `${percent}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-caption font-black text-white w-8 text-right italic">{percent.toFixed(0)}%</span>
+                                                        <span className="text-caption font-black text-foreground w-8 text-right italic">{percent.toFixed(0)}%</span>
                                                     </div>
                                                 </div>
                                             );
@@ -571,23 +571,23 @@ export default function MemberManagement({
 
                         <div className="space-y-4">
                             {/* Filter Bar */}
-                            <div className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-900/40 border border-white/5 rounded-2xl">
+                            <div className="flex flex-col md:flex-row gap-4 p-4 bg-surface/40 border border-border rounded-2xl">
                                 <div className="relative flex-1 group">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors" />
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-foreground transition-colors" />
                                     <Input 
                                         placeholder="Rechercher par pseudo ou ID..." 
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
-                                        className="pl-12 h-12 bg-black/40 border-white/5 text-white rounded-xl focus:ring-white/10 focus:border-white/20 transition-colors placeholder:text-zinc-600 font-medium"
+                                        className="pl-12 h-12 bg-black/40 border-border text-foreground rounded-xl focus:ring-white/10 focus:border-border-strong transition-colors placeholder:text-muted-foreground font-medium"
                                     />
                                 </div>
                                 <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
                                     <div className="flex gap-2 min-w-max pb-2">
                                     <Select value={roleFilter} onValueChange={setRoleFilter}>
-                                        <SelectTrigger className="w-[200px] h-12 bg-black/40 border-white/5 rounded-xl text-xs font-semibold text-zinc-300 uppercase tracking-wide">
+                                        <SelectTrigger className="w-[200px] h-12 bg-black/40 border-border rounded-xl text-xs font-semibold text-foreground uppercase tracking-wide">
                                             <SelectValue placeholder="Tous les rôles" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                        <SelectContent className="bg-background border-border rounded-xl">
                                             <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide">Tous les rôles</SelectItem>
                                             {data?.stats.map(s => (
                                                 <SelectItem key={s.roleId} value={s.roleId} className="text-caption font-medium uppercase tracking-wide">
@@ -598,10 +598,10 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-xl text-caption font-semibold text-zinc-300 uppercase tracking-wide">
+                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-border rounded-xl text-caption font-semibold text-foreground uppercase tracking-wide">
                                             <SelectValue placeholder="Dashboard" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                        <SelectContent className="bg-background border-border rounded-xl">
                                             <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide text">Tous</SelectItem>
                                             <SelectItem value="dashboard" className="uppercase text-caption font-medium tracking-wide">Inscrits</SelectItem>
                                             <SelectItem value="missing" className="uppercase text-caption font-medium tracking-wide">Absents</SelectItem>
@@ -609,13 +609,13 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-white/5 rounded-xl text-caption font-semibold text-zinc-400 uppercase tracking-wide">
+                                        <SelectTrigger className="w-[150px] h-12 bg-black/40 border-border rounded-xl text-caption font-semibold text-muted-foreground uppercase tracking-wide">
                                             <div className="flex items-center gap-2">
-                                                <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                                                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                                                 <SelectValue placeholder="Rejoint le" />
                                             </div>
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                        <SelectContent className="bg-background border-border rounded-xl">
                                             <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide">Tout temps</SelectItem>
                                             <SelectItem value="week" className="uppercase text-caption font-medium tracking-wide">{"< 1 semaine"}</SelectItem>
                                             <SelectItem value="month" className="uppercase text-caption font-medium tracking-wide">{"< 1 mois"}</SelectItem>
@@ -624,10 +624,10 @@ export default function MemberManagement({
                                     </Select>
 
                                     <Select value={actionFilter} onValueChange={setActionFilter}>
-                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-white/5 rounded-xl text-caption font-semibold text-zinc-400 uppercase tracking-wide">
+                                        <SelectTrigger className="w-[140px] h-12 bg-black/40 border-border rounded-xl text-caption font-semibold text-muted-foreground uppercase tracking-wide">
                                             <SelectValue placeholder="Actions" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-xl">
+                                        <SelectContent className="bg-background border-border rounded-xl">
                                             <SelectItem value="all" className="uppercase text-caption font-medium tracking-wide">Toutes</SelectItem>
                                             <SelectItem value="relancer" className="uppercase text-caption font-medium tracking-wide text">À relancer</SelectItem>
                                             <SelectItem value="voir" className="uppercase text-caption font-medium tracking-wide text">À voir</SelectItem>
@@ -640,11 +640,11 @@ export default function MemberManagement({
                                         onClick={() => setRelanceTargets(
                                             filteredAuditMembers.map(m => ({ id: m.discordId, name: m.displayName }))
                                         )}
-                                        className="h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 text-caption font-semibold uppercase tracking-wide px-4 gap-2"
+                                        className="h-12 rounded-xl bg-warning/10 border border-warning/30 text-warning hover:bg-warning hover:text-foreground hover:border-warning text-caption font-semibold uppercase tracking-wide px-4 gap-2"
                                     >
                                         <Bell className="w-3.5 h-3.5" />
                                         Relance groupée
-                                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-caption">
+                                        <span className="px-1.5 py-0.5 rounded-md bg-warning/20 text-warning text-caption">
                                             {filteredAuditMembers.length}
                                         </span>
                                     </Button>
@@ -653,30 +653,30 @@ export default function MemberManagement({
                             </div>
 
                             {/* Table */}
-                            <div className="rounded-2xl border border-white/10 bg-zinc-900/40 overflow-x-auto no-scrollbar">
+                            <div className="rounded-2xl border border-border bg-surface/40 overflow-x-auto no-scrollbar">
                                 <Table className="min-w-[800px] lg:min-w-0">
-                                    <TableHeader className="bg-white/[0.02] border-b border-white/5">
+                                    <TableHeader className="bg-surface border-b border-border">
                                         <TableRow className="hover:bg-transparent border-none">
-                                            <TableHead className="pl-8 py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">
-                                                <button onClick={() => toggleSort('displayName')} className="flex items-center gap-2 hover:text-white transition-colors">
+                                            <TableHead className="pl-8 py-6 text-caption font-semibold uppercase text-muted-foreground tracking-wide">
+                                                <button onClick={() => toggleSort('displayName')} className="flex items-center gap-2 hover:text-foreground transition-colors">
                                                     Membre Discord
-                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'displayName' ? 'text-emerald-400' : ''}`} />
+                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'displayName' ? 'text-success' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-caption font-semibold uppercase text-zinc-500 tracking-wide py-6">Rôles Discord</TableHead>
-                                            <TableHead className="py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">
-                                                <button onClick={() => toggleSort('joinedAt')} className="flex items-center gap-2 hover:text-white transition-colors">
+                                            <TableHead className="text-caption font-semibold uppercase text-muted-foreground tracking-wide py-6">Rôles Discord</TableHead>
+                                            <TableHead className="py-6 text-caption font-semibold uppercase text-muted-foreground tracking-wide">
+                                                <button onClick={() => toggleSort('joinedAt')} className="flex items-center gap-2 hover:text-foreground transition-colors">
                                                     Arrivée
-                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'joinedAt' ? 'text-emerald-400' : ''}`} />
+                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'joinedAt' ? 'text-success' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="py-6 text-caption font-semibold uppercase text-zinc-500 tracking-wide">
-                                                <button onClick={() => toggleSort('hasDashboardProfile')} className="flex items-center gap-2 hover:text-white transition-colors">
+                                            <TableHead className="py-6 text-caption font-semibold uppercase text-muted-foreground tracking-wide">
+                                                <button onClick={() => toggleSort('hasDashboardProfile')} className="flex items-center gap-2 hover:text-foreground transition-colors">
                                                     Status
-                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'hasDashboardProfile' ? 'text-emerald-400' : ''}`} />
+                                                    <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'hasDashboardProfile' ? 'text-success' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-caption font-semibold uppercase text-zinc-500 tracking-wide pr-8 text-right py-6">Actions</TableHead>
+                                            <TableHead className="text-caption font-semibold uppercase text-muted-foreground tracking-wide pr-8 text-right py-6">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -684,10 +684,10 @@ export default function MemberManagement({
                                             <TableRow>
                                                 <TableCell colSpan={5} className="h-96 text-center">
                                                     <div className="flex flex-col items-center gap-6">
-                                                        <RefreshCw className="w-10 h-10 text-zinc-500 animate-spin" />
+                                                        <RefreshCw className="w-10 h-10 text-muted-foreground animate-spin" />
                                                         <div className="space-y-2">
-                                                            <span className="text-sm font-semibold uppercase tracking-wide text-white">Calcul du différentiel</span>
-                                                            <p className="text-xs text-zinc-500">Récupération des profils Discord autorisés...</p>
+                                                            <span className="text-sm font-semibold uppercase tracking-wide text-foreground">Calcul du différentiel</span>
+                                                            <p className="text-xs text-muted-foreground">Récupération des profils Discord autorisés...</p>
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -696,45 +696,45 @@ export default function MemberManagement({
                                             <TableRow>
                                                 <TableCell colSpan={5} className="h-48 text-center">
                                                     <div className="flex flex-col items-center gap-2 opacity-40">
-                                                        <Search className="w-8 h-8 text-zinc-500 mb-2" />
-                                                        <p className="text-sm font-medium text-zinc-400 uppercase">Aucun membre autorisé trouvé</p>
-                                                        <p className="text-xs text-zinc-600">Vérifiez vos filtres ou la configuration des rôles.</p>
+                                                        <Search className="w-8 h-8 text-muted-foreground mb-2" />
+                                                        <p className="text-sm font-medium text-muted-foreground uppercase">Aucun membre autorisé trouvé</p>
+                                                        <p className="text-xs text-muted-foreground">Vérifiez vos filtres ou la configuration des rôles.</p>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
                                             paginatedAuditMembers.map(member => (
-                                                <TableRow key={member.discordId} className="group border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                                                <TableRow key={member.discordId} className="group border-b border-border hover:bg-surface transition-colors">
                                                     <TableCell className="pl-8 py-5">
                                                         <div className="flex items-center gap-4">
                                                             <div className="relative">
-                                                                <Avatar className="w-12 h-12 rounded-xl border border-white/5 transition-colors">
+                                                                <Avatar className="w-12 h-12 rounded-xl border border-border transition-colors">
                                                                     <AvatarImage
                                                                         src={getDiscordAvatarUrl(member.discordId, member.avatar)}
                                                                         alt={member.displayName}
                                                                         className="object-cover rounded-xl"
                                                                     />
-                                                                    <AvatarFallback className={`rounded-xl text-white font-semibold text-lg uppercase ${getDiscordFallbackColor(member.discordId)}`}>
+                                                                    <AvatarFallback className={`rounded-xl text-foreground font-semibold text-lg uppercase ${getDiscordFallbackColor(member.discordId)}`}>
                                                                         {member.displayName.charAt(0)}
                                                                     </AvatarFallback>
                                                                 </Avatar>
-                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center ${member.hasDashboardProfile ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                                                                    {member.hasDashboardProfile ? <CheckCircle2 className="w-3 h-3 text-white" /> : <ShieldAlert className="w-3 h-3 text-white" />}
+                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center ${member.hasDashboardProfile ? 'bg-success' : 'bg-warning'}`}>
+                                                                    {member.hasDashboardProfile ? <CheckCircle2 className="w-3 h-3 text-foreground" /> : <ShieldAlert className="w-3 h-3 text-foreground" />}
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-col leading-tight">
-                                                                <span className="font-black text-base text-zinc-200 group-hover:text-white transition-colors">{member.displayName}</span>
+                                                                <span className="font-black text-base text-foreground group-hover:text-foreground transition-colors">{member.displayName}</span>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-caption text-zinc-500 font-bold uppercase tracking-widest">@{member.username}</span>
+                                                                    <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest">@{member.username}</span>
                                                                     {member.ankamaId && (
                                                                         <span className="text-caption text-violet-400 font-black tracking-tight uppercase px-1.5 py-0.5 rounded bg-violet-600/10 border border-violet-500/20">{member.ankamaId}</span>
                                                                     )}
                                                                     {member.hasDashboardProfile && (
                                                                         <div className="flex items-center gap-2 ml-1">
-                                                                            <span className="text-caption text-blue-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                            <span className="text-caption text-info font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                                                                 <MessageSquare className="w-2.5 h-2.5" /> {member.discordMessageCountWeekly || 0}
                                                                             </span>
-                                                                            <span className="text-caption text-emerald-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                            <span className="text-caption text-success font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                                                                 <Mic className="w-2.5 h-2.5" /> {(member.discordVoiceTimeWeekly || 0) < 60 ? `${member.discordVoiceTimeWeekly || 0}m` : `${Math.round((member.discordVoiceTimeWeekly || 0) / 60)}h`}
                                                                             </span>
                                                                         </div>
@@ -752,7 +752,7 @@ export default function MemberManagement({
                                                                     <Badge 
                                                                         key={rId} 
                                                                         variant="outline" 
-                                                                        className="text-caption h-5 font-semibold border-white/10 uppercase tracking-wide rounded-md px-1.5"
+                                                                        className="text-caption h-5 font-semibold border-border uppercase tracking-wide rounded-md px-1.5"
                                                                         style={{ 
                                                                             color: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}` : undefined,
                                                                             backgroundColor: roleInfo.roleColor ? `#${roleInfo.roleColor.toString(16).padStart(6, '0')}20` : undefined
@@ -763,31 +763,31 @@ export default function MemberManagement({
                                                                 );
                                                             })}
                                                             {member.roles.length > 2 && (
-                                                                <Badge variant="outline" className="text-caption h-5 font-semibold border-white/5 text-zinc-400 bg-white/5 uppercase tracking-wide">
+                                                                <Badge variant="outline" className="text-caption h-5 font-semibold border-border text-muted-foreground bg-surface uppercase tracking-wide">
                                                                     +{member.roles.length - 2}
                                                                 </Badge>
                                                             )}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-xs font-medium text-zinc-400 tabular-nums">
+                                                    <TableCell className="text-xs font-medium text-muted-foreground tabular-nums">
                                                         {member.joinedAt ? format(new Date(member.joinedAt), "dd MMM yyyy", { locale: fr }) : "Inconnu"}
                                                     </TableCell>
                                                     <TableCell>
                                                         {member.hasDashboardProfile ? (
-                                                            <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-caption uppercase tracking-wide bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                                            <div className="flex items-center gap-1.5 text-success font-semibold text-caption uppercase tracking-wide bg-success/10 px-2 py-1 rounded-lg w-fit">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-success" />
                                                                 Inscrit
                              </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-1.5 text-amber-500 font-semibold text-caption uppercase tracking-wide bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                            <div className="flex items-center gap-1.5 text-warning font-semibold text-caption uppercase tracking-wide bg-warning/10 px-2 py-1 rounded-lg w-fit">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-warning" />
                                                                 Absent
                                                             </div>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="pr-8 text-right">
                                                          {member.hasDashboardProfile ? (
-                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
+                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-border bg-surface hover:bg-success hover:text-foreground hover:border-success transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
                                                                  <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
                                                                      <ArrowUpRight className="w-4 h-4" />
                                                                  </a>
@@ -796,7 +796,7 @@ export default function MemberManagement({
                                                              <Button 
                                                                  variant="outline" 
                                                                  size="sm" 
-                                                                 className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-colors text-caption font-semibold uppercase tracking-wide px-3 gap-1.5"
+                                                                 className="h-9 rounded-xl border-warning/30 bg-warning/10 hover:bg-warning hover:text-foreground hover:border-warning transition-colors text-caption font-semibold uppercase tracking-wide px-3 gap-1.5"
                                                                  onClick={() => setRelanceTargets([{ id: member.discordId, name: member.displayName }])}
                                                              >
                                                                  <Bell className="w-3.5 h-3.5" />
@@ -813,8 +813,8 @@ export default function MemberManagement({
 
                             {/* Pagination UI */}
                             {totalPages > 1 && (
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-xl animate-in fade-in duration-150">
-                                    <div className="text-caption font-medium uppercase tracking-wide text-zinc-500">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-surface/20 border border-border rounded-xl animate-in fade-in duration-150">
+                                    <div className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                                         Affichage de {Math.min(filteredAuditMembers.length, (currentPage - 1) * pageSize + 1)} à {Math.min(filteredAuditMembers.length, currentPage * pageSize)} sur {filteredAuditMembers.length} membres
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -823,15 +823,15 @@ export default function MemberManagement({
                                             size="icon"
                                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                             disabled={currentPage === 1}
-                                            className="w-9 h-9 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                                            className="w-9 h-9 rounded-xl bg-surface border-border hover:bg-surface disabled:opacity-30 transition-all"
                                         >
-                                            <ChevronLeft className="w-4 h-4 text-zinc-400" />
+                                            <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                                         </Button>
 
-                                        <div className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-white/5 border border-white/10">
-                                            <span className="text-caption font-black text-white">{currentPage}</span>
-                                            <span className="text-caption font-black text-zinc-600">/</span>
-                                            <span className="text-caption font-black text-zinc-400">{totalPages}</span>
+                                        <div className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-surface border border-border">
+                                            <span className="text-caption font-black text-foreground">{currentPage}</span>
+                                            <span className="text-caption font-black text-muted-foreground">/</span>
+                                            <span className="text-caption font-black text-muted-foreground">{totalPages}</span>
                                         </div>
 
                                         <Button
@@ -839,9 +839,9 @@ export default function MemberManagement({
                                             size="icon"
                                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                             disabled={currentPage === totalPages}
-                                            className="w-9 h-9 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                                            className="w-9 h-9 rounded-xl bg-surface border-border hover:bg-surface disabled:opacity-30 transition-all"
                                         >
-                                            <ChevronRight className="w-4 h-4 text-zinc-400" />
+                                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
                                         </Button>
                                     </div>
                                 </div>
@@ -854,11 +854,11 @@ export default function MemberManagement({
 
                 {/* --- TAB 2: MANAGEMENT --- */}
                 <TabsContent value="management" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
-                    <p className="text-sm text-zinc-500 -mt-4">
+                    <p className="text-sm text-muted-foreground -mt-4">
                         Liste des membres de la guilde : statut, arrivée, présence sur le Dashboard, archivage et relances Discord.
                     </p>
                     <MemberStatsOverview stats={initialStats} />
-                    <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
+                    <div className="p-1 px-3 bg-surface/40 border border-border rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <MemberManagementTable 
                             initialMembers={memberList.members}
                             guildId={guildId}
@@ -873,7 +873,7 @@ export default function MemberManagement({
 
                 {/* --- TAB 3: BLACKLIST --- */}
                 <TabsContent value="blacklist" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
-                    <p className="text-sm text-zinc-500 -mt-4">
+                    <p className="text-sm text-muted-foreground -mt-4">
                         Membres exclus de la guilde : blocage Dashboard et Discord, géré depuis les deux côtés.
                     </p>
                     <MemberBlacklist guildId={guildId} />

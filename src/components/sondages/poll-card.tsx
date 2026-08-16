@@ -22,32 +22,32 @@ const CATEGORY_CONFIG: Record<PollCategory, {
 }> = {
     SUGGESTION: {
         label: "Suggestion", emoji: "💡",
-        color: "text-cyan-400", bgColor: "bg-cyan-500/10",
-        borderColor: "border-cyan-500/30", glowColor: "rgba(6,182,212,0.4)",
+        color: "text-info", bgColor: "bg-info/10",
+        borderColor: "border-info/30", glowColor: "rgba(6,182,212,0.4)",
     },
     AMELIORATION: {
         label: "Amélioration", emoji: "🔧",
-        color: "text-emerald-400", bgColor: "bg-emerald-500/10",
-        borderColor: "border-emerald-500/30", glowColor: "rgba(16,185,129,0.4)",
+        color: "text-success", bgColor: "bg-success/10",
+        borderColor: "border-success/30", glowColor: "rgba(16,185,129,0.4)",
     },
     EVENT: {
         label: "Événement", emoji: "🎉",
-        color: "text-amber-400", bgColor: "bg-amber-500/10",
-        borderColor: "border-amber-500/30", glowColor: "rgba(245,158,11,0.4)",
+        color: "text-warning", bgColor: "bg-warning/10",
+        borderColor: "border-warning/30", glowColor: "rgba(245,158,11,0.4)",
     },
     MISSION: {
         label: "Mission", emoji: "🎯",
-        color: "text-rose-400", bgColor: "bg-rose-500/10",
-        borderColor: "border-rose-500/30", glowColor: "rgba(244,63,94,0.4)",
+        color: "text-danger", bgColor: "bg-danger/10",
+        borderColor: "border-danger/30", glowColor: "rgba(244,63,94,0.4)",
     },
-    AUTRE: { label: "Autre", emoji: "📁", color: "text-zinc-400", bgColor: "bg-zinc-500/10", borderColor: "border-zinc-500/20", glowColor: "rgba(161, 161, 170, 0.4)" },
+    AUTRE: { label: "Autre", emoji: "📁", color: "text-muted-foreground", bgColor: "bg-muted/10", borderColor: "border-border/20", glowColor: "rgba(161, 161, 170, 0.4)" },
 };
 
 const STATUS_CONFIG: Record<PollStatus, { label: string; color: string; icon: React.ElementType }> = {
-    DRAFT: { label: "Brouillon", color: "text-zinc-400", icon: Clock },
-    ACTIVE: { label: "En cours", color: "text-emerald-400", icon: BarChart3 },
-    CLOSED: { label: "Terminé", color: "text-amber-400", icon: CheckCircle2 },
-    CANCELLED: { label: "Annulé", color: "text-red-400", icon: XCircle },
+    DRAFT: { label: "Brouillon", color: "text-muted-foreground", icon: Clock },
+    ACTIVE: { label: "En cours", color: "text-success", icon: BarChart3 },
+    CLOSED: { label: "Terminé", color: "text-warning", icon: CheckCircle2 },
+    CANCELLED: { label: "Annulé", color: "text-danger", icon: XCircle },
 };
 
 interface PollOption {
@@ -100,13 +100,13 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                 <div className={cn(
                     "group relative overflow-hidden rounded-2xl border transition-colors",
                     "bg-[#0a0a0f]/60 hover:bg-[#101018]/80 cursor-pointer",
-                    isActive ? cat.borderColor : "border-white/5",
+                    isActive ? cat.borderColor : "border-border",
                 )}>
 
                     {/* Header bar */}
                     <div className={cn(
                         "flex items-center justify-between px-6 py-3.5 border-b relative z-10",
-                        isActive ? "border-white/5" : "border-white/[0.03]",
+                        isActive ? "border-border" : "border-border",
                     )}>
                         <div className="flex items-center gap-2.5">
                             <span className="text-lg">{cat.emoji}</span>
@@ -117,9 +117,9 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Lock className="w-4 h-4 text-zinc-600 hover:text-zinc-400 transition-colors" />
+                                            <Lock className="w-4 h-4 text-muted-foreground hover:text-muted-foreground transition-colors" />
                                         </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="bg-zinc-900 border-white/10 text-caption uppercase font-bold tracking-widest">
+                                        <TooltipContent side="bottom" className="bg-surface border-border text-caption uppercase font-bold tracking-widest">
                                             Votes anonymes
                                         </TooltipContent>
                                     </Tooltip>
@@ -136,18 +136,18 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                     <div className="px-6 py-7 space-y-7 relative z-10">
 
                         {poll.outcome && (
-                            <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                <Crown className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-caption font-black uppercase tracking-widest text-emerald-400">Décision validée</span>
+                            <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-success/10 border border-success/20">
+                                <Crown className="w-3.5 h-3.5 text-success" />
+                                <span className="text-caption font-black uppercase tracking-widest text-success">Décision validée</span>
                             </div>
                         )}
 
                         <div>
-                            <h3 className="text-white font-black text-2xl sm:text-3xl tracking-tight line-clamp-2 leading-[1.05]">
+                            <h3 className="text-foreground font-black text-2xl sm:text-3xl tracking-tight line-clamp-2 leading-[1.05]">
                                 {poll.title}
                             </h3>
                             {poll.description && (
-                                <p className="text-zinc-500 text-sm mt-4 line-clamp-2 leading-relaxed font-medium max-w-[90%]">
+                                <p className="text-muted-foreground text-sm mt-4 line-clamp-2 leading-relaxed font-medium max-w-[90%]">
                                     {poll.description}
                                 </p>
                             )}
@@ -163,16 +163,16 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                         <div className="flex items-center justify-between text-caption uppercase tracking-[0.2em] font-black mb-2.5 px-0.5 gap-3">
                                             <span className={cn(
                                                 "break-words whitespace-normal min-w-0 flex-1 transition-all",
-                                                isWinning ? "text-white scale-105 origin-left" : "text-zinc-600 group-hover/option:text-zinc-400"
+                                                isWinning ? "text-foreground scale-105 origin-left" : "text-muted-foreground group-hover/option:text-muted-foreground"
                                             )}>
                                                 {option.emoji && <span className="mr-2 text-sm opacity-80">{option.emoji}</span>}
                                                 {option.label}
                                             </span>
-                                            <span className={cn("tabular-nums font-black shrink-0", isWinning ? cat.color : "text-zinc-700")}>
+                                            <span className={cn("tabular-nums font-black shrink-0", isWinning ? cat.color : "text-muted-foreground")}>
                                                 {Math.round(percent)}%
                                             </span>
                                         </div>
-                                        <div className="h-1.5 rounded-full bg-white/[0.02] border border-white/5 overflow-hidden">
+                                        <div className="h-1.5 rounded-full bg-surface border border-border overflow-hidden">
                                             <div
                                                 className="h-full rounded-full"
                                                 style={{
@@ -188,7 +188,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                                 );
                             })}
                             {poll.options.length > 3 && (
-                                <p className="text-zinc-700 text-caption font-black uppercase tracking-widest text-center pt-2 opacity-60">
+                                <p className="text-muted-foreground text-caption font-black uppercase tracking-widest text-center pt-2 opacity-60">
                                     + {poll.options.length - 3} options supplémentaires
                                 </p>
                             )}
@@ -198,27 +198,27 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                     {/* Footer */}
                     <div className={cn(
                         "flex items-center justify-between px-6 py-4 border-t relative z-10",
-                        "border-white/[0.03] bg-white/[0.01]",
+                        "border-border bg-surface",
                     )}>
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-caption font-black uppercase tracking-widest text-zinc-600">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-caption font-black uppercase tracking-widest text-muted-foreground">
                             <span className="flex items-center gap-2">
                                 <span className="opacity-40">Par</span>
-                                <span className="text-zinc-400">{poll.creatorName}</span>
+                                <span className="text-muted-foreground">{poll.creatorName}</span>
                             </span>
                             <div className="flex items-center gap-5">
-                                <span className="flex items-center gap-2 text-zinc-500 border-l border-white/5 pl-5 first:border-0 first:pl-0">
+                                <span className="flex items-center gap-2 text-muted-foreground border-l border-border pl-5 first:border-0 first:pl-0">
                                     <Users className="w-3.5 h-3.5 opacity-50" />
                                     {totalVotes} <span className="opacity-40 font-bold">votes</span>
                                 </span>
                                 {timeLeft && isActive && (
-                                    <span className="flex items-center gap-2 text-amber-500/60 border-l border-white/5 pl-5">
+                                    <span className="flex items-center gap-2 text-warning/60 border-l border-border pl-5">
                                         <Clock className="w-3.5 h-3.5 opacity-50" />
                                         {timeLeft}
                                     </span>
                                 )}
                             </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-zinc-800 group-hover:text-zinc-500 transition-colors" />
+                        <ChevronRight className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
                     </div>
                 </div>
             </Link>

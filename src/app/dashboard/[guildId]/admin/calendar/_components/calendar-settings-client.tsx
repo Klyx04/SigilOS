@@ -200,11 +200,11 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
     return (
         <Tabs defaultValue="calendar" className="w-full space-y-6">
-            <TabsList className="bg-zinc-900 border border-white/5 p-1 rounded-xl">
-                <TabsTrigger value="calendar" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+            <TabsList className="bg-surface border border-border p-1 rounded-xl">
+                <TabsTrigger value="calendar" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-warning data-[state=active]:text-foreground">
                     Calendrier Général
                 </TabsTrigger>
-                <TabsTrigger value="raid" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-red-600 data-[state=active]:text-white">
+                <TabsTrigger value="raid" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-danger data-[state=active]:text-foreground">
                     Raids Officiels
                 </TabsTrigger>
             </TabsList>
@@ -212,21 +212,21 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             <TabsContent value="calendar" className="space-y-6 outline-none">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Configuration Panel */}
-                    <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                    <Card className="lg:col-span-2 bg-surface/60 border-border">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2 text-white">
-                                    <span className="bg-amber-500/20 text-amber-400 p-2 rounded-lg">
+                                <CardTitle className="flex items-center gap-2 text-foreground">
+                                    <span className="bg-warning/20 text-warning p-2 rounded-lg">
                                         <Hash className="w-5 h-5" />
                                     </span>
                                     Salon Discord (Calendrier)
                                 </CardTitle>
                                 {isConfigured ? (
-                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
+                                    <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20">
                                         Actif
                                     </Badge>
                                 ) : (
-                                    <Badge variant="outline" className="text-zinc-500">
+                                    <Badge variant="outline" className="text-muted-foreground">
                                         Inactif
                                     </Badge>
                                 )}
@@ -237,19 +237,19 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                         </CardHeader>
 
                         <CardContent className="space-y-6">
-                            <div className="relative pl-6 border-l-2 border-white/5 pb-6 last:pb-0">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                            <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-medium text-white mb-2">1. Récupérer l'ID du salon</h3>
-                                <p className="text-xs text-zinc-500 mb-3">
-                                    Activez le mode développeur Discord, puis faites <span className="text-zinc-300">Clic Droit</span> sur le salon voulu {'>'} <span className="text-zinc-300">Copier l'identifiant</span>.
+                                <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Activez le mode développeur Discord, puis faites <span className="text-foreground">Clic Droit</span> sur le salon voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
                                 </p>
                             </div>
 
-                            <div className="relative pl-6 border-l-2 border-amber-500/50 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-amber-500 border-2 border-zinc-950 " />
-                                <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
+                            <div className="relative pl-6 border-l-2 border-warning/50 pb-6">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-warning border-2 border-zinc-950 " />
+                                <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
 
                                 <div className="space-y-4">
                                     <div className="flex gap-2">
@@ -257,9 +257,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={channelId}
                                             onChange={(e) => setChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678"
-                                            className="font-mono bg-black/20 border-white/10 text-white"
+                                            className="font-mono bg-black/20 border-border text-foreground"
                                         />
-                                        <Button onClick={handleSaveCalendar} disabled={isPending} className="min-w-[120px] bg-amber-600 hover:bg-amber-500 text-white">
+                                        <Button onClick={handleSaveCalendar} disabled={isPending} className="min-w-[120px] bg-warning hover:bg-warning text-warning-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
@@ -267,7 +267,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
                                     {isConfigured && (
                                         <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearCalendar} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                            <Button variant="ghost" size="sm" onClick={handleClearCalendar} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
                                                 Désactiver l'intégration
                                             </Button>
                                         </div>
@@ -276,11 +276,11 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-medium text-white mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
-                                <p className="text-xs text-zinc-500 mb-4">
+                                <h3 className="text-sm font-medium text-foreground mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
+                                <p className="text-xs text-muted-foreground mb-4">
                                     Définissez quels rôles Discord les membres peuvent mentionner lors de la création d'événements Calendrier standards.
                                 </p>
                                 <PingRolesSelector 
@@ -295,49 +295,49 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                     {/* Preview Panel */}
                     <div className="space-y-6">
-                        <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                            <CardHeader className="bg-white/5 pb-4">
-                                <CardTitle className="text-sm text-zinc-300">Aperçu du message</CardTitle>
+                        <Card className="bg-surface/60 border-border overflow-hidden">
+                            <CardHeader className="bg-surface pb-4">
+                                <CardTitle className="text-sm text-foreground">Aperçu du message</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 relative">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
-                                        <Calendar className="w-5 h-5 text-white" />
+                                    <div className="w-10 h-10 rounded-full bg-warning flex items-center justify-center shrink-0">
+                                        <Calendar className="w-5 h-5 text-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2 mb-1">
-                                            <span className="font-medium text-amber-400">SigilOS</span>
-                                            <span className="bg-amber-500/20 text-amber-300 text-caption px-1 rounded">BOT</span>
-                                            <span className="text-xs text-zinc-500">Maintenant</span>
+                                            <span className="font-medium text-warning">SigilOS</span>
+                                            <span className="bg-warning/20 text-warning text-caption px-1 rounded">BOT</span>
+                                            <span className="text-xs text-muted-foreground">Maintenant</span>
                                         </div>
 
-                                        <div className="bg-[#2b2d31] rounded border-l-4 border-amber-400 p-4 max-w-sm">
+                                        <div className="bg-[#2b2d31] rounded border-l-4 border-warning p-4 max-w-sm">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="text-lg">📅</span>
-                                                <h4 className="font-semibold text-white text-sm">Nouvel événement</h4>
+                                                <h4 className="font-semibold text-foreground text-sm">Nouvel événement</h4>
                                             </div>
 
-                                            <p className="text-zinc-300 text-sm mb-3 font-medium">
+                                            <p className="text-foreground text-sm mb-3 font-medium">
                                                 Sortie Donjon - Clés Offertes
                                             </p>
 
                                             <div className="space-y-1.5 text-xs">
-                                                <div className="flex items-center gap-2 text-zinc-400">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Calendar className="w-3 h-3" />
                                                     <span>Vendredi 31 Janvier</span>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-zinc-400">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Clock className="w-3 h-3" />
                                                     <span>21:00 - 23:00</span>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-zinc-400">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Users className="w-3 h-3" />
                                                     <span>0/8 places</span>
                                                 </div>
                                             </div>
 
                                             <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
-                                                <div className="w-4 h-4 rounded-full bg-zinc-700" />
+                                                <div className="w-4 h-4 rounded-full bg-muted" />
                                                 <span className="text-[#949ba4] text-xs">SigilOS • Calendrier</span>
                                             </div>
                                         </div>
@@ -346,14 +346,14 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-blue-500/5 border-blue-500/10">
+                        <Card className="bg-info/5 border-info/10">
                             <CardContent className="p-4 flex gap-3">
-                                <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
-                                    <AlertTriangle className="w-4 h-4 text-blue-400" />
+                                <div className="p-2 bg-info/20 rounded-lg shrink-0 h-fit">
+                                    <AlertTriangle className="w-4 h-4 text-info" />
                                 </div>
                                 <div className="space-y-1">
-                                    <h4 className="text-sm font-medium text-blue-200">Permissions requises</h4>
-                                    <p className="text-xs text-blue-300/70 leading-relaxed">
+                                    <h4 className="text-sm font-medium text-info">Permissions requises</h4>
+                                    <p className="text-xs text-info/70 leading-relaxed">
                                         Le bot <strong>SigilOS</strong> doit avoir les droits "Voir le salon" et "Envoyer des messages".
                                     </p>
                                 </div>
@@ -366,21 +366,21 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             <TabsContent value="raid" className="space-y-6 outline-none">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Configuration Panel */}
-                    <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                    <Card className="lg:col-span-2 bg-surface/60 border-border">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2 text-white">
-                                    <span className="bg-red-500/20 text-red-400 p-2 rounded-lg">
+                                <CardTitle className="flex items-center gap-2 text-foreground">
+                                    <span className="bg-danger/20 text-danger p-2 rounded-lg">
                                         <Swords className="w-5 h-5" />
                                     </span>
                                     Salon Discord (Raids)
                                 </CardTitle>
                                 {isRaidConfigured ? (
-                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
+                                    <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20">
                                         Actif
                                     </Badge>
                                 ) : (
-                                    <Badge variant="outline" className="text-zinc-500">
+                                    <Badge variant="outline" className="text-muted-foreground">
                                         Calendrier (Repli)
                                     </Badge>
                                 )}
@@ -391,26 +391,26 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                         </CardHeader>
 
                         <CardContent className="space-y-6">
-                            <div className="relative pl-6 border-l-2 border-white/5 pb-6 last:pb-0">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                            <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-medium text-white mb-2">1. Récupérer l'ID du salon</h3>
-                                <p className="text-xs text-zinc-500 mb-3">
-                                    Faites <span className="text-zinc-300">Clic Droit</span> sur le salon de Raid voulu {'>'} <span className="text-zinc-300">Copier l'identifiant</span>.
+                                <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Faites <span className="text-foreground">Clic Droit</span> sur le salon de Raid voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
                                 </p>
                             </div>
 
-                            <div className="relative pl-6 border-l-2 border-red-500/50 space-y-8 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 " />
+                            <div className="relative pl-6 border-l-2 border-danger/50 space-y-8 pb-6">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-zinc-950 " />
                                 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-medium text-white">2.1 Salon Raid Gigalodon</h3>
+                                        <h3 className="text-sm font-medium text-foreground">2.1 Salon Raid Gigalodon</h3>
                                         {isGigalodonConfigured ? (
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-caption">Configuré</Badge>
+                                            <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 h-5 text-caption">Configuré</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-zinc-500 h-5 text-caption">Repli actif</Badge>
+                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Repli actif</Badge>
                                         )}
                                     </div>
                                     <div className="flex gap-2">
@@ -418,9 +418,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={raidGigalodonChannelId}
                                             onChange={(e) => setRaidGigalodonChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678 (Spécifique Gigalodon)"
-                                            className="font-mono bg-black/20 border-white/10 text-white"
+                                            className="font-mono bg-black/20 border-border text-foreground"
                                         />
-                                        <Button onClick={handleSaveRaidGigalodon} disabled={isPending} className="min-w-[120px] bg-red-600 hover:bg-red-500 text-white">
+                                        <Button onClick={handleSaveRaidGigalodon} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
@@ -428,7 +428,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <ChannelPreview guildId={guildId} channelId={raidGigalodonChannelId} color="rose" />
                                     {isGigalodonConfigured && (
                                         <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearRaidGigalodon} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                            <Button variant="ghost" size="sm" onClick={handleClearRaidGigalodon} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
                                                 Désactiver ce salon
                                             </Button>
                                         </div>
@@ -437,11 +437,11 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-medium text-white">2.2 Salon Raid Sanctuaire des Jardins Éternels</h3>
+                                        <h3 className="text-sm font-medium text-foreground">2.2 Salon Raid Sanctuaire des Jardins Éternels</h3>
                                         {isSanctuaireConfigured ? (
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-caption">Configuré</Badge>
+                                            <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 h-5 text-caption">Configuré</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-zinc-500 h-5 text-caption">Repli actif</Badge>
+                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Repli actif</Badge>
                                         )}
                                     </div>
                                     <div className="flex gap-2">
@@ -449,9 +449,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={raidSanctuaireChannelId}
                                             onChange={(e) => setRaidSanctuaireChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678 (Spécifique Sanctuaire)"
-                                            className="font-mono bg-black/20 border-white/10 text-white"
+                                            className="font-mono bg-black/20 border-border text-foreground"
                                         />
-                                        <Button onClick={handleSaveRaidSanctuaire} disabled={isPending} className="min-w-[120px] bg-red-600 hover:bg-red-500 text-white">
+                                        <Button onClick={handleSaveRaidSanctuaire} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
@@ -459,7 +459,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <ChannelPreview guildId={guildId} channelId={raidSanctuaireChannelId} color="rose" />
                                     {isSanctuaireConfigured && (
                                         <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearRaidSanctuaire} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                            <Button variant="ghost" size="sm" onClick={handleClearRaidSanctuaire} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
                                                 Désactiver ce salon
                                             </Button>
                                         </div>
@@ -468,11 +468,11 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-medium text-white">2.3 Salon Raid Général (Repli par défaut)</h3>
+                                        <h3 className="text-sm font-medium text-foreground">2.3 Salon Raid Général (Repli par défaut)</h3>
                                         {isRaidConfigured ? (
-                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 h-5 text-caption">Actif</Badge>
+                                            <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 h-5 text-caption">Actif</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-zinc-500 h-5 text-caption">Calendrier général</Badge>
+                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Calendrier général</Badge>
                                         )}
                                     </div>
                                     <div className="flex gap-2">
@@ -480,9 +480,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             value={raidChannelId}
                                             onChange={(e) => setRaidChannelId(e.target.value)}
                                             placeholder="Ex: 123456789012345678 (optionnel)"
-                                            className="font-mono bg-black/20 border-white/10 text-white"
+                                            className="font-mono bg-black/20 border-border text-foreground"
                                         />
-                                        <Button onClick={handleSaveRaid} disabled={isPending} className="min-w-[120px] bg-red-600 hover:bg-red-500 text-white">
+                                        <Button onClick={handleSaveRaid} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
@@ -490,7 +490,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     <ChannelPreview guildId={guildId} channelId={raidChannelId} color="rose" />
                                     {isRaidConfigured && (
                                         <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearRaid} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
+                                            <Button variant="ghost" size="sm" onClick={handleClearRaid} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
                                                 Désactiver le salon de Raid Général
                                             </Button>
                                         </div>
@@ -499,35 +499,35 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-medium text-white mb-2">3. Don de Kamas</h3>
-                                <p className="text-xs text-zinc-500 mb-4">
-                                    Quand activé, les membres doivent avoir fait un <strong className="text-amber-400">don de 30 000 kamas validé</strong> dans la semaine Dofus de l'événement pour s'inscrire aux Raids, et le <strong className="text-amber-400">widget d'upload de don</strong> apparaît sur la page Missions.
+                                <h3 className="text-sm font-medium text-foreground mb-2">3. Don de Kamas</h3>
+                                <p className="text-xs text-muted-foreground mb-4">
+                                    Quand activé, les membres doivent avoir fait un <strong className="text-warning">don de 30 000 kamas validé</strong> dans la semaine Dofus de l'événement pour s'inscrire aux Raids, et le <strong className="text-warning">widget d'upload de don</strong> apparaît sur la page Missions.
                                 </p>
 
                                 {/* Toggle Card */}
                                 <div className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all duration-200 ${
                                     raidRequireKamaDonation
-                                        ? "bg-amber-500/5 border-amber-500/20"
-                                        : "bg-zinc-800/60 border-white/5"
+                                        ? "bg-warning/5 border-warning/20"
+                                        : "bg-elevated/60 border-border"
                                 }`}>
                                     <div className="flex items-center gap-3">
                                         <div className={`p-2.5 rounded-lg transition-colors ${
-                                            raidRequireKamaDonation ? "bg-amber-500/20" : "bg-zinc-700"
+                                            raidRequireKamaDonation ? "bg-warning/20" : "bg-muted"
                                         }`}>
                                             <Coins className={`w-5 h-5 transition-colors ${
-                                                raidRequireKamaDonation ? "text-amber-400" : "text-zinc-400"
+                                                raidRequireKamaDonation ? "text-warning" : "text-muted-foreground"
                                             }`} />
                                         </div>
                                         <div>
                                             <p className={`text-sm font-semibold transition-colors ${
-                                                raidRequireKamaDonation ? "text-amber-300" : "text-zinc-300"
+                                                raidRequireKamaDonation ? "text-warning" : "text-foreground"
                                             }`}>
                                                 {raidRequireKamaDonation ? "Don requis activé" : "Don requis désactivé"}
                                             </p>
-                                            <p className="text-xs text-zinc-500 mt-0.5">
+                                            <p className="text-xs text-muted-foreground mt-0.5">
                                                 {raidRequireKamaDonation
                                                     ? "Don obligatoire pour les raids • Widget d'upload visible sur Missions"
                                                     : "Tous les membres avec le rôle Raid peuvent s'inscrire librement • Widget d'upload masqué sur Missions"
@@ -539,11 +539,11 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                         onClick={() => handleToggleKamaDonation(!raidRequireKamaDonation)}
                                         disabled={isPending}
                                         aria-label="Activer/désactiver don kamas requis"
-                                        className={`relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-50 ${
-                                            raidRequireKamaDonation ? "bg-amber-500" : "bg-zinc-600"
+                                        className={`relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-warning/50 disabled:opacity-50 ${
+                                            raidRequireKamaDonation ? "bg-warning" : "bg-muted"
                                         }`}
                                     >
-                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-background rounded-full shadow-sm transition-transform duration-200 ${
                                             raidRequireKamaDonation ? "translate-x-6" : "translate-x-0"
                                         }`} />
                                     </button>
@@ -551,17 +551,17 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                                 {/* Threshold selector — visible when donation is enabled */}
                                 {raidRequireKamaDonation && (
-                                    <div className="mt-3 p-3 rounded-xl bg-zinc-800/40 border border-white/5">
+                                    <div className="mt-3 p-3 rounded-xl bg-elevated/40 border border-border">
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="p-1.5 rounded-lg bg-violet-500/15">
                                                     <img src="/kamas-violet.png" alt="🟣" className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-semibold text-zinc-200">
+                                                    <p className="text-xs font-semibold text-foreground">
                                                         Seuil de don requis
                                                     </p>
-                                                    <p className="text-caption text-zinc-500 mt-0.5">
+                                                    <p className="text-caption text-muted-foreground mt-0.5">
                                                         1 🟣 = 1 000 k • Actuellement {raidKamaDonationThreshold * 10} 🟣 ({raidKamaDonationThreshold * 10_000} k)
                                                     </p>
                                                 </div>
@@ -585,7 +585,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                                         className={`w-9 h-9 rounded-lg text-xs font-bold transition-all ${
                                                             raidKamaDonationThreshold === t
                                                                 ? "bg-violet-500/30 text-violet-300 border border-violet-500/40 shadow-sm"
-                                                                : "bg-zinc-800 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-700"
+                                                                : "bg-elevated text-muted-foreground border border-border/50 hover:bg-muted"
                                                         }`}
                                                     >
                                                         {t * 10}🟣
@@ -607,22 +607,22 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-sm font-medium text-white">3. Rôles de Ping Autorisés (Raids)</h3>
+                                    <h3 className="text-sm font-medium text-foreground">3. Rôles de Ping Autorisés (Raids)</h3>
                                     <Button 
                                         onClick={handleSaveRaid} 
                                         disabled={isPending} 
                                         size="sm"
-                                        className="bg-red-600 hover:bg-red-500 text-white font-bold"
+                                        className="bg-danger hover:bg-danger text-danger-foreground font-bold"
                                     >
                                         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
                                         Sauvegarder les Pings
                                     </Button>
                                 </div>
-                                <p className="text-xs text-zinc-500 mb-4">
+                                <p className="text-xs text-muted-foreground mb-4">
                                     Définissez quels rôles Discord les membres peuvent mentionner spécifiquement pour les événements de Raid Officiel.
                                 </p>
                                 <PingRolesSelector 
@@ -634,20 +634,20 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 " />
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-zinc-950 " />
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-sm font-medium text-white">4. Whitelist des Rôles d'Inscription (Raid Guilde)</h3>
+                                    <h3 className="text-sm font-medium text-foreground">4. Whitelist des Rôles d'Inscription (Raid Guilde)</h3>
                                     <Button 
                                         onClick={handleSaveRaid} 
                                         disabled={isPending} 
                                         size="sm"
-                                        className="bg-red-600 hover:bg-red-500 text-white font-bold"
+                                        className="bg-danger hover:bg-danger text-danger-foreground font-bold"
                                     >
                                         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
                                         Sauvegarder la Whitelist
                                     </Button>
                                 </div>
-                                <p className="text-xs text-zinc-500 mb-4">
+                                <p className="text-xs text-muted-foreground mb-4">
                                     Définissez la liste des rôles Discord parmi lesquels l'initiateur d'un raid (lorsque "Guilde uniquement" est coché) pourra choisir quels rôles sont autorisés à s'inscrire.
                                 </p>
                                 <PingRolesSelector 
@@ -662,49 +662,49 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
 
                     {/* Preview Panel */}
                     <div className="space-y-6">
-                        <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                            <CardHeader className="bg-white/5 pb-4">
-                                <CardTitle className="text-sm text-zinc-300">Aperçu du message Raid</CardTitle>
+                        <Card className="bg-surface/60 border-border overflow-hidden">
+                            <CardHeader className="bg-surface pb-4">
+                                <CardTitle className="text-sm text-foreground">Aperçu du message Raid</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 relative">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center shrink-0">
-                                        <Swords className="w-5 h-5 text-white" />
+                                    <div className="w-10 h-10 rounded-full bg-danger flex items-center justify-center shrink-0">
+                                        <Swords className="w-5 h-5 text-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2 mb-1">
-                                            <span className="font-medium text-red-400">SigilOS</span>
-                                            <span className="bg-red-500/20 text-red-300 text-caption px-1 rounded">BOT</span>
-                                            <span className="text-xs text-zinc-500">Maintenant</span>
+                                            <span className="font-medium text-danger">SigilOS</span>
+                                            <span className="bg-danger/20 text-danger text-caption px-1 rounded">BOT</span>
+                                            <span className="text-xs text-muted-foreground">Maintenant</span>
                                         </div>
 
-                                        <div className="bg-[#2b2d31] rounded border-l-4 border-red-500 p-4 max-w-sm">
+                                        <div className="bg-[#2b2d31] rounded border-l-4 border-danger p-4 max-w-sm">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="text-lg">⚔️</span>
-                                                <h4 className="font-semibold text-white text-sm">Nouveau Raid</h4>
+                                                <h4 className="font-semibold text-foreground text-sm">Nouveau Raid</h4>
                                             </div>
 
-                                            <p className="text-zinc-300 text-sm mb-3 font-medium">
+                                            <p className="text-foreground text-sm mb-3 font-medium">
                                                 Raid 3.6 - Boss du Désert
                                             </p>
 
                                             <div className="space-y-1.5 text-xs">
-                                                <div className="flex items-center gap-2 text-zinc-400">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Calendar className="w-3 h-3" />
                                                     <span>Vendredi 31 Janvier</span>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-zinc-400">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Clock className="w-3 h-3" />
                                                     <span>21:00 - 23:00</span>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-zinc-400">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
                                                     <Users className="w-3 h-3" />
                                                     <span>0/12 places</span>
                                                 </div>
                                             </div>
 
                                             <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
-                                                <div className="w-4 h-4 rounded-full bg-zinc-700" />
+                                                <div className="w-4 h-4 rounded-full bg-muted" />
                                                 <span className="text-[#949ba4] text-xs">SigilOS • Raid</span>
                                             </div>
                                         </div>

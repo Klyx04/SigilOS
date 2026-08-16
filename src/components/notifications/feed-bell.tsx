@@ -55,36 +55,36 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
 
     const getIcon = (type: string) => {
         switch (type) {
-            case "YOUTUBE": return <CirclePlay className="w-4 h-4 text-red-500" />;
-            case "TWITCH": return <Tv className="w-4 h-4 text-purple-500" />;
-            case "NEWS": return <Rss className="w-4 h-4 text-emerald-500" />;
-            default: return <Rss className="w-4 h-4 text-zinc-500" />;
+            case "YOUTUBE": return <CirclePlay className="w-4 h-4 text-danger" />;
+            case "TWITCH": return <Tv className="w-4 h-4 text-info" />;
+            case "NEWS": return <Rss className="w-4 h-4 text-success" />;
+            default: return <Rss className="w-4 h-4 text-muted-foreground" />;
         }
     };
 
     return (
         <Popover open={isOpen} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("relative text-zinc-400 hover:text-white transition-colors", className)}>
+                <Button variant="ghost" size="icon" className={cn("relative text-muted-foreground hover:text-foreground transition-colors", className)}>
                     <Rss className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-caption font-black text-white ring-2 ring-zinc-950 animate-in zoom-in duration-300 ">
+                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-success text-caption font-black text-foreground ring-2 ring-zinc-950 animate-in zoom-in duration-300 ">
                             {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                     )}
                     <span className="sr-only">Nouveautés Communauté</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 overflow-hidden rounded-2xl border-white/10 bg-[#0d0f11]/95 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.7)]" align="end">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-gradient-to-r from-emerald-500/10 to-transparent">
+            <PopoverContent className="w-80 p-0 overflow-hidden rounded-2xl border-border bg-[#0d0f11]/95 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.7)]" align="end">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-success/10 to-transparent">
                     <div className="flex items-center gap-2">
-                        <Rss className="h-4 w-4 text-emerald-500" />
-                        <h4 className="font-bold text-xs uppercase tracking-widest text-white">Créateurs & Dofus</h4>
+                        <Rss className="h-4 w-4 text-success" />
+                        <h4 className="font-bold text-xs uppercase tracking-widest text-foreground">Créateurs & Dofus</h4>
                     </div>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-caption font-black uppercase tracking-widest text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 transition-all"
+                        className="h-7 px-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-success hover:bg-success/10 gap-1.5 transition-all"
                         onClick={async (e) => { 
                             e.stopPropagation(); 
                             await fetchFeed(true); 
@@ -102,27 +102,27 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
 
                 <ScrollArea className="h-[350px]">
                     {isLoading && feed.length === 0 ? (
-                        <div className="p-12 text-center text-xs text-zinc-500 flex flex-col items-center gap-4">
+                        <div className="p-12 text-center text-xs text-muted-foreground flex flex-col items-center gap-4">
                             <span className="animate-pulse">Analyse des flux...</span>
                         </div>
                     ) : feed.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[300px] text-zinc-500 gap-4">
-                            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                        <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground gap-4">
+                            <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center">
                                 <Rss className="h-6 w-6 opacity-20" />
                             </div>
                             <p className="text-xs font-medium uppercase tracking-widest">Aucune nouveauté</p>
                         </div>
                     ) : (
-                        <div className="grid divide-y divide-white/5">
+                        <div className="grid divide-y divide-border">
                             {feed.map((n, i) => (
                                 <a
                                     key={i}
                                     href={n.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-4 hover:bg-white/[0.03] transition-colors flex items-start gap-3 group"
+                                    className="p-4 hover:bg-surface transition-colors flex items-start gap-3 group"
                                 >
-                                    <div className="mt-1 h-8 w-8 rounded bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
+                                    <div className="mt-1 h-8 w-8 rounded bg-black/50 border border-border flex items-center justify-center overflow-hidden shrink-0 relative">
                                         {n.thumbnail ? (
                                             <img
                                                 src={n.thumbnail}
@@ -138,23 +138,23 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                                     <div className="space-y-1 overflow-hidden">
                                         <div className="flex items-center gap-1.5">
                                             {getIcon(n.type)}
-                                            <span className="text-caption uppercase font-black tracking-widest text-zinc-400 group-hover:text-zinc-300 transition-colors">
+                                            <span className="text-caption uppercase font-black tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
                                                 {n.creatorId}
                                             </span>
                                         </div>
-                                        <p className="text-sm font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors">{n.title}</p>
-                                        <p className="text-caption text-zinc-600 font-mono pt-1">
+                                        <p className="text-sm font-bold text-foreground leading-tight group-hover:text-foreground transition-colors">{n.title}</p>
+                                        <p className="text-caption text-muted-foreground font-mono pt-1">
                                             {new Date(n.published).toLocaleDateString()} à {new Date(n.published).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
-                                    <ExternalLink className="w-3 h-3 text-white/20 group-hover:text-white/60 transition-colors shrink-0 mt-1 opacity-0 group-hover:opacity-100" />
+                                    <ExternalLink className="w-3 h-3 text-foreground/20 group-hover:text-foreground/60 transition-colors shrink-0 mt-1 opacity-0 group-hover:opacity-100" />
                                 </a>
                             ))}
                         </div>
                     )}
                 </ScrollArea>
-                <div className="p-2 border-t border-white/5 bg-white/5">
-                    <Button variant="ghost" size="sm" className="w-full text-caption font-black uppercase tracking-widest h-10 hover:bg-white/5 hover:text-white transition-all" asChild>
+                <div className="p-2 border-t border-border bg-surface">
+                    <Button variant="ghost" size="sm" className="w-full text-caption font-black uppercase tracking-widest h-10 hover:bg-surface hover:text-foreground transition-all" asChild>
                         <Link href={`/dashboard/${guildId}/ressources`}>
                             Ouvrir le module Ressources
                         </Link>

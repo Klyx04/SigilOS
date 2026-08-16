@@ -102,17 +102,17 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
 
                 {/* Functional Icons (Discrete indicators) */}
                 {dofus.isPrimordial && (
-                    <div className="w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-sm" title="Dofus Primordial">
+                    <div className="w-5 h-5 rounded-md bg-warning/10 border border-warning/30 flex items-center justify-center text-warning shadow-sm" title="Dofus Primordial">
                         <Crown className="w-3 h-3" />
                     </div>
                 )}
                 {dofus.isMeta && (
-                    <div className="w-5 h-5 rounded-md bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm" title="Dofus Méta">
+                    <div className="w-5 h-5 rounded-md bg-info/10 border border-info/30 flex items-center justify-center text-info shadow-sm" title="Dofus Méta">
                         <Sparkles className="w-3 h-3" />
                     </div>
                 )}
                 {dofus.isSylvestreReq && (
-                    <div className="w-5 h-5 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-sm" title="Requis pour le Sylvestre">
+                    <div className="w-5 h-5 rounded-md bg-success/10 border border-success/30 flex items-center justify-center text-success shadow-sm" title="Requis pour le Sylvestre">
                         <Gem className="w-3 h-3" />
                     </div>
                 )}
@@ -129,7 +129,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                     window.dispatchEvent(new Event("dofus-sync-all-mules-changed"));
                 }}
                 className={`absolute top-3 right-12 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200  border ${
-                    syncAllMules ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-white/5 border-white/10 text-zinc-500 hover:text-white"
+                    syncAllMules ? "bg-info/10 border-info/30 text-info" : "bg-surface border-border text-muted-foreground hover:text-foreground"
                 }`}
                 style={{
                     borderColor: syncAllMules ? `${color}66` : undefined,
@@ -155,9 +155,9 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                 aria-label={isObtained ? "Dofus obtenu — cliquer pour annuler" : "Marquer comme obtenu"}
             >
                 {isObtained ? (
-                    <span className="text-sm text-black font-bold">✓</span>
+                    <span className="text-sm text-foreground font-bold">✓</span>
                 ) : (
-                    <span className="text-sm text-white/40">○</span>
+                    <span className="text-sm text-foreground/40">○</span>
                 )}
             </button>
 
@@ -231,19 +231,19 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                         <span className="text-caption tabular-nums font-black" style={{ color: dofus.progressPercent > 0 ? color : "rgba(255,255,255,0.2)" }}>
                             {dofus.progressPercent}%
                         </span>
-                        <span className="text-caption tabular-nums text-white/20 whitespace-nowrap">
+                        <span className="text-caption tabular-nums text-foreground/20 whitespace-nowrap">
                             ({dofus.completedQuests}/{dofus.totalQuests})
                         </span>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-1 mt-1">
-                        <Lock className="w-3 h-3 text-white/25" />
-                        <span className="text-caption text-white/25">Guide à venir</span>
+                        <Lock className="w-3 h-3 text-foreground/25" />
+                        <span className="text-caption text-foreground/25">Guide à venir</span>
                     </div>
                 )}
 
                 {dofus.levelRecommended > 0 && (
-                    <p className="text-caption text-white/30 text-center mt-0.5">
+                    <p className="text-caption text-foreground/30 text-center mt-0.5">
                         Niveau {dofus.levelRecommended}+
                     </p>
                 )}

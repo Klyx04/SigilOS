@@ -74,9 +74,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 }> = {
     DONJON: {
         icon: Swords,
-        color: "text-rose-400",
-        bgColor: "bg-rose-950/40",
-        borderColor: "border-rose-500/40",
+        color: "text-danger",
+        bgColor: "bg-danger/40",
+        borderColor: "border-danger/40",
         headerGradient: "from-[#a11a21]/90 via-[#d32f2f]/80 to-[#6b0f14]/90",
         bannerImage: "/banners/donjon.png",
         fallbackImage: "/assets/missions/donjon.png",
@@ -86,9 +86,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     REGULATION: {
         icon: Skull,
-        color: "text-emerald-400",
-        bgColor: "bg-emerald-950/40",
-        borderColor: "border-emerald-500/40",
+        color: "text-success",
+        bgColor: "bg-success/40",
+        borderColor: "border-success/40",
         headerGradient: "from-[#4b6b1a]/90 via-[#7cb342]/80 to-[#2d4010]/90",
         bannerImage: "/banners/regulation.png",
         fallbackImage: "/assets/missions/regulation.png",
@@ -110,9 +110,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     SONGES: {
         icon: InfinityIcon,
-        color: "text-cyan-400",
-        bgColor: "bg-cyan-950/40",
-        borderColor: "border-cyan-500/40",
+        color: "text-info",
+        bgColor: "bg-info/40",
+        borderColor: "border-info/40",
         headerGradient: "from-[#1a6b7d]/90 via-[#26c6da]/80 to-[#10404d]/90",
         bannerImage: "/banners/songes.png",
         fallbackImage: "/assets/missions/songes.png",
@@ -122,9 +122,9 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     EXPEDITION: {
         icon: Clock,
-        color: "text-amber-400",
-        bgColor: "bg-amber-950/40",
-        borderColor: "border-amber-500/40",
+        color: "text-warning",
+        bgColor: "bg-warning/40",
+        borderColor: "border-warning/40",
         headerGradient: "from-[#7d5b1a]/90 via-[#ffa000]/80 to-[#4d3810]/90",
         bannerImage: "/banners/expedition.png",
         fallbackImage: "/assets/missions/expedition.png",
@@ -225,13 +225,13 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
     if (isEmpty) {
         return (
-            <Card className="flex flex-col h-[180px] bg-zinc-950/50 border border-zinc-800/60 border-dashed items-center justify-center p-6 text-center space-y-4 hover:bg-zinc-900/50 transition-colors group">
-                <div className="w-12 h-12 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-center group- transition-transform duration-300 shadow-inner">
-                    <Icon className="w-6 h-6 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+            <Card className="flex flex-col h-[180px] bg-background/50 border border-border/60 border-dashed items-center justify-center p-6 text-center space-y-4 hover:bg-surface/50 transition-colors group">
+                <div className="w-12 h-12 rounded-xl bg-surface/50 border border-border flex items-center justify-center group- transition-transform duration-300 shadow-inner">
+                    <Icon className="w-6 h-6 text-muted-foreground group-hover:text-muted-foreground transition-colors" />
                 </div>
                 <div className="space-y-1 cursor-default">
-                    <h3 className="font-semibold text-zinc-400 text-sm tracking-wide">Mission Mystère</h3>
-                    <p className="text-caption text-zinc-600 font-medium">Dévoilée prochainement</p>
+                    <h3 className="font-semibold text-muted-foreground text-sm tracking-wide">Mission Mystère</h3>
+                    <p className="text-caption text-muted-foreground font-medium">Dévoilée prochainement</p>
                 </div>
             </Card>
         );
@@ -291,15 +291,15 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
             style={{ '--ring-color': config.ringColor } as React.CSSProperties}
         >
             <Card className={cn(
-                "flex flex-col relative overflow-hidden transition-all duration-300 group border-white/5 bg-[#121417] shadow-2xl",
-                "hover:border-white/10 ",
-                !vitrineMode && isValidated && "ring-1 ring-emerald-500/40",
-                !vitrineMode && isRejected && "ring-1 ring-red-500/40",
+                "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-[#121417] shadow-2xl",
+                "hover:border-border ",
+                !vitrineMode && isValidated && "ring-1 ring-success/40",
+                !vitrineMode && isRejected && "ring-1 ring-danger/40",
                 !vitrineMode && isPendingValidation && "ring-1 ring-yellow-500/40"
             )}>
                 {/* ----------------- HEADER BAR (Full Width) ----------------- */}
                 <div className={cn(
-                    "relative z-20 flex items-center gap-4 px-4 py-2.5 shadow-inner border-b border-white/5",
+                    "relative z-20 flex items-center gap-4 px-4 py-2.5 shadow-inner border-b border-border",
                     "overflow-hidden transition-all duration-300"
                 )}>
                     {/* AI BACKGROUND BANNER */}
@@ -321,17 +321,17 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url(/noise.svg)] bg-repeat z-10" />
 
                     {/* Visual indicator (Lueur) */}
-                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-white/20 blur-[1px] z-10" />
+                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-elevated blur-[1px] z-10" />
 
                     <div className="relative shrink-0 z-10">
-                        <div className="absolute inset-0 bg-white/20 blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 shadow-lg relative transition-transform group-">
-                            <Icon className={cn("w-4 h-4", config.color.replace('text-', 'text-white'))} />
+                        <div className="absolute inset-0 bg-elevated blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-border shadow-lg relative transition-transform group-">
+                            <Icon className={cn("w-4 h-4", config.color.replace('text-', 'text-foreground'))} />
                         </div>
                     </div>
 
                     <div className="flex-1 min-w-0 relative z-10">
-                        <h3 className="font-black text-sm sm:text-base text-white truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase">
+                        <h3 className="font-black text-sm sm:text-base text-foreground truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase">
                             {mission.title || getAutoTitle(mission.category, payload)}
                         </h3>
                     </div>
@@ -339,17 +339,17 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     {/* Status Badges Pin to Right */}
                     <div className="ml-auto flex gap-2 relative z-10">
                         {!vitrineMode && isValidated && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/90 text-white font-black text-caption shadow-lg border border-white/10">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/90 text-foreground font-black text-caption shadow-lg border border-border">
                                 <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">VALIDÉ</span>
                             </div>
                         )}
                         {!vitrineMode && isPendingValidation && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-500/90 text-black font-black text-caption shadow-lg border border-white/10 animate-pulse">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-500/90 text-foreground font-black text-caption shadow-lg border border-border animate-pulse">
                                 <Hourglass className="w-3 h-3" /> <span className="hidden sm:inline">ATTENTE</span>
                             </div>
                         )}
                         {!vitrineMode && isRejected && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/90 text-white font-black text-caption shadow-lg border border-white/10">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-danger/90 text-foreground font-black text-caption shadow-lg border border-border">
                                 <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
                             </div>
                         )}
@@ -366,7 +366,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                     )} />
 
                     {/* Left Column: Image Cutout */}
-                    <div className="w-[80px] sm:w-[128px] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-white/5 p-4 bg-black/20">
+                    <div className="w-[80px] sm:w-[128px] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-border p-4 bg-black/20">
                         {/* Background Light behind Creature */}
                         <div className={cn(
                             "absolute inset-0 opacity-20 blur-2xl rounded-full scale-110",
@@ -392,7 +392,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                                 {/* OBJECTIF MANUEL — gros badge exclamation sur l'image */}
                                 {mission.category === 'EVENT' && payload.eventType === 'OBJECTIF' && (
-                                    <div className="absolute bottom-1 right-1 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-amber-500/95 border-2 border-white/25  flex items-center justify-center overflow-hidden group- transition-transform duration-300">
+                                    <div className="absolute bottom-1 right-1 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-warning/95 border-2 border-border-strong  flex items-center justify-center overflow-hidden group- transition-transform duration-300">
                                         <Image
                                             src="/exclamation.png"
                                             alt="Objectif manuel"
@@ -405,15 +405,15 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 )}
                             </div>
                         ) : (
-                            <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 border border-white/5 flex items-center justify-center">
-                                <Search className="w-5 h-5 text-zinc-600" />
+                            <div className="w-12 h-12 rounded-2xl bg-elevated/50 border border-border flex items-center justify-center">
+                                <Search className="w-5 h-5 text-muted-foreground" />
                             </div>
                         )}
                     </div>
                     {/* Decorative Location Pin */}
                     {payload.zoneName && (
-                        <div className="absolute bottom-1.5 right-1.5 p-1 bg-black/60 rounded border border-white/10 backdrop-blur-md transition-opacity hover:opacity-100" title={payload.zoneName}>
-                            <MapPin className="w-2.5 h-2.5 text-emerald-400" />
+                        <div className="absolute bottom-1.5 right-1.5 p-1 bg-black/60 rounded border border-border backdrop-blur-md transition-opacity hover:opacity-100" title={payload.zoneName}>
+                            <MapPin className="w-2.5 h-2.5 text-success" />
                         </div>
                     )}
 
@@ -422,23 +422,23 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                         <div className="space-y-4">
                             {/* Meta Data: Rank & Level UI */}
                             <div className="flex items-center gap-3">
-                                <div className="flex items-center bg-black/60 rounded px-2.5 h-6 border border-white/10 shadow-inner">
-                                    <span className="text-caption font-black text-zinc-400 uppercase tracking-widest mr-2">RANG</span>
-                                    <span className="text-sm font-black text-white">{(mission as any).rank || 1}</span>
+                                <div className="flex items-center bg-black/60 rounded px-2.5 h-6 border border-border shadow-inner">
+                                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mr-2">RANG</span>
+                                    <span className="text-sm font-black text-foreground">{(mission as any).rank || 1}</span>
                                 </div>
-                                <div className="h-4 w-[1px] bg-white/10" />
-                                <span className="text-zinc-300 font-bold italic text-sm tracking-tight truncate">
+                                <div className="h-4 w-[1px] bg-surface" />
+                                <span className="text-foreground font-bold italic text-sm tracking-tight truncate">
                                     Niv. {displayLevel}
                                 </span>
                             </div>
 
                             {/* Description Text */}
-                            <div className="text-[15px] font-medium text-zinc-100 leading-snug pr-4 text-shadow-sm line-clamp-3">
+                            <div className="text-[15px] font-medium text-foreground leading-snug pr-4 text-shadow-sm line-clamp-3">
                                 {generateDescription(mission.category, payload)}
                             </div>
                             {/* Notes / Instructions libres (missions spéciales) */}
                             {payload?.notes && (
-                                <div className="mt-1.5 text-caption italic text-indigo-200/70 leading-snug pr-4 border-l-2 border-indigo-500/40 pl-2 line-clamp-2">
+                                <div className="mt-1.5 text-caption italic text-info/70 leading-snug pr-4 border-l-2 border-info/40 pl-2 line-clamp-2">
                                     📝 {payload.notes}
                                 </div>
                             )}
@@ -448,19 +448,19 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                         <div className="flex items-center justify-between mt-auto pt-4 shrink-0">
                             <div className="flex flex-wrap gap-2.5">
                                 {mission.xpReward && (
-                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md min-w-[70px] sm:min-w-[85px]">
-                                        <span className="text-white font-mono text-xs sm:text-sm font-black">{mission.xpReward}</span>
+                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-border shadow-md min-w-[70px] sm:min-w-[85px]">
+                                        <span className="text-foreground font-mono text-xs sm:text-sm font-black">{mission.xpReward}</span>
                                         <Image src="/PA.png" alt="PA" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}
                                 {mission.guildatonsReward && (
-                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md min-w-[70px] sm:min-w-[85px]">
-                                        <span className="text-white font-mono text-xs sm:text-sm font-black">{mission.guildatonsReward}</span>
+                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-border shadow-md min-w-[70px] sm:min-w-[85px]">
+                                        <span className="text-foreground font-mono text-xs sm:text-sm font-black">{mission.guildatonsReward}</span>
                                         <Image src="/guildatons.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}
                                 {config.label && (
-                                    <span className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-2 self-center">
+                                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-2 self-center">
                                         {config.label}
                                     </span>
                                 )}
@@ -473,16 +473,16 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                         <TooltipTrigger asChild>
                                             <Link
                                                 href={`/dashboard/${guildId}/calendar?event=${linkedEvent.id}`}
-                                                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all group/calendar"
+                                                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-warning/10 border border-warning/30 hover:bg-warning/20 transition-all group/calendar"
                                             >
-                                                <CalendarIcon className="w-3 h-3 text-amber-500 group-hover/calendar:scale-110 transition-transform" />
-                                                <span className="text-caption font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                <CalendarIcon className="w-3 h-3 text-warning group-hover/calendar:scale-110 transition-transform" />
+                                                <span className="text-caption font-black text-warning uppercase tracking-widest leading-none">
                                                     Session Prévue
                                                 </span>
-                                                <ExternalLink className="w-2.5 h-2.5 text-amber-500/50 group-hover/calendar:text-amber-500 transition-colors" />
+                                                <ExternalLink className="w-2.5 h-2.5 text-warning/50 group-hover/calendar:text-warning transition-colors" />
                                             </Link>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" className="bg-zinc-900 border-zinc-800 text-amber-500 font-bold text-caption uppercase tracking-widest px-3 py-1.5">
+                                        <TooltipContent side="top" className="bg-surface border-border text-warning font-bold text-caption uppercase tracking-widest px-3 py-1.5">
                                             Voir l'événement sur le calendrier ?
                                         </TooltipContent>
                                     </Tooltip>
@@ -493,15 +493,15 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                 </div>
 
                 {/* ----------------- ACTION BAR (Bottom) ----------------- */}
-                <div className="relative z-20 flex flex-wrap gap-3 px-4 sm:px-5 py-3 bg-[#0d0f11] border-t border-white/5 items-center justify-between">
+                <div className="relative z-20 flex flex-wrap gap-3 px-4 sm:px-5 py-3 bg-[#0d0f11] border-t border-border items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Button
                             size="sm"
                             className={cn(
                                 "h-9 px-4 sm:px-6 text-caption sm:text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg shrink-0",
                                 isInterested
-                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30"
-                                    : "bg-white text-black hover:bg-emerald-400 hover:text-black  active:scale-95 border-none"
+                                    ? "bg-success/20 text-success border border-success/50 hover:bg-success/30"
+                                    : "bg-background text-foreground hover:bg-success hover:text-foreground  active:scale-95 border-none"
                             )}
                             onClick={handleToggleInterest}
                             disabled={isPending || isRestricted}
@@ -522,7 +522,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="hidden sm:flex h-9 px-4 text-caption font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all border-white/10 shrink-0"
+                                className="hidden sm:flex h-9 px-4 text-caption font-black uppercase tracking-widest bg-surface/50 text-muted-foreground hover:bg-success/10 hover:text-success hover:border-success/30 transition-all border-border shrink-0"
                                 onClick={handleShowValidators}
                                 title="Voir les membres ayant validé"
                             >
@@ -541,16 +541,16 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             >
                                 <div className="flex -space-x-2 transition-all duration-300 group-hover/list:space-x-1">
                                     {mission.interests.slice(0, 4).map((interest, i) => (
-                                        <div key={interest.id} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800 flex items-center justify-center overflow-hidden shadow-sm relative group/avatar">
+                                        <div key={interest.id} className="w-8 h-8 rounded-full border-2 border-black bg-elevated flex items-center justify-center overflow-hidden shadow-sm relative group/avatar">
                                             {interest.profile.user?.image ? (
                                                 <Image src={interest.profile.user.image} alt="User" width={32} height={32} className="object-cover" loading="lazy" />
                                             ) : (
-                                                <Users className="w-4 h-4 text-zinc-500" />
+                                                <Users className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </div>
                                     ))}
                                     {interestCount > 4 && (
-                                        <div className="w-8 h-8 rounded-full border-2 border-black bg-zinc-900 flex items-center justify-center text-caption font-black text-white shadow-sm z-10">
+                                        <div className="w-8 h-8 rounded-full border-2 border-black bg-surface flex items-center justify-center text-caption font-black text-foreground shadow-sm z-10">
                                             +{interestCount - 4}
                                         </div>
                                     )}
@@ -563,7 +563,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-9 px-4 text-caption font-black bg-red-500/5 text-red-400 border-red-500/20 hover:bg-red-500/10"
+                                    className="h-9 px-4 text-caption font-black bg-danger/5 text-danger border-danger/20 hover:bg-danger/10"
                                     onClick={handleCancel}
                                 >
                                     ANNULER
@@ -574,8 +574,8 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                     className={cn(
                                         "h-9 px-5 text-caption font-black uppercase tracking-[2px] transition-all border",
                                         isRejected
-                                            ? "bg-red-950/40 text-red-300 hover:bg-white hover:text-black border-red-500/30"
-                                            : "bg-zinc-800 text-zinc-300 hover:bg-white hover:text-black border-white/10"
+                                            ? "bg-danger/40 text-danger hover:bg-background hover:text-foreground border-danger/30"
+                                            : "bg-elevated text-foreground hover:bg-background hover:text-foreground border-border"
                                     )}
                                     onClick={() => setShowUploadDialog(true)}
                                     disabled={isRestricted}
@@ -601,12 +601,12 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                 {/* Validators Dialog */}
                 <Dialog open={showValidators} onOpenChange={setShowValidators}>
-                    <DialogContent className="sm:max-w-md bg-zinc-950 border-white/10 shadow-2xl overflow-hidden p-0">
-                        <div className="p-6 pb-4 bg-zinc-900/40 border-b border-white/5 relative z-10">
+                    <DialogContent className="sm:max-w-md bg-background border-border shadow-2xl overflow-hidden p-0">
+                        <div className="p-6 pb-4 bg-surface/40 border-b border-border relative z-10">
                             <DialogHeader>
-                                <DialogTitle className="flex items-center gap-3 text-lg font-black text-white">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                <DialogTitle className="flex items-center gap-3 text-lg font-black text-foreground">
+                                    <div className="w-8 h-8 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center">
+                                        <ShieldCheck className="w-4 h-4 text-success" />
                                     </div>
                                     <span className="uppercase tracking-widest italic text-sm">Validations Réussies</span>
                                 </DialogTitle>
@@ -615,26 +615,26 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                         <ScrollArea className="max-h-[300px] w-full bg-[#121417]">
                             {isLoadingValidators ? (
-                                <div className="flex flex-col items-center justify-center p-12 text-zinc-500">
-                                    <Loader2 className="w-6 h-6 animate-spin mb-3 text-emerald-500/50" />
+                                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+                                    <Loader2 className="w-6 h-6 animate-spin mb-3 text-success/50" />
                                     <span className="text-caption uppercase font-bold tracking-widest">Recherche des archives...</span>
                                 </div>
                             ) : validatorsList.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center p-12 text-zinc-500">
-                                    <Trophy className="w-8 h-8 mb-3 opacity-20 text-zinc-400" />
-                                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-600">Aucune validation pour l'instant</p>
+                                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+                                    <Trophy className="w-8 h-8 mb-3 opacity-20 text-muted-foreground" />
+                                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Aucune validation pour l'instant</p>
                                 </div>
                             ) : (
                                 <div className="p-2 space-y-1">
                                     {validatorsList.map((val) => (
-                                        <div key={val.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
-                                            <Avatar className="w-8 h-8 border border-white/10 shadow-sm">
+                                        <div key={val.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition-colors border border-transparent hover:border-border">
+                                            <Avatar className="w-8 h-8 border border-border shadow-sm">
                                                 <AvatarImage src={val.image} />
-                                                <AvatarFallback className="bg-zinc-800 text-caption font-black">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback className="bg-elevated text-caption font-black">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                             <div className="flex flex-col flex-1 min-w-0">
-                                                <span className="text-sm font-black text-white truncate">{val.pseudo}</span>
-                                                <span className="text-caption font-bold uppercase tracking-widest text-zinc-500">
+                                                <span className="text-sm font-black text-foreground truncate">{val.pseudo}</span>
+                                                <span className="text-caption font-bold uppercase tracking-widest text-muted-foreground">
                                                     Validé le {new Date(val.date).toLocaleDateString('fr-FR')}
                                                 </span>
                                             </div>
@@ -681,12 +681,12 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
     switch (category) {
         case "DONJON":
             return (
-                <>Vaincre <span className="text-rose-400 font-medium">{payload.bossName || "le Boss"}</span> dans son donjon</>
+                <>Vaincre <span className="text-danger font-medium">{payload.bossName || "le Boss"}</span> dans son donjon</>
             );
         case "REGULATION":
             const targetName = payload.monsterName || payload.familyName || "monstres";
             return (
-                <>Vaincre <span className="text-emerald-400 font-medium">50 {targetName}</span> sur leur territoire</>
+                <>Vaincre <span className="text-success font-medium">50 {targetName}</span> sur leur territoire</>
             );
         case "ANOMALIE":
             const range = payload.levelRange || "200";
@@ -734,7 +734,7 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
         case "SONGES":
             if (payload.epreuve) {
                 return (
-                    <>Terminer l'épreuve de Songe <span className="text-cyan-400 font-bold">{payload.epreuve}</span></>
+                    <>Terminer l'épreuve de Songe <span className="text-info font-bold">{payload.epreuve}</span></>
                 );
             }
             const palierNames: Record<number, string> = {
@@ -746,12 +746,12 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
             };
             const palierName = palierNames[payload.tier] || palierNames[2];
             return (
-                <>Démarrer un songe en <span className="text-cyan-400 font-medium">{payload.difficulty || "Paradoxe"} {payload.level || "I"}</span> et terminer le Palier {payload.tier || 2} : les <span className="text-cyan-400">{palierName}</span></>
+                <>Démarrer un songe en <span className="text-info font-medium">{payload.difficulty || "Paradoxe"} {payload.level || "I"}</span> et terminer le Palier {payload.tier || 2} : les <span className="text-info">{palierName}</span></>
             );
         case "EXPEDITION":
             const modeText = payload.mode && payload.mode !== 'aucun' ? ` de ${payload.mode}` : '';
             return (
-                <>Vaincre <span className="text-amber-400 font-medium">{payload.bossName || "le Boss"}</span> dans son expédition{modeText}</>
+                <>Vaincre <span className="text-warning font-medium">{payload.bossName || "le Boss"}</span> dans son expédition{modeText}</>
             );
         case "EVENT":
             if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
@@ -765,29 +765,29 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
             if (payload.eventType === 'MONSTRE_SPECIAL' && payload.monsterName) {
                 const zonePart = payload.zoneName ? (
                     <>
-                        {' '}en <span className="text-emerald-400 font-bold">{payload.zoneName}</span>
+                        {' '}en <span className="text-success font-bold">{payload.zoneName}</span>
                     </>
                 ) : null;
                 const levelPart = payload.level ? (
                     <>
-                        {' '}(niv. <span className="text-purple-400 font-bold">{payload.level}</span>)
+                        {' '}(niv. <span className="text-info font-bold">{payload.level}</span>)
                     </>
                 ) : null;
                 return (
                     <>
-                        Vaincre <span className="text-purple-400 font-bold">{payload.targetCount || 50} {payload.monsterName}</span>{levelPart}{zonePart}
+                        Vaincre <span className="text-info font-bold">{payload.targetCount || 50} {payload.monsterName}</span>{levelPart}{zonePart}
                     </>
                 );
             }
             if (payload.eventType === 'DONJON' && payload.bossName) {
                 return (
-                    <>Vaincre <span className="text-rose-400 font-medium">{payload.bossName}</span> dans son donjon</>
+                    <>Vaincre <span className="text-danger font-medium">{payload.bossName}</span> dans son donjon</>
                 );
             }
             if (payload.eventType === 'REGULATION' && (payload.familyName || payload.zoneName)) {
                 const target = payload.familyName || "monstres";
                 return (
-                    <>Vaincre <span className="text-amber-400 font-medium">50 {target}</span> sur leur territoire</>
+                    <>Vaincre <span className="text-warning font-medium">50 {target}</span> sur leur territoire</>
                 );
             }
             return <>{payload.description || "Participer à l'événement."}</>;

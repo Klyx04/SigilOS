@@ -28,11 +28,11 @@ export function PersonalGuildatonWidget({ guildatons }: PersonalGuildatonWidgetP
     const isMaxed = guildatons >= max;
 
     return (
-        <div className="relative group overflow-hidden rounded-2xl bg-zinc-950/40 border border-white/5 p-5 transition-all duration-300 hover:border-amber-500/20">
+        <div className="relative group overflow-hidden rounded-2xl bg-background/40 border border-border p-5 transition-all duration-300 hover:border-warning/20">
             {/* Background Glow */}
             <div className={cn(
                 "absolute -right-4 -top-4 w-24 h-24 rounded-full blur-3xl transition-opacity duration-300 pointer-events-none opacity-20",
-                isMaxed ? "bg-emerald-500" : "bg-amber-500"
+                isMaxed ? "bg-success" : "bg-warning"
             )} />
 
             <div className="relative z-10 flex flex-col gap-4">
@@ -42,8 +42,8 @@ export function PersonalGuildatonWidget({ guildatons }: PersonalGuildatonWidgetP
                         <div className={cn(
                             "p-2 rounded-xl border flex items-center justify-center transition-transform group-",
                             isMaxed 
-                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-                                : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                                ? "bg-success/10 border-success/20 text-success" 
+                                : "bg-warning/10 border-warning/20 text-warning"
                         )}>
                             <Coins className="w-5 h-5" />
                         </div>
@@ -60,7 +60,7 @@ export function PersonalGuildatonWidget({ guildatons }: PersonalGuildatonWidgetP
                                     <HelpCircle className="w-4 h-4" />
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent className="glass-premium border-white/10 text-caption font-bold max-w-[200px]">
+                            <TooltipContent className="glass-premium border-border text-caption font-bold max-w-[200px]">
                                 Gagnez des Guildatons en validant des missions ou en donnant des kamas. Limite de {max} par semaine.
                             </TooltipContent>
                         </Tooltip>
@@ -72,7 +72,7 @@ export function PersonalGuildatonWidget({ guildatons }: PersonalGuildatonWidgetP
                     <div className="flex items-baseline gap-1.5">
                         <span className={cn(
                             "text-3xl font-black tracking-tighter tabular-nums",
-                            isMaxed ? "text-emerald-400" : "text-amber-400"
+                            isMaxed ? "text-success" : "text-warning"
                         )}>
                             {guildatons}
                         </span>
@@ -80,9 +80,9 @@ export function PersonalGuildatonWidget({ guildatons }: PersonalGuildatonWidgetP
                     </div>
                     
                     {isMaxed ? (
-                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                            <TrendingUp className="w-3 h-3 text-emerald-400" />
-                            <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">Maximum Atteint</span>
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-success/10 border border-success/20">
+                            <TrendingUp className="w-3 h-3 text-success" />
+                            <span className="text-caption font-black text-success uppercase tracking-widest">Maximum Atteint</span>
                         </div>
                     ) : (
                         <span className="text-caption font-black text-muted-foreground uppercase tracking-widest italic">
@@ -93,17 +93,17 @@ export function PersonalGuildatonWidget({ guildatons }: PersonalGuildatonWidgetP
 
                 {/* Progress Bar */}
                 <div className="space-y-1.5">
-                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <div className="h-2 w-full bg-surface rounded-full overflow-hidden border border-border">
                         <div 
                             className={cn(
                                 "h-full transition-all duration-300 ease-out relative",
                                 isMaxed 
-                                    ? "bg-gradient-to-r from-emerald-600 to-emerald-400 " 
-                                    : "bg-gradient-to-r from-amber-600 to-amber-400 "
+                                    ? "bg-gradient-to-r from-success to-success " 
+                                    : "bg-gradient-to-r from-warning to-warning "
                             )}
                             style={{ width: `${progress}%` }}
                         >
-                            <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                            <div className="absolute inset-0 bg-elevated animate-pulse" />
                         </div>
                     </div>
                     <div className="flex justify-between items-center text-caption font-black uppercase tracking-widest text-muted-foreground/60 italic">

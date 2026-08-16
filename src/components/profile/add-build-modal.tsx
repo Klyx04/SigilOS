@@ -165,9 +165,9 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                 )}
             </DialogTrigger>
 
-            <DialogContent className="bg-zinc-900 border-zinc-700/70 text-zinc-100 sm:max-w-lg p-0 gap-0 overflow-hidden">
+            <DialogContent className="bg-surface border-border/70 text-foreground sm:max-w-lg p-0 gap-0 overflow-hidden">
                 {/* Header */}
-                <DialogHeader className="p-6 pb-4 border-b border-white/5">
+                <DialogHeader className="p-6 pb-4 border-b border-border">
                     <DialogTitle className="text-lg font-black uppercase tracking-tight">
                         Importer un Build
                     </DialogTitle>
@@ -179,23 +179,23 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 <div className={cn(
                                     "flex items-center justify-center w-6 h-6 rounded-full text-caption font-black transition-all duration-300 border shrink-0",
                                     i < step
-                                        ? "bg-emerald-500 border-emerald-400 text-white "
+                                        ? "bg-success border-success text-foreground "
                                         : i === step
-                                            ? "bg-emerald-500/20 border-emerald-400/60 text-emerald-200 ring-2 ring-emerald-500/40"
-                                            : "bg-zinc-800 border-white/20 text-zinc-300"
+                                            ? "bg-success/20 border-success/60 text-success ring-2 ring-success/40"
+                                            : "bg-elevated border-border-strong text-foreground"
                                 )}>
                                     {i < step ? <Check className="w-3 h-3" /> : i + 1}
                                 </div>
                                 <span className={cn(
                                     "text-caption font-bold uppercase tracking-wider hidden sm:inline transition-colors",
-                                    i === step ? "text-white" : "text-zinc-400"
+                                    i === step ? "text-foreground" : "text-muted-foreground"
                                 )}>
                                     {s.label}
                                 </span>
                                 {i < STEPS.length - 1 && (
                                     <div className={cn(
                                         "flex-1 h-px transition-all duration-300",
-                                        i < step ? "bg-emerald-500/60" : "bg-white/15"
+                                        i < step ? "bg-success/60" : "bg-elevated"
                                     )} />
                                 )}
                             </div>
@@ -210,8 +210,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 0 && (
                         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div>
-                                <Label htmlFor="build-name" className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-2 block">
-                                    Nom du build <span className="text-zinc-400 font-normal">(max 30 caractères)</span>
+                                <Label htmlFor="build-name" className="text-xs font-black uppercase tracking-widest text-foreground mb-2 block">
+                                    Nom du build <span className="text-muted-foreground font-normal">(max 30 caractères)</span>
                                 </Label>
                                 <Input
                                     id="build-name"
@@ -221,22 +221,22 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && isStep0Valid && setStep(1)}
-                                    className="bg-zinc-900 border-white/10 text-white placeholder:text-zinc-600 h-12 text-base focus:border-emerald-500/50 focus:ring-emerald-500/20 transition-all"
+                                    className="bg-surface border-border text-foreground placeholder:text-muted-foreground h-12 text-base focus:border-success/50 focus:ring-success/20 transition-all"
                                 />
                                 <div className="flex justify-end mt-1.5">
                                     <span className={cn(
                                         "text-caption font-bold tabular-nums transition-colors",
-                                        name.length >= 28 ? "text-amber-400" : "text-zinc-400"
+                                        name.length >= 28 ? "text-warning" : "text-muted-foreground"
                                     )}>
                                         {name.length}/30
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="mt-auto p-4 bg-zinc-900/50 rounded-2xl border border-white/5 text-xs text-zinc-500 leading-relaxed">
-                                <span className="text-zinc-400 font-bold">Conseil :</span> Donne un nom court et descriptif comme{" "}
-                                <span className="text-zinc-300 font-bold">Cra Eau PvM</span> ou{" "}
-                                <span className="text-zinc-300 font-bold">Iop Terre Songes</span> pour que les autres membres s'y retrouvent facilement.
+                            <div className="mt-auto p-4 bg-surface/50 rounded-2xl border border-border text-xs text-muted-foreground leading-relaxed">
+                                <span className="text-muted-foreground font-bold">Conseil :</span> Donne un nom court et descriptif comme{" "}
+                                <span className="text-foreground font-bold">Cra Eau PvM</span> ou{" "}
+                                <span className="text-foreground font-bold">Iop Terre Songes</span> pour que les autres membres s'y retrouvent facilement.
                             </div>
                         </div>
                     )}
@@ -245,7 +245,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 1 && (
                         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                <Label htmlFor="build-url" className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-2 block">
+                                <Label htmlFor="build-url" className="text-xs font-black uppercase tracking-widest text-foreground mb-2 block">
                                     Lien de partage DofusBook
                                 </Label>
                                 <div className="relative">
@@ -256,26 +256,26 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                         value={url}
                                         onChange={(e) => setUrl(e.target.value)}
                                         className={cn(
-                                            "bg-zinc-900 border-white/10 text-white placeholder:text-zinc-600 h-11 font-mono text-xs pr-10 transition-all",
-                                            url.trim().length > 0 && urlIsValid === true && "border-emerald-500/50",
-                                            url.trim().length > 0 && urlIsValid === false && "border-red-500/50"
+                                            "bg-surface border-border text-foreground placeholder:text-muted-foreground h-11 font-mono text-xs pr-10 transition-all",
+                                            url.trim().length > 0 && urlIsValid === true && "border-success/50",
+                                            url.trim().length > 0 && urlIsValid === false && "border-danger/50"
                                         )}
                                     />
                                     {url.trim().length > 0 && (
                                         <div className={cn(
                                             "absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center",
-                                            urlIsValid ? "bg-emerald-500" : "bg-red-500/80"
+                                            urlIsValid ? "bg-success" : "bg-danger/80"
                                         )}>
                                             {urlIsValid
-                                                ? <Check className="w-3 h-3 text-white" />
-                                                : <span className="text-white text-xs font-black">!</span>
+                                                ? <Check className="w-3 h-3 text-foreground" />
+                                                : <span className="text-foreground text-xs font-black">!</span>
                                             }
                                         </div>
                                     )}
                                 </div>
                                 <p className={cn(
                                     "text-caption mt-1.5 flex items-center gap-1 transition-colors",
-                                    url.trim().length > 0 && urlIsValid === false ? "text-red-400" : "text-zinc-500"
+                                    url.trim().length > 0 && urlIsValid === false ? "text-danger" : "text-muted-foreground"
                                 )}>
                                     <ShieldAlert className="w-3 h-3 shrink-0" />
                                     {url.trim().length > 0 && urlIsValid === false
@@ -291,14 +291,14 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 2 && (
                         <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-300">
-                                    Tags <span className="text-zinc-400 font-normal">(optionnel, max 3)</span>
+                                <Label className="text-xs font-black uppercase tracking-widest text-foreground">
+                                    Tags <span className="text-muted-foreground font-normal">(optionnel, max 3)</span>
                                 </Label>
                                 {tags.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setTags([])}
-                                        className="text-caption text-zinc-500 hover:text-red-400 transition-colors font-bold"
+                                        className="text-caption text-muted-foreground hover:text-danger transition-colors font-bold"
                                     >
                                         Effacer tout
                                     </button>
@@ -306,17 +306,17 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                             </div>
 
                             <div className="relative mb-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Rechercher un tag (ex: Eau, Soin...)"
                                     value={tagSearch}
                                     onChange={(e) => setTagSearch(e.target.value)}
-                                    className="pl-9 pr-8 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 h-9 text-xs rounded-lg focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                    className="pl-9 pr-8 bg-surface/50 border-border text-foreground placeholder:text-muted-foreground h-9 text-xs rounded-lg focus:border-success/50 focus:ring-success/20"
                                 />
                                 {tagSearch && (
                                     <button
                                         onClick={() => setTagSearch("")}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
                                     </button>
@@ -334,7 +334,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
 
                                     return (
                                         <div key={cat.name}>
-                                            <h4 className="text-caption font-black uppercase tracking-[0.2em] text-zinc-300 mb-2">{cat.name}</h4>
+                                            <h4 className="text-caption font-black uppercase tracking-[0.2em] text-foreground mb-2">{cat.name}</h4>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {filteredIds.map(tagId => {
                                                     const tag = DO_TAGS.find(t => t.id === tagId)!;
@@ -356,9 +356,9 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                             className={cn(
                                                                 "px-2.5 py-1 text-caption rounded-lg transition-all border font-semibold select-none flex items-center gap-1.5",
                                                                 isSelected
-                                                                    ? `${tag.className} shadow-md opacity-100 ring-2 ring-emerald-500/40 shadow-emerald-500/10`
+                                                                    ? `${tag.className} shadow-md opacity-100 ring-2 ring-success/40 shadow-emerald-500/10`
                                                                     : isDisabled
-                                                                        ? "bg-transparent border-white/5 text-zinc-700 opacity-30 cursor-not-allowed"
+                                                                        ? "bg-transparent border-border text-muted-foreground opacity-30 cursor-not-allowed"
                                                                         : `${tag.className} opacity-75 saturate-75 hover:opacity-100 hover:saturate-100`
                                                             )}
                                                         >
@@ -375,8 +375,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
 
                             {/* Selected summary */}
                             {tags.length > 0 ? (
-                                <div className="mt-auto flex items-center gap-2 p-2.5 bg-zinc-900/50 rounded-xl border border-white/5">
-                                    <span className="text-caption text-zinc-500 font-bold shrink-0">Sélectionnés :</span>
+                                <div className="mt-auto flex items-center gap-2 p-2.5 bg-surface/50 rounded-xl border border-border">
+                                    <span className="text-caption text-muted-foreground font-bold shrink-0">Sélectionnés :</span>
                                     <div className="flex gap-1.5 flex-wrap">
                                         {tags.map(tid => {
                                             const tag = DO_TAGS.find(t => t.id === tid);
@@ -389,8 +389,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                     </div>
                                 </div>
                             ) : (
-                                <div className="mt-auto p-2.5 bg-zinc-900/30 rounded-xl border border-dashed border-white/5 text-center">
-                                    <span className="text-caption text-zinc-600 italic">Étape optionnelle — passe directement à Suivant si tu le souhaites</span>
+                                <div className="mt-auto p-2.5 bg-surface/30 rounded-xl border border-dashed border-border text-center">
+                                    <span className="text-caption text-muted-foreground italic">Étape optionnelle — passe directement à Suivant si tu le souhaites</span>
                                 </div>
                             )}
                         </div>
@@ -400,25 +400,25 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 3 && (
                         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div>
-                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-1 block">
-                                    Classe du personnage <span className="text-zinc-400 font-normal">(recommandé)</span>
+                                <Label className="text-xs font-black uppercase tracking-widest text-foreground mb-1 block">
+                                    Classe du personnage <span className="text-muted-foreground font-normal">(recommandé)</span>
                                 </Label>
-                                <p className="text-caption text-zinc-400 mb-3">
+                                <p className="text-caption text-muted-foreground mb-3">
                                     Sélectionnez la classe pour une belle preview, même si DofusBook est lent.
                                 </p>
 
                                 <div className="relative mb-3">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input
                                         placeholder="Rechercher une classe..."
                                         value={classSearch}
                                         onChange={(e) => setClassSearch(e.target.value)}
-                                        className="pl-9 pr-8 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 h-9 text-xs rounded-lg focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                        className="pl-9 pr-8 bg-surface/50 border-border text-foreground placeholder:text-muted-foreground h-9 text-xs rounded-lg focus:border-success/50 focus:ring-success/20"
                                     />
                                     {classSearch && (
                                         <button
                                             onClick={() => setClassSearch("")}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                         >
                                             <X className="w-3.5 h-3.5" />
                                         </button>
@@ -436,10 +436,10 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                 onMouseEnter={() => setHoveredClassId(cls.id)}
                                                 onMouseLeave={() => setHoveredClassId(null)}
                                                 className={cn(
-                                                    "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden group bg-zinc-900/30",
+                                                    "relative aspect-square rounded-xl border transition-all duration-300 flex items-center justify-center overflow-hidden group bg-surface/30",
                                                     isSelected
-                                                        ? "scale-110 border-emerald-500 bg-emerald-500/10  z-20"
-                                                        : "border-white/5 hover:border-white/20 hover:bg-zinc-900/60 z-10"
+                                                        ? "scale-110 border-success bg-success/10  z-20"
+                                                        : "border-border hover:border-border-strong hover:bg-surface/60 z-10"
                                                 )}
                                             >
                                                 <div className={cn(
@@ -463,11 +463,11 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 {/* Class name tooltip */}
                                 <div className="flex items-center justify-center h-8 mt-2">
                                     {(hoveredClassId || classId) ? (
-                                        <span className="text-xs font-bold px-3 py-1.5 bg-white/10 rounded-full text-white tracking-wide shadow-inner animate-in fade-in zoom-in duration-150">
+                                        <span className="text-xs font-bold px-3 py-1.5 bg-surface rounded-full text-foreground tracking-wide shadow-inner animate-in fade-in zoom-in duration-150">
                                             {DOFUS_CLASSES.find(c => c.id === (hoveredClassId || classId))?.name}
                                         </span>
                                     ) : (
-                                        <span className="text-caption font-medium text-zinc-400 italic">
+                                        <span className="text-caption font-medium text-muted-foreground italic">
                                             Survolez pour voir le nom de la classe
                                         </span>
                                     )}
@@ -478,13 +478,13 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                 </div>
 
                 {/* Footer navigation */}
-                <div className="flex items-center justify-between px-6 pb-6 pt-4 border-t border-white/5 gap-3">
+                <div className="flex items-center justify-between px-6 pb-6 pt-4 border-t border-border gap-3">
                     {/* Back button */}
                     <Button
                         variant="ghost"
                         onClick={() => step > 0 ? setStep(s => s - 1) : handleClose(false)}
                         disabled={isSubmitting}
-                        className="text-zinc-500 hover:text-white hover:bg-white/5"
+                        className="text-muted-foreground hover:text-foreground hover:bg-surface"
                     >
                         <ChevronLeft className="w-4 h-4 mr-1" />
                         {step === 0 ? "Annuler" : "Retour"}
@@ -495,7 +495,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                         {STEPS.map((_, i) => (
                             <div key={i} className={cn(
                                 "h-1.5 rounded-full transition-all duration-300",
-                                i === step ? "w-6 bg-emerald-500" : i < step ? "w-2 bg-emerald-500/40" : "w-2 bg-zinc-800"
+                                i === step ? "w-6 bg-success" : i < step ? "w-2 bg-success/40" : "w-2 bg-elevated"
                             )} />
                         ))}
                     </div>

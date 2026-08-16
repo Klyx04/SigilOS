@@ -307,19 +307,31 @@ export function ClassDisplay({
                         </div>
                     </div>
 
-                    <div className="p-6 border-t border-white/5 bg-zinc-900/40 flex justify-end gap-3 shrink-0">
-                        <DialogClose asChild>
-                            <Button variant="ghost" className="text-zinc-400 hover:text-white">
-                                Annuler
+                    <div className="p-6 border-t border-white/5 bg-zinc-900/40 flex flex-col gap-2 shrink-0">
+                        {(!localPseudo.trim() || !selectedMain) && (
+                            <p className="text-caption text-zinc-500 text-right">
+                                {!localPseudo.trim() && !selectedMain
+                                    ? "Étapes à faire : renseigne ton pseudo Dofus (1) puis choisis ta classe (2)."
+                                    : !localPseudo.trim()
+                                        ? "Étape 1 à faire : renseigne ton pseudo Dofus."
+                                        : "Étape 2 à faire : choisis ta classe."}
+                            </p>
+                        )}
+                        <div className="flex justify-end gap-3">
+                            <DialogClose asChild>
+                                <Button variant="ghost" className="text-zinc-400 hover:text-white">
+                                    Annuler
+                                </Button>
+                            </DialogClose>
+                            <Button
+                                onClick={handleSave}
+                                variant="sigil"
+                                size="xl"
+                                disabled={!localPseudo.trim() || !selectedMain}
+                            >
+                                Confirmer les changements
                             </Button>
-                        </DialogClose>
-                        <Button 
-                            onClick={handleSave} 
-                            variant="sigil"
-                            size="xl"
-                        >
-                            Confirmer les changements
-                        </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

@@ -24,14 +24,15 @@ type HubCard = {
     visible: boolean;
 };
 
+// #5 — Accent unique emerald (fini l'arc-en-ciel par carte)
 const ACCENT = {
-    emerald: { border: "hover:border-emerald-500/50", hover: "hover:bg-emerald-500/5", text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
-    amber: { border: "hover:border-amber-500/50", hover: "hover:bg-amber-500/5", text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
-    indigo: { border: "hover:border-indigo-500/50", hover: "hover:bg-indigo-500/5", text: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500/10" },
-    violet: { border: "hover:border-violet-500/50", hover: "hover:bg-violet-500/5", text: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10" },
-    rose: { border: "hover:border-rose-500/50", hover: "hover:bg-rose-500/5", text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
-    cyan: { border: "hover:border-cyan-500/50", hover: "hover:bg-cyan-500/5", text: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/10" },
-    slate: { border: "hover:border-slate-500/50", hover: "hover:bg-slate-500/5", text: "text-slate-600 dark:text-slate-400", bg: "bg-slate-500/10" },
+    emerald: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    amber: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    indigo: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    violet: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    rose: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    cyan: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+    slate: { border: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/5", text: "text-emerald-400", bg: "bg-emerald-500/10" },
 };
 
 export default async function AnnuaireHubPage({
@@ -106,20 +107,14 @@ export default async function AnnuaireHubPage({
                     if (!card.visible) return null;
 
                     return (
-                        <Link key={card.href} href={card.href} className="group outline-none">
+                        <Link key={card.href} href={card.href} className="group outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 rounded-2xl">
                             <div className={cn(
-                                "relative flex flex-col h-full rounded-[2.5rem] border border-border bg-foreground/[0.02] p-8 transition-all duration-300 hover:border-border hover:bg-foreground/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.1)] overflow-hidden",
-                                "before:absolute before:inset-0 before:bg-gradient-to-br before:from-foreground/[0.05] before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300"
+                                "relative flex flex-col h-full rounded-2xl border border-border bg-foreground/[0.02] p-8 transition-colors duration-200 hover:border-emerald-500/40 hover:bg-foreground/[0.04] overflow-hidden"
                             )}>
-                                <div className={cn(
-                                    "absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-full z-0",
-                                    a.bg
-                                )} />
-
                                 <div className="relative z-10 flex flex-col h-full">
                                     <div className="flex items-center justify-between mb-8">
                                         <div className={cn(
-                                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 border group- group-hover:rotate-3 shadow-xl",
+                                            "w-14 h-14 rounded-xl flex items-center justify-center border",
                                             a.bg,
                                             a.border.replace("hover:", "")
                                         )}>
@@ -128,22 +123,22 @@ export default async function AnnuaireHubPage({
                                     </div>
 
                                     <div className="space-y-4 flex-1">
-                                        <h3 className="text-xl font-black text-foreground tracking-tighter uppercase leading-tight">
+                                        <h3 className="text-title font-bold text-foreground leading-tight">
                                             {card.title}
                                         </h3>
-                                        <p className="text-body-sm text-muted-foreground font-black leading-relaxed group-hover:text-foreground transition-colors italic">
+                                        <p className="text-body-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
                                             {card.description}
                                         </p>
                                     </div>
 
                                     <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                                         <div className={cn(
-                                            "flex items-center gap-2 text-caption font-black uppercase tracking-[0.2em] transition-all",
+                                            "flex items-center gap-2 text-caption font-semibold",
                                             a.text,
-                                            "opacity-40 group-hover:opacity-100"
+                                            "opacity-50 group-hover:opacity-100"
                                         )}>
-                                            <span className="group-hover:translate-x-1 transition-transform">Consulter</span>
-                                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                                            <span className="group-hover:translate-x-0.5 transition-transform">Consulter</span>
+                                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
                                 </div>

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Gem } from "lucide-react";
 
 interface DofusIconProps {
     name: string;
@@ -20,26 +19,28 @@ export function DofusIcon({
     className = "" 
 }: DofusIconProps) {
     const [error, setError] = useState(false);
-    
-    // 🛠️ ULTIMATE ROBUST FILENAME RESOLUTION
+
+    // 🛠️ ULTIMATE ROBUST FILENAME RESOLUTION (#88 : `Dofus_Dofus_Emeraude.png` → 400
+    // car `dofus.name` = « Dofus Émeraude » ; on retire le préfixe « Dofus » quand présent)
     const normalizeName = (str: string) => {
-        const n = str.trim();
-        
+        const n = str.trim().replace(/^Dofus\s+/i, "");
+        const lower = n.toLocaleLowerCase();
+
         // Specific alias mappings based on filesystem audit
-        if (n === "Glaces") return "Des_Glaces";
-        if (n === "Cauchemar") return "Du_Cauchemar";
-        if (n === "Scintillant") return "Argente_Scintillant";
-        
-        if (n === "Argenté" || n === "Tacheté") return n;
-        
-        // Strip ALL accents for other Dofus (e.g., Ébène -> Ebene, Émeraude -> Emeraude)
-        return n.normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "") // Remove combining diacritics
-                .replace(/\s+/g, '_');          // Spaces to underscores
+        if (lower === "glaces" || lower === "des glaces") return "Des_Glaces";
+        if (lower === "cauchemar" || lower === "du cauchemar") return "Du_Cauchemar";
+        if (lower === "scintillant" || lower === "argente scintillant" || lower === "argenté scintillant") return "Argente_Scintillant";
+        if (lower === "veilleurs" || lower === "veilleur") return "Veilleur";
+        if (lower === "tacheté" || lower === "tachete") return "Tacheté";
+
+        // Strip ALL accents (e.g., Ébène -> Ebene, Émeraude -> Emeraude, Argenté -> Argente)
+        const deaccented = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return deaccented.replace(/\s+/g, "_");
     };
 
     const localSrc = `/module-dofus/Dofus_${normalizeName(name)}.png`;
-    const fallbackSrc = "https://static.dofusdb.fr/items/19000.png";
+    // Fallback local (le CDN static.dofusdb.fr renvoyait 500 via /_next/image)
+    const fallbackSrc = "/assets/missions/fragment.png";
 
     if (error) {
         return (

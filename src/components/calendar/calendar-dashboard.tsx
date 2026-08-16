@@ -114,7 +114,14 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
 export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
-    const [currentDate, setCurrentDate] = useState(new Date());
+    // Chantier #87/#88 : `new Date()` en SSR (serveur UTC) vs client (Europe/Paris) peut
+    // changer le jour affiché → on initialise null et on ne calcule « aujourd'hui » qu'après
+    // montage (hydratation déterministe, plus d'erreur React #418 sur /calendar).
+    const [currentDate, setCurrentDate] = useState<Date | null>(null);
+
+    useEffect(() => {
+        setCurrentDate(new Date());
+    }, []);
 
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -169,6 +176,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const sortedDates = Object.keys(groupedEvents).sort();
 
     const fetchEvents = async () => {
+        if (!currentDate) return;
         setLoading(true);
 
         // Fetch events for the entire month (works for both week and month views)
@@ -432,6 +440,16 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         setPrefilledDate(date);
         setIsCreateOpen(true);
     };
+
+    // Hydratation déterministe (#87/#88) : le calendrier ne se monte qu'après
+    // initialisation de « aujourd'hui » côté client.
+    if (currentDate === null) {
+        return (
+            <div className="p-12 text-center text-zinc-500 font-medium">
+                Chargement du calendrier...
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

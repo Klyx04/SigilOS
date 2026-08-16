@@ -122,7 +122,7 @@ export default function PresentationContent({
 
                     {/* History */}
                     {guild.history ? (
-                        <Card className="border-zinc-800 bg-zinc-900/50">
+                        <Card className="border-zinc-800 bg-zinc-900/50 overflow-hidden">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <Globe className="w-5 h-5 text-emerald-400" />
@@ -131,7 +131,7 @@ export default function PresentationContent({
                             </CardHeader>
                             <CardContent>
                                 <div className="prose prose-invert prose-zinc max-w-none">
-                                    <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+                                    <p className="whitespace-pre-wrap break-words overflow-hidden text-zinc-300 leading-relaxed">
                                         {guild.history}
                                     </p>
                                 </div>

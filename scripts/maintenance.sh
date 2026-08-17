@@ -182,6 +182,21 @@ else
     echo "⚠️  Rappels prêts ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6c. Relance & Purge des posts inactifs DJ / Quêtes / Songes (chantier #107)
+# Règle 7 > 15 > 20 > Fini (3 rappels progressifs puis clôture + suppression Discord)
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    INACTIVE_RESPONSE=$(curl -s -o /tmp/inactive-posts-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/cleanup-inactive-posts")
+    if [ "$INACTIVE_RESPONSE" -eq 200 ]; then
+        echo "✅ Posts inactifs traités avec succès (J+7, J+15, J+20, Purge J+21)"
+    else
+        echo "⚠️  Posts inactifs : HTTP $INACTIVE_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Posts inactifs ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
 # 7. Audit Final
 echo "🩺 Lancement de l'audit de santé..."
 bash "$(dirname "$0")/audit.sh"

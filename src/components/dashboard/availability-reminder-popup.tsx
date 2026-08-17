@@ -13,11 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+import { dismissAvailabilityReminder } from "@/server/actions/profile-actions";
+
 /**
  * Rappel hebdomadaire « remplis ta semaine de disponibilités ».
  * - Ne s'affiche JAMAIS si le module n'est pas activé côté admin (props `enabled` calculée serveur).
  * - Ne s'affiche JAMAIS pendant l'onboarding de la guilde (server-side).
- * - Max 1 fois par semaine par navigateur : marquage immédiat en localStorage (clé = semaine ISO).
+ * - Persistance hybride : localStorage + Base de Données (aucun re-spam sur mobile/autres devices).
  */
 const STORAGE_KEY = "sigil-availability-reminder-week";
 
@@ -35,8 +37,6 @@ export function AvailabilityReminderPopup({ guildId, enabled }: { guildId: strin
             const week = currentWeekKey();
             const seen = localStorage.getItem(STORAGE_KEY);
             if (seen === week) return;
-            // Marquage immédiat : on ne re-spamme JAMAIS dans la même semaine,
-            // même si l'utilisateur ferme la popup.
             localStorage.setItem(STORAGE_KEY, week);
             setOpen(true);
         } catch {
@@ -44,8 +44,16 @@ export function AvailabilityReminderPopup({ guildId, enabled }: { guildId: strin
         }
     }, [enabled]);
 
+    const handleDismiss = () => {
+        setOpen(false);
+        try {
+            localStorage.setItem(STORAGE_KEY, currentWeekKey());
+        } catch {}
+        dismissAvailabilityReminder(guildId).catch(() => {});
+    };
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) handleDismiss(); else setOpen(v); }}>
             <DialogContent className="max-w-md border-border">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
@@ -65,13 +73,14 @@ export function AvailabilityReminderPopup({ guildId, enabled }: { guildId: strin
                     <Button
                         asChild
                         className="flex-1 bg-success hover:bg-success text-success-foreground font-semibold"
+                        onClick={handleDismiss}
                     >
                         <Link href={`/dashboard/${guildId}/profile?tab=planning`}>
                             Remplir ma semaine
                         </Link>
                     </Button>
-                    <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
-                        Plus tard
+                    <Button variant="outline" onClick={handleDismiss} className="flex-1">
+                        Plus tard (ne plus me rappeler cette semaine)
                     </Button>
                 </div>
             </DialogContent>

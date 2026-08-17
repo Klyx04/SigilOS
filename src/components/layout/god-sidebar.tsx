@@ -12,6 +12,7 @@ import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CONSOLE_PAGES, GOD_NAV_GROUPS, ALL_SCOPES_COUNT, type GodNavItem } from "./god-nav-config";
+import { ThemeToggle } from "./ThemeToggle";
 
 // 🔒 SECURITY (R3): les liens utilisent TOUJOURS godRoute (jamais "/god" en dur)
 // pour passer par le proxy anti-scout.
@@ -91,13 +92,16 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
 
     return (
         <div ref={sidebarRef} style={{ width }} className={cn("relative flex flex-col h-full bg-background border-r border-border", className)}>
-            <div className="p-6 lg:p-8 pb-4">
-                <Link href="/" className="flex items-center gap-4 px-2 group/brand hover:opacity-80 transition-opacity">
+            <div className="p-6 lg:p-8 pb-4 flex items-center justify-between">
+                <Link href="/" className="flex items-center gap-4 px-2 group/brand hover:opacity-80 transition-opacity min-w-0">
                     <div className="relative h-8 w-8 md:h-10 md:w-10 shrink-0">
                         <Image src="/assets/ui/logo-v2.png" alt="SigilOS" fill priority sizes="(max-width: 768px) 32px, 40px" className="object-contain" />
                     </div>
                     <span className="text-lg md:text-2xl font-bold tracking-tight text-foreground leading-none font-heading truncate">SIGIL<span className="text-amber-400">GOD</span></span>
                 </Link>
+                <div className="p-1 rounded-xl bg-surface border border-border shrink-0">
+                    <ThemeToggle />
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-4 lg:py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -143,12 +147,12 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                 </nav>
             </div>
 
-            <div className="p-4 border-t border-border bg-background/80 backdrop-blur-md">
+            <div className="p-4 border-t border-border bg-background/80 backdrop-blur-md flex items-center justify-between gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-surface group rounded-xl transition-colors">
+                        <Button variant="ghost" className="flex-1 justify-start h-auto p-2 hover:bg-surface group rounded-xl transition-colors">
                             <div className="flex items-center gap-3 w-full">
-                                <Avatar className="h-10 w-10 rounded-lg border-2 border-border">
+                                <Avatar className="h-10 w-10 rounded-lg border-2 border-border shrink-0">
                                     <DiscordAvatarImage src={user.image} />
                                     <AvatarFallback className="bg-elevated text-xs font-bold text-amber-500">SU</AvatarFallback>
                                 </Avatar>

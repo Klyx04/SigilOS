@@ -228,7 +228,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     return (
         <div className="space-y-12">
             {/* Navigation par onglets */}
-            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-black/60 backdrop-blur-xl border-b border-border">
+            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-background/80 backdrop-blur-xl border-b border-border shadow-xs">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center justify-between">
                         {/* Tab Container with Scroll Mask */}

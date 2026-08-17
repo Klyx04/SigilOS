@@ -34,7 +34,7 @@ const DOFUS_DEFS: DofusDef[] = [
   { id: "des_veilleurs",      label: "Veilleurs",          color: "#38bdf8", imageUrl: "/module-dofus/Dofus_Veilleur.png" },
   { id: "domakuro",           label: "Domakuro",           color: "#84cc16", imageUrl: "/module-dofus/Dofus_Domakuro.png" },
   { id: "dorigami",           label: "Dorigami",           color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
-  { id: "tachete",            label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tacheté.png" },
+  { id: "tachete",            label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tachete.png" },
   { id: "dom_de_pin",         label: "Dom de Pin",         color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
   { id: "sylvestre",          label: "Sylvestre",          color: "#d4a017", imageUrl: "/module-dofus/Dofus_Sylvestre.png" },
 ];

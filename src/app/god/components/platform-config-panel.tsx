@@ -438,6 +438,60 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         </button>
                     </div>
                 </div>
+
+                {/* CARTE 4: GESTION DES RAPPELS ET POSTS INACTIFS (#107) */}
+                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
+                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <Bell className="w-4 h-4 text-amber-400" />
+                                Relances & Purge des Posts Inactifs (DJ / Quêtes / Songes)
+                            </h4>
+                            <p className="text-zinc-500 text-xs font-medium">
+                                Calendrier progressif (7 &gt; 15 &gt; 20 &gt; Fini) : rappels automatiques par ping Discord à J+7, J+15, J+20 puis auto-clôture et suppression de l'embed.
+                            </p>
+                        </div>
+                        <Button
+                            size="sm"
+                            disabled={isPending}
+                            onClick={() => {
+                                startTransition(async () => {
+                                    const { godProcessInactivePosts } = await import("@/server/actions/god-system-actions");
+                                    const res = await godProcessInactivePosts();
+                                    if (res.success) {
+                                        toast.success(
+                                            `Balayage terminé : ${res.djRemindersSent} rappels DJ, ${res.djPostsClosed} DJ clos, ${res.songesRemindersSent} rappels Songes, ${res.songesRunsClosed} Songes clos.`
+                                        );
+                                    } else {
+                                        toast.error(res.error || "Erreur lors du balayage");
+                                    }
+                                });
+                            }}
+                            className="bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 text-xs font-bold shrink-0"
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
+                            Lancer le balayage maintenant
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Calendrier des Relances</span>
+                            <p className="text-white font-black text-sm">J+7 • J+15 • J+20</p>
+                            <span className="text-zinc-600 text-caption block">3 rappels progressifs par ping Discord</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Plafond & Canal</span>
+                            <p className="text-white font-black text-sm">3 appels max</p>
+                            <span className="text-zinc-600 text-caption block">Dans le fil / salon du post de guilde</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Action finale</span>
+                            <p className="text-rose-400 font-black text-sm">Clôture & Purge à J+21</p>
+                            <span className="text-zinc-600 text-caption block">Fermeture DB + suppression de l'embed</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>

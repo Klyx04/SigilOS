@@ -1,4 +1,7 @@
 import { guide as creerGererGuideDofus2026 } from "./creer-gerer-guilde-dofus-2026";
+import { guide as poidsRunesForgemagieDofus } from "./poids-runes-forgemagie-dofus";
+import { guide as guideElevageEnclosGuildeDofus } from "./guide-elevage-enclos-guilde-dofus";
+import { guide as guideBrisageRentabiliteRunes } from "./guide-brisage-rentabilite-runes";
 
 export type Guide = {
     slug: string;
@@ -18,6 +21,30 @@ export const allGuides: readonly Guide[] = [
         updatedAt: creerGererGuideDofus2026.updatedAt,
         draft: creerGererGuideDofus2026.draft,
     },
+    {
+        slug: poidsRunesForgemagieDofus.slug,
+        title: poidsRunesForgemagieDofus.title,
+        description: poidsRunesForgemagieDofus.description,
+        publishedAt: poidsRunesForgemagieDofus.publishedAt,
+        updatedAt: poidsRunesForgemagieDofus.updatedAt,
+        draft: poidsRunesForgemagieDofus.draft,
+    },
+    {
+        slug: guideElevageEnclosGuildeDofus.slug,
+        title: guideElevageEnclosGuildeDofus.title,
+        description: guideElevageEnclosGuildeDofus.description,
+        publishedAt: guideElevageEnclosGuildeDofus.publishedAt,
+        updatedAt: guideElevageEnclosGuildeDofus.updatedAt,
+        draft: guideElevageEnclosGuildeDofus.draft,
+    },
+    {
+        slug: guideBrisageRentabiliteRunes.slug,
+        title: guideBrisageRentabiliteRunes.title,
+        description: guideBrisageRentabiliteRunes.description,
+        publishedAt: guideBrisageRentabiliteRunes.publishedAt,
+        updatedAt: guideBrisageRentabiliteRunes.updatedAt,
+        draft: guideBrisageRentabiliteRunes.draft,
+    },
 ];
 
 // Guides visibles publiquement (hors brouillons)
@@ -29,8 +56,16 @@ export function getGuideBySlug(slug: string) {
 
 // Contenu complet d'un guide (utilisé uniquement sur la page détail)
 export async function getGuideContent(slug: string) {
-    if (slug === "creer-gerer-guilde-dofus-2026") {
-        return creerGererGuideDofus2026;
+    switch (slug) {
+        case "creer-gerer-guilde-dofus-2026":
+            return creerGererGuideDofus2026;
+        case "poids-runes-forgemagie-dofus":
+            return poidsRunesForgemagieDofus;
+        case "guide-elevage-enclos-guilde-dofus":
+            return guideElevageEnclosGuildeDofus;
+        case "guide-brisage-rentabilite-runes":
+            return guideBrisageRentabiliteRunes;
+        default:
+            return null;
     }
-    return null;
-}
+}

@@ -908,6 +908,44 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
     }
 }
 
+export async function dismissAvailabilityReminder(guildId: string): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const currentProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { availability: true }
+        });
+        if (!currentProfile) return { success: false, error: "Profil introuvable" };
+
+        const now = new Date();
+        const weekKey = `${now.getFullYear()}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+        const existing = (currentProfile.availability as Record<string, any>) || {};
+
+        await db.userProfile.update({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            data: {
+                availability: {
+                    ...existing,
+                    dismissedWeek: weekKey,
+                    dismissedAt: new Date().toISOString()
+                }
+            }
+        });
+
+        return { success: true };
+    } catch (error) {
+        logger.error("Dismiss Availability Reminder Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationSchema>): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };

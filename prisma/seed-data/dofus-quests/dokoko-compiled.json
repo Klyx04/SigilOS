@@ -7,7 +7,7 @@
   "description": "Obtenir l'œuf de Kokoko sur l'île de Moon via les aventures flibustières.",
   "dofusItemId": 17078,
   "iconId": 23022,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23022.png",
+  "imageUrl": "/module-dofus/Dofus_Dokoko.png",
   "compiledAt": "2026-04-10T16:07:18.883Z",
   "compilerVersion": "3.0",
   "chains": [

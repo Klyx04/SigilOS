@@ -1,10 +1,53 @@
 "use server";
 
+import fs from "fs";
+import path from "path";
 import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "./super-admin-actions";
 import { revalidatePath } from "next/cache";
 import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
 import { logger } from "@/lib/logger";
+
+export async function deleteMapFileAndBlacklist(id: number) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Unauthorized");
+
+    // 1. Suppression physique de l'image HD si existante sur le disque
+    const sanitizedId = String(id).replace(/[^0-9]/g, "");
+    const hdDir = path.resolve(process.cwd(), "public", "game-data", "hd_maps");
+    const hdFilePath = path.resolve(hdDir, `${sanitizedId}.webp`);
+    try {
+        if (fs.existsSync(hdFilePath)) {
+            fs.unlinkSync(hdFilePath);
+            logger.info(`[GodActions] 🗑️ Image HD physique supprimée du disque : ${hdFilePath}`);
+        }
+    } catch (err) {
+        logger.error(`[GodActions] Erreur suppression fichier image HD : ${hdFilePath}`, { error: err });
+    }
+
+    // 2. Récupération et mise à jour de la configuration Singleton (Blacklist + Nettoyage Signalements)
+    const config = await getPlatformConfig();
+    const currentBlacklist: number[] = Array.isArray(config.geoguesserBlacklist) ? (config.geoguesserBlacklist as number[]) : [];
+    const currentReports: any[] = Array.isArray(config.geoguesserReportedMaps) ? (config.geoguesserReportedMaps as any[]) : [];
+
+    const updatedBlacklist = currentBlacklist.includes(id) ? currentBlacklist : [...currentBlacklist, id];
+    const updatedReports = currentReports.filter((r: any) => (typeof r === 'number' ? r !== id : r?.id !== id));
+
+    const updated = await db.platformConfig.update({
+        where: { id: "singleton" },
+        data: {
+            geoguesserBlacklist: updatedBlacklist,
+            geoguesserReportedMaps: updatedReports as any
+        }
+    });
+
+    // 3. Synchronisation immédiate de l'instance serveur
+    WorldMapService.getInstance().setBlacklist(updatedBlacklist);
+
+    revalidatePath("/god/mini-games");
+    revalidatePath("/dashboard/[guildId]/mini-jeux", "layout");
+    return { success: true, blacklist: updatedBlacklist, reportedMaps: updatedReports };
+}
 
 export async function getMiniGamesStatus() {
     // This action doesn't strictly need superadmin check if we want to show status on public/member pages,

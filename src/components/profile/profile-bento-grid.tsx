@@ -694,6 +694,7 @@ export function ProfileBentoGrid({
                                 }));
                             }}
                             canSyncLadder={canSyncLadder}
+                            canManualSyncLadder={canManualSyncLadder}
                         />
                     )}
                 </TabsContent>

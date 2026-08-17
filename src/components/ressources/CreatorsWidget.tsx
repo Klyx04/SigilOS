@@ -16,7 +16,16 @@ interface Creator {
     order: number;
 }
 
-export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isSuperAdmin: boolean }) {
+export function CreatorsWidget({ 
+    guildId, 
+    isSuperAdmin, 
+    canManage = false 
+}: { 
+    guildId: string; 
+    isSuperAdmin: boolean; 
+    canManage?: boolean; 
+}) {
+    const hasAdminAccess = isSuperAdmin || canManage;
     const [creators, setCreators] = useState<Creator[]>([]);
     const [liveData, setLiveData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -123,19 +132,19 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
                     </div>
                 </div>
 
-                {isSuperAdmin && (
+                {hasAdminAccess && (
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsEditingMode(!isEditingMode)}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all text-caption font-black uppercase tracking-widest ${isEditingMode ? 'bg-danger/20 border-danger/40 text-danger' : 'bg-surface border-border text-muted-foreground hover:text-danger-foreground hover:border-border-strong'}`}
                         >
-                            <Settings2 className="h-4 w-4" /> {isEditingMode ? "Quitter l'édition" : "Gérer les slots"}
+                            <Settings2 className="h-4 w-4" /> {isEditingMode ? "Quitter l'édition" : "Gérer les créateurs"}
                         </button>
                         <button
                             onClick={() => { setEditingCreator({ name: "", role: "", color: "#ef4444", order: creators.length }); setIsModalOpen(true); }}
                             className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-danger hover:bg-danger text-danger-foreground text-caption font-black uppercase tracking-widest transition-all shadow-xl shadow-red-600/20  active:scale-95 translate-y-[-1px]"
                         >
-                            <Plus className="h-4 w-4" /> Ajouter un slot
+                            <Plus className="h-4 w-4" /> Ajouter un créateur (max 50)
                         </button>
                     </div>
                 )}

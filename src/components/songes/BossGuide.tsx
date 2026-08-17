@@ -333,17 +333,17 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-[#09090b]/80 backdrop-blur-sm animate-in fade-in duration-200"
+                className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
                 onClick={onClose}
             />
 
             {/* Modal */}
             <div className={cn(
-                "relative w-full max-h-[85vh] bg-[#09090b] border border-border rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col transition-all duration-300",
+                "relative w-full max-h-[85vh] bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col transition-all duration-300",
                 selectedBoss ? (WIDTH_EXCEPTIONS[selectedBoss.Name] || "max-w-2xl") : "max-w-2xl"
             )}>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-[#09090b]/95 backdrop-blur-xl border-b border-border px-6 py-5">
+                <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur-xl border-b border-border px-6 py-5">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-warning/10 border border-warning/20">
@@ -351,7 +351,7 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                             </div>
                             <div>
                                 <h2 className="text-xl font-black text-foreground tracking-tight">Guide des Boss</h2>
-                                <p className="text-xs text-foreground/30 mt-0.5">Songes Pour Les Noobs — par Volcasaurus</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Songes Pour Les Noobs — par Volcasaurus</p>
                             </div>
                         </div>
                         <button

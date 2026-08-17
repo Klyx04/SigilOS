@@ -5,23 +5,20 @@ import L from 'leaflet';
 import { useMap } from 'react-leaflet';
 
 /**
- * MapHDOverlay — POC « vue HD des maps à fort zoom » (façon DofusDB).
+ * MapHDOverlay — Vue HD des maps à fort zoom (façon DofusDB) généralisée à TOUS les mondes.
  *
- * Sur le monde 38 (Village des Brigandins), quand on zoome au-delà de l'échelle
- * native (zoom >= 1), on masque les tuiles du monde (floues en upscale) et on
- * affiche les maps HD individuelles (`/game-data/hd_maps/{id}.webp`) à leur
- * position, recadrées via `object-fit: cover`.
- *
- * Limité au monde 38 pour l'instant (peu de maps). À généraliser plus tard.
+ * Quand on zoome au-delà de l'échelle native (zoom >= 1) :
+ * 1. On masque les tuiles génériques du monde (floues en upscale).
+ * 2. On charge dynamiquement uniquement les maps HD visibles dans le viewport (`map.getBounds()`).
+ * 3. Les maps hors champ sont automatiquement déchargées pour préserver la mémoire et les performances.
  */
 export function MapHDOverlay({ activeWorld, mapsByCoords, selectedWorldId }: any) {
     const map = useMap();
     const groupRef = useRef<L.LayerGroup | null>(null);
+    const activeOverlaysRef = useRef<Map<string, L.ImageOverlay>>(new Map());
 
     useEffect(() => {
-        if (!activeWorld) return;
-        // POC : uniquement le monde 38 (Village des Brigandins)
-        if (selectedWorldId !== 38) return;
+        if (!activeWorld || !mapsByCoords) return;
 
         const mw = activeWorld.mapWidth;
         const mh = activeWorld.mapHeight;
@@ -29,57 +26,84 @@ export function MapHDOverlay({ activeWorld, mapsByCoords, selectedWorldId }: any
         const oy = activeWorld.origineY;
 
         const group = new L.LayerGroup();
-
-        // 1. Maps du monde 38 avec une position réelle (x/y != 0)
-        const positioned: any[] = [];
-        mapsByCoords?.forEach((m: any) => {
-            if (!m || m.worldMap !== selectedWorldId) return;
-            if (m.x === undefined || m.y === undefined) return;
-            if (m.x === 0 && m.y === 0) return; // exclut les donjons/indoor à (0,0)
-            positioned.push(m);
-        });
-
-        // 2. Déduplique par cellule (x,y) — garde la 1ère map de chaque cellule
-        const seen = new Set<string>();
-        for (const m of positioned) {
-            const key = `${m.x},${m.y}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            const gx = m.x;
-            const gy = m.y;
-            const south = -(oy + (gy + 1) * mh);
-            const west = ox + gx * mw;
-            const north = -(oy + gy * mh);
-            const east = ox + (gx + 1) * mw;
-
-            L.imageOverlay(`/game-data/hd_maps/${m.id}.webp`, [[south, west], [north, east]], {
-                interactive: false,
-                className: 'sigil-hd-map',
-            }).addTo(group);
-        }
-
-        if (group.getLayers().length === 0) return;
         group.addTo(map);
         groupRef.current = group;
 
-        const onZoom = () => {
+        const updateOverlays = () => {
             const z = map.getZoom();
-            const show = z >= 1;
+            const showHD = z >= 1;
             const tilePane = (map as any).getPane('tilePane');
-            if (tilePane) tilePane.style.opacity = show ? '0' : '1';
-            group.eachLayer((l: any) => {
-                if (typeof l.setOpacity === 'function') l.setOpacity(show ? 1 : 0);
+
+            if (!showHD) {
+                if (tilePane) tilePane.style.opacity = '1';
+                group.clearLayers();
+                activeOverlaysRef.current.clear();
+                return;
+            }
+
+            if (tilePane) tilePane.style.opacity = '0';
+
+            const bounds = map.getBounds();
+            const minGx = Math.floor((bounds.getWest() - ox) / mw) - 1;
+            const maxGx = Math.ceil((bounds.getEast() - ox) / mw) + 1;
+            const minGy = Math.floor((-bounds.getNorth() - oy) / mh) - 1;
+            const maxGy = Math.ceil((-bounds.getSouth() - oy) / mh) + 1;
+
+            // Sécurité : borner la zone pour éviter les surcharges
+            const spanX = Math.min(maxGx - minGx, 25);
+            const spanY = Math.min(maxGy - minGy, 25);
+            const clampedMaxGx = minGx + spanX;
+            const clampedMaxGy = minGy + spanY;
+
+            const currentVisibleKeys = new Set<string>();
+
+            for (let gx = minGx; gx <= clampedMaxGx; gx++) {
+                for (let gy = minGy; gy <= clampedMaxGy; gy++) {
+                    const key = `${gx},${gy}`;
+                    currentVisibleKeys.add(key);
+
+                    if (activeOverlaysRef.current.has(key)) continue;
+
+                    const m = mapsByCoords.get(key);
+                    if (!m) continue;
+                    if (m.worldMap !== selectedWorldId && !(selectedWorldId === 1 && m.worldMap === -1)) continue;
+                    if (m.x === 0 && m.y === 0) continue; // Exclure intérieurs non positionnés
+
+                    const south = -(oy + (gy + 1) * mh);
+                    const west = ox + gx * mw;
+                    const north = -(oy + gy * mh);
+                    const east = ox + (gx + 1) * mw;
+
+                    const overlay = L.imageOverlay(`/game-data/hd_maps/${m.id}.webp`, [[south, west], [north, east]], {
+                        interactive: false,
+                        className: 'sigil-hd-map',
+                    });
+
+                    overlay.addTo(group);
+                    activeOverlaysRef.current.set(key, overlay);
+                }
+            }
+
+            // Décharger les tuiles sorties du champ de vision
+            activeOverlaysRef.current.forEach((overlay, key) => {
+                if (!currentVisibleKeys.has(key)) {
+                    group.removeLayer(overlay);
+                    activeOverlaysRef.current.delete(key);
+                }
             });
         };
-        map.on('zoomend', onZoom);
-        onZoom();
+
+        map.on('zoomend', updateOverlays);
+        map.on('moveend', updateOverlays);
+        updateOverlays();
 
         return () => {
-            map.off('zoomend', onZoom);
+            map.off('zoomend', updateOverlays);
+            map.off('moveend', updateOverlays);
             map.removeLayer(group);
             const tilePane = (map as any).getPane('tilePane');
             if (tilePane) tilePane.style.opacity = '1';
+            activeOverlaysRef.current.clear();
             groupRef.current = null;
         };
     }, [map, activeWorld, mapsByCoords, selectedWorldId]);

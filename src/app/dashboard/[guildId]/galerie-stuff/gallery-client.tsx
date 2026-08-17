@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Link2, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight, Copy, Star, Sword, Sparkles, Info, Mars, Venus, Megaphone, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -75,6 +75,8 @@ export function GalleryClient({
 
     // Debounced search - triggers server-side re-fetch after 300ms
     const debouncedSearch = useDebounce(searchQuery, 300);
+    // Evite un refetch redondant au montage : la page 1 est deja rendue par le serveur.
+    const didMountRef = useRef(false);
 
     // Reset and re-fetch from page 1 when filters change
     const applyFilters = useCallback((
@@ -121,6 +123,10 @@ export function GalleryClient({
 
     // Use debounced search to trigger filtering
     useEffect(() => {
+        if (!didMountRef.current) {
+            didMountRef.current = true;
+            return;
+        }
         if (debouncedSearch !== undefined) {
             applyFilters(debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
         }

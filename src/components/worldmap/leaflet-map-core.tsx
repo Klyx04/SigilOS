@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
-import { MapHDOverlay } from './map-hd-overlay';
+import { HarvestRouteOverlay } from './harvest-route-overlay';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -417,7 +417,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.fillStyle = '#ef4444'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(tLabel, p1.x, tRectY + 9);
 
-            const drawGuessLine = (g: any, isMe: boolean) => {
+            const drawGuessLine = (g: any, isMe: boolean, playerName?: string) => {
                 const guessWorldId = g.worldId || g.worldMap;
                 if (guessWorldId !== undefined && guessWorldId !== world.id && guessWorldId !== world.worldMap) return;
 
@@ -425,66 +425,88 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                 const guessBR = toCP(g.x + 1, g.y + 1);
                 const p2 = { x: (guessTL.x + guessBR.x) / 2, y: (guessTL.y + guessBR.y) / 2 };
 
-                ctx.save();
-                ctx.shadowBlur = isMe ? 25 : 15;
-                ctx.shadowColor = isMe ? 'rgba(251, 191, 36, 0.9)' : 'rgba(255, 255, 255, 0.4)';
-                ctx.beginPath();
-                ctx.setLineDash([6, 4]);
-                ctx.strokeStyle = isMe ? '#fbbf24' : 'rgba(255, 255, 255, 0.8)';
-                ctx.lineWidth = isMe ? 5 : 3;
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-                ctx.restore();
+                if (isMe) {
+                    // Ligne dorée et badge de distance uniquement pour le joueur local (évite la toile d'araignée)
+                    ctx.save();
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
+                    ctx.beginPath();
+                    ctx.setLineDash([6, 4]);
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 4;
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                    ctx.restore();
 
-                if (isMiniMap) {
-                    ctx.fillStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.8)';
+                    // Point central & marqueur
+                    ctx.fillStyle = '#10b981';
                     ctx.beginPath(); ctx.arc(p2.x, p2.y, 6, 0, Math.PI * 2); ctx.fill();
-                    ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+
+                    // Badge de distance au milieu de la ligne
+                    const dist = Math.round(g.distance || 0);
+                    const label = `${dist} maps`;
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    const tw = ctx.measureText(label).width;
+                    const mx = (p1.x + p2.x) / 2;
+                    const my = (p1.y + p2.y) / 2;
+                    ctx.shadowBlur = 10; ctx.shadowColor = 'black';
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+                    ctx.beginPath(); ctx.roundRect(mx - tw / 2 - 8, my - 12, tw + 16, 24, 6); ctx.fill();
+                    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.fillStyle = '#fbbf24'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(label, mx, my + 1);
+
+                    // Coordonnées du choix
+                    ctx.font = 'bold 10px Inter, sans-serif';
+                    const gLabel = `(${g.x}, ${g.y})`;
+                    const gTw = ctx.measureText(gLabel).width;
+                    const gMargin = isMiniMap ? 14 : Math.round((guessBR.y - guessTL.y) / 2) + 4;
+                    const gDrawBelow = (p2.y + gMargin + 18) <= size.y - 10;
+                    const gRectY = gDrawBelow ? p2.y + gMargin : p2.y - gMargin - 18;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+                    ctx.beginPath(); ctx.roundRect(p2.x - gTw / 2 - 6, gRectY, gTw + 12, 18, 4); ctx.fill();
+                    ctx.strokeStyle = '#10b981'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.fillStyle = '#10b981'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(gLabel, p2.x, gRectY + 9);
                 } else {
-                    ctx.strokeStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.5)';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(Math.round(guessTL.x), Math.round(guessTL.y), Math.round(guessBR.x - guessTL.x), Math.round(guessBR.y - guessTL.y));
-                    ctx.fillStyle = isMe ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)';
-                    ctx.fillRect(Math.round(guessTL.x), Math.round(guessTL.y), Math.round(guessBR.x - guessTL.x), Math.round(guessBR.y - guessTL.y));
+                    // Autres joueurs : pastille élégante avec nom sans tracer de ligne traversante
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(99, 102, 241, 0.9)';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = 'rgba(99, 102, 241, 0.6)';
+                    ctx.beginPath(); ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.restore();
+
+                    const otherLabel = playerName ? `${playerName} (${g.x}, ${g.y})` : `(${g.x}, ${g.y})`;
+                    ctx.font = 'bold 9px Inter, sans-serif';
+                    const oTw = ctx.measureText(otherLabel).width;
+                    const oRectY = p2.y - 20;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                    ctx.beginPath(); ctx.roundRect(p2.x - oTw / 2 - 5, oRectY, oTw + 10, 16, 4); ctx.fill();
+                    ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.fillStyle = '#a5b4fc'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(otherLabel, p2.x, oRectY + 8);
                 }
-
-                ctx.fillStyle = 'white';
-                ctx.beginPath(); ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2); ctx.fill();
-
-                const dist = Math.round(g.distance || 0);
-                const label = `${dist} maps`;
-                ctx.font = 'bold 12px Inter, sans-serif';
-                const tw = ctx.measureText(label).width;
-                const mx = (p1.x + p2.x) / 2;
-                const my = (p1.y + p2.y) / 2;
-                ctx.shadowBlur = 10; ctx.shadowColor = 'black';
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-                ctx.beginPath(); ctx.roundRect(mx - tw / 2 - 8, my - 12, tw + 16, 24, 6); ctx.fill();
-                ctx.strokeStyle = isMe ? '#fbbf24' : 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 1; ctx.stroke();
-                ctx.fillStyle = isMe ? '#fbbf24' : 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText(label, mx, my + 1);
-
-                ctx.font = 'bold 10px Inter, sans-serif';
-                const gLabel = `(${g.x}, ${g.y})`;
-                const gTw = ctx.measureText(gLabel).width;
-                const gMargin = isMiniMap ? 14 : Math.round((guessBR.y - guessTL.y) / 2) + 4;
-                const gDrawBelow = (p2.y + gMargin + 18) <= size.y - 10;
-                const gRectY = gDrawBelow ? p2.y + gMargin : p2.y - gMargin - 18;
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-                ctx.beginPath(); ctx.roundRect(p2.x - gTw / 2 - 6, gRectY, gTw + 12, 18, 4); ctx.fill();
-                ctx.strokeStyle = isMe ? '#10b981' : 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 1; ctx.stroke();
-                ctx.fillStyle = isMe ? '#10b981' : 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText(gLabel, p2.x, gRectY + 9);
             };
 
             if (participants && participants.length > 0) {
+                // 1. D'abord les autres joueurs
                 participants.forEach((p: any) => {
-                    if (p.lastGuess && !p.lastGuess.hidden) {
-                        drawGuessLine(p.lastGuess, p.userId === currentUserId);
+                    const isMe = String(p.userId) === String(currentUserId);
+                    if (!isMe && p.lastGuess && !p.lastGuess.hidden) {
+                        drawGuessLine(p.lastGuess, false, p.userName);
                     }
                 });
+                // 2. Ensuite le joueur local par-dessus
+                const me = participants.find((p: any) => String(p.userId) === String(currentUserId));
+                if (me?.lastGuess && !me.lastGuess.hidden) {
+                    drawGuessLine(me.lastGuess, true, me.userName);
+                } else if (guessResult.guess) {
+                    drawGuessLine(guessResult.guess, true);
+                }
             } else if (guessResult.guess) {
                 drawGuessLine(guessResult.guess, true);
             }
@@ -722,9 +744,11 @@ function prefetchTilesForBounds(map: any, world: any, bounds: any) {
 function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants }: any) {
     const map = useMap();
 
+    const lastFittedKeyRef = useRef<string>("");
+
     useEffect(() => {
-        const timer = setInterval(() => map.invalidateSize(), 500);
-        return () => clearInterval(timer);
+        const t = setTimeout(() => map.invalidateSize(), 100);
+        return () => clearTimeout(t);
     }, [map]);
 
     // Recenter map automatically when the active world changes
@@ -773,6 +797,11 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
         const target = guessResult?.target;
         if (!target) return;
 
+        // Clé unique pour n'ajuster la vue qu'une seule fois par round (évite le clignotement noir répétitif)
+        const fitKey = `${target.worldMap || world.id}_${target.x}_${target.y}_${participants?.length || 0}`;
+        if (lastFittedKeyRef.current === fitKey) return;
+        lastFittedKeyRef.current = fitKey;
+
         const points: L.LatLng[] = [];
         points.push(L.latLng(-(world.origineY + target.y * world.mapHeight + world.mapHeight / 2), world.origineX + target.x * world.mapWidth + world.mapWidth / 2));
 
@@ -788,15 +817,14 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
         if (points.length >= 2) {
             const bounds = L.latLngBounds(points);
-            // Pré-charge les tuiles de la zone cible pour éviter le flash au dézoom
             prefetchTilesForBounds(map, world, bounds);
             setTimeout(() => {
                 if (isMiniMap) {
-                    map.fitBounds(bounds, { padding: [80, 80], maxZoom: -1, animate: false });
+                    map.fitBounds(bounds, { padding: [60, 60], maxZoom: -1, animate: false });
                 } else {
-                    map.flyToBounds(bounds, { padding: [120, 120], duration: 1.5, easeLinearity: 0.25, maxZoom: -1 });
+                    map.flyToBounds(bounds, { padding: [100, 100], duration: 1.2, easeLinearity: 0.25, maxZoom: -1 });
                 }
-            }, 100);
+            }, 50);
         }
     }, [guessResult, isMiniMap, map, activeWorld, participants]);
 
@@ -805,7 +833,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
 // Tooltip + click interactions (throttled)
 // -------------------------------------------------------------------------------------
-function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true, autoCopyTravel = false, onHoverMap }: any) {
+function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true, autoCopyTravel = false, onHoverMap, activeCircuit }: any) {
     const map = useMap();
     const lastTooltipTime = useRef(0);
 
@@ -897,17 +925,19 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
                 return;
             }
 
-            setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
+            // ── Ouvrir l'analyse HD de la carte / Poser son marqueur de Guess ──
+            if (setSelectedPosition) {
+                setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
+            }
 
-            // ── Clipboard Copy Logic (Exploration map only) ──
-            if (!isMiniMap && autoCopyTravel) {
+            // ── Copie de la commande /travel ──
+            if (activeCircuit || (!isMiniMap && autoCopyTravel)) {
                 const command = `/travel ${gameX} ${gameY}`;
                 navigator.clipboard.writeText(command)
                     .then(() => {
                         toast.success(`${command} copié !`, {
                             icon: <Rocket className="w-4 h-4 text-emerald-400" />,
-                            description: "Collez la commande en jeu pour voyager.",
-                            duration: 2000
+                            duration: 1500
                         });
                     })
                     .catch(() => {
@@ -1033,6 +1063,12 @@ interface LeafletMapCoreProps {
     highlightSubareaIds?: number[];
     zoneHighlight?: boolean;
     minZoom?: number;
+    zaaps?: any[];
+    showZaaps?: boolean;
+    selectedHarvestResources?: any[];
+    activeCircuit?: any;
+    completedHarvestSteps?: Set<number>;
+    onToggleHarvestStep?: (stepIdx: number) => void;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     const [hoveredCoords, setHoveredCoords] = React.useState<{ x: number, y: number, found?: boolean } | null>(null);
@@ -1043,7 +1079,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
         participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight
+        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight,
+        zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep
     } = props;
 
     const correctedActiveWorld = useMemo(() => {
@@ -1231,11 +1268,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     minimapRecenterTrigger={minimapRecenterTrigger}
                     participants={participants}
                 />
-                {/* 1. Tuiles */}
+                {/* 1. Tuiles officielles continues & multi-résolution */}
                 <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
-
-                {/* 1bis. Vue HD des maps à fort zoom (POC monde 38) */}
-                <MapHDOverlay activeWorld={correctedActiveWorld} mapsByCoords={mapsByCoords} selectedWorldId={selectedWorldId} />
 
                 {/* 2. Grille DofusDB canvas (contour par position), contrôlée par showDebugGrid */}
                 <MapGridOverlay
@@ -1267,6 +1301,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     interactive={interactive}
                     autoCopyTravel={autoCopyTravel}
                     onHoverMap={setHoveredCoords}
+                    activeCircuit={activeCircuit}
                 />
 
                 {/* 5. GPS Narrative Pulse (Highlight for quests) */}
@@ -1276,6 +1311,19 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     triggerWorldId={triggerWorldId}
                     currentWorldId={selectedWorldId}
                 />
+
+                {/* 5bis. Zaaps & GPS Récolte Opti-Farm */}
+                {!isMiniMap && (
+                    <HarvestRouteOverlay
+                        activeWorld={correctedActiveWorld}
+                        zaaps={zaaps}
+                        showZaaps={showZaaps}
+                        selectedResources={selectedHarvestResources}
+                        activeCircuit={activeCircuit}
+                        completedStepIndices={completedHarvestSteps}
+                        onToggleStepCompleted={onToggleHarvestStep}
+                    />
+                )}
 
                 {/* 5. Highlight overlay (click selection) */}
 

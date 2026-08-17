@@ -7,6 +7,11 @@ export const guide = {
     updatedAt: "2026-08-02",
     draft: false,
     body: `
+        <div class="callout callout-tip">
+            <strong>Dofus Unity 2026 — MàJ 3.6</strong>
+            <p>Ce guide s'appuie sur les mécaniques officielles de guilde après les mises à jour 3.4 et 3.6 : fin du don d'XP automatique, missions hebdomadaires, raids et hall de guilde amélioré.</p>
+        </div>
+
         <p>
             Depuis les mises à jour 3.4 et 3.6, la guilde s'est débarrassée des anciens
             systèmes de dons d'expérience au profit d'un cycle organisé autour des missions.
@@ -70,20 +75,26 @@ export const guide = {
 
         <h2>Le hall de guilde</h2>
         <p>
-            Une guilde peut installer son hall dans l'une des <strong>sept villes</strong> :
-            Amakna, Astrub, Bonta, Brâkmar, Frigost, Pandala ou Sufokia, aux coordonnées
-            suivantes : Amakna [-1,-1], Astrub [1,-15], Bonta [-35,-61], Brâkmar [-29,37],
-            Frigost [-76,-34], Pandala [19,-26] et Sufokia [23,23].
-        </p>
-        <p>
+            Une guilde peut installer son hall dans l'une des <strong>sept villes</strong>.
             Il faut attendre <strong>une heure entre deux changements de hall</strong>. Les
-            halls sont instanciés : dans son propre hall, on ne voit que les membres de sa
-            guilde. La salle principale contient un zaap utilisable pour se téléporter vers
-            un autre zaap, mais il n'est pas possible de s'y rendre depuis un autre zaap.
-            La salle des marchands se débloque au <strong>niveau 2</strong> de guilde, et la
-            salle d'entraînement au <strong>niveau 17</strong>. Une potion de hall permet de
-            rejoindre la salle principale du hall de sa guilde.
+            halls sont instanciés : seuls les membres de la guilde s'y voient. La salle
+            principale contient un zaap utilisable pour se téléporter vers un autre zaap.
         </p>
+
+        <table>
+            <thead>
+                <tr><th>Ville</th><th>Coordonnées</th><th>Salle Marchands</th><th>Salle Entraînement</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Amakna</strong></td><td>[-1, -1]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+                <tr><td><strong>Astrub</strong></td><td>[1, -15]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+                <tr><td><strong>Bonta</strong></td><td>[-35, -61]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+                <tr><td><strong>Brâkmar</strong></td><td>[-29, 37]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+                <tr><td><strong>Frigost</strong></td><td>[-76, -34]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+                <tr><td><strong>Pandala</strong></td><td>[19, -26]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+                <tr><td><strong>Sufokia</strong></td><td>[23, 23]</td><td>Niveau 2</td><td>Niveau 17</td></tr>
+            </tbody>
+        </table>
 
         <h2>Faire progresser la guilde</h2>
         <p>
@@ -154,19 +165,20 @@ export const guide = {
         </p>
 
         <h2>Quelques pistes d'organisation</h2>
-        <p class="callout callout-tip"><strong>Conseil éditorial</strong>
-            Ces pistes sont des recommandations, pas des règles du jeu. La semaine d'activité
-            se conclut le mardi à 7h : répartir les 12 missions dès le début du cycle aide à
-            laisser du temps pour les derniers objectifs.
-        </p>
-        <p class="callout callout-tip"><strong>Conseil éditorial</strong>
-            Puisqu'un personnage ne peut pas valider deux fois la même mission, coordonner
-            les membres sur des missions distinctes évite les doublons et fait progresser la
-            jauge plus efficacement.
-        </p>
-        <p class="callout callout-tip"><strong>Conseil éditorial</strong>
-            Le palier d'activité détermine vos objectifs : un palier choisi en fonction du
-            rythme réel de la guilde évite une pression inutile sur les membres.
-        </p>
+
+        <div class="callout callout-tip">
+            <strong>Rythme hebdomadaire</strong>
+            <p>La semaine d'activité se conclut le <strong>mardi à 7h</strong>. Répartir les 12 missions dès le début du cycle laisse du temps pour les derniers objectifs difficiles.</p>
+        </div>
+
+        <div class="callout callout-info">
+            <strong>Coordination des membres</strong>
+            <p>Un personnage ne peut pas valider deux fois la même mission. Coordonner les membres sur des missions distinctes évite les doublons et fait progresser la jauge plus efficacement — SigilOS gère ce suivi depuis le tableau de bord de guilde.</p>
+        </div>
+
+        <div class="callout callout-warning">
+            <strong>Choisir le bon palier</strong>
+            <p>Un palier d'activité trop ambitieux pour le rythme réel de la guilde crée une pression inutile. Préférez un palier stable avec un taux de complétion élevé plutôt qu'un palier supérieur rarement atteint.</p>
+        </div>
     `,
 } as const;

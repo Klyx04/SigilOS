@@ -214,12 +214,12 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     }
 
     return (
-        <div className="group relative overflow-hidden rounded-3xl bg-[#0d0d12] border border-border p-7 transition-colors duration-200 hover:border-border-strong">
+        <div className="group relative overflow-hidden rounded-3xl bg-surface/90 border border-border p-7 transition-colors duration-200 hover:border-border-strong shadow-lg">
             
             {/* --- HEADER --- */}
             <div className="relative z-10 flex justify-between items-center gap-4 mb-8">
                 <div className="flex items-center gap-4 min-w-0">
-                    <div className="relative w-12 h-12 shrink-0 bg-surface rounded-xl border border-border p-2 flex items-center justify-center overflow-hidden">
+                    <div className="relative w-12 h-12 shrink-0 bg-elevated rounded-xl border border-border p-2 flex items-center justify-center overflow-hidden shadow-xs">
                         <Image
                             src={`/assets/missions/${
                                 run.difficulty?.toLowerCase()
@@ -237,15 +237,15 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <h3 className="text-xl font-black uppercase tracking-tight text-foreground leading-none truncate">{difficulty?.label || run.difficulty}</h3>
-                            <div className="px-2 py-0.5 rounded-md bg-surface border border-border shadow-sm">
-                                <span className="text-caption font-black text-foreground/40 uppercase tracking-widest">{objective?.label}</span>
+                            <div className="px-2 py-0.5 rounded-md bg-elevated border border-border shadow-xs">
+                                <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">{objective?.label}</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 text-caption font-black text-foreground/30 uppercase tracking-[0.2em]">
+                        <div className="flex items-center gap-2 text-caption font-black text-muted-foreground uppercase tracking-[0.2em]">
                             <Users className="w-3 h-3" /> {run.members.length}/4
-                            <span className="opacity-20">•</span>
+                            <span className="opacity-40">•</span>
                             <span className="flex items-center gap-1.5">
-                                Leader <span className="text-foreground/60">{getDisplayName(run.leaderId)}</span><span className="opacity-20">•</span><span className="flex items-center gap-1" title={run.scheduledAt ? "Départ programmé" : "Création de la run"}><Clock className="w-3 h-3" />{runTimeLabel}</span>
+                                Leader <span className="text-foreground font-bold">{getDisplayName(run.leaderId)}</span><span className="opacity-40">•</span><span className="flex items-center gap-1" title={run.scheduledAt ? "Départ programmé" : "Création de la run"}><Clock className="w-3 h-3" />{runTimeLabel}</span>
                             </span>
                         </div>
                     </div>
@@ -255,11 +255,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     {(isLeader || isAdmin) && (
                         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-foreground/40 hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg" title="Supprimer la run">
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg" title="Supprimer la run">
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-[#0a0514] border-border text-foreground max-w-sm rounded-2xl">
+                            <DialogContent className="bg-background border-border text-foreground max-w-sm rounded-2xl">
                                 <DialogHeader>
                                     <DialogTitle className="flex items-center gap-2 text-red-500 text-lg font-black uppercase">
                                         <Trash2 className="w-5 h-5" /> Supprimer la run
@@ -271,14 +271,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                 <div className="py-1 space-y-4">
                                     <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                                         <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                                        <p className="text-caption text-red-200/80 font-medium leading-relaxed">
-                                            Cette action est <span className="font-black text-red-300">irréversible</span>.
+                                        <p className="text-caption text-red-600 dark:text-red-200/80 font-medium leading-relaxed">
+                                            Cette action est <span className="font-black text-red-700 dark:text-red-300">irréversible</span>.
                                             La run <span className="font-bold text-foreground">{DIFFICULTIES[run.difficulty as DifficultyKey]?.label || run.difficulty}</span>
                                             {run.members.length > 0 ? ` (${run.members.length} membre${run.members.length > 1 ? "s" : ""})` : ""}
                                             , ses candidatures et son annonce Discord seront définitivement supprimés.
                                         </p>
                                     </div>
-                                    <p className="text-caption text-foreground/40 font-bold uppercase tracking-widest">
+                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
                                         {run.members.length > 0
                                             ? "Les participants perdront leur place."
                                             : "Aucun participant n'est inscrit."}
@@ -301,12 +301,12 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- ÉPREUVE BOX --- */}
             {epreuve && (
-                <div className="relative z-10 p-4 rounded-2xl border border-border bg-surface mb-6">
+                <div className="relative z-10 p-4 rounded-2xl border border-border bg-elevated/70 mb-6">
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xl">{epreuve.icon}</span>
                         <span className="text-caption font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
                     </div>
-                    <p className="text-caption text-foreground/40 leading-relaxed">{epreuve.description}</p>
+                    <p className="text-caption text-muted-foreground leading-relaxed">{epreuve.description}</p>
                 </div>
             )}
 
@@ -314,14 +314,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             <div className="relative z-10 mb-8">
                 <div className="flex justify-between items-end mb-3">
                     <div className="flex flex-col">
-                        <span className="text-caption font-black uppercase tracking-widest text-foreground/30 mb-1">Étage Actuel</span>
+                        <span className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-1">Étage Actuel</span>
                         <div className="flex items-baseline gap-2">
                            <span className="text-4xl font-black text-foreground">{run.currentFloor}</span>
-                           <span className="text-sm font-bold text-foreground/10 uppercase">/ 26</span>
+                           <span className="text-sm font-bold text-muted-foreground/60 uppercase">/ 26</span>
                         </div>
                     </div>
                     <div className="flex flex-col items-end flex-1 ml-8">
-                        <div className="w-full h-2 bg-surface rounded-full overflow-hidden p-0.5 border border-border">
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden p-0.5 border border-border">
                             <div 
                                 className="h-full rounded-full bg-emerald-500/80 transition-all duration-200"
                                 style={{ width: `${progress}%` }}
@@ -344,7 +344,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         return (
                             <div key={slot} className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-[1rem] border transition-all truncate",
-                                member ? "bg-surface border-border" : "bg-black/20 border-border border-dashed"
+                                member ? "bg-elevated border-border shadow-xs" : "bg-muted/30 border-border border-dashed"
                             )}>
                                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-surface border border-border overflow-hidden">
                                     {member ? (
@@ -354,11 +354,11 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                                 {profile?.pseudoDofus?.charAt(0) || "?"}
                                             </AvatarFallback>
                                         </Avatar>
-                                    ) : <UserPlus className="w-3.5 h-3.5 text-foreground/10" />}
+                                    ) : <UserPlus className="w-3.5 h-3.5 text-muted-foreground/60" />}
                                 </div>
                                 <span className={cn(
                                     "text-xs font-black truncate flex-1",
-                                    member ? "text-foreground" : "text-foreground/10"
+                                    member ? "text-foreground" : "text-muted-foreground/60"
                                 )}>
                                     {pseudo}
                                 </span>
@@ -525,21 +525,21 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- MODALS --- */}
             <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
-                <DialogContent className="bg-[#0a0514] border-border text-foreground max-w-sm rounded-[2rem] p-0 overflow-hidden shadow-2xl">
+                <DialogContent className="bg-background border-border text-foreground max-w-sm rounded-[2rem] p-0 overflow-hidden shadow-2xl">
                     <div className="p-8">
                         <DialogHeader className="mb-8">
                             <DialogTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tighter">
-                                <UserPlus className="w-6 h-6 text-foreground/50" /> Postuler
+                                <UserPlus className="w-6 h-6 text-muted-foreground" /> Postuler
                             </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-6">
                             <div className="space-y-3">
-                                <Label className="text-caption font-black uppercase tracking-widest text-foreground/30">Classe Dofus</Label>
+                                <Label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Classe Dofus</Label>
                                 <Select value={selectedClasse} onValueChange={(v) => setSelectedClasse(v as DofusClass)}>
                                     <SelectTrigger className="bg-surface border-border h-12 rounded-xl">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#0a0514] border-border">
+                                    <SelectContent className="bg-background border-border">
                                         {DOFUS_CLASSES.map((classe) => (
                                             <SelectItem key={classe} value={classe} className="focus:bg-surface">
                                                 <div className="flex items-center gap-3">

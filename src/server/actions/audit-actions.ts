@@ -722,11 +722,40 @@ export async function getAuditLogs(
             }
         });
 
+        // Enrichir actorName avec le vrai surnom / pseudo Dofus du membre dans la guilde
+        const actorUserIds = [...new Set(logs.map(l => l.actorUserId).filter(id => id && id !== "SYSTEM"))];
+        const profiles = actorUserIds.length > 0 ? await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                userId: { in: actorUserIds }
+            },
+            select: {
+                userId: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: { select: { name: true } }
+            }
+        }) : [];
+
+        const nameMap = new Map<string, string>();
+        for (const p of profiles) {
+            const bestName = p.pseudoDofus || p.discordNickname || p.user?.name;
+            if (bestName) nameMap.set(p.userId, bestName);
+        }
+
+        const enrichedLogs = logs.map(log => {
+            const enrichedActor = (log.actorUserId && nameMap.get(log.actorUserId)) || log.actorName;
+            return {
+                ...log,
+                actorName: enrichedActor
+            };
+        });
+
         // IP est déjà masquée au stockage (maskIp) — tout le monde voit l'IP partielle
         return {
             success: true,
             data: {
-                logs: logs as AuditLogEntry[],
+                logs: enrichedLogs as AuditLogEntry[],
                 total,
                 hasMore: page * limit < total
             }

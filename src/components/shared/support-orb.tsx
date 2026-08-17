@@ -18,30 +18,31 @@ export function SupportOrb() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                    "group flex items-center gap-3 px-3.5 py-2 rounded-xl",
-                    "bg-background/95 backdrop-blur-xl border border-border hover:border-success/40 shadow-xl shadow-black/50",
-                    "transition-all duration-200 ease-out cursor-pointer hover:bg-surface/90 active:scale-[0.98]"
+                    "group flex items-center gap-3 px-4 py-2.5 rounded-2xl",
+                    "bg-card/95 dark:bg-[#0b1220]/95 backdrop-blur-xl border border-emerald-500/30 hover:border-emerald-500/70",
+                    "shadow-lg shadow-black/10 dark:shadow-2xl dark:shadow-black/70 hover:shadow-emerald-500/15",
+                    "transition-all duration-200 ease-out cursor-pointer hover:bg-card active:scale-[0.98]"
                 )}
             >
-                {/* Clean Icon Container */}
-                <div className="w-7 h-7 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center shrink-0 group-hover:bg-success/20 group-hover:border-success/30 transition-colors">
-                    <Heart className="w-3.5 h-3.5 text-success fill-emerald-400/20 group-hover:fill-emerald-400 transition-colors" />
+                {/* Clean Icon Container with vibrant Emerald Heart */}
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 group-hover:border-emerald-500/50 transition-colors">
+                    <Heart className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/30 group-hover:fill-emerald-500 group-hover:scale-110 transition-all" />
                 </div>
 
                 {/* Text Block */}
                 <div className="flex flex-col text-left">
-                    <span className="text-caption font-bold text-foreground uppercase tracking-wider leading-none">
-                        Soutenir <span className="text-success">SigilOS</span>
+                    <span className="text-caption font-black text-foreground uppercase tracking-wider leading-none">
+                        Soutenir <span className="text-emerald-600 dark:text-emerald-400 font-black">SigilOS</span>
                     </span>
-                    <span className="text-caption font-medium text-muted-foreground mt-1 flex items-center gap-1 leading-none">
-                        <Coffee className="w-2.5 h-2.5 text-warning shrink-0" />
-                        Donation Ko-fi
+                    <span className="text-caption font-bold text-muted-foreground mt-1 flex items-center gap-1.5 leading-none">
+                        <Coffee className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0" />
+                        <span className="text-amber-600/90 dark:text-amber-400/90">Donation Ko-fi</span>
                     </span>
                 </div>
 
                 {/* CTA Arrow */}
-                <div className="pl-2 border-l border-border flex items-center">
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-success transition-colors" />
+                <div className="pl-2 border-l border-border/80 dark:border-border flex items-center">
+                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
                 </div>
             </a>
         </div>

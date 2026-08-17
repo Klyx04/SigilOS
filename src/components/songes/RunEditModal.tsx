@@ -86,7 +86,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
 
     return (
         <Dialog open={isOpen} onOpenChange={(o) => { if (!o && !pending) onClose(); }}>
-            <DialogContent className="bg-[#09090b] border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
+            <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                         <Pencil className="w-5 h-5 text-purple-400" />
@@ -95,7 +95,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                 </DialogHeader>
                 <div className="py-4 space-y-5">
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Difficulté</label>
+                        <label className="text-caption font-black text-muted-foreground uppercase tracking-widest">Difficulté</label>
                         <Select value={difficulty} onValueChange={setDifficulty}>
                             <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue />

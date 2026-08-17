@@ -190,6 +190,14 @@ export function DocContent({ content, className }: DocContentProps) {
                 // Table of Contents anchoring
                 "scroll-mt-32",
 
+                // Tables — full styled (fixes FM, Brisage, Élevage, Guilde)
+                "[&_table]:w-full [&_table]:border-collapse [&_table]:my-8 [&_table]:rounded-xl [&_table]:overflow-hidden [&_table]:text-sm",
+                "[&_thead]:bg-zinc-800/80 [&_thead_th]:px-4 [&_thead_th]:py-3 [&_thead_th]:text-left [&_thead_th]:font-bold [&_thead_th]:text-teal-300 [&_thead_th]:uppercase [&_thead_th]:tracking-wider [&_thead_th]:text-xs [&_thead_th]:border-b [&_thead_th]:border-white/10",
+                "[&_tbody_tr]:border-b [&_tbody_tr]:border-white/5 [&_tbody_tr:last-child]:border-0",
+                "[&_tbody_tr:hover]:bg-white/[0.03]",
+                "[&_td]:px-4 [&_td]:py-3 [&_td]:text-foreground/90 [&_td]:align-middle [&_td]:leading-snug",
+                "[&_td_img]:inline-block [&_td_img]:mb-0 [&_td_img]:mt-0",
+
 
                 // Custom Style Overrides (Ensure colors and floats stick)
                 "[&_span[style]]:!opacity-100",

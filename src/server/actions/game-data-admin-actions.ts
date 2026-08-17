@@ -11,6 +11,8 @@ import { revalidatePath } from "next/cache";
 import { writeFileSync } from "fs";
 import { join } from "path";
 
+import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-actions";
+
 // --- Types ---
 
 type ActionResponse<T = void> = {
@@ -138,8 +140,7 @@ export async function getMonsterFamilies(
                 _count: { select: { monsters: true } },
                 zones: { select: { id: true, name: true } }
             },
-            take: validated.search ? 20 : 100,
-            orderBy: { name: 'asc' } // Changed order to name to see if level sorting was the issue
+            orderBy: { name: 'asc' }
         });
         return { success: true, data: families };
     } catch (error) {
@@ -219,6 +220,13 @@ export async function deleteMonsterFamily(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        const target = await db.monsterFamily.findUnique({
+            where: { id },
+            select: { name: true }
+        });
+        if (target?.name) {
+            addIgnoredFamily(target.name);
+        }
         await db.monsterFamily.delete({ where: { id } });
         await logGameDataWrite('delete-monster-family', id);
         revalidatePath('/god/game-data');
@@ -805,6 +813,13 @@ export async function deleteZone(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        const target = await db.zone.findUnique({
+            where: { id },
+            select: { name: true }
+        });
+        if (target?.name) {
+            addIgnoredZone(target.name);
+        }
         await db.zone.delete({ where: { id } });
         await logGameDataWrite('delete-zone', id);
         revalidatePath('/god/game-data');

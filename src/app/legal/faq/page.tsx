@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { HelpCircle, ShieldCheck, Server, Lock, Fingerprint } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
+import { JsonLd } from "@/components/shared/json-ld";
+
 export const metadata: Metadata = {
     title: "FAQ Dofus & Aide | SigilOS",
     description: "Questions fréquentes sur SigilOS : sécurité des données Dofus, connexion Discord, fonctionnement de l'outil de gestion de guilde, intégration Metamob et RGPD.",
@@ -67,11 +69,10 @@ export default async function FAQPage() {
 
     return (
         <>
-            <script
-                type="application/ld+json"
+            <JsonLd
+                id="json-ld-faq"
                 nonce={nonce}
-                // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+                data={faqJsonLd}
             />
             <div className="space-y-12">
                 {/* Hero Section */}

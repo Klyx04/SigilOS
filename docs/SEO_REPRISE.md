@@ -1,4 +1,4 @@
-# 🔁 REPRISE SESSION SEO — SigilOS (02/08/2026)
+# 🔁 REPRISE SESSION SEO — SigilOS (Session 17/08/2026)
 
 > **Fichier de contexte dédié hors audits** — à copier-coller en début de prompt pour retrouver
 > instantanément l'état de la session SEO/Growth et reprendre là où on s'est arrêté.
@@ -6,28 +6,26 @@
 
 ---
 
-## 👉 PROMPT DE REPRISE (à balancer en début de message)
+## 🧭 ÉTAT RÉEL DU SEO (Session 17/08/2026 — État de l'Art Militaire)
 
-```text
-Reprends le contexte de SigilOS, fichier docs/SEO_REPRISE.md + CONTEXT.md + RULES.md.
+### 1. Diagnostic Google Search Console (Beta)
+- **Sitemap XML** : Lu avec succès le 16/08/2026 (`Opération effectuée`).
+- **Pages** : 3 indexées + 7 détectées en file d'attente normale (aucun blocage technique ni 404).
+- **Impressions** : Premières positions acquises sur `sigilos` et `guides dofus`.
+- **Actions opérées** : Demande d'indexation prioritaire sur les guides + validation de correction lancée.
 
-Session SEO/Growth du 02/08/2026 (matin + soir) — état réel :
-
-BRANCHES
-- Locale de travail : feat/security-post-audit
-- BETA déployée via deploy.sh beta → branch dev (à jour)
-- PROD (non déployée) : main — 681 commits derrière dev → NE PAS fusionner maintenant
-
-DÉJÀ FAIT le 02/08 MATIN, validé (typecheck) et DÉPLOYÉ sur la beta :
-- P0.1 sitemap.ts (réécrit, plus de 404/privé, vraies pages + guildes publiques)
-- P0.2 robots.ts (bloque /docs, /onboarding, /test-route)
-- P0.3 JSON-LD guildes publiques (Organization + BreadcrumbList) dans guilds/[guildId]/page.tsx
-- P0.4 noindex guildes privées/non trouvées
-- P0.5 fuite docs MEMBER corrigée (doc-actions.ts + seed-docs.ts → accessLevel PUBLIC|MEMBER|ADMIN)
-- P0.6 cache accueil (revalidate=3600, sans effet réel car page utilise la session — gardé)
-- P0.7 getAppBaseUrl : écarté (déjà OK, fallback https://sigilos.fr)
-- H1 accueil indexable (page.tsx ajoute H1 sr-only + hero-section.tsx aria-hidden sur le H1 client)
-- Vitrine maintenance.html v1 (page d'attente SEO, commit 47e0347b, mergé + déployé serveur)
+### 2. Nouvelles Fondations SEO Déployées (17/08)
+- **3 Nouveaux Guides Piliers à Fort Volume** (`src/content/guides/`) :
+  - `poids-runes-forgemagie-dofus` : Tableau PWR complet, puits, reliquat, exo/over.
+  - `guide-elevage-enclos-guilde-dofus` : Élevage Dofus Unity, sérénité, enclos de guilde.
+  - `guide-brisage-rentabilite-runes` : Coefficients de concassage, focus stats, rentabilité.
+  - Tous enregistrés dans le registre de guides, sitemap.xml et balisés Schema.org `Article` + `BreadcrumbList`.
+- **Page Publique `/almanax`** (`src/app/almanax/page.tsx`) :
+  - Offrande du jour, bonus Méryde, prévisions 30 jours, ISR 1h.
+  - Balisage Schema.org `FAQPage` + `BreadcrumbList`.
+  - Route ouverte dans `robots.ts` et priorisée (0.9) dans `sitemap.ts`.
+- **OpenGraph Dynamique HD** : Cartes réseaux sociaux `/api/og` générées à la volée par guide.
+- **Enrichissement Annuaire & Liens Utiles** : Dofocus, DofusElevage, Doflinks intégrés par défaut.
 
 DÉJÀ FAIT le 02/08 SOIR (session en cours — à committer via PR vers dev) :
 - GUIDE PUBLIÉ : creer-gerer-guilde-dofus-2026 passe draft:true → false

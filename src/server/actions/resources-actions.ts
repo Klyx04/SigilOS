@@ -112,6 +112,7 @@ export async function getResourceCategories(guildId: string) {
                     { title: "Barbofus", description: "Aides, quêtes et outils pratiques", url: "https://barbofus.com/", emoji: "🧔" },
                     { title: "Dofensive", description: "Sorts, IA et résistances précises de chaque monstre", url: "https://dofensive.com", emoji: "🛡️" },
                     { title: "Ganymède", description: "Application d'outils et gestion de personnages", url: "https://ganymede-app.com/about", emoji: "🦅" },
+                    { title: "Doflinks", description: "Annuaire exhaustif de tous les outils et sites Dofus", url: "https://doflinks.fr/", emoji: "🔗" },
                 ]
             },
             {
@@ -123,8 +124,10 @@ export async function getResourceCategories(guildId: string) {
                 ]
             },
             {
-                label: "Économie & Métiers", color: "#f59e0b", order: 2,
+                label: "Économie, FM & Élevage", color: "#f59e0b", order: 2,
                 links: [
+                    { title: "Dofocus", description: "Simulateur et calcul du coefficient de brisage d'items", url: "https://dofocus.fr/guide", emoji: "💥" },
+                    { title: "Dofus Élevage", description: "Généalogie, cycles de gestation et gestion d'enclos", url: "https://dofuselevage.fr/guide", emoji: "🐴" },
                     { title: "Huzounet", description: "Outils de forgemagie, rentabilité et élevage", url: "https://huzounet.fr/", emoji: "🔨" },
                     { title: "Dofus-Map", description: "Carte interactive des nœuds de récolte par métier", url: "https://dofus-map.com", emoji: "🗺️" },
                     { title: "XP Familiers", description: "Tableau détaillé de l'expérience des familiers", url: "https://www.dofustool.com/tableau-xp-familier-dofus/", emoji: "🐾" },

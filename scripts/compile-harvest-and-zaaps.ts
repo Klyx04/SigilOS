@@ -11,7 +11,7 @@ const DOFUS_ZAAPS = [
     { id: 7, name: "Madrestam (Port)", x: 7, y: -4, worldId: 1, subArea: "Port de Madrestam" },
     { id: 8, name: "Tainéla (Berceau)", x: 1, y: -32, worldId: 1, subArea: "Tainéla" },
     { id: 9, name: "Astrub (Cité)", x: 5, y: -18, worldId: 1, subArea: "Cité d'Astrub" },
-    { id: 10, name: "Plaine des Porkass", x: 5, y: -23, worldId: 1, subArea: "Plaine des Porkass" },
+    { id: 10, name: "Plaine des Porkass", x: -5, y: -23, worldId: 1, subArea: "Plaine des Porkass" },
     { id: 11, name: "Le coin des Bouftous", x: 5, y: 7, worldId: 1, subArea: "Le coin des Bouftous" },
     { id: 12, name: "Bord de la forêt maléfique", x: -1, y: 13, worldId: 1, subArea: "Bord de la forêt maléfique" },
     { id: 13, name: "Village des Éleveurs", x: -16, y: 1, worldId: 1, subArea: "Montagne des Koalaks" },
@@ -31,7 +31,7 @@ const DOFUS_ZAAPS = [
     { id: 23, name: "Route des Roulottes", x: -25, y: 12, worldId: 1, subArea: "Route des Roulottes" },
     { id: 24, name: "Cité de Bonta", x: -32, y: -56, worldId: 1, subArea: "Centre-ville de Bonta" },
     { id: 25, name: "Cité de Brâkmar", x: -26, y: 35, worldId: 1, subArea: "Centre-ville de Brâkmar" },
-    { id: 26, name: "Sufokia (Temple des Alliances)", x: 16, y: 29, worldId: 1, subArea: "Temple des Alliances" },
+    { id: 26, name: "Sufokia", x: 13, y: 26, worldId: 1, subArea: "Sufokia" },
 
     // --- PANDALA ---
     { id: 27, name: "Pandala (Faubourgs)", x: 20, y: -29, worldId: 1, subArea: "Faubourgs de Pandala" },

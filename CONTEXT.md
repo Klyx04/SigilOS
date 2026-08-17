@@ -136,7 +136,7 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 22/08 — Suite Dual-Theme : Phases 2B (hex) · 2C (dark-locked) · 3 (landings clair) · 4 (garde-fou) + passe 2 contraste
 
 > **Branche `feat/chantier-2026-08-19`** → **PR #484**. Source : `src/temp/prompt-next-chantier-2026-08-22.md`.
-> ⚠️ **223 fichiers modifiés — NON commité / NON pushé** (dernier commit poussé : `b7f5f3961`, session 21/08).
+> ✅ **Commit `b56350bb4` poussé (22/08)** — 224 fichiers (Phases 2B-2C-3-4 + passe 2 contraste/inputs).
 > Mémo : `src/temp/memo-2026-08-22-chantier-global.md` (créée, 2 passes documentées). Vérifs : tsc 0 · eslint 0 erreur
 > + 0 warning sigil · **208/208** · build OK.
 >
@@ -166,8 +166,23 @@
 >   dark-lock (recommandé), soit lancer un chantier dédié « thème-aware » (worldmap ≈ 3300 lignes).
 
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 23/08 — Passe sous-god (#108) + logs détaillés (#109) + bugfix (sondages #110 · image Dofoozbz #111 · repère guide #31)
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 18/08 (3e passe) — rapport quotidien débloqué + planning virtualisé
+> **Branche `feat/chantier-2026-08-19`** → **PR #484** (suite). Source : `src/temp/prompt-next-chantier-2026-08-23.md`.
+> ✅ **Commit `53bb14f39` poussé (23/08)** — 24 fichiers, +237/−111.
+> Mémo : `src/temp/memo-2026-08-23-chantier-global.md`. Vérifs : tsc 0 · eslint 0 erreur · **208/208** · build OK.
+
+> **#108 — GROSSE passe sous-god (priorité 1)** — erreurs React **#441/#419** + contenu vide réglés :
+> - Garde des onglets God **STRICT par brique** (`god/page.tsx`, `TAB_SCOPE` supprimé) — un sous-god scope `game-data`/`logs` ne peut plus ouvrir `mini-games`/`security` par URL.
+> - Layouts serveur ajoutés : `/god/game-data/**` (archis+bounties) + `/god/changelog` (super-admin).
+> - Fix montée de privilège : `delegates` réservé super-admin (avant : scope `users`).
+> - `guilds/[id]` ouvrable sous-god en **lecture seule** (roster RO).
+> - Actions serveur ouvertes à la brique `game-data` (archis, event zones, monstres spéciaux, bounties, quest-sync DofusDB) → fini le « Non autorisé »/contenu vide, + traçage `GOD_GAME_DATA_UPDATE`.
+> - Erreurs React : `mobile-god-sidebar-sheet` (effet drawer `searchParams`→`pathname`), `god-expiry-guard` (`warning` retiré des deps), error boundary `god/error.tsx` adouci.
+> **#109 — logs détaillés** : `createGodAuditLog` enrichi `actorDiscordId` + grants `brickLabel`/`delegateName` + traces game-data sous-god.
+> **LOT A** : #110 sondages (`break-words`/`min-w-0`), #111 image Dofoozbz (asset renommé `Dofus_Dofoozbz.png` + 7 refs + seed), #31 repère guide (contraste fond ambre).
+
+
 
 > **✅ PR #480 (`feat/design-system-polices` → dev) : 8 commits poussés le 18/08** —
 > `e8aee47cd` (chantier dashboard) + `7776675a6` (fix sécurité CodeQL, 7 alertes levées) + **session 3** :

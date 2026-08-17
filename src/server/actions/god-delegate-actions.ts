@@ -353,13 +353,22 @@ export async function grantBrickAccess(input: z.infer<typeof GrantBrickSchema>):
             },
         });
 
+        // #109 — détail : libellé lisible de la brique + nom du délégué cible.
+        const { getGodBrick } = await import("@/lib/god-bricks");
+        const brickLabel = getGodBrick(parsed.brickId)?.label ?? parsed.brickId;
+        let delegateName: string | null = null;
+        try {
+            const u = await db.user.findUnique({ where: { id: delegate.userId }, select: { name: true } });
+            delegateName = u?.name ?? null;
+        } catch { /* best-effort */ }
+
         // Audit + journal
         await createGodAuditLog({
             action: "GOD_CONFIG_OVERRIDE",
             targetType: "SYSTEM_GOD",
             targetId: grant.id,
-            newValue: { operation: "GRANT_BRICK", delegateId: delegate.id, brickId: parsed.brickId, expiresAt: expiresAt.toISOString(), durationMinutes: parsed.durationMinutes },
-            metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown" },
+            newValue: { operation: "GRANT_BRICK", delegateId: delegate.id, delegateName, brickId: parsed.brickId, brickLabel, guildId: parsed.guildId ?? null, expiresAt: expiresAt.toISOString(), durationMinutes: parsed.durationMinutes },
+            metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown", brickLabel },
         });
         await db.godAccessLog.create({
             data: { userId: delegate.userId, action: "GRANT", targetId: grant.id, metadata: { brickId: parsed.brickId, expiresAt: expiresAt.toISOString(), reason: parsed.reason } },
@@ -406,12 +415,16 @@ export async function revokeBrickAccess(grantId: string): Promise<{ success: boo
             data: { scopeVersion: { increment: 1 } },
         });
 
+        // #109 — détail : libellé lisible de la brique.
+        const { getGodBrick } = await import("@/lib/god-bricks");
+        const brickLabel = getGodBrick(grant.brickId)?.label ?? grant.brickId;
+
         await createGodAuditLog({
             action: "GOD_CONFIG_OVERRIDE",
             targetType: "SYSTEM_GOD",
             targetId: grantId,
-            newValue: { operation: "REVOKE_BRICK", delegateId: grant.delegateId, brickId: grant.brickId },
-            metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown" },
+            newValue: { operation: "REVOKE_BRICK", delegateId: grant.delegateId, brickId: grant.brickId, brickLabel },
+            metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown", brickLabel },
         });
         await db.godAccessLog.create({
             data: { userId: grant.userId, action: "REVOKE", targetId: grantId, metadata: { brickId: grant.brickId } },

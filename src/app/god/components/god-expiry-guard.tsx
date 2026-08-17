@@ -58,7 +58,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
             }
 
             // A1 : ne re-affiche la popup que pour UN grant à la fois, jamais de doublon.
-            if (expiring && !warning) setWarning(expiring);
+            // Update fonctionnel → pas besoin de `warning` dans la closure ni dans les deps.
+            if (expiring) setWarning((prev) => (prev ?? expiring));
 
             // Déconnexion forcée si TOUT est expiré / plus rien de valide
             if (!hasValid) {
@@ -81,7 +82,10 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         run();
 
         return () => clearInterval(timer);
-    }, [myGrants, warningMinutes, forceLogout, warning]);
+        // ⚠️ #108 : `warning` NE doit PAS être dans les deps — il est déjà géré par
+        // `warnedRef` (dédoublonnage). L'inclure re-déclenchait l'effet (nouvel interval
+        // + re-run immédiat) à chaque popup → fragile face aux re-renders sous-god.
+    }, [myGrants, warningMinutes, forceLogout]);
 
 
     // ─── R4 — Révocation LIVE (Socket.IO) ──────────────────────────────────

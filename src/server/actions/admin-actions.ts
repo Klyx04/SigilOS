@@ -1791,9 +1791,11 @@ export async function getGuildChannels(guildId: string): Promise<{
  *  Fail-closed : réservé aux super-admins.
  */
 export async function getAllBounties(): Promise<any[]> {
-    const { isSuperAdmin } = await import("./super-admin-actions");
+    const { isSuperAdmin, canAccessBrick } = await import("./super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    // #108 — un sous-god avec la brique game-data / game-data-bounties accède au module.
+    const isBrick = isAdmin ? true : (await canAccessBrick("game-data")) || (await canAccessBrick("game-data-bounties"));
+    if (!isAdmin && !isBrick) return [];
 
     try {
         const bounties = await db.bounty.findMany({

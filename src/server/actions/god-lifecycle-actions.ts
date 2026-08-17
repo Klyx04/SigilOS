@@ -23,7 +23,7 @@
 import { logger } from "@/lib/logger";
 
 import { db } from '@/lib/prisma';
-import { isSuperAdmin, canGodAccess } from './super-admin-actions';
+import { isSuperAdmin, canGodAccess, canAccessBrick } from './super-admin-actions';
 import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
@@ -514,7 +514,10 @@ export async function unbanEntity(banId: string) {
  */
 export async function getGuildMembersForGod(guildId: string) {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized");
+    // #108 — un sous-god avec la brique "guilds" (whitelist + roster en lecture seule)
+    // accède aussi au roster God.
+    const isGuildBrick = isAdmin ? true : await canAccessBrick("guilds");
+    if (!isAdmin && !isGuildBrick) throw new Error("Unauthorized");
 
     const [members, guild] = await Promise.all([
         db.userProfile.findMany({

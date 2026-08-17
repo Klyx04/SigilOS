@@ -9,7 +9,7 @@ import {
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
     Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, Maximize2, Minimize2
 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
@@ -116,6 +116,7 @@ export default function InteractiveMapV2({
     showGameEntry = false
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
+    const router = useRouter();
     const currentUserId = sessionData?.user?.id;
     const [selectedWorldId, setSelectedWorldId] = useState(initialWorldId || 1);
     const [activeTab, setActiveTab] = useState<'map' | 'games'>(initialTab || 'map');
@@ -287,6 +288,7 @@ export default function InteractiveMapV2({
     const [isLeavingSession, setIsLeavingSession] = useState(false);
     const [showPerfectCelebration, setShowPerfectCelebration] = useState(false);
     const [showHDMap, setShowHDMap] = useState(true);
+    const [playerLeftNotice, setPlayerLeftNotice] = useState<string | null>(null);
 
 
     // Leaderboard States
@@ -965,6 +967,14 @@ export default function InteractiveMapV2({
         newSocket.on("geoguesser:player:left", (data) => {
             if (data.userId !== currentUserIdRef.current && activeTab === 'games') {
                 toast.info(`${data.userName} a quitté le salon.`, { icon: '🚪' });
+                // #126 : en partie à 2 joueurs, si l'un part en pleine partie → gros popup rassurant
+                // (la map en cours continue, les rounds suivants partent quand même).
+                const sess = activeSessionRef.current;
+                const stateNow = sess?.state as string | undefined;
+                if (stateNow === 'IN_PROGRESS' || stateNow === 'RESULT') {
+                    const activeCount = (sess?.participants?.filter((p: any) => !p.isSpectator && p.isConnected !== false) || []).length;
+                    if (activeCount === 2) setPlayerLeftNotice(data.userName);
+                }
             }
         });
 
@@ -1275,7 +1285,7 @@ export default function InteractiveMapV2({
                         </div>
                     ) : showGameEntry ? (
                         <button 
-                            onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
+                            onClick={() => router.push(`/dashboard/${guildId}/mini-jeux`)}
                             className="group flex items-center gap-4 bg-surface hover:bg-surface px-6 py-2.5 rounded-2xl border border-border transition-all  active:scale-95"
                         >
                             <div className="text-success transition-transform group-hover:rotate-12">
@@ -2117,19 +2127,34 @@ export default function InteractiveMapV2({
                                     </div>
 
                                     <div className="flex items-center gap-6 flex-wrap">
-                                        <div className="px-5 py-3 rounded-2xl bg-surface border border-border flex flex-col items-center min-w-[100px]">
-                                            <span className="text-foreground/20 text-caption font-black uppercase tracking-[0.2em] mb-1 italic">Prochain Round dans</span>
-                                            <span className="text-foreground font-black text-2xl italic tracking-tighter leading-none">{timeLeft}s</span>
+                                        <div className={cn(
+                                            "px-5 py-3 rounded-2xl border flex flex-col items-center min-w-[110px] transition-colors",
+                                            timeLeft <= 3 ? "bg-warning/15 border-warning/30" : "bg-surface border-border"
+                                        )}>
+                                            <span className="text-foreground/40 text-caption font-bold uppercase tracking-widest mb-1">Prochaine map dans</span>
+                                            <span className={cn(
+                                                "font-black text-3xl leading-none tabular-nums",
+                                                timeLeft <= 3 ? "text-warning animate-pulse" : "text-foreground"
+                                            )}>
+                                                {timeLeft}s
+                                            </span>
                                         </div>
-                                        <motion.button
-                                            whileHover={{ scale: 1.02, y: -2 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={handleNextRound}
-                                            className="px-8 py-4 rounded-2xl bg-success text-success-foreground font-black uppercase text-xs italic transition-all flex items-center gap-3 border-b-4 border-success shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.3)]"
-                                        >
-                                            <span>Suivant</span>
-                                            <ChevronRight size={18} />
-                                        </motion.button>
+                                        {(activeSession.hostId === currentUserId || isSoloMode) ? (
+                                            <motion.button
+                                                whileHover={{ scale: 1.02, y: -2 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={handleNextRound}
+                                                className="px-8 py-4 rounded-2xl bg-success text-success-foreground font-black uppercase text-xs italic transition-all flex items-center gap-3 border-b-4 border-success shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.3)]"
+                                            >
+                                                <span>Suivant</span>
+                                                <ChevronRight size={18} />
+                                            </motion.button>
+                                        ) : (
+                                            <div className="px-5 py-4 rounded-2xl bg-surface border border-border flex items-center gap-2 text-muted-foreground text-caption font-bold uppercase tracking-wider">
+                                                <Loader2 size={14} className="animate-spin text-success" />
+                                                <span>En attente de l'hôte...</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -3165,6 +3190,40 @@ export default function InteractiveMapV2({
                         </motion.div>
                     </div>
                 )}
+
+                {/* #126 : popup « un joueur a quitté » en partie à 2 joueurs (le tour continue) */}
+                <AnimatePresence>
+                    {playerLeftNotice && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -16 }}
+                            transition={{ duration: 0.25 }}
+                            className="fixed inset-x-0 top-6 z-[2600] flex justify-center px-4 pointer-events-none"
+                        >
+                            <div className="pointer-events-auto bg-zinc-950/95 border border-amber-500/30 rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-4 max-w-lg w-full">
+                                <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                                    <Users size={18} className="text-amber-400" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-white">
+                                        {playerLeftNotice} a quitté la partie
+                                    </p>
+                                    <p className="text-caption text-zinc-400 mt-0.5">
+                                        Le tour en cours continue — les prochaines maps partent quand même.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setPlayerLeftNotice(null)}
+                                    className="shrink-0 w-8 h-8 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center justify-center"
+                                    aria-label="Fermer"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Countdown Overlay */}
                 <AnimatePresence>

@@ -55,17 +55,17 @@ export default function GeoguesserHUD({
                     </span>
                 </div>
 
-                {/* Timer */}
+                {/* Timer — plus visible en jeu (#126) */}
                 <div className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all",
+                    "flex items-center gap-2.5 px-5 py-2 rounded-xl border transition-all",
                     timeLeft <= 5
-                        ? "bg-rose-500/20 border-rose-500/50 text-rose-400 animate-pulse"
+                        ? "bg-rose-500/25 border-rose-500/60 text-rose-300 animate-pulse"
                         : timeLeft <= 10
-                            ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
+                            ? "bg-amber-500/25 border-amber-500/50 text-amber-300"
                             : "bg-zinc-900/90 border-white/5 text-white"
                 )}>
-                    <Clock size={15} className={cn(timeLeft <= 5 && "animate-spin")} />
-                    <span className="text-sm font-black font-mono">
+                    <Clock size={18} className={cn("shrink-0", timeLeft <= 5 && "animate-spin")} />
+                    <span className="text-lg font-black font-mono tabular-nums leading-none">
                         {timeLeft}s
                     </span>
                 </div>

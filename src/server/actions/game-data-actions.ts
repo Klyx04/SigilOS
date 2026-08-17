@@ -1750,16 +1750,265 @@ export async function getArchimonstres(filter?: { type?: string; search?: string
     }
 }
 
+const IGNORED_MONSTERS_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-monsters.json');
+const IGNORED_FAMILIES_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-families.json');
+const IGNORED_ZONES_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-zones.json');
+
+function getIgnoredMonsters(): { names: string[]; dofusdbIds: number[] } {
+    try {
+        if (fs.existsSync(IGNORED_MONSTERS_PATH)) {
+            const raw = fs.readFileSync(IGNORED_MONSTERS_PATH, 'utf-8');
+            const data = JSON.parse(raw);
+            return {
+                names: Array.isArray(data.names) ? data.names : [],
+                dofusdbIds: Array.isArray(data.dofusdbIds) ? data.dofusdbIds : []
+            };
+        }
+    } catch { }
+    return { names: [], dofusdbIds: [] };
+}
+
+function addIgnoredMonster(name: string, dofusdbId?: number | null) {
+    try {
+        const current = getIgnoredMonsters();
+        const namesSet = new Set(current.names.map(n => n.toLowerCase()));
+        const idsSet = new Set(current.dofusdbIds);
+
+        if (name && name.trim()) namesSet.add(name.trim().toLowerCase());
+        if (typeof dofusdbId === 'number') idsSet.add(dofusdbId);
+
+        const dir = path.dirname(IGNORED_MONSTERS_PATH);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+        fs.writeFileSync(IGNORED_MONSTERS_PATH, JSON.stringify({
+            names: Array.from(namesSet),
+            dofusdbIds: Array.from(idsSet),
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+    } catch (e) {
+        logger.error('[addIgnoredMonster] Error saving ignored monster:', { error: e });
+    }
+}
+
+function isIgnoredMonster(name?: string | null, dofusdbId?: number | null): boolean {
+    const ignored = getIgnoredMonsters();
+    if (typeof dofusdbId === 'number' && ignored.dofusdbIds.includes(dofusdbId)) return true;
+    if (name && ignored.names.includes(name.trim().toLowerCase())) return true;
+    return false;
+}
+
+// --- Familles Exclues ---
+function getIgnoredFamilies(): string[] {
+    try {
+        if (fs.existsSync(IGNORED_FAMILIES_PATH)) {
+            const raw = fs.readFileSync(IGNORED_FAMILIES_PATH, 'utf-8');
+            const data = JSON.parse(raw);
+            return Array.isArray(data.names) ? data.names : [];
+        }
+    } catch { }
+    return [];
+}
+
+export async function addIgnoredFamily(name: string) {
+    try {
+        const current = getIgnoredFamilies();
+        const namesSet = new Set(current.map(n => n.toLowerCase()));
+        if (name && name.trim()) namesSet.add(name.trim().toLowerCase());
+
+        const dir = path.dirname(IGNORED_FAMILIES_PATH);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+        fs.writeFileSync(IGNORED_FAMILIES_PATH, JSON.stringify({
+            names: Array.from(namesSet),
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+    } catch (e) {
+        logger.error('[addIgnoredFamily] Error:', { error: e });
+    }
+}
+
+function isIgnoredFamily(name?: string | null): boolean {
+    if (!name) return false;
+    const ignored = getIgnoredFamilies();
+    return ignored.includes(name.trim().toLowerCase());
+}
+
+export async function getIgnoredFamiliesAction(): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    return { success: true, data: getIgnoredFamilies() };
+}
+
+export async function restoreIgnoredFamilyAction(name: string): Promise<ActionResponse> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    try {
+        const current = getIgnoredFamilies();
+        const names = current.filter(n => n.toLowerCase() !== name.trim().toLowerCase());
+        fs.writeFileSync(IGNORED_FAMILIES_PATH, JSON.stringify({
+            names,
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+        return { success: true };
+    } catch (e: any) {
+        logger.error('[restoreIgnoredFamilyAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la restauration de la famille' };
+    }
+}
+
+export async function clearAllIgnoredFamiliesAction(): Promise<ActionResponse> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    try {
+        fs.writeFileSync(IGNORED_FAMILIES_PATH, JSON.stringify({
+            names: [],
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+        return { success: true };
+    } catch (e: any) {
+        logger.error('[clearAllIgnoredFamiliesAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la réinitialisation' };
+    }
+}
+
+// --- Zones Exclues ---
+function getIgnoredZones(): string[] {
+    try {
+        if (fs.existsSync(IGNORED_ZONES_PATH)) {
+            const raw = fs.readFileSync(IGNORED_ZONES_PATH, 'utf-8');
+            const data = JSON.parse(raw);
+            return Array.isArray(data.names) ? data.names : [];
+        }
+    } catch { }
+    return [];
+}
+
+export async function addIgnoredZone(name: string) {
+    try {
+        const current = getIgnoredZones();
+        const namesSet = new Set(current.map(n => n.toLowerCase()));
+        if (name && name.trim()) namesSet.add(name.trim().toLowerCase());
+
+        const dir = path.dirname(IGNORED_ZONES_PATH);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+        fs.writeFileSync(IGNORED_ZONES_PATH, JSON.stringify({
+            names: Array.from(namesSet),
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+    } catch (e) {
+        logger.error('[addIgnoredZone] Error:', { error: e });
+    }
+}
+
+function isIgnoredZone(name?: string | null): boolean {
+    if (!name) return false;
+    const ignored = getIgnoredZones();
+    return ignored.includes(name.trim().toLowerCase());
+}
+
+export async function getIgnoredZonesAction(): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    return { success: true, data: getIgnoredZones() };
+}
+
+export async function restoreIgnoredZoneAction(name: string): Promise<ActionResponse> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    try {
+        const current = getIgnoredZones();
+        const names = current.filter(n => n.toLowerCase() !== name.trim().toLowerCase());
+        fs.writeFileSync(IGNORED_ZONES_PATH, JSON.stringify({
+            names,
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+        return { success: true };
+    } catch (e: any) {
+        logger.error('[restoreIgnoredZoneAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la restauration de la zone' };
+    }
+}
+
+export async function clearAllIgnoredZonesAction(): Promise<ActionResponse> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    try {
+        fs.writeFileSync(IGNORED_ZONES_PATH, JSON.stringify({
+            names: [],
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+        return { success: true };
+    } catch (e: any) {
+        logger.error('[clearAllIgnoredZonesAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la réinitialisation' };
+    }
+}
+
 export async function deleteArchimonstre(id: string): Promise<ActionResponse> {
     if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
+        const target = await db.archimonstre.findUnique({
+            where: { id },
+            select: { name: true, dofusdbId: true }
+        });
+        if (target) {
+            addIgnoredMonster(target.name, target.dofusdbId);
+        }
         await db.archimonstre.delete({ where: { id } });
         await logGameDataWrite("delete-archimonstre", id);
         return { success: true };
     } catch (error) {
         logger.error('[deleteArchimonstre] Error:', { error });
         return { success: false, error: 'Erreur suppression' };
+    }
+}
+
+/**
+ * 🗑️ Liste de toutes les créatures/boss blacklistées (supprimées).
+ */
+export async function getIgnoredMonstersAction(): Promise<ActionResponse<{ names: string[]; dofusdbIds: number[] }>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    return { success: true, data: getIgnoredMonsters() };
+}
+
+/**
+ * ↺ Restaurer / Réintégrer une créature blacklistée.
+ */
+export async function restoreIgnoredMonsterAction(name: string, dofusdbId?: number): Promise<ActionResponse> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+
+    try {
+        const current = getIgnoredMonsters();
+        const names = current.names.filter(n => n.toLowerCase() !== name.trim().toLowerCase());
+        const dofusdbIds = typeof dofusdbId === 'number' 
+            ? current.dofusdbIds.filter(id => id !== dofusdbId)
+            : current.dofusdbIds;
+
+        fs.writeFileSync(IGNORED_MONSTERS_PATH, JSON.stringify({
+            names,
+            dofusdbIds,
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+
+        return { success: true };
+    } catch (e: any) {
+        logger.error('[restoreIgnoredMonsterAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la restauration' };
+    }
+}
+
+/**
+ * ♻️ Réinitialiser complètement la liste des créatures exclues.
+ */
+export async function clearAllIgnoredMonstersAction(): Promise<ActionResponse> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+
+    try {
+        fs.writeFileSync(IGNORED_MONSTERS_PATH, JSON.stringify({
+            names: [],
+            dofusdbIds: [],
+            updatedAt: new Date().toISOString()
+        }, null, 2));
+        return { success: true };
+    } catch (e: any) {
+        logger.error('[clearAllIgnoredMonstersAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la réinitialisation' };
     }
 }
 
@@ -1919,6 +2168,11 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                             centerY = bestMap.y;
                             worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
                         }
+                    }
+
+                    if (isIgnoredMonster(monster.name, dofusdbId)) {
+                        skipped++;
+                        return;
                     }
 
                     const ocreType = monster.type.toLowerCase().includes('monstre') ? 'monstre' : monster.type;
@@ -2086,11 +2340,18 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
                 const nameFr: string = monster.name?.fr || monster.name || '';
                 if (!nameFr) { skipped++; continue; }
                 const dofusdbId: number = monster.id;
+                if (isIgnoredMonster(nameFr, dofusdbId)) { skipped++; continue; }
                 const imageUrl: string | null = monster.img || null;
                 const level = monster.grades?.[0]?.level ?? 0;
 
-                // Le type DofusDB (23 = Donjon/Boss) → mappé vers 'boss', sinon 'monstre'
-                const dofusType: string = Number(monster.typeId) === 23 ? 'boss' : 'monstre';
+                // Détermination du type : DofusDB fournit isBoss: true pour les gardiens de donjon
+                // et isMiniBoss: true pour les archimonstres.
+                let dofusType: string = 'monstre';
+                if (monster.isBoss === true || Number(monster.typeId) === 23) {
+                    dofusType = 'boss';
+                } else if (monster.isMiniBoss === true) {
+                    dofusType = 'archimonstre';
+                }
 
                 const rawSubareaIds: number[] = (monster.subareas || [])
                     .map((s: any) => typeof s === 'number' ? s : s?.id)
@@ -2244,5 +2505,386 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
     } catch (error) {
         logger.error('[syncWorldMonsters] Error:', { error });
         return { success: false, error: 'Erreur lors de la synchronisation du catalogue' };
+    }
+}
+
+/**
+ * 👑 Synchronisation 1-clic dédiée de tous les Boss / Gardiens de donjon depuis DofusDB.
+ */
+export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number; total: number }>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+
+    try {
+        const worldmapPath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        let subareaById = new Map<number, any>();
+        let mapsBySubAreaId = new Map<number, any[]>();
+        if (fs.existsSync(worldmapPath)) {
+            const worldmapRaw = fs.readFileSync(worldmapPath, 'utf-8');
+            const worldmap = JSON.parse(worldmapRaw);
+            for (const sa of worldmap.subareas || []) { if (sa.id != null) subareaById.set(sa.id, sa); }
+            for (const m of worldmap.maps || []) {
+                if (m.subAreaId == null) continue;
+                if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
+                mapsBySubAreaId.get(m.subAreaId)!.push(m);
+            }
+        }
+
+        const bossesMap = new Map<number, any>();
+        let skip = 0;
+        let total = 1;
+        while (skip < total) {
+            const res = await fetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${skip}&isBoss=true`, {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!res.ok) break;
+            const json = await res.json();
+            total = json.total || 0;
+            const items = json.data || [];
+            for (const item of items) {
+                bossesMap.set(item.id, item);
+            }
+            if (items.length === 0) break;
+            skip += items.length;
+        }
+
+        const bosses = Array.from(bossesMap.values());
+        let synced = 0;
+
+        for (const b of bosses) {
+            const nameFr = b.name?.fr || b.name || '';
+            if (!nameFr) continue;
+            if (isIgnoredMonster(nameFr, b.id)) continue;
+
+            const rawSubareaIds: number[] = (b.subareas || [])
+                .map((s: any) => typeof s === 'number' ? s : s?.id)
+                .filter((id: any): id is number => typeof id === 'number');
+
+            let centerX: number | null = null;
+            let centerY: number | null = null;
+            let worldMapId = 1;
+            let zoneName: string | null = null;
+
+            if (rawSubareaIds.length > 0) {
+                for (const saId of rawSubareaIds) {
+                    const sa = subareaById.get(saId);
+                    if (sa) {
+                        const saName = typeof sa.name === 'string' ? sa.name : (sa.name?.fr || '');
+                        if (saName && !zoneName) zoneName = saName;
+                    }
+                    for (const map of mapsBySubAreaId.get(saId) || []) {
+                        if (map.x != null && map.y != null) {
+                            centerX = map.x;
+                            centerY = map.y;
+                            worldMapId = map.worldMap === -1 ? 1 : map.worldMap;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Supprimer une éventuelle entrée sous le type "monstre" pour éviter le conflit unique
+            await db.archimonstre.deleteMany({
+                where: { name: nameFr, type: { not: 'boss' } }
+            });
+
+            await db.archimonstre.upsert({
+                where: { name_type: { name: nameFr, type: 'boss' } },
+                update: {
+                    imageUrl: b.img || null,
+                    level: b.grades?.[0]?.level ?? 0,
+                    dofusdbId: b.id,
+                    zone: zoneName,
+                    subareaIds: rawSubareaIds,
+                    worldMapId,
+                    centerX,
+                    centerY
+                },
+                create: {
+                    name: nameFr,
+                    type: 'boss',
+                    isOcre: false,
+                    imageUrl: b.img || null,
+                    level: b.grades?.[0]?.level ?? 0,
+                    dofusdbId: b.id,
+                    zone: zoneName,
+                    subareaIds: rawSubareaIds,
+                    worldMapId,
+                    centerX,
+                    centerY
+                }
+            });
+            synced++;
+        }
+
+        return { success: true, data: { synced, total: bosses.length } };
+    } catch (err: any) {
+        logger.error('[syncDofusBosses] Error:', { error: err });
+        return { success: false, error: 'Erreur lors de la synchronisation des Boss' };
+    }
+}
+
+/**
+ * 🌾 Résumé et statistiques des ressources récoltables et Zaaps (WorldMap / OptiFarm).
+ */
+export async function getHarvestResourcesSummary(): Promise<ActionResponse<{
+    jobs: { id: number; name: string; icon: string; img: string; resourceCount: number; totalSpots: number }[];
+    totalResources: number;
+    totalSpots: number;
+    zaapCount: number;
+    lastUpdated: string;
+}>> {
+    if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
+
+    try {
+        const harvestPath = path.join(process.cwd(), 'public', 'game-data', 'harvest-resources.json');
+        const zaapsPath = path.join(process.cwd(), 'public', 'game-data', 'zaaps.json');
+
+        if (!fs.existsSync(harvestPath)) {
+            return { success: false, error: "Fichier harvest-resources.json introuvable" };
+        }
+
+        const harvestRaw = fs.readFileSync(harvestPath, 'utf8');
+        const jobsData = JSON.parse(harvestRaw);
+
+        let zaapCount = 0;
+        if (fs.existsSync(zaapsPath)) {
+            const zaapsRaw = fs.readFileSync(zaapsPath, 'utf8');
+            const zaapsData = JSON.parse(zaapsRaw);
+            zaapCount = Array.isArray(zaapsData) ? zaapsData.length : 0;
+        }
+
+        let totalResources = 0;
+        let totalSpots = 0;
+
+        const jobs = jobsData.map((job: any) => {
+            const resCount = job.resources?.length || 0;
+            const spotsSum = job.resources?.reduce((acc: number, r: any) => acc + (r.totalSpots || r.spots?.length || 0), 0) || 0;
+            totalResources += resCount;
+            totalSpots += spotsSum;
+            return {
+                id: job.id,
+                name: job.name,
+                icon: job.icon,
+                img: job.img,
+                resourceCount: resCount,
+                totalSpots: spotsSum,
+            };
+        });
+
+        const stats = fs.statSync(harvestPath);
+
+        return {
+            success: true,
+            data: {
+                jobs,
+                totalResources,
+                totalSpots,
+                zaapCount,
+                lastUpdated: stats.mtime.toISOString()
+            }
+        };
+    } catch (err: any) {
+        logger.error('[getHarvestResourcesSummary] Error:', { error: err });
+        return { success: false, error: "Erreur lecture harvest-resources.json" };
+    }
+}
+
+/**
+ * 🛰️ Diagnostic de santé et test de connectivité en direct avec l'API DofusDB.
+ */
+export async function checkDofusDbApiHealth(): Promise<ActionResponse<{
+    endpoints: { name: string; url: string; status: number; latencyMs: number; ok: boolean }[];
+    allOk: boolean;
+    timestamp: string;
+}>> {
+    if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
+
+    const testUrls = [
+        { name: "Items & Récoltes", url: "https://api.dofusdb.fr/items?$limit=1" },
+        { name: "Monstres & Boss", url: "https://api.dofusdb.fr/monsters?$limit=1" },
+        { name: "Sous-zones & Coordonnées", url: "https://api.dofusdb.fr/subareas?$limit=1" },
+        { name: "Donjons & Salles", url: "https://api.dofusdb.fr/dungeons?$limit=1" },
+    ];
+
+    const results = await Promise.all(
+        testUrls.map(async (ep) => {
+            const start = performance.now();
+            try {
+                const res = await fetch(ep.url, {
+                    headers: { 'Accept': 'application/json', 'User-Agent': 'SigilOS-SyncEngine/2.0' },
+                    signal: AbortSignal.timeout(6000)
+                });
+                const latencyMs = Math.round(performance.now() - start);
+                return {
+                    name: ep.name,
+                    url: ep.url,
+                    status: res.status,
+                    latencyMs,
+                    ok: res.ok
+                };
+            } catch (err: any) {
+                const latencyMs = Math.round(performance.now() - start);
+                return {
+                    name: ep.name,
+                    url: ep.url,
+                    status: 0,
+                    latencyMs,
+                    ok: false
+                };
+            }
+        })
+    );
+
+    const allOk = results.every(r => r.ok);
+
+    return {
+        success: true,
+        data: {
+            endpoints: results,
+            allOk,
+            timestamp: new Date().toISOString()
+        }
+    };
+}
+
+/**
+ * 🦎 Synchronisation automatique des Familles de Monstres depuis DofusDB (/monster-races).
+ * Préserve les modifications manuelles tout en ajoutant les familles officielles manquantes.
+ */
+export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+
+    try {
+        let skip = 0;
+        let total = 1;
+        let synced = 0;
+
+        while (skip < total) {
+            const res = await fetch(`https://api.dofusdb.fr/monster-races?$limit=50&$skip=${skip}`, {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!res.ok) break;
+            const json = await res.json();
+            total = json.total || 0;
+            const items = json.data || [];
+            if (items.length === 0) break;
+
+            for (const item of items) {
+                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
+                if (!nameFr || !nameFr.trim()) continue;
+                if (isIgnoredFamily(nameFr)) continue;
+
+                await db.monsterFamily.upsert({
+                    where: { name: nameFr.trim() },
+                    update: {}, // Préserve les données manuelles existantes
+                    create: {
+                        name: nameFr.trim(),
+                        level: null,
+                    }
+                });
+                synced++;
+            }
+            skip += items.length;
+        }
+
+        await logGameDataWrite("sync-monster-families", `synced-${synced}`);
+        return { success: true, data: { synced, total } };
+    } catch (e: any) {
+        logger.error('[syncMonsterFamiliesFromDofusDb] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la synchronisation des familles' };
+    }
+}
+
+/**
+ * 🗺️ Synchronisation automatique des Zones & Sous-zones du Monde des Douze depuis DofusDB (/subareas & /areas).
+ * Ingestion complète des 562+ sous-zones réelles avec leurs niveaux exacts et des macro-régions.
+ * Préserve les zones custom et configurations existantes.
+ */
+export async function syncZonesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+
+    try {
+        let synced = 0;
+        let totalProcessed = 0;
+
+        // 1. Synchronisation des 562 Sous-Zones (lieux réels de présence : Montagne des Craqueleurs, Port de Madrestam...)
+        let subSkip = 0;
+        let subTotal = 1;
+
+        while (subSkip < subTotal) {
+            const res = await fetch(`https://api.dofusdb.fr/subareas?$limit=50&$skip=${subSkip}`, {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!res.ok) break;
+            const json = await res.json();
+            subTotal = json.total || 0;
+            const items = json.data || [];
+            if (items.length === 0) break;
+
+            for (const item of items) {
+                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
+                if (!nameFr || !nameFr.trim()) continue;
+                if (isIgnoredZone(nameFr)) continue;
+
+                const lvl = typeof item.level === 'number' && item.level > 0 ? item.level : 200;
+
+                await db.zone.upsert({
+                    where: { name: nameFr.trim() },
+                    update: {
+                        // Met à jour le niveau officiel si présent
+                        level: lvl
+                    },
+                    create: {
+                        name: nameFr.trim(),
+                        level: lvl,
+                    }
+                });
+                synced++;
+            }
+            subSkip += items.length;
+            totalProcessed = subTotal;
+        }
+
+        // 2. Synchronisation des 69 Grandes Régions (Amakna, Cania, Frigost...)
+        let areaSkip = 0;
+        let areaTotal = 1;
+
+        while (areaSkip < areaTotal) {
+            const res = await fetch(`https://api.dofusdb.fr/areas?$limit=50&$skip=${areaSkip}`, {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!res.ok) break;
+            const json = await res.json();
+            areaTotal = json.total || 0;
+            const items = json.data || [];
+            if (items.length === 0) break;
+
+            for (const item of items) {
+                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
+                if (!nameFr || !nameFr.trim()) continue;
+                if (isIgnoredZone(nameFr)) continue;
+
+                await db.zone.upsert({
+                    where: { name: nameFr.trim() },
+                    update: {}, // Préserve les réglages existants
+                    create: {
+                        name: nameFr.trim(),
+                        level: 200,
+                    }
+                });
+                synced++;
+            }
+            areaSkip += items.length;
+        }
+
+        await logGameDataWrite("sync-zones", `synced-${synced}`);
+        return { success: true, data: { synced, total: totalProcessed + areaTotal } };
+    } catch (e: any) {
+        logger.error('[syncZonesFromDofusDb] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la synchronisation des zones et sous-zones' };
     }
 }

@@ -12,41 +12,45 @@ import GameQuestManager from "./GameQuestManager";
 import QuestSyncPanel from "./QuestSyncPanel";
 import ArchimonstreManager from "./ArchimonstreManager";
 import { GameDataMonsterManager } from "./GameDataMonsterManager";
-import { Sparkles, ChevronRight, Database } from "lucide-react";
+import { DofusDbHarvestSyncManager } from "./DofusDbHarvestSyncManager";
+import { Sparkles, ChevronRight, Database, Pickaxe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function GameDataInterface() {
     const [activeTab, setActiveTab] = useState("families");
 
     return (
-        <div className="bg-surface/50 backdrop-blur-sm rounded-lg border border-border/50 p-6">
+        <div className="bg-surface/50 backdrop-blur-sm rounded-3xl border border-border/50 p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="flex flex-wrap justify-start gap-1 w-full bg-elevated/50 mb-6 p-2 rounded-xl h-auto">
-                    <TabsTrigger value="families" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                <TabsList className="flex flex-wrap justify-start gap-1 w-full bg-elevated/50 mb-6 p-2 rounded-2xl h-auto">
+                    <TabsTrigger value="families" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         🦎 Familles
                     </TabsTrigger>
-                    <TabsTrigger value="zones" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="zones" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         🗺️ Zones
                     </TabsTrigger>
-                    <TabsTrigger value="challenges" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="challenges" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         ⚔️ Succès
                     </TabsTrigger>
-                    <TabsTrigger value="dungeons" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="dungeons" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         🏰 Donjons
                     </TabsTrigger>
-                    <TabsTrigger value="quests" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="quests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         📜 Quêtes
                     </TabsTrigger>
-                    <TabsTrigger value="import-export" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="harvest" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white flex-1 min-w-[120px] rounded-xl font-bold">
+                        🌾 Récoltables & DofusDB
+                    </TabsTrigger>
+                    <TabsTrigger value="import-export" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         📦 Import/Export
                     </TabsTrigger>
-                    <TabsTrigger value="legendary" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="legendary" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         ✨ Légendaires
                     </TabsTrigger>
-                    <TabsTrigger value="archimonstres" className="data-[state=active]:bg-warning flex-1 min-w-[100px]">
+                    <TabsTrigger value="archimonstres" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex-1 min-w-[100px] rounded-xl font-bold">
                         🏹 Archimonstres
                     </TabsTrigger>
-                    <TabsTrigger value="monstres-speciaux" className="data-[state=active]:bg-info flex-1 min-w-[100px]">
+                    <TabsTrigger value="monstres-speciaux" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-1 min-w-[100px] rounded-xl font-bold">
                         💀 Monstres Spéciaux
                     </TabsTrigger>
                 </TabsList>
@@ -70,6 +74,10 @@ export default function GameDataInterface() {
                 <TabsContent value="quests" className="space-y-6">
                     <QuestSyncPanel />
                     <GameQuestManager />
+                </TabsContent>
+
+                <TabsContent value="harvest" className="space-y-4">
+                    <DofusDbHarvestSyncManager />
                 </TabsContent>
 
                 <TabsContent value="import-export" className="space-y-4">

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { isSuperAdmin } from "./super-admin-actions";
 import { logger } from "@/lib/logger";
 import { sanitizeHtml } from "@/lib/security";
+import { auth } from "@/auth";
+import { getUserContext } from "./user-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -239,16 +241,50 @@ export async function getContentCreators(guildId: string) {
 }
 
 export async function upsertContentCreator(guildId: string, data: any) {
-    if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Non authentifié");
+
+    const superAdmin = await isSuperAdmin();
+    const userCtx = await getUserContext(guildId);
+
+    if (!superAdmin && !userCtx.isAdmin) {
+        throw new Error("Accès refusé : Droits administrateur requis");
+    }
+
     const targetId = await getDbGuildId(guildId);
 
+    // Limit guild creators to 50 max (#82)
+    const existingCount = await db.contentCreator.count({
+        where: { guildId: targetId }
+    });
+    if (!data.id && existingCount >= 50) {
+        throw new Error("Limite atteinte : Maximum 50 créateurs autorisés par guilde.");
+    }
+
     // Clean handles to avoid logic breaks (remove @ from handle if it's there)
-    const cleanHandle = data.handle?.replace('@', '').toLowerCase();
+    const cleanHandle = data.handle?.replace('@', '').toLowerCase().trim();
 
     const res = await db.contentCreator.upsert({
         where: { id: data.id || "new-creator" },
-        update: { name: data.name, role: data.role, youtube: data.youtube, twitch: data.twitch, handle: cleanHandle, color: data.color, order: data.order },
-        create: { guildId: targetId, name: data.name, role: data.role, youtube: data.youtube, twitch: data.twitch, handle: cleanHandle, color: data.color, order: data.order }
+        update: { 
+            name: data.name?.trim(), 
+            role: data.role?.trim(), 
+            youtube: data.youtube?.trim(), 
+            twitch: data.twitch?.trim(), 
+            handle: cleanHandle, 
+            color: data.color || "#3b82f6", 
+            order: data.order ?? 0 
+        },
+        create: { 
+            guildId: targetId, 
+            name: data.name?.trim(), 
+            role: data.role?.trim(), 
+            youtube: data.youtube?.trim(), 
+            twitch: data.twitch?.trim(), 
+            handle: cleanHandle, 
+            color: data.color || "#3b82f6", 
+            order: data.order ?? 0 
+        }
     });
 
     revalidatePath(`/dashboard/${guildId}/ressources`);
@@ -256,8 +292,65 @@ export async function upsertContentCreator(guildId: string, data: any) {
 }
 
 export async function deleteContentCreator(id: string, guildId: string) {
-    if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Non authentifié");
+
+    const superAdmin = await isSuperAdmin();
+    const userCtx = await getUserContext(guildId);
+
+    if (!superAdmin && !userCtx.isAdmin) {
+        throw new Error("Accès refusé : Droits administrateur requis");
+    }
+
     await db.contentCreator.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);
     return { success: true };
+}
+
+/**
+ * Diagnostic de santé des liens externes de ressources (#82)
+ */
+export async function checkResourceLinksHealth(guildId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const superAdmin = await isSuperAdmin();
+    if (!superAdmin) return { success: false, error: "Réservé au SuperAdmin / God" };
+
+    const categories = await getResourceCategories(guildId);
+    const brokenLinks: { name: string; url: string; status: number | string }[] = [];
+
+    const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+
+    for (const cat of categories) {
+        for (const link of cat.links) {
+            try {
+                // Essai GET avec user-agent navigateur standard et suivi des redirections
+                const res = await fetch(link.url, { 
+                    method: "GET", 
+                    signal: AbortSignal.timeout(8000),
+                    redirect: "follow",
+                    headers: { 
+                        "User-Agent": BROWSER_UA,
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                    }
+                });
+
+                // Si le site renvoie 2xx, 3xx ou 403/401 (Cloudflare WAF / protection bot), il est en ligne
+                if (!res.ok && res.status !== 403 && res.status !== 401) {
+                    brokenLinks.push({ name: link.title, url: link.url, status: res.status });
+                }
+            } catch (err: any) {
+                brokenLinks.push({ name: link.title, url: link.url, status: "TIMEOUT_OR_UNREACHABLE" });
+            }
+        }
+    }
+
+    return { 
+        success: true, 
+        data: { 
+            totalChecked: categories.reduce((acc, c) => acc + c.links.length, 0),
+            brokenLinks 
+        } 
+    };
 }

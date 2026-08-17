@@ -7,7 +7,7 @@
   "description": "Capturer les âmes de nombreux monstres, boss de donjons et archimonstres pour obtenir le Dofus Ocre. Quête longue terme — utiliser Metamob pour suivre la progression.",
   "dofusItemId": 714,
   "iconId": 714,
-  "imageUrl": "https://static.dofusdb.fr/items/714.png",
+  "imageUrl": "/module-dofus/Dofus_Ocre.png",
   "compiledAt": "2026-04-11T14:48:32.605Z",
   "compilerVersion": "3.0",
   "chains": [

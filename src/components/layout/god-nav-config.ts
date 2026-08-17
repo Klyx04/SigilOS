@@ -20,6 +20,7 @@ import {
     Server,
     BookOpen,
     UserPlus,
+    Library,
     type LucideIcon
 } from "lucide-react";
 
@@ -67,6 +68,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
 
     // Données de Jeu (sous-god friendly)
     { id: "game-data", name: "Données de Jeu", icon: Database, color: "text-info", group: "game-data", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data" },
+    { id: "resources", name: "Ressources & Créateurs", icon: Library, color: "text-purple-400", group: "game-data", sub: "resources", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-resources" },
     { id: "bounties", name: "Avis de Recherche", icon: Ban, color: "text-danger", group: "game-data", sub: "game-data/bounties", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-bounties" },
     { id: "quetes-dofus", name: "Quêtes Dofus", icon: Sparkles, color: "text-info", group: "game-data", sub: "quetes-dofus", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-quetes" },
     { id: "dofus-guides", name: "Guides Optim.", icon: Navigation, color: "text-success", group: "game-data", sub: "dofus-guides", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-guides" },

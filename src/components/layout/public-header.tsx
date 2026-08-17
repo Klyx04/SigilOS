@@ -136,7 +136,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                             <DropdownMenuLabel className="px-4 py-3">
                                                 <div className="flex flex-col space-y-1">
                                                     <p className="text-xs font-black text-foreground uppercase tracking-widest">Compte SigilOS</p>
-                                                    <p className="text-caption text-muted-foreground font-medium truncate">{user.email}</p>
+                                                    <p className="text-caption text-muted-foreground font-medium truncate">{user.name || "Connecté via Discord"}</p>
                                                 </div>
                                             </DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-surface mx-2" />

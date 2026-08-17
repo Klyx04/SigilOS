@@ -27,26 +27,26 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
     ALL: {
         label: "Tous",
         icon: <Star className="w-4 h-4" />,
-        color: "text-purple-300 border-purple-500/30 hover:bg-purple-500/20",
-        activeColor: "bg-purple-600 text-foreground border-purple-600"
+        color: "text-purple-700 dark:text-purple-300 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20",
+        activeColor: "bg-purple-600 text-white border-purple-600 shadow-sm"
     },
     REVE: {
         label: "Rêve",
         icon: <Moon className="w-4 h-4" />,
-        color: "text-green-300 border-green-500/30 hover:bg-green-500/20",
-        activeColor: "bg-green-600 text-foreground border-green-600"
+        color: "text-emerald-700 dark:text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20",
+        activeColor: "bg-emerald-600 text-white border-emerald-600 shadow-sm"
     },
     PARADOXE: {
         label: "Paradoxe",
         icon: <Sparkles className="w-4 h-4" />,
-        color: "text-amber-300 border-amber-500/30 hover:bg-amber-500/20",
-        activeColor: "bg-amber-600 text-warning-foreground border-amber-600"
+        color: "text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20",
+        activeColor: "bg-amber-500 text-white border-amber-500 shadow-sm"
     },
     CAUCHEMAR: {
         label: "Cauchemar",
         icon: <Flame className="w-4 h-4" />,
-        color: "text-red-300 border-red-500/30 hover:bg-red-900/20",
-        activeColor: "bg-red-600 text-foreground border-red-600"
+        color: "text-red-700 dark:text-red-300 border-red-500/30 bg-red-500/10 hover:bg-red-900/20",
+        activeColor: "bg-red-600 text-white border-red-600 shadow-sm"
     },
 };
 

@@ -344,51 +344,46 @@ export default async function SuperAdminPage(props: {
 
                     {tab === "game-data" && (
                         <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Game Data</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Synchronisez et orchestrez les données de référence du monde des Douze.</p>
+                            <div className="space-y-3 pb-8 border-b border-border">
+                                <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight">Game Data Engine</h1>
+                                <p className="text-muted-foreground text-sm md:text-base font-medium">Synchronisez et orchestrez les données de référence du monde des Douze pour SigilOS.</p>
                             </div>
 
                             {/* Quick Stats Grid */}
                             <Suspense fallback={
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
-                                    {[...Array(4)].map((_, i) => <div key={i} className="bg-zinc-900/10 h-24 rounded-3xl border border-white/5" />)}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+                                    {[...Array(4)].map((_, i) => <div key={i} className="bg-surface h-24 rounded-3xl border border-border" />)}
                                 </div>
                             }>
                                 <GameDataStatsServer />
                             </Suspense>
 
-                            <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
                                 <GameDataInterface />
                             </Suspense>
 
-                            <div className="border-t border-white/5 pt-12 space-y-6">
-                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs font-black text-yellow-400 uppercase tracking-widest">
-                                    <Sparkles className="w-4 h-4" />
-                                    <span>Zones Saisonnières</span>
-                                </div>
-                                <h2 className="text-3xl font-black text-white tracking-tighter">Zones Événements</h2>
-                                <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
+                            <div className="border-t border-border pt-10 space-y-6">
+                                <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
                                     <EventZoneManager />
                                 </Suspense>
                             </div>
 
                             {/* Avis de Recherche Quick Access */}
-                            <div className="border-t border-white/5 pt-12">
+                            <div className="border-t border-border pt-8">
                                 <Link
-href={`${godRoute}/game-data/bounties`}
-                                    className="group flex items-center gap-6 p-8 rounded-3xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all shadow-xl shadow-rose-500/5"
+                                    href={`${godRoute}/game-data/bounties`}
+                                    className="group flex items-center gap-6 p-6 sm:p-8 rounded-3xl bg-surface border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all shadow-sm"
                                 >
-                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 group-hover:bg-rose-500/20 transition-all shrink-0">
-                                        <Flag className="w-8 h-8 text-rose-400" />
+                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 group-hover:scale-105 transition-all shrink-0">
+                                        <Flag className="w-7 h-7 text-rose-500" />
                                     </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-xl font-black text-white uppercase italic tracking-tight mb-1">Avis de Recherche</h3>
-                                        <p className="text-zinc-500 text-sm font-medium">
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg sm:text-xl font-black text-foreground tracking-tight mb-1">Avis de Recherche</h3>
+                                        <p className="text-muted-foreground text-xs sm:text-sm font-medium">
                                             Éditez les mécaniques, doplons, zones et résumés tactiques de tous les avis de recherche de la base de données.
                                         </p>
                                     </div>
-                                    <div className="shrink-0 text-rose-500/40 group-hover:text-rose-400 group-hover:translate-x-1 transition-all text-2xl font-black">→</div>
+                                    <div className="shrink-0 text-rose-500/40 group-hover:text-rose-500 group-hover:translate-x-1 transition-all text-2xl font-black">→</div>
                                 </Link>
                             </div>
                         </div>
@@ -585,20 +580,20 @@ async function GameDataStatsServer() {
         ]);
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: "Familles", count: families, icon: Layers, color: "text-blue-400" },
-                    { label: "Zones", count: zones, icon: MapPin, color: "text-green-400" },
-                    { label: "Succès", count: challenges, icon: Trophy, color: "text-yellow-400" },
-                    { label: "Donjons", count: dungeons, icon: Database, color: "text-purple-400" },
+                    { label: "Familles", count: families, icon: Layers, color: "text-blue-500" },
+                    { label: "Zones", count: zones, icon: MapPin, color: "text-emerald-500" },
+                    { label: "Succès", count: challenges, icon: Trophy, color: "text-amber-500" },
+                    { label: "Donjons", count: dungeons, icon: Database, color: "text-purple-500" },
                 ].map((stat) => (
-                    <div key={stat.label} className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 flex items-center gap-4">
-                        <div className={cn("p-3 rounded-xl bg-zinc-950/50 border border-white/5", stat.color)}>
+                    <div key={stat.label} className="p-6 rounded-3xl border border-border bg-surface shadow-sm flex items-center gap-4">
+                        <div className={cn("p-3 rounded-2xl bg-elevated border border-border", stat.color)}>
                             <stat.icon className="w-6 h-6" />
                         </div>
                         <div>
-                            <div className="text-caption font-black text-zinc-500 uppercase tracking-widest">{stat.label}</div>
-                            <div className="text-xl font-black text-white">{stat.count}</div>
+                            <div className="text-caption font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</div>
+                            <div className="text-2xl font-black text-foreground">{stat.count}</div>
                         </div>
                     </div>
                 ))}

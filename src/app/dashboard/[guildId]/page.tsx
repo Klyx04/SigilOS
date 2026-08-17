@@ -13,6 +13,7 @@ import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-acti
 import { getPolls } from "@/server/actions/poll-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { hasFilledAvailability } from "@/lib/dofus-assets";
+import { getISOWeek, getYear } from "date-fns";
 import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
@@ -97,13 +98,19 @@ export default async function DashboardPage({
     const hasRaidNow = !!activeRaid;
 
     // Module Disponibilités — rappel hebdomadaire doux.
-    // JAMAIS si : onboarding en cours, module inactif, pas de permission, ou semaine déjà remplie.
+    // JAMAIS si : onboarding en cours, module inactif, pas de permission, semaine déjà remplie ou déjà dismissée cette semaine sur n'importe quel appareil.
+    const now = new Date();
+    const currentWeekKey = `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+    const profileAvail = (profile as any)?.availability as Record<string, any> | undefined;
+    const isDismissedThisWeek = profileAvail?.dismissedWeek === currentWeekKey;
+
     const showAvailabilityReminder =
         user.isOnboardingComplete &&
         availabilityModuleEnabled &&
         !!user.canViewAvailability &&
         !!profile &&
-        !hasFilledAvailability((profile as any).availability);
+        !isDismissedThisWeek &&
+        !hasFilledAvailability(profileAvail);
 
     // Quick Stats Data
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;

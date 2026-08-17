@@ -252,7 +252,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             <div className="flex flex-col gap-6 relative z-10 h-full">
                 {/* Header */}
                 <div className="flex items-center gap-4">
-                    <div className="relative w-12 h-12 shrink-0 bg-black/40 rounded-2xl border border-border flex items-center justify-center overflow-hidden shadow-inner">
+                    <div className="relative w-12 h-12 shrink-0 bg-surface rounded-2xl border border-border flex items-center justify-center overflow-hidden shadow-sm">
                         <div
                             className="absolute inset-0 opacity-20 blur-md"
                             style={{ backgroundColor: classArtColor }}
@@ -272,7 +272,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     <div className="flex-1 min-w-0">
                         <h3 className="font-black text-body text-foreground truncate uppercase tracking-tight leading-tight" title={title || data?.name}>{title || data?.name || "Build Dofusbook"}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="px-1.5 py-0.5 rounded-md bg-surface border border-border text-caption font-black text-muted-foreground uppercase tracking-tighter">
+                            <span className="px-1.5 py-0.5 rounded-md bg-elevated border border-border text-caption font-black text-muted-foreground uppercase tracking-tighter">
                                 Lvl {data?.level || "???"}
                             </span>
                             <p className="text-caption font-bold text-muted-foreground uppercase tracking-widest truncate">{data?.className || getClassName(guessedClassId) || "Classe inconnue"}</p>
@@ -281,7 +281,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                 </div>
 
                 {/* Equipment Grid or Fallback UI */}
-                <div className="relative aspect-square w-full bg-black/40 p-3 rounded-[2.5rem] border border-border flex items-center justify-center shadow-2xl">
+                <div className="relative aspect-square w-full bg-surface/90 p-3 rounded-[2.5rem] border border-border flex items-center justify-center shadow-lg">
                     <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] flex items-center justify-center pointer-events-none z-0">
                         {(data?.classId || guessedClassId) > 0 && (
                             <div className="absolute w-24 h-24 rounded-full blur-[40px] opacity-25" style={{ backgroundColor: classArtColor }} />

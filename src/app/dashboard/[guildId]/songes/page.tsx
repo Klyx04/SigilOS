@@ -46,7 +46,6 @@ export default async function SongesPage({
 
     return (
         <div className="space-y-6 pb-12">
-            <ActivitiesNav guildId={guildId} />
             <div data-tour="songes-header">
                 <UnifiedModuleHeader
                     title="Songes Infinis"

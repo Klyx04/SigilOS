@@ -90,10 +90,10 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
 
     return (
         <>
-            <GlassPanel className="p-4 border-purple-500/20 bg-purple-500/5">
+            <GlassPanel className="p-4 border-purple-500/20 bg-purple-500/10 dark:bg-purple-500/5">
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-2 text-purple-300 font-semibold mb-1">
-                        <Bell className="w-4 h-4 text-purple-400" />
+                    <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-semibold mb-1">
+                        <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         <span>Gestion Leader</span>
                     </div>
 
@@ -106,7 +106,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                     <Button
                         onClick={() => setIsModalOpen(true)}
                         variant="outline"
-                        className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-200 gap-2"
+                        className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-700 dark:text-purple-200 font-bold gap-2"
                     >
                         <Send className="w-4 h-4" />
                         Envoyer un rappel
@@ -121,7 +121,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
     function renderModal() {
         return (
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-border text-foreground" onClick={(e) => e.stopPropagation()}>
+                <DialogContent className="sm:max-w-[425px] bg-background border-border text-foreground" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-purple-400">
                             <Bell className="w-5 h-5" />

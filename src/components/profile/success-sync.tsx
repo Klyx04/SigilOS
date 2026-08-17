@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Loader2, Sparkles, RefreshCw, Edit2, ExternalLink, UserSearch, Info } from "lucide-react";
-import { refreshUserSuccessPoints, getLadderPreview } from "@/server/actions/profile-actions";
+import { Trophy, Loader2, Sparkles, RefreshCw, Edit2, ExternalLink, UserSearch, Info, Camera, Upload, Check, X, Swords } from "lucide-react";
+import { refreshUserSuccessPoints, getLadderPreview, syncMemberSuccessPoints } from "@/server/actions/profile-actions";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
+import { getClass } from "@/lib/dofus-assets";
 
 interface SuccessSyncProps {
     guildId: string;
@@ -19,10 +22,8 @@ interface SuccessSyncProps {
     onTabChange?: (tab: string) => void;
     onSuccess?: (points: number) => void;
     canSyncLadder?: boolean;
+    canManualSyncLadder?: boolean;
 }
-
-import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
-import { getClass } from "@/lib/dofus-assets";
 
 export function SuccessSync({
     guildId,
@@ -34,6 +35,7 @@ export function SuccessSync({
     onTabChange,
     onSuccess,
     canSyncLadder = false,
+    canManualSyncLadder = false,
 }: SuccessSyncProps) {
     const [isSyncing, setIsSyncing] = useState(false);
     const [previewData, setPreviewData] = useState<{ 
@@ -45,6 +47,12 @@ export function SuccessSync({
     } | null>(null);
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [previewFetched, setPreviewFetched] = useState(false);
+
+    // OCR Manual Sync State (#81bis)
+    const [ocrModalOpen, setOcrModalOpen] = useState(false);
+    const [ocrImage, setOcrImage] = useState<string | null>(null);
+    const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!pseudoDofus || previewFetched || readOnly) return;
@@ -89,6 +97,63 @@ export function SuccessSync({
         }
     };
 
+    // OCR Image handlers (#81bis)
+    const handleFileSelect = (file: File) => {
+        if (!file.type.startsWith("image/")) {
+            toast.error("Veuillez sélectionner un fichier image valide (PNG/JPG/WebP).");
+            return;
+        }
+        if (file.size > 4 * 1024 * 1024) {
+            toast.error("L'image ne doit pas dépasser 4 Mo.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setOcrImage(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith("image/")) {
+                const file = items[i].getAsFile();
+                if (file) handleFileSelect(file);
+                break;
+            }
+        }
+    };
+
+    const handleOcrSubmit = async () => {
+        if (!ocrImage || isOcrProcessing) return;
+        setIsOcrProcessing(true);
+        try {
+            const res = await syncMemberSuccessPoints({
+                guildId,
+                imageData: ocrImage,
+            });
+
+            if (res.success && res.data) {
+                if (res.data.pending) {
+                    toast.info("Capture enregistrée et soumise à la validation des administrateurs.");
+                } else {
+                    toast.success(`Points de succès détectés et validés par OCR : ${res.data.points.toLocaleString()} pts !`);
+                    onSuccess?.(res.data.points);
+                }
+                setOcrModalOpen(false);
+                setOcrImage(null);
+            } else {
+                toast.error(res.error || "Impossible d'analyser les points sur cette capture.");
+            }
+        } catch (err) {
+            toast.error("Erreur de traitement de l'image.");
+        } finally {
+            setIsOcrProcessing(false);
+        }
+    };
+
     if (readOnly && !successPoints) return null;
 
     return (
@@ -112,25 +177,126 @@ export function SuccessSync({
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Ladder Sync Button (if enabled) */}
-                {!readOnly && canSyncLadder && (
-                    <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <Button
-                            onClick={handleLadderSync}
-                            disabled={isSyncing || !pseudoDofus}
-                            className="w-full h-12 bg-warning hover:bg-warning text-warning-foreground font-black uppercase tracking-widest  transition-all active:scale-95 disabled:opacity-50 group gap-3"
-                        >
-                            {isSyncing ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" />
-                            )}
-                            <span>Synchroniser via Ladder</span>
-                        </Button>
-                        {!pseudoDofus && (
-                            <p className="text-caption text-muted-foreground text-center mt-2 italic font-medium">
-                                Le pseudo Dofus est requis pour la synchronisation automatique.
-                            </p>
+                {/* Ladder Sync & Manual OCR Buttons */}
+                {!readOnly && (canSyncLadder || canManualSyncLadder) && (
+                    <div className="pt-2 flex flex-col sm:flex-row gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {canSyncLadder && (
+                            <Button
+                                onClick={handleLadderSync}
+                                disabled={isSyncing || !pseudoDofus}
+                                className="flex-1 h-12 bg-warning hover:bg-warning/90 text-warning-foreground font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 group gap-2.5"
+                            >
+                                {isSyncing ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-300" />
+                                )}
+                                <span>Sync via Ladder</span>
+                            </Button>
+                        )}
+
+                        {canManualSyncLadder && (
+                            <Dialog open={ocrModalOpen} onOpenChange={setOcrModalOpen}>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 h-12 border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning-foreground font-black uppercase tracking-wider gap-2.5"
+                                    >
+                                        <Camera className="w-4 h-4 text-warning" />
+                                        <span>Capture OCR (Manuel)</span>
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent onPaste={handlePaste} className="sm:max-w-lg border-border bg-background/95 backdrop-blur-xl">
+                                    <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2 text-foreground">
+                                            <Camera className="w-5 h-5 text-warning" />
+                                            Synchronisation par Capture d'Écran (OCR)
+                                        </DialogTitle>
+                                        <DialogDescription className="text-muted-foreground">
+                                            Collez (<kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs text-foreground">Ctrl+V</kbd>) ou glissez une capture en jeu montrant votre score de points de succès.
+                                        </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="space-y-4 pt-2">
+                                        {!ocrImage ? (
+                                            <div
+                                                onClick={() => fileInputRef.current?.click()}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    const file = e.dataTransfer.files?.[0];
+                                                    if (file) handleFileSelect(file);
+                                                }}
+                                                className="border-2 border-dashed border-border hover:border-warning/50 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer bg-surface/30 hover:bg-surface/50 transition-colors text-center"
+                                            >
+                                                <div className="p-3 rounded-full bg-warning/10 text-warning">
+                                                    <Upload className="w-6 h-6" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-bold text-foreground">Glissez-déposez ou cliquez pour choisir une image</p>
+                                                    <p className="text-xs text-muted-foreground">Coller directement depuis le presse-papier fonctionne également</p>
+                                                </div>
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    accept="image/png,image/jpeg,image/webp"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) handleFileSelect(file);
+                                                    }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="relative rounded-xl overflow-hidden border border-border bg-black/40 p-2">
+                                                <img
+                                                    src={ocrImage}
+                                                    alt="Aperçu capture"
+                                                    className="w-full max-h-60 object-contain rounded-lg"
+                                                />
+                                                <Button
+                                                    size="icon"
+                                                    variant="destructive"
+                                                    className="absolute top-4 right-4 h-8 w-8 rounded-full shadow-lg"
+                                                    onClick={() => setOcrImage(null)}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-end gap-3 pt-2">
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setOcrModalOpen(false);
+                                                    setOcrImage(null);
+                                                }}
+                                                disabled={isOcrProcessing}
+                                            >
+                                                Annuler
+                                            </Button>
+                                            <Button
+                                                onClick={handleOcrSubmit}
+                                                disabled={!ocrImage || isOcrProcessing}
+                                                className="bg-warning hover:bg-warning text-warning-foreground font-bold gap-2"
+                                            >
+                                                {isOcrProcessing ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        <span>Analyse OCR en cours...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Check className="w-4 h-4" />
+                                                        <span>Analyser & Synchroniser</span>
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         )}
                     </div>
                 )}
@@ -315,16 +481,27 @@ export function SuccessSync({
                     </div>
                 )}
 
-                {/* Link to Guild Ladder Module */}
-                <div className="pt-4 mt-2 border-t border-border">
+                {/* Direct Links to Guild Ladder & Achievement Trackers (#27) */}
+                <div className="pt-4 mt-2 border-t border-border flex flex-col sm:flex-row gap-3">
                     <Button
                         asChild
                         variant="sigil"
-                        className="w-full h-11"
+                        className="flex-1 h-11"
                     >
                         <Link href={`/dashboard/${guildId}/ladder?tab=success`}>
-                            <Trophy className="w-5 h-5" />
-                            <span>VOIR LE CLASSEMENT DE GUILDE</span>
+                            <Trophy className="w-4 h-4" />
+                            <span>Classement de Guilde</span>
+                        </Link>
+                    </Button>
+
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="flex-1 h-11 border-border bg-surface hover:bg-elevated text-foreground font-bold"
+                    >
+                        <Link href={`/dashboard/${guildId}/donjons-et-quetes?tab=shared-achievements`}>
+                            <Swords className="w-4 h-4 text-warning" />
+                            <span>Succès Communs</span>
                         </Link>
                     </Button>
                 </div>

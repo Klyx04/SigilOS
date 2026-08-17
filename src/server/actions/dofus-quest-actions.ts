@@ -919,6 +919,68 @@ export async function getGuildSynergyForDofus(
     }
 }
 
+/**
+ * #112 — Récupère récursivement tous les IDs des quêtes prérequises en amont.
+ * Protégé contre les cycles éventuels avec un Set visité et une profondeur max.
+ */
+async function getAllUpstreamPrerequisites(questId: string): Promise<string[]> {
+    const upstreamIds = new Set<string>();
+    let currentLevel = [questId];
+    let depth = 0;
+
+    while (currentLevel.length > 0 && depth < 20) {
+        depth++;
+        const prereqs = await (db as any).dofusQuestPrerequisite.findMany({
+            where: { toQuestId: { in: currentLevel } },
+            select: { fromQuestId: true },
+        });
+
+        const nextLevel: string[] = [];
+        for (const p of prereqs) {
+            if (p.fromQuestId && !upstreamIds.has(p.fromQuestId)) {
+                upstreamIds.add(p.fromQuestId);
+                nextLevel.push(p.fromQuestId);
+            }
+        }
+        currentLevel = nextLevel;
+    }
+
+    return Array.from(upstreamIds);
+}
+
+/**
+ * #112 — Recalcule et persiste le pourcentage d'avancement pour un Dofus donné.
+ */
+async function refreshDofusCompletionPercent(
+    profileId: string,
+    guildConfigId: string,
+    dofusId: string,
+    characterName: string
+) {
+    const allEntries = await (db as any).dofusQuestEntry.findMany({
+        where: { chain: { dofusId }, isOptional: false },
+        select: { id: true, weight: true },
+    });
+    const entryIds = allEntries.map((e: any) => e.id);
+    if (entryIds.length === 0) return;
+
+    const doneEntries = await (db as any).playerDofusQuestProgress.findMany({
+        where: { profileId, questId: { in: entryIds }, status: "COMPLETED", characterName },
+        select: { questId: true },
+    });
+    const doneIds = new Set(doneEntries.map((e: any) => e.questId));
+    const totalWeight = allEntries.reduce((s: number, e: any) => s + (e.weight ?? 1), 0);
+    const doneWeight = allEntries
+        .filter((e: any) => doneIds.has(e.id))
+        .reduce((s: number, e: any) => s + (e.weight ?? 1), 0);
+    const completionPercent = totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0;
+    await (db as any).playerDofusProgress.upsert({
+        where: { profileId_dofusId_characterName: { profileId, dofusId, characterName } },
+        update: { completionPercent },
+        create: { profileId, guildId: guildConfigId, dofusId, completionPercent, characterName },
+    });
+}
+
 // ─── MUTATIONS ───────────────────────────────────────────────────────────────
 
 /**
@@ -972,6 +1034,54 @@ export async function toggleQuestStatus(
             },
         });
 
+        // #112 — Complétion en cascade des prérequis en amont
+        const affectedDofusIds = new Set<string>();
+        if (newStatus === "COMPLETED" && ctx.profileId) {
+            try {
+                const upstreamPrereqIds = await getAllUpstreamPrerequisites(questEntryId);
+                if (upstreamPrereqIds.length > 0) {
+                    const now = new Date();
+                    await (db as any).$transaction(
+                        upstreamPrereqIds.map((pId: string) =>
+                            (db as any).playerDofusQuestProgress.upsert({
+                                where: {
+                                    profileId_questId_characterName: {
+                                        profileId: ctx.profileId!,
+                                        questId: pId,
+                                        characterName,
+                                    },
+                                },
+                                update: {
+                                    status: "COMPLETED",
+                                    completedAt: now,
+                                },
+                                create: {
+                                    profileId: ctx.profileId!,
+                                    guildId: guildConfig.id,
+                                    questId: pId,
+                                    characterName,
+                                    status: "COMPLETED",
+                                    completedAt: now,
+                                },
+                            })
+                        )
+                    );
+
+                    const prereqQuests = await (db as any).dofusQuestEntry.findMany({
+                        where: { id: { in: upstreamPrereqIds } },
+                        select: { chain: { select: { dofusId: true } } },
+                    });
+                    for (const pq of prereqQuests) {
+                        if (pq?.chain?.dofusId) {
+                            affectedDofusIds.add(pq.chain.dofusId);
+                        }
+                    }
+                }
+            } catch (err) {
+                logger.error("[toggleQuestStatus] cascade prerequisite completion failed:", { error: err });
+            }
+        }
+
         // V3: Refresh completionPercent cache on PlayerDofusProgress
         // Find which Dofus this quest belongs to and recompute
         try {
@@ -980,28 +1090,14 @@ export async function toggleQuestStatus(
                 select: { chain: { select: { dofusId: true, dofus: { select: { slug: true } } } } },
             });
             const dofusId = questEntry?.chain?.dofusId;
-            if (dofusId && ctx.profileId) {
-                // Fetch all non-optional entries with weights for this Dofus
-                const allEntries = await (db as any).dofusQuestEntry.findMany({
-                    where: { chain: { dofusId }, isOptional: false },
-                    select: { id: true, weight: true },
-                });
-                const entryIds = allEntries.map((e: any) => e.id);
-                const doneEntries = await (db as any).playerDofusQuestProgress.findMany({
-                    where: { profileId: ctx.profileId, questId: { in: entryIds }, status: "COMPLETED", characterName },
-                    select: { questId: true },
-                });
-                const doneIds = new Set(doneEntries.map((e: any) => e.questId));
-                const totalWeight = allEntries.reduce((s: number, e: any) => s + (e.weight ?? 1), 0);
-                const doneWeight = allEntries
-                    .filter((e: any) => doneIds.has(e.id))
-                    .reduce((s: number, e: any) => s + (e.weight ?? 1), 0);
-                const completionPercent = totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0;
-                await (db as any).playerDofusProgress.upsert({
-                    where: { profileId_dofusId_characterName: { profileId: ctx.profileId, dofusId, characterName } },
-                    update: { completionPercent },
-                    create: { profileId: ctx.profileId, guildId: guildConfig.id, dofusId, completionPercent, characterName },
-                });
+            if (dofusId) {
+                affectedDofusIds.add(dofusId);
+            }
+
+            if (ctx.profileId) {
+                for (const dId of affectedDofusIds) {
+                    await refreshDofusCompletionPercent(ctx.profileId, guildConfig.id, dId, characterName);
+                }
             }
         } catch (e) {
             // Non-blocking: cache refresh failure should not break the toggle
@@ -1337,7 +1433,8 @@ export async function seedDofusData(guildId: string): Promise<{
 
             let chainData: any;
             try {
-                const resolvedPath = pathModule.resolve(process.cwd(), filePath);
+                const fileName = pathModule.basename(filePath);
+                const resolvedPath = pathModule.join(process.cwd(), "prisma/seed-data/dofus-quests", fileName);
                 const fileContent = fs.readFileSync(resolvedPath, "utf-8");
                 chainData = JSON.parse(fileContent);
             } catch (err) {

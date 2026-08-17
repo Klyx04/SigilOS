@@ -243,7 +243,41 @@ async function handleMemberUpdate(guildId: string, memberData: any) {
     if (!guild) return;
 
     const userId = memberData.user.id;
-    const pseudo = memberData.nick || memberData.user.global_name || memberData.user.username;
+    const nick = memberData.nick;
+    const globalName = memberData.user.global_name;
+    const username = memberData.user.username;
+    const pseudo = nick || globalName || username;
+
+    // Check existing profile to see what changed
+    const account = await db.account.findFirst({
+        where: { provider: "discord", providerAccountId: userId },
+        select: { userId: true }
+    });
+
+    let oldNick: string | null = null;
+    let oldPseudoDofus: string | null = null;
+    if (account) {
+        const existingProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: account.userId, guildId: guild.id } },
+            select: { discordNickname: true, pseudoDofus: true }
+        });
+        oldNick = existingProfile?.discordNickname || null;
+        oldPseudoDofus = existingProfile?.pseudoDofus || null;
+    }
+
+    // Determine details of change
+    let changeDetail = "";
+    if (oldNick && nick && oldNick !== nick) {
+        changeDetail = `Surnom : "${oldNick}" ➔ "${nick}"`;
+    } else if (!oldNick && nick) {
+        changeDetail = `Nouveau surnom : "${nick}"`;
+    } else if (oldNick && !nick) {
+        changeDetail = `Surnom réinitialisé (compte : "${globalName || username}")`;
+    } else {
+        changeDetail = `Rôles ou présence Discord actualisés`;
+    }
+
+    const memberDisplayName = oldPseudoDofus || nick || globalName || username;
 
     // 1. Log the update for audit transparency
     await db.auditLog.create({
@@ -256,24 +290,22 @@ async function handleMemberUpdate(guildId: string, memberData: any) {
             targetId: userId,
             metadata: { 
                 discordUserId: userId,
-                description: pseudo,
-                username: memberData.user.username,
-                newNick: memberData.nick,
+                description: memberDisplayName,
+                username: username,
+                displayName: memberDisplayName,
+                oldNick,
+                newNick: nick,
+                changeDetail,
                 newRoles: memberData.roles
             }
         }
     });
 
     // 2. Sync nickname to DB if profile exists
-    const account = await db.account.findFirst({
-        where: { provider: "discord", providerAccountId: userId },
-        select: { userId: true }
-    });
-
     if (account) {
         await db.userProfile.updateMany({
             where: { userId: account.userId, guildId: guild.id },
-            data: { discordNickname: memberData.nick || null }
+            data: { discordNickname: nick || null }
         });
     }
 }

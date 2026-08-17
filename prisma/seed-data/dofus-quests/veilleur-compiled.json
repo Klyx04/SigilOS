@@ -7,7 +7,7 @@
   "description": "Terminer l'odyssée dimensionnelle et obtenir le Dofus des Veilleurs.",
   "dofusItemId": 16061,
   "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/16061.png",
+  "imageUrl": "/module-dofus/Dofus_Veilleur.png",
   "compiledAt": "2026-04-09T20:27:23.234Z",
   "compilerVersion": "3.0",
   "chains": [

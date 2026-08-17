@@ -7,7 +7,7 @@
   "description": "Obtenir le Dofus des Glaces après avoir accompli tous les exploits de Frigost.",
   "dofusItemId": 7043,
   "iconId": 7043,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png",
+  "imageUrl": "/module-dofus/Dofus_Des_Glaces.png",
   "compiledAt": "2026-04-13T16:19:21.709Z",
   "chains": [
     {

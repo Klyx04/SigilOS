@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     template: "%s | SigilOS",
   },
   description: "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
-  keywords: ["dofus", "guilde", "gestion guilde dofus", "bot discord dofus", "sigilos", "quête ocre", "songes infinis", "almanax", "dungeon finder", "dofus 2026", "guilde dofus 3"],
+  keywords: ["dofus", "guilde", "gestion guilde dofus", "bot discord dofus", "sigilos", "almanax dofus", "almanax du jour", "poids runes dofus", "forgemagie dofus", "elevage dofus", "enclos guilde", "brisage dofus", "quête ocre", "songes infinis", "dungeon finder", "dofus 2026", "dofus unity", "guilde dofus 3"],
   openGraph: {
     type: "website",
     locale: "fr_FR",

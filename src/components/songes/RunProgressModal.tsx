@@ -57,7 +57,7 @@ export function RunProgressModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-2xl bg-[#0a0514] border-border text-foreground overflow-hidden p-0">
+            <DialogContent className="sm:max-w-2xl bg-background border-border text-foreground overflow-hidden p-0">
                 {/* Background Decor */}
                 <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
                     <div className="absolute top-0 left-1/4 w-64 h-64 bg-purple-600/30 blur-[100px] rounded-full" />

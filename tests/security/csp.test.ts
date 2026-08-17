@@ -115,6 +115,8 @@ describe("CSP nonce-based", () => {
             expect(directive).toContain("https://static.ankama.com");
             expect(directive).toContain("https://images.unsplash.com");
             expect(directive).toContain("https://i.imgur.com");
+            expect(directive).toContain("https://unavatar.io");
+            expect(directive).toContain("https://media.discordapp.net");
         });
 
         it("reports violations to /api/csp-report (F-29)", () => {

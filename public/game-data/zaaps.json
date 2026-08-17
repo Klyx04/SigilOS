@@ -1,0 +1,370 @@
+[
+  {
+    "id": 1,
+    "name": "Le village d'Amakna",
+    "x": -2,
+    "y": 0,
+    "worldId": 1,
+    "subArea": "Le village"
+  },
+  {
+    "id": 2,
+    "name": "Château d'Amakna",
+    "x": 3,
+    "y": -5,
+    "worldId": 1,
+    "subArea": "Le château d'Amakna"
+  },
+  {
+    "id": 3,
+    "name": "Rivage sufokien",
+    "x": 10,
+    "y": 22,
+    "worldId": 1,
+    "subArea": "Rivage sufokien"
+  },
+  {
+    "id": 5,
+    "name": "Montagne des Craqueleurs",
+    "x": -5,
+    "y": -8,
+    "worldId": 1,
+    "subArea": "Montagne des Craqueleurs"
+  },
+  {
+    "id": 6,
+    "name": "Plaine des Scarafeuilles",
+    "x": -1,
+    "y": 24,
+    "worldId": 1,
+    "subArea": "Plaine des Scarafeuilles"
+  },
+  {
+    "id": 7,
+    "name": "Madrestam (Port)",
+    "x": 7,
+    "y": -4,
+    "worldId": 1,
+    "subArea": "Port de Madrestam"
+  },
+  {
+    "id": 8,
+    "name": "Tainéla (Berceau)",
+    "x": 1,
+    "y": -32,
+    "worldId": 1,
+    "subArea": "Tainéla"
+  },
+  {
+    "id": 9,
+    "name": "Astrub (Cité)",
+    "x": 5,
+    "y": -18,
+    "worldId": 1,
+    "subArea": "Cité d'Astrub"
+  },
+  {
+    "id": 10,
+    "name": "Plaine des Porkass",
+    "x": -5,
+    "y": -23,
+    "worldId": 1,
+    "subArea": "Plaine des Porkass"
+  },
+  {
+    "id": 11,
+    "name": "Le coin des Bouftous",
+    "x": 5,
+    "y": 7,
+    "worldId": 1,
+    "subArea": "Le coin des Bouftous"
+  },
+  {
+    "id": 12,
+    "name": "Bord de la forêt maléfique",
+    "x": -1,
+    "y": 13,
+    "worldId": 1,
+    "subArea": "Bord de la forêt maléfique"
+  },
+  {
+    "id": 13,
+    "name": "Village des Éleveurs",
+    "x": -16,
+    "y": 1,
+    "worldId": 1,
+    "subArea": "Montagne des Koalaks"
+  },
+  {
+    "id": 14,
+    "name": "Cimetière primitif",
+    "x": -12,
+    "y": 19,
+    "worldId": 1,
+    "subArea": "Cimetière primitif"
+  },
+  {
+    "id": 15,
+    "name": "Champs de Cania",
+    "x": -27,
+    "y": -36,
+    "worldId": 1,
+    "subArea": "Champs de Cania"
+  },
+  {
+    "id": 16,
+    "name": "Lac de Cania",
+    "x": -3,
+    "y": -42,
+    "worldId": 1,
+    "subArea": "Lac de Cania"
+  },
+  {
+    "id": 17,
+    "name": "Massif de Cania",
+    "x": -13,
+    "y": -28,
+    "worldId": 1,
+    "subArea": "Massif de Cania"
+  },
+  {
+    "id": 18,
+    "name": "Plaines Rocheuses",
+    "x": -17,
+    "y": -47,
+    "worldId": 1,
+    "subArea": "Plaines Rocheuses"
+  },
+  {
+    "id": 19,
+    "name": "Route de la Roche",
+    "x": -20,
+    "y": -20,
+    "worldId": 1,
+    "subArea": "Route de la Roche"
+  },
+  {
+    "id": 20,
+    "name": "Pics de Cania",
+    "x": -26,
+    "y": -60,
+    "worldId": 1,
+    "subArea": "Pics de Cania"
+  },
+  {
+    "id": 21,
+    "name": "Foire du Trool",
+    "x": -11,
+    "y": -36,
+    "worldId": 1,
+    "subArea": "Foire du Trool"
+  },
+  {
+    "id": 22,
+    "name": "Village des Kanigs",
+    "x": 0,
+    "y": -56,
+    "worldId": 1,
+    "subArea": "Village des Kanigs"
+  },
+  {
+    "id": 23,
+    "name": "Route des Roulottes",
+    "x": -25,
+    "y": 12,
+    "worldId": 1,
+    "subArea": "Route des Roulottes"
+  },
+  {
+    "id": 24,
+    "name": "Cité de Bonta",
+    "x": -32,
+    "y": -56,
+    "worldId": 1,
+    "subArea": "Centre-ville de Bonta"
+  },
+  {
+    "id": 25,
+    "name": "Cité de Brâkmar",
+    "x": -26,
+    "y": 35,
+    "worldId": 1,
+    "subArea": "Centre-ville de Brâkmar"
+  },
+  {
+    "id": 26,
+    "name": "Sufokia",
+    "x": 13,
+    "y": 26,
+    "worldId": 1,
+    "subArea": "Sufokia"
+  },
+  {
+    "id": 27,
+    "name": "Pandala (Faubourgs)",
+    "x": 20,
+    "y": -29,
+    "worldId": 1,
+    "subArea": "Faubourgs de Pandala"
+  },
+  {
+    "id": 28,
+    "name": "Mont des Tombeaux",
+    "x": 40,
+    "y": -44,
+    "worldId": 1,
+    "subArea": "Mont des Tombeaux"
+  },
+  {
+    "id": 29,
+    "name": "Otomaï (Village côtier)",
+    "x": -46,
+    "y": 18,
+    "worldId": 1,
+    "subArea": "Village côtier"
+  },
+  {
+    "id": 30,
+    "name": "Otomaï (Village de la Canopée)",
+    "x": -54,
+    "y": 16,
+    "worldId": 1,
+    "subArea": "Village de la Canopée"
+  },
+  {
+    "id": 31,
+    "name": "Village des Zoths",
+    "x": -53,
+    "y": 18,
+    "worldId": 1,
+    "subArea": "Village des Zoths"
+  },
+  {
+    "id": 32,
+    "name": "Frigost (La bourgade)",
+    "x": -78,
+    "y": -41,
+    "worldId": 1,
+    "subArea": "La bourgade"
+  },
+  {
+    "id": 33,
+    "name": "Frigost (Village enseveli)",
+    "x": -77,
+    "y": -73,
+    "worldId": 1,
+    "subArea": "Village enseveli"
+  },
+  {
+    "id": 34,
+    "name": "Château de Harebourg",
+    "x": -67,
+    "y": -77,
+    "worldId": 1,
+    "subArea": "Château de Harebourg"
+  },
+  {
+    "id": 35,
+    "name": "Saharach (Dunes des ossements)",
+    "x": 15,
+    "y": -58,
+    "worldId": 1,
+    "subArea": "Dunes des ossements"
+  },
+  {
+    "id": 36,
+    "name": "Île des Wabbits",
+    "x": 25,
+    "y": -4,
+    "worldId": 1,
+    "subArea": "Île des Wabbits"
+  },
+  {
+    "id": 37,
+    "name": "Laboratoires abandonnés",
+    "x": 27,
+    "y": -14,
+    "worldId": 1,
+    "subArea": "Laboratoires abandonnés"
+  },
+  {
+    "id": 38,
+    "name": "Île de Moon",
+    "x": 35,
+    "y": 12,
+    "worldId": 1,
+    "subArea": "Plage de Moon"
+  },
+  {
+    "id": 39,
+    "name": "Futaie enneigée",
+    "x": 39,
+    "y": -82,
+    "worldId": 1,
+    "subArea": "Futaie enneigée"
+  },
+  {
+    "id": 40,
+    "name": "Village des Brigandins",
+    "x": -15,
+    "y": -23,
+    "worldId": 1,
+    "subArea": "Village des Brigandins"
+  },
+  {
+    "id": 41,
+    "name": "Village des Dopeuls",
+    "x": -26,
+    "y": -13,
+    "worldId": 1,
+    "subArea": "Village des Dopeuls"
+  },
+  {
+    "id": 42,
+    "name": "Village des Bworks",
+    "x": -5,
+    "y": 10,
+    "worldId": 1,
+    "subArea": "Village des Bworks"
+  },
+  {
+    "id": 43,
+    "name": "Nimotopia",
+    "x": -64,
+    "y": 27,
+    "worldId": 1,
+    "subArea": "Nimotopia"
+  },
+  {
+    "id": 44,
+    "name": "Crokuzko",
+    "x": -83,
+    "y": -15,
+    "worldId": 1,
+    "subArea": "Archipel des Écailles"
+  },
+  {
+    "id": 45,
+    "name": "Route des âmes",
+    "x": -1,
+    "y": -3,
+    "worldId": 2,
+    "subArea": "Route des âmes"
+  },
+  {
+    "id": 46,
+    "name": "Pâturages",
+    "x": 2,
+    "y": -5,
+    "worldId": 2,
+    "subArea": "Pâturages"
+  },
+  {
+    "id": 47,
+    "name": "Cimetière d'Incarnam",
+    "x": 3,
+    "y": 0,
+    "worldId": 2,
+    "subArea": "Cimetière"
+  }
+]

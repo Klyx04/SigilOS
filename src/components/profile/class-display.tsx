@@ -130,15 +130,15 @@ export function ClassDisplay({
 
                 {/* Main Class Display - Premium Card COMPACT */}
                 {mainClassData ? (
-                    <div className="relative overflow-hidden rounded-2xl border border-border bg-black/60 p-5 group-hover:border-warning/40 transition-colors">
+                    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface/80 p-5 group-hover:border-warning/40 transition-colors shadow-sm">
                         {/* Background Glow */}
-                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[40px] opacity-25 pointer-events-none"
+                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[40px] opacity-20 pointer-events-none"
                             style={{ backgroundColor: mainClassData.color }}
                         />
 
                         <div className="relative flex items-center gap-4">
-                            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-surface border border-border shadow-lg shrink-0" style={{ borderColor: `${mainClassData.color}50` }}>
-                                <ClassIcon classId={mainClassData.id} size={38} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
+                            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-elevated border border-border shadow-md shrink-0" style={{ borderColor: `${mainClassData.color}50` }}>
+                                <ClassIcon classId={mainClassData.id} size={38} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.3)]" />
                             </div>
 
                             <div className="flex-1 space-y-1">

@@ -202,10 +202,10 @@ export function JobsGrid({
             </div>
 
             {jobs.length > 0 ? (
-                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface to-black p-6 mb-6 group-hover:border-border transition-colors">
+                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface to-elevated p-6 mb-6 group-hover:border-border transition-colors shadow-sm">
                     <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] bg-warning/10 pointer-events-none" />
                     <div className="relative flex items-center gap-5">
-                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-background border border-border shadow-xl shrink-0">
+                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-elevated border border-border shadow-md shrink-0">
                             <Hammer className="w-10 h-10 text-warning drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
                             <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5" />
                         </div>

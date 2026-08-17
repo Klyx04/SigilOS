@@ -7,7 +7,7 @@
   "description": "Terminer la série des quêtes du Dofus Tacheté. Nécessite de posséder un Domakuro ET un Dorigami.",
   "dofusItemId": 23238,
   "iconId": 23238,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23238.png",
+  "imageUrl": "/module-dofus/Dofus_Tachete.png",
   "compiledAt": "2026-04-09T23:00:42.124Z",
   "compilerVersion": "3.0",
   "chains": [

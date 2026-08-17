@@ -137,7 +137,7 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                 creatorsSection={
                     <section>
                         <SectionHeader icon={Tv} color="#ef4444" label="Elite Creators Hub — Live & Replay" />
-                        <CreatorsWidget guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
+                        <CreatorsWidget guildId={guildId} isSuperAdmin={user.isSuperAdmin} canManage={user.isAdmin || user.isSuperAdmin} />
                     </section>
                 }
                 linksSection={

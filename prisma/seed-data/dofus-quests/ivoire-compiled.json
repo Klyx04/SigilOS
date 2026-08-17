@@ -7,7 +7,7 @@
   "description": "Terminer la série de quêtes du dragon blanc et obtenir le Dofus Ivoire.",
   "dofusItemId": 7115,
   "iconId": 7115,
-  "imageUrl": "https://api.dofusdb.fr/img/items/7115.png",
+  "imageUrl": "/module-dofus/Dofus_Ivoire.png",
   "compiledAt": "2026-04-09T23:38:55.717Z",
   "compilerVersion": "3.0",
   "chains": [

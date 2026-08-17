@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gamepad2, AlertTriangle, CheckCircle2, Save, Power, MessageSquare, RotateCcw, Ban, Flag, Trash2, Map, Plus, Loader2 } from "lucide-react";
-import { updateMiniGameStatus, updateGeoguesserConfig, getMapsInfo } from "@/server/actions/god-mini-games-actions";
+import { 
+    Gamepad2, Shield, Settings, AlertTriangle, CheckCircle2, 
+    Save, RefreshCw, Layers, Flag, Ban, Check, Trash2, Search, Plus, Flame, Power, MessageSquare, Map, Loader2
+} from "lucide-react";
+import { 
+    updateMiniGameStatus, 
+    updateGeoguesserConfig, 
+    getMapsInfo,
+    getPlatformConfig,
+    deleteMapFileAndBlacklist 
+} from "@/server/actions/god-mini-games-actions";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -15,10 +24,10 @@ const WORLD_NAMES: Record<number, string> = {
     4: "Souterrains d'Astrub",
     19: "Mappemondes",
     29: "Ecaflip City",
-    156: "Dimension Divine",
-    157: "Dimension Divine", // Often same
-    312: "Havre-Sac",
     150: "Nimbos",
+    156: "Dimension Divine",
+    157: "Dimension Divine",
+    312: "Havre-Sac",
 };
 
 interface MiniGame {
@@ -64,26 +73,28 @@ export default function MiniGamesGodClient({
     const [manualId, setManualId] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [worldFilter, setWorldFilter] = useState<string>("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
 
     const refreshDataFromServer = async () => {
         setIsRefreshing(true);
         try {
-            const { getPlatformConfig } = await import("@/server/actions/god-mini-games-actions");
             const freshConfig = await getPlatformConfig();
             setBlacklist(freshConfig.geoguesserBlacklist || []);
             setReportedIds((freshConfig.geoguesserReportedMaps as number[]) || []);
+            toast.success("Données actualisées");
         } catch (err) {
             console.error("Failed to refresh config", err);
+            toast.error("Erreur lors de l'actualisation");
         } finally {
             setIsRefreshing(false);
         }
     };
 
-    // Auto-refresh every 10s when on GUESSER tab
+    // Auto-refresh every 15s when on GUESSER tab
     useEffect(() => {
         if (activeTab !== "GUESSER") return;
-        refreshDataFromServer(); // immediate refresh on tab switch
-        const interval = setInterval(refreshDataFromServer, 10000);
+        refreshDataFromServer();
+        const interval = setInterval(refreshDataFromServer, 15000);
         return () => clearInterval(interval);
     }, [activeTab]);
 
@@ -107,6 +118,17 @@ export default function MiniGamesGodClient({
         };
         fetchDetails();
     }, [blacklist, reportedIds]);
+
+    // Compute stats by world
+    const worldStats = useMemo(() => {
+        const counts: Record<string, number> = { ALL: blacklist.length };
+        blacklist.forEach(id => {
+            const d = mapDetails[id];
+            const wKey = d?.worldMap ? String(d.worldMap) : "UNKNOWN";
+            counts[wKey] = (counts[wKey] || 0) + 1;
+        });
+        return counts;
+    }, [blacklist, mapDetails]);
 
     const handleToggle = (gameId: string) => {
         setStatuses(prev => prev.map(s => 
@@ -137,8 +159,6 @@ export default function MiniGamesGodClient({
         }
     };
 
-
-
     const addToBlacklist = async (id: number) => {
         if (!blacklist.includes(id)) {
             const newBlacklist = [...blacklist, id];
@@ -148,7 +168,7 @@ export default function MiniGamesGodClient({
             
             try {
                 await updateGeoguesserConfig({ blacklist: newBlacklist, reportedMaps: newReported });
-                toast.info(`Map ${id} ajoutée à la blacklist`);
+                toast.info(`Map #${id} ajoutée à la blacklist.`);
             } catch (err) {
                 toast.error("Erreur lors de l'ajout");
             }
@@ -160,7 +180,7 @@ export default function MiniGamesGodClient({
         setBlacklist(newBlacklist);
         try {
             await updateGeoguesserConfig({ blacklist: newBlacklist, reportedMaps: reportedIds });
-            toast.success("Carte retirée de la blacklist");
+            toast.success(`Map #${id} retirée de la blacklist.`);
         } catch (err) {
             toast.error("Erreur lors du retrait");
         }
@@ -171,352 +191,390 @@ export default function MiniGamesGodClient({
         setReportedIds(newReported);
         try {
             await updateGeoguesserConfig({ blacklist: blacklist, reportedMaps: newReported });
-            toast.success("Signalement supprimé");
+            toast.success(`Signalement #${id} supprimé.`);
         } catch (err) {
             toast.error("Erreur lors de la suppression");
         }
     };
 
-    const handleManualAdd = () => {
-        const id = parseInt(manualId);
-        if (!isNaN(id)) {
-            addToBlacklist(id);
-            setManualId("");
+    const handlePermanentDelete = async (id: number) => {
+        if (!confirm(`Supprimer définitivement l'image HD de la Map #${id} du VPS et la verrouiller dans la blacklist ?`)) return;
+        try {
+            const res = await deleteMapFileAndBlacklist(id);
+            if (res.success) {
+                setBlacklist(res.blacklist);
+                setReportedIds(res.reportedMaps.map((r: any) => (typeof r === 'number' ? r : r.id)));
+                toast.success(`Map #${id} : fichier HD supprimé et blacklistée à vie !`);
+            }
+        } catch (err) {
+            toast.error("Erreur lors de la suppression définitive.");
         }
     };
 
+    const handleManualAdd = () => {
+        const id = parseInt(manualId, 10);
+        if (isNaN(id) || id <= 0) {
+            toast.error("ID de map invalide");
+            return;
+        }
+        addToBlacklist(id);
+        setManualId("");
+    };
+
+    // Filtered lists
+    const filteredBlacklist = useMemo(() => {
+        return blacklist.filter(id => {
+            const d = mapDetails[id];
+            const matchesWorld = worldFilter === "ALL" || (d?.worldMap?.toString() === worldFilter);
+            const matchesSearch = !searchQuery || String(id).includes(searchQuery) || (d && `${d.x},${d.y}`.includes(searchQuery));
+            return matchesWorld && matchesSearch;
+        });
+    }, [blacklist, mapDetails, worldFilter, searchQuery]);
+
     return (
-        <div className="flex flex-col flex-1 h-full overflow-hidden">
-            <main className="flex-1 overflow-y-auto no-scrollbar bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/10 via-transparent to-transparent">
-                <div className="max-w-6xl mx-auto px-6 lg:px-12 py-10 space-y-8">
-                    <AnimatePresence mode="wait">
-                        {activeTab === "MAINTENANCE" ? (
-                            <motion.div
-                                key="maintenance"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="grid grid-cols-1 gap-6"
+        <div className="space-y-6 max-w-7xl mx-auto">
+            {/* Header Tabs */}
+            <div className="flex items-center justify-between border-b border-border pb-4">
+                <div className="flex items-center gap-2">
+                    <a
+                        href="/god/mini-games?sub=MAINTENANCE"
+                        className={cn(
+                            "px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2",
+                            activeTab === "MAINTENANCE"
+                                ? "bg-surface text-foreground border border-border"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface/50"
+                        )}
                     >
-                        {statuses.map((game) => (
-                            <motion.div
-                                key={game.gameId}
-                                className={cn(
-                                    "group relative bg-zinc-900/50 backdrop-blur-xl border rounded-[2rem] p-8 transition-all overflow-hidden",
-                                    game.isEnabled ? "border-white/5" : "border-red-500/30 bg-red-500/5"
-                                )}
-                            >
-                                <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
-                                    <div className="flex items-center gap-6 min-w-[240px]">
-                                        <div className={cn(
-                                            "w-16 h-16 rounded-2xl flex items-center justify-center border transition-all shadow-lg",
-                                            game.isEnabled 
-                                                ? `bg-${game.color}-500/10 border-${game.color}-500/20 text-${game.color}-400`
-                                                : "bg-red-500/20 border-red-500/30 text-red-500"
-                                        )}>
-                                            <Power size={28} />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-2xl font-black text-white uppercase italic tracking-tight">{game.name}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                {game.isEnabled ? (
-                                                    <span className="flex items-center gap-1.5 text-emerald-400 text-caption font-black uppercase tracking-widest">
-                                                        <CheckCircle2 size={12} /> OPÉRATIONNEL
-                                                    </span>
-                                                ) : (
-                                                    <span className="flex items-center gap-1.5 text-red-500 text-caption font-black uppercase tracking-widest">
-                                                        <AlertTriangle size={12} /> MAINTENANCE
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                        <Gamepad2 size={16} />
+                        Maintenance & Statuts
+                    </a>
+                    <a
+                        href="/god/mini-games?sub=GUESSER"
+                        className={cn(
+                            "px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2",
+                            activeTab === "GUESSER"
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface/50"
+                        )}
+                    >
+                        <Map size={16} />
+                        Sigil Guesser (Blacklist & Signalements)
+                    </a>
+                </div>
 
-                                    <div className="flex-1 space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                                <MessageSquare size={12} /> Message de Maintenance
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={game.maintenanceMsg}
-                                                onChange={(e) => handleMsgChange(game.gameId, e.target.value)}
-                                                className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-all font-medium"
-                                                placeholder="Ex: Le jeu est en cours de mise à jour..."
-                                            />
-                                        </div>
-                                    </div>
+                {activeTab === "GUESSER" && (
+                    <button
+                        onClick={refreshDataFromServer}
+                        disabled={isRefreshing}
+                        className="px-3 py-1.5 rounded-lg bg-surface border border-border text-muted-foreground hover:text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                        <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
+                        Actualiser
+                    </button>
+                )}
+            </div>
 
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={() => handleToggle(game.gameId)}
-                                            className={cn(
-                                                "px-6 py-4 rounded-xl font-black uppercase text-caption italic transition-all flex items-center gap-2",
-                                                game.isEnabled 
-                                                    ? "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white"
-                                                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white"
-                                            )}
-                                        >
-                                            {game.isEnabled ? "Désactiver" : "Réactiver"}
-                                        </button>
-                                        <button
-                                            onClick={() => saveStatus(game.gameId)}
-                                            disabled={game.isSaving}
-                                            className="px-6 py-4 rounded-xl bg-white text-black font-black uppercase text-caption italic hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
-                                        >
-                                            {game.isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                                            Sauvegarder
-                                        </button>
+            {/* Tab: Maintenance */}
+            {activeTab === "MAINTENANCE" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {statuses.map(game => (
+                        <div key={game.gameId} className="bg-surface border border-border rounded-2xl p-6 space-y-4 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                                        game.isEnabled ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                    )}>
+                                        <Gamepad2 size={18} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-foreground text-base">{game.name}</h3>
+                                        <p className="text-caption text-muted-foreground">
+                                            État : {game.isEnabled ? "Actif & Accessible" : "En Maintenance"}
+                                        </p>
                                     </div>
                                 </div>
+
                                 <div className={cn(
-                                    "absolute -right-20 -bottom-20 w-64 h-64 blur-[100px] opacity-10 transition-all duration-300",
-                                    game.isEnabled ? `bg-${game.color}-500` : "bg-red-500"
-                                )} />
-                            </motion.div>
-                        ))}
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="guesser"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="space-y-8"
-                    >
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {/* Reported Maps */}
-                            <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8 flex flex-col gap-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                                            <Flag size={20} />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-black text-white uppercase italic">Signalements</h2>
-                                            <p className="text-zinc-500 text-caption font-bold uppercase tracking-widest">Maps signalées par les joueurs</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={refreshDataFromServer}
-                                            disabled={isRefreshing}
-                                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all disabled:opacity-30"
-                                            title="Rafraîchir les données"
-                                        >
-                                            <Loader2 size={14} className={isRefreshing ? "animate-spin" : ""} />
-                                        </button>
-                                        <span className="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-caption font-black uppercase">
-                                            {reportedIds.length} Total
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto max-h-[500px] space-y-3 pr-2 custom-scrollbar">
-                                    {reportedIds.length === 0 ? (
-                                        <div className="h-40 flex flex-col items-center justify-center text-zinc-600 border border-dashed border-white/5 rounded-3xl">
-                                            <CheckCircle2 size={32} className="mb-2 opacity-20" />
-                                            <p className="text-xs font-bold uppercase tracking-widest">Aucun signalement</p>
-                                        </div>
-                                    ) : (
-                                        reportedIds.map(id => {
-                                            const details = mapDetails[id];
-                                            return (
-                                                <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3 flex items-center justify-between group hover:border-amber-500/30 transition-all">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="relative group/map">
-                                                            <div className="w-16 h-12 rounded-xl bg-white/5 overflow-hidden border border-white/5 flex items-center justify-center text-white/20 transition-all group-hover/map:border-amber-500/50">
-                                                                <img 
-                                                                    src={`/game-data/hd_maps/${id}.webp`}
-                                                                    alt=""
-                                                                    className="w-full h-full object-cover opacity-60 group-hover/map:opacity-100 group-hover/map:scale-110 transition-all duration-300"
-                                                                    onError={(e) => {
-                                                                        (e.currentTarget as any).style.display = 'none';
-                                                                    }}
-                                                                />
-                                                                <Map size={16} className="absolute inset-0 m-auto pointer-events-none opacity-20 group-hover/map:opacity-0" />
-                                                            </div>
-                                                            {/* HD Preview on Hover */}
-                                                            <div className="fixed pointer-events-none z-[9999] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-90 group-hover/map:scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] aspect-video rounded-[2.5rem] overflow-hidden border-4 border-amber-500/50 shadow-[0_50px_100px_rgba(0,0,0,0.9)] bg-zinc-950">
-                                                                <img 
-                                                                    src={`/game-data/hd_maps/${id}.webp`}
-                                                                    alt=""
-                                                                    className="w-full h-full object-cover"
-                                                                />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-                                                                <div className="absolute bottom-8 left-10 flex flex-col gap-1">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                                                        <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Vérification HD #{id}</span>
-                                                                    </div>
-                                                                    <span className="text-amber-500/60 text-xs font-black uppercase tracking-widest italic">
-                                                                        Signalement par un joueur • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"} 
-                                                                        {details && ` • ${WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}`}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-xs font-black text-white group-hover:text-amber-500 transition-colors tracking-tight">ID: {id}</div>
-                                                            <div className="text-caption text-zinc-500 font-mono mt-0.5">
-                                                                {details ? (
-                                                                    <>
-                                                                        Pos: [{details.x}, {details.y}] • 
-                                                                        <span className="text-amber-500/60 ml-1">
-                                                                            {WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}
-                                                                        </span>
-                                                                    </>
-                                                                ) : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <button 
-                                                            onClick={() => addToBlacklist(id)}
-                                                            className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
-                                                            title="Blacklister"
-                                                        >
-                                                            <Ban size={14} />
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => removeFromReported(id)}
-                                                            className="p-2.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                                                            title="Supprimer"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
+                                    "px-2.5 py-1 rounded-full text-caption font-bold border",
+                                    game.isEnabled ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                                )}>
+                                    {game.isEnabled ? "ON" : "OFF"}
                                 </div>
                             </div>
 
-                            {/* Blacklisted Maps */}
-                            <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8 flex flex-col gap-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
-                                            <Ban size={20} />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-black text-white uppercase italic">Blacklist</h2>
-                                            <p className="text-zinc-500 text-caption font-bold uppercase tracking-widest">Maps totalement exclues du pool</p>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="space-y-1.5">
+                                <label className="text-caption font-medium text-muted-foreground">
+                                    Message de maintenance affiché aux joueurs
+                                </label>
+                                <textarea
+                                    value={game.maintenanceMsg}
+                                    onChange={(e) => handleMsgChange(game.gameId, e.target.value)}
+                                    rows={2}
+                                    className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-ring resize-none font-sans"
+                                />
+                            </div>
 
-                                {/* Manual Add & Filter */}
-                                <div className="flex gap-2 flex-col sm:flex-row">
-                                    <div className="flex flex-1 gap-2">
-                                        <input 
-                                            type="number" 
-                                            value={manualId}
-                                            onChange={(e) => setManualId(e.target.value)}
-                                            placeholder="Ajouter un Map ID..."
-                                            className="flex-1 bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-all font-mono"
-                                        />
-                                        <button 
-                                            onClick={handleManualAdd}
-                                            className="px-4 py-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 transition-all flex items-center justify-center shrink-0"
-                                        >
-                                            <Plus size={18} />
-                                        </button>
-                                    </div>
-                                    <select
-                                        value={worldFilter}
-                                        onChange={(e) => setWorldFilter(e.target.value)}
-                                        className="sm:w-48 bg-zinc-950/50 border border-white/10 rounded-xl px-3 py-3 text-xs text-zinc-400 focus:outline-none focus:border-amber-500/50 transition-all shrink-0"
+                            <div className="flex items-center justify-between pt-2 border-t border-border">
+                                <button
+                                    onClick={() => handleToggle(game.gameId)}
+                                    className={cn(
+                                        "px-4 py-2 rounded-xl text-xs font-bold transition-colors",
+                                        game.isEnabled
+                                            ? "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30"
+                                            : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"
+                                    )}
+                                >
+                                    {game.isEnabled ? "Passer en maintenance" : "Activer le jeu"}
+                                </button>
+
+                                <button
+                                    onClick={() => saveStatus(game.gameId)}
+                                    disabled={game.isSaving}
+                                    className="px-4 py-2 rounded-xl bg-foreground text-background font-bold text-xs hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {game.isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                                    Enregistrer
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Tab: Guesser Management */}
+            {activeTab === "GUESSER" && (
+                <div className="space-y-6">
+                    {/* Live Statistics Banner */}
+                    <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                    <Layers size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-foreground text-sm">Synthèse des Maps Exclues du Pool</h3>
+                                    <p className="text-caption text-muted-foreground">
+                                        Total : <strong className="text-foreground">{blacklist.length}</strong> maps blacklistées • <strong className="text-amber-400">{reportedIds.length}</strong> signalements en attente
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* World Breakdown Filter Chips */}
+                        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border">
+                            <button
+                                onClick={() => setWorldFilter("ALL")}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors border",
+                                    worldFilter === "ALL"
+                                        ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                                        : "bg-background border-border text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Tous les mondes ({blacklist.length})
+                            </button>
+
+                            {Object.entries(WORLD_NAMES).map(([wId, wName]) => {
+                                const count = worldStats[wId] || 0;
+                                if (count === 0) return null;
+                                return (
+                                    <button
+                                        key={wId}
+                                        onClick={() => setWorldFilter(wId)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors border",
+                                            worldFilter === wId
+                                                ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                                                : "bg-background border-border text-muted-foreground hover:text-foreground"
+                                        )}
                                     >
-                                        <option value="ALL">Tous les mondes</option>
-                                        {Array.from(new Set(blacklist.map(id => mapDetails[id]?.worldMap).filter(Boolean))).map((worldId: any) => (
-                                            <option key={worldId} value={worldId}>
-                                                {WORLD_NAMES[worldId] || `Monde ${worldId}`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                        {wName} ({count})
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
 
-                                <div className="flex-1 overflow-y-auto max-h-[440px] space-y-3 pr-2 custom-scrollbar">
-                                    {blacklist.length === 0 ? (
-                                        <div className="h-40 flex flex-col items-center justify-center text-zinc-600 border border-dashed border-white/5 rounded-3xl">
-                                            <Ban size={32} className="mb-2 opacity-20" />
-                                            <p className="text-xs font-bold uppercase tracking-widest">Blacklist vide</p>
-                                        </div>
-                                    ) : (
-                                        blacklist
-                                            .filter(id => worldFilter === "ALL" || mapDetails[id]?.worldMap?.toString() === worldFilter)
-                                            .map(id => {
-                                                const details = mapDetails[id];
-                                                return (
-                                                    <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3 flex items-center justify-between group hover:border-red-500/30 transition-all">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="relative group/map">
-                                                            <div className="w-16 h-12 rounded-xl bg-red-500/5 overflow-hidden border border-white/5 flex items-center justify-center text-red-500/20 transition-all group-hover/map:border-red-500/50">
-                                                                <img 
-                                                                    src={`/game-data/hd_maps/${id}.webp`}
-                                                                    alt=""
-                                                                    className="w-full h-full object-cover opacity-40 group-hover/map:opacity-80 group-hover/map:scale-110 transition-all duration-300"
-                                                                    onError={(e) => {
-                                                                        (e.currentTarget as any).style.display = 'none';
-                                                                    }}
-                                                                />
-                                                                <Ban size={16} className="absolute inset-0 m-auto pointer-events-none opacity-20 group-hover/map:opacity-0" />
-                                                            </div>
-                                                            {/* HD Preview on Hover */}
-                                                            <div className="fixed pointer-events-none z-[9999] opacity-0 group-hover/map:opacity-100 transition-all duration-300 scale-90 group-hover/map:scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] aspect-video rounded-[2.5rem] overflow-hidden border-4 border-red-500/50 shadow-[0_50px_100px_rgba(0,0,0,0.9)] bg-zinc-950">
-                                                                <img 
-                                                                    src={`/game-data/hd_maps/${id}.webp`}
-                                                                    alt=""
-                                                                    className="w-full h-full object-cover"
-                                                                />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-                                                                <div className="absolute bottom-8 left-10 flex flex-col gap-1">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                                        <span className="text-white font-black text-2xl uppercase italic tracking-tighter">Blacklist HD #{id}</span>
-                                                                    </div>
-                                                                    <span className="text-red-500/60 text-xs font-black uppercase tracking-widest italic">
-                                                                        Exclusion active • {details ? `[${details.x}, ${details.y}]` : "Coords inconnues"}
-                                                                        {details && ` • ${WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}`}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-xs font-black text-white group-hover:text-red-500 transition-colors tracking-tight">ID: {id}</div>
-                                                            <div className="text-caption text-zinc-500 font-mono mt-0.5">
-                                                                {details ? (
-                                                                    <>
-                                                                        Pos: [{details.x}, {details.y}] • 
-                                                                        <span className="text-red-500/60 ml-1">
-                                                                            {WORLD_NAMES[details.worldMap] || `Monde ${details.worldMap}`}
-                                                                        </span>
-                                                                    </>
-                                                                ) : (isLoadingDetails ? "Chargement..." : "Détails inconnus")}
-                                                            </div>
+                    {/* Main Grid: Reports vs Blacklist */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* 1. Reports from players */}
+                        <div className="bg-surface border border-border rounded-2xl p-5 space-y-4 shadow-sm flex flex-col">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                        <Flag size={15} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-foreground text-sm">Signalements Joueurs</h4>
+                                        <p className="text-caption text-muted-foreground">Maps tactiques ou souterraines à vérifier</p>
+                                    </div>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-caption font-bold">
+                                    {reportedIds.length}
+                                </span>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto max-h-[480px] space-y-2 pr-1 custom-scrollbar">
+                                {reportedIds.length === 0 ? (
+                                    <div className="py-12 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl">
+                                        <CheckCircle2 size={24} className="mx-auto mb-1 text-emerald-400/50" />
+                                        Aucun signalement en attente
+                                    </div>
+                                ) : (
+                                    reportedIds.map(id => {
+                                        const d = mapDetails[id];
+                                        return (
+                                            <div key={id} className="p-2.5 rounded-xl bg-background border border-border flex items-center justify-between hover:border-amber-500/30 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-zinc-900 border border-border shrink-0">
+                                                        <img
+                                                            src={`/game-data/hd_maps/${id}.webp`}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => { (e.currentTarget as any).style.display = 'none'; }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-mono text-xs font-bold text-foreground">Map #{id}</div>
+                                                        <div className="text-caption text-muted-foreground font-mono">
+                                                            {d ? `[${d.x}, ${d.y}] • ${WORLD_NAMES[d.worldMap] || `Monde ${d.worldMap}`}` : (isLoadingDetails ? "Chargement..." : "Coords inconnues")}
                                                         </div>
                                                     </div>
-                                                    <button 
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        onClick={() => addToBlacklist(id)}
+                                                        className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white text-caption font-bold transition-colors flex items-center gap-1"
+                                                        title="Confirmer l'exclusion"
+                                                    >
+                                                        <Ban size={12} /> Blacklister
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handlePermanentDelete(id)}
+                                                        className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-600 hover:text-white text-caption font-bold transition-colors flex items-center gap-1"
+                                                        title="Supprimer définitivement l'image HD du VPS et blacklister"
+                                                    >
+                                                        <Flame size={12} /> Supprimer HD
+                                                    </button>
+                                                    <button
+                                                        onClick={() => removeFromReported(id)}
+                                                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-zinc-800 hover:text-foreground transition-colors"
+                                                        title="Ignorer le signalement"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 2. Blacklisted Maps */}
+                        <div className="bg-surface border border-border rounded-2xl p-5 space-y-4 shadow-sm flex flex-col">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                                        <Ban size={15} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-foreground text-sm">Maps Blacklistées</h4>
+                                        <p className="text-caption text-muted-foreground">Exclues définitivement de la sélection</p>
+                                    </div>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-mono text-caption font-bold">
+                                    {filteredBlacklist.length}
+                                </span>
+                            </div>
+
+                            {/* Manual Add & Search */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div className="flex gap-1.5">
+                                    <input
+                                        type="number"
+                                        value={manualId}
+                                        onChange={(e) => setManualId(e.target.value)}
+                                        placeholder="Map ID..."
+                                        className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground font-mono focus:outline-none focus:border-ring"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleManualAdd()}
+                                    />
+                                    <button
+                                        onClick={handleManualAdd}
+                                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-400 transition-colors flex items-center justify-center"
+                                        title="Ajouter à la blacklist"
+                                    >
+                                        <Plus size={14} />
+                                    </button>
+                                </div>
+
+                                <div className="relative">
+                                    <Search size={13} className="absolute left-3 top-2.5 text-muted-foreground" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Filtrer ID ou coords..."
+                                        className="w-full bg-background border border-border rounded-xl pl-8 pr-3 py-2 text-xs text-foreground font-mono focus:outline-none focus:border-ring"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto max-h-[480px] space-y-2 pr-1 custom-scrollbar">
+                                {filteredBlacklist.length === 0 ? (
+                                    <div className="py-12 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl">
+                                        <Ban size={24} className="mx-auto mb-1 text-muted-foreground/40" />
+                                        Aucune map blacklistée trouvée
+                                    </div>
+                                ) : (
+                                    filteredBlacklist.map(id => {
+                                        const d = mapDetails[id];
+                                        return (
+                                            <div key={id} className="p-2.5 rounded-xl bg-background border border-border flex items-center justify-between hover:border-border transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-zinc-900 border border-border shrink-0">
+                                                        <img
+                                                            src={`/game-data/hd_maps/${id}.webp`}
+                                                            alt=""
+                                                            className="w-full h-full object-cover opacity-60"
+                                                            onError={(e) => { (e.currentTarget as any).style.display = 'none'; }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-mono text-xs font-bold text-foreground">Map #{id}</div>
+                                                        <div className="text-caption text-muted-foreground font-mono">
+                                                            {d ? `[${d.x}, ${d.y}] • ${WORLD_NAMES[d.worldMap] || `Monde ${d.worldMap}`}` : (isLoadingDetails ? "Chargement..." : "Coords inconnues")}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        onClick={() => handlePermanentDelete(id)}
+                                                        className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/15 transition-colors"
+                                                        title="Purger définitivement l'image HD du disque"
+                                                    >
+                                                        <Flame size={14} />
+                                                    </button>
+                                                    <button
                                                         onClick={() => removeFromBlacklist(id)}
-                                                        className="p-2.5 rounded-lg text-zinc-500 hover:bg-red-500/20 hover:text-red-500 transition-all"
-                                                        title="Retirer"
+                                                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+                                                        title="Retirer de la blacklist"
                                                     >
                                                         <Trash2 size={14} />
                                                     </button>
                                                 </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
-                    </motion.div>
-                )}
-                    </AnimatePresence>
+                    </div>
                 </div>
-            </main>
+            )}
         </div>
     );
 }

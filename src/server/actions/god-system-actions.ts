@@ -157,3 +157,45 @@ export async function getInternalSystemStatus() {
         throw new Error("Failed to fetch system status");
     }
 }
+
+/**
+ * #107 — Déclenchement manuel du traitement des posts inactifs par le God.
+ */
+export async function godProcessInactivePosts(): Promise<{
+    success: boolean;
+    djRemindersSent: number;
+    djPostsClosed: number;
+    songesRemindersSent: number;
+    songesRunsClosed: number;
+    error?: string;
+}> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) {
+        return {
+            success: false,
+            djRemindersSent: 0,
+            djPostsClosed: 0,
+            songesRemindersSent: 0,
+            songesRunsClosed: 0,
+            error: "Non autorisé"
+        };
+    }
+
+    try {
+        const { processInactivePostsRemindersAndAutoClose } = await import("./inactive-posts-actions");
+        const res = await processInactivePostsRemindersAndAutoClose();
+        return res;
+    } catch (err: any) {
+        logger.error("[godProcessInactivePosts] Error:", err);
+        return {
+            success: false,
+            djRemindersSent: 0,
+            djPostsClosed: 0,
+            songesRemindersSent: 0,
+            songesRunsClosed: 0,
+            error: err?.message || "Erreur lors du traitement"
+        };
+    }
+}
+
+

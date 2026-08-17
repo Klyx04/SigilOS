@@ -100,8 +100,6 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
 
             <div className="relative z-10 max-w-7xl mx-auto space-y-8">
-                <ActivitiesNav guildId={guildId} />
-
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6" data-tour="quetes-header">
                     <UnifiedModuleHeader
                         title="Quêtes Dofus"

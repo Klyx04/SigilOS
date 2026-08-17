@@ -109,8 +109,8 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                 </div>
 
                 <div className={cn(
-                    "w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 shadow-2xl bg-black/40 relative group/avatar",
-                    isTop3 && "ring-2 ring-white/10"
+                    "w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 shadow-md bg-elevated relative group/avatar",
+                    isTop3 && "ring-2 ring-primary/20"
                 )}>
                     {entry.discordImage ? (
                         <img src={entry.discordImage} alt="Avatar" className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-125" />
@@ -118,7 +118,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         <div className="w-full h-full flex items-center justify-center bg-elevated"><User className="w-5 h-5 text-muted-foreground" /></div>
                     )}
                     {dofusClass && (
-                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-md border border-border-strong bg-surface p-0.5 shadow-2xl z-20">
+                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-md border border-border-strong bg-surface p-0.5 shadow-md z-20">
                             <img src={dofusClass.icon} alt={dofusClass.name} className="w-full h-full object-contain" />
                         </div>
                     )}
@@ -136,9 +136,9 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                     </span>
                     {entry.isCurrentUser && <span className="text-caption px-1.5 py-0.5 rounded bg-info/20 text-info border border-info/30 font-black uppercase tracking-widest">VOUS</span>}
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                    {entry.pseudoDofus && <span className="text-caption text-muted-foreground font-medium italic truncate">{entry.pseudoDofus}</span>}
-                    {!isGeneral && entry.classe && <span className="text-caption text-muted-foreground font-black uppercase tracking-widest">• {entry.classe}</span>}
+                <div className="flex items-center gap-2 mt-0.5 text-muted-foreground transition-opacity">
+                    {entry.pseudoDofus && <span className="text-caption font-medium italic truncate">{entry.pseudoDofus}</span>}
+                    {!isGeneral && entry.classe && <span className="text-caption font-black uppercase tracking-widest">• {entry.classe}</span>}
                 </div>
             </div>
 
@@ -146,10 +146,10 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             <div className="hidden sm:flex justify-center items-center px-4 shrink-0">
                 {isGeneral && entry.dofusLevel ? (
                     <div className="flex flex-col items-center">
-                        <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-40">Niveau</span>
+                        <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1.5">Niveau</span>
                         <div className="relative group/lv">
                             <div className="absolute inset-0 bg-info/20 blur-md rounded-full opacity-0 group-hover/lv:opacity-100 transition-opacity" />
-                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface border border-border shadow-2xl backdrop-blur-xl group-hover/lv:border-info/50 transition-all duration-300">
+                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface border border-border shadow-md backdrop-blur-xl group-hover/lv:border-info/50 transition-all duration-300">
                                 <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-warning drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "text-foreground")}>
                                     {entry.dofusLevel}
                                 </span>
@@ -166,10 +166,10 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                 {isGeneral ? (
                     <div className="flex flex-col items-end">
                         <div className={cn("text-lg font-black tracking-tighter flex items-center gap-2", isTop3 ? "text-foreground" : "text-info")}>
-                            <span className="opacity-30 text-caption font-black mt-1 tracking-widest">XP</span>
+                            <span className="text-muted-foreground text-caption font-black mt-1 tracking-widest">XP</span>
                             {Number(entry.totalXpBigInt || 0).toLocaleString()}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 opacity-30 group-hover:opacity-60 transition-opacity">
+                        <div className="flex items-center gap-1.5 mt-0.5 text-muted-foreground transition-opacity">
                             <Zap className="w-3 h-3 text-info" />
                             <span className="text-caption font-black uppercase tracking-[0.2em] italic">Ladder Général</span>
                         </div>

@@ -71,13 +71,23 @@ export class SigilBombRoom {
     private timeLeft = 0;
     private tickInterval: NodeJS.Timeout | null = null;
     private botTimeout: NodeJS.Timeout | null = null;
+    private botTimeouts: NodeJS.Timeout[] = [];
     private usedWordsInSession = new Set<string>();
-    private lastFoundWords: { word: string; playerName: string; playerId: string }[] = [];
+    private lastFoundWords: { word: string; playerName: string; playerId: string; isBot?: boolean }[] = [];
     private static deconstructedWords: Map<string, string[]> = new Map();
     private currentSyllablePartCount = 1;
     private currentSyllableHintParts: string[] = [];
     private suddenDeathExchanges = 0;
     private isSuddenDeath = false;
+
+    private clearBotTimeouts() {
+        if (this.botTimeout) {
+            clearTimeout(this.botTimeout);
+            this.botTimeout = null;
+        }
+        this.botTimeouts.forEach(t => clearTimeout(t));
+        this.botTimeouts = [];
+    }
 
     constructor(private io: Server, config: { id: string; guildId: string }) {
         this.id = config.id;
@@ -461,15 +471,75 @@ export class SigilBombRoom {
 
         const syllable = SigilBombRoom.normalize(this.currentSyllable);
         const dict = this.getActiveDictionary();
-        const possible = dict.filter(
+
+        // 1. Filtrer les mots naturels (privilégier 5 à 10 lettres pour éviter les archaïsmes ultra courts comme BEER/GREER)
+        const candidatesMedium = dict.filter(
+            (w) => w.includes(syllable) && !this.usedWordsInSession.has(w) && w.length >= 5 && w.length <= 10
+        );
+        const naturalCandidates = candidatesMedium.length >= 3 
+            ? candidatesMedium 
+            : dict.filter((w) => w.includes(syllable) && !this.usedWordsInSession.has(w) && w.length >= 4 && w.length <= 12);
+
+        const candidatePool = naturalCandidates.length > 0 ? naturalCandidates : dict.filter(
             (w) => w.includes(syllable) && !this.usedWordsInSession.has(w)
         );
 
-        if (possible.length > 0) {
-            const word = possible[Math.floor(Math.random() * possible.length)];
-            this.submitWord(current.id, word);
+        // 2. Probabilité de réussite humaine (88% de succès, 12% d'hésitation/échec)
+        const willSucceed = candidatePool.length > 0 && Math.random() < 0.88;
+
+        if (willSucceed) {
+            // Préférer les mots du Lore Dofus ou les mots courants de taille idéale (5-9 lettres)
+            const dofusSet = new Set(SigilBombRoom.dictionaryDofus);
+            const dofusCandidates = candidatePool.filter(w => dofusSet.has(w));
+            
+            let selectedWord: string;
+            if (dofusCandidates.length > 0 && Math.random() < 0.65) {
+                // 65% de chance de sortir un mot typique Dofus si dispo
+                selectedWord = dofusCandidates[Math.floor(Math.random() * dofusCandidates.length)];
+            } else {
+                // Sinon un mot courant de taille agréable
+                const topSlice = candidatePool.slice(0, Math.min(25, candidatePool.length));
+                selectedWord = topSlice[Math.floor(Math.random() * topSlice.length)];
+            }
+
+            const parts = SigilBombRoom.deconstructedWords.get(selectedWord);
+            const wordToType = (parts && parts.length > 1) ? parts.join(" ") : selectedWord;
+
+            // Simulation de frappe progressive lettre par lettre
+            let currentText = "";
+            const charSpeed = 80 + Math.floor(Math.random() * 60); // 80-140ms par lettre
+
+            for (let i = 0; i < wordToType.length; i++) {
+                const typingTimeout = setTimeout(() => {
+                    if (this.state !== "PLAYING" || this.players[this.currentTurnIndex]?.id !== current.id) return;
+                    currentText += wordToType[i];
+                    this.handleTyping(current.id, currentText);
+                }, (i + 1) * charSpeed);
+                this.botTimeouts.push(typingTimeout);
+            }
+
+            // Soumission finale après une petite pause de validation
+            const submitDelay = (wordToType.length + 1) * charSpeed + 200 + Math.floor(Math.random() * 200);
+            const submitTimeout = setTimeout(() => {
+                if (this.state !== "PLAYING" || this.players[this.currentTurnIndex]?.id !== current.id) return;
+                this.submitWord(current.id, wordToType);
+            }, submitDelay);
+            this.botTimeouts.push(submitTimeout);
+        } else {
+            // Le bot hésite, tape un début puis n'arrive pas à finir à temps (explosion)
+            if (candidatePool.length > 0 && Math.random() < 0.6) {
+                const partial = candidatePool[0].substring(0, Math.max(1, Math.floor(candidatePool[0].length / 2)));
+                let currentText = "";
+                for (let i = 0; i < partial.length; i++) {
+                    const timeout = setTimeout(() => {
+                        if (this.state !== "PLAYING" || this.players[this.currentTurnIndex]?.id !== current.id) return;
+                        currentText += partial[i];
+                        this.handleTyping(current.id, currentText);
+                    }, (i + 1) * 120);
+                    this.botTimeouts.push(timeout);
+                }
+            }
         }
-        // If no word found, bot just lets the timer run out (explosion)
     }
 
     private generateSyllableWithMetadata(): { syllable: string; partCount: number; hintParts: string[] } {
@@ -533,7 +603,7 @@ export class SigilBombRoom {
 
     private stopTimer() {
         if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null; }
-        if (this.botTimeout)   { clearTimeout(this.botTimeout);  this.botTimeout = null; }
+        this.clearBotTimeouts();
     }
 
     // ── Explosion ─────────────────────────────────────────────────
@@ -626,29 +696,32 @@ export class SigilBombRoom {
         const dict = this.getActiveDictionary();
         const isValid = dict.includes(glueWord) || ALWAYS_VALID.has(glueWord);
         if (!isValid) {
-            this.io.to(socketId).emit("bomb:word-error", {
-                message: this.config.dictionaryMode === "mixed" 
-                    ? "Mot inconnu au dictionnaire !" 
-                    : "Ce mot n'existe pas dans le monde des Douze !",
-            });
+            const message = this.config.dictionaryMode === "dofus"
+                ? "Ce mot n'existe pas dans le monde des Douze !"
+                : "Mot inconnu au dictionnaire !";
+            this.io.to(socketId).emit("bomb:word-error", { message });
             return;
         }
 
         // ── SUCCESS ──
         this.usedWordsInSession.add(glueWord);
-        normalizedWord = glueWord; // Use the glued version for internal tracking if needed
         current.wordsFound++;
+
+        // Obtenir la version affichable avec espaces si mot composé
+        const parts = SigilBombRoom.deconstructedWords.get(glueWord);
+        const displayWord = (parts && parts.length > 1) ? parts.join(" ") : (word.trim().toUpperCase() || glueWord);
 
         // Add to history
         this.lastFoundWords.unshift({ 
-            word: normalizedWord, 
+            word: displayWord, 
             playerName: current.userName, 
-            playerId: current.id 
+            playerId: current.id,
+            isBot: !!current.isBot
         });
         if (this.lastFoundWords.length > 5) this.lastFoundWords.pop();
 
         // Track alphabet
-        for (const char of normalizedWord) {
+        for (const char of glueWord) {
             if (char >= "A" && char <= "Z" && !current.alphabet.includes(char)) {
                 current.alphabet.push(char);
             }
@@ -661,7 +734,7 @@ export class SigilBombRoom {
         }
 
         this.io.to(this.id).emit("bomb:word-success", {
-            word: normalizedWord,
+            word: displayWord,
             playerId: current.id,
         });
 

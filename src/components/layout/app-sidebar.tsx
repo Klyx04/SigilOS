@@ -46,7 +46,6 @@ import {
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { type UserContext } from "@/server/actions/user-actions";
 import { type GuildHeaderData } from "@/server/actions/guild-actions";
 import { type GuildModulesState, DEFAULT_MODULES } from "@/lib/module-types";
@@ -461,7 +460,7 @@ export function AppSidebar({
 
             {/* 2. SCROLLABLE NAVIGATION — Fixed for responsiveness */}
             <div className="flex-1 relative min-h-0 overflow-hidden">
-                <ScrollArea className="h-full px-3 py-6 no-scrollbar">
+                <div className="h-full px-3 py-6 overflow-y-auto overscroll-contain custom-scrollbar">
                     <nav className="space-y-8 pb-10">
                         <AnimatePresence mode="popLayout" initial={false}>
 
@@ -766,7 +765,7 @@ export function AppSidebar({
 
                         </AnimatePresence>
                     </nav>
-                </ScrollArea>
+                </div>
             </div>
 
             {/* 3. FOOTER: COMMAND CENTER HUD */}

@@ -341,7 +341,7 @@ export function GalleryClient({
                             </div>
                             
                             <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as any)} className="w-full sm:w-auto">
-                                <TabsList className="bg-black/60 border border-border h-14 p-1.5 rounded-xl">
+                                <TabsList className="bg-elevated border border-border h-14 p-1.5 rounded-xl">
                                     <TabsTrigger 
                                         value="STUFF" 
                                         className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-success data-[state=active]:text-success-foreground transition-colors duration-200"
@@ -409,10 +409,10 @@ export function GalleryClient({
             {/* Filter Bar */}
             <div className="sticky top-0 z-30 pt-2">
                 <div className="bg-background/80 border border-border rounded-2xl px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-                    {/* Left: Filters */}
-                    <div className="flex items-center gap-3 flex-wrap">
+                    {/* Left: Filters — min-h fixe pour éviter le layout shift entre onglets STUFF/SKIN */}
+                    <div className="flex items-center gap-3 flex-wrap min-h-[48px]">
                         {/* 1. Class Filter */}
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-border" data-tour="galerie-filters">
+                        <div className="flex items-center gap-2 bg-elevated p-1 rounded-xl border border-border" data-tour="galerie-filters">
                             <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
                         </div>
 
@@ -425,12 +425,12 @@ export function GalleryClient({
                                 <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
 
                                 {/* 2. Primary Elements */}
-                                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-border">
+                                <div className="flex items-center gap-1.5 bg-elevated p-1 rounded-xl border border-border">
                                     <button
                                         onClick={() => handleTagChange(null)}
                                         className={cn(
                                             "h-8 px-4 rounded-lg text-xs font-semibold transition-colors shrink-0",
-                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-surface text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
                                         Tous
@@ -456,7 +456,7 @@ export function GalleryClient({
                                 <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
 
                                 {/* 3. Advanced / Specialities */}
-                                <div className="flex items-center bg-black/40 p-1 rounded-xl border border-border">
+                                <div className="flex items-center bg-elevated p-1 rounded-xl border border-border">
                                     <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
                                 </div>
 
@@ -467,7 +467,7 @@ export function GalleryClient({
 
                     {/* Right: Count & Reset & Sort */}
                     <div className="flex items-center gap-4 text-sm w-full xl:w-auto shrink-0 justify-between xl:justify-end border-t border-border pt-4 xl:border-0 xl:pt-0 flex-wrap">
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-border mr-2">
+                        <div className="flex items-center gap-2 bg-elevated p-1 rounded-xl border border-border mr-2">
                             <button
                                 onClick={() => handleSortChange("newest")}
                                 className={cn(

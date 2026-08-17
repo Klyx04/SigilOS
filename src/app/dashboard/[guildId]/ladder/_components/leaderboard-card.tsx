@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { LadderEntry } from "@/server/actions/ladder-actions";
+import { discordAvatarErrorFallback } from "@/lib/discord-avatars";
 import { Crown, Medal, Trophy, ShieldCheck, User, Zap, Ghost, Utensils, Coffee, Plane, Clock, Umbrella } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClass } from "@/lib/dofus-assets";
@@ -75,6 +77,9 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     const colors = colorClasses[accentColor];
     const isTop3 = entry.rank <= 3;
     const isGeneral = !!(entry.dofusLevel || entry.totalXpBigInt);
+    // #134 — hash d'avatar périmé (404 → ERR_BLOCKED_BY_ORB) : on bascule sur le miroir
+    // puis sur l'icône neutre au lieu de laisser une image brisée.
+    const [avatarFailed, setAvatarFailed] = useState(false);
     
     // 0-value "Tourist" / "Bad Student" logic
     // We don't apply it to the General ladder (total XP) because 0 is normal for new characters
@@ -112,8 +117,20 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                     "w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 shadow-md bg-elevated relative group/avatar",
                     isTop3 && "ring-2 ring-primary/20"
                 )}>
-                    {entry.discordImage ? (
-                        <img src={entry.discordImage} alt="Avatar" className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-125" />
+                    {entry.discordImage && !avatarFailed ? (
+                        <img
+                            src={entry.discordImage}
+                            alt="Avatar"
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-125"
+                            onError={(e) => {
+                                const mirror = discordAvatarErrorFallback(entry.discordImage);
+                                if (mirror && mirror !== e.currentTarget.src) {
+                                    e.currentTarget.src = mirror;
+                                } else {
+                                    setAvatarFailed(true);
+                                }
+                            }}
+                        />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-elevated"><User className="w-5 h-5 text-muted-foreground" /></div>
                     )}

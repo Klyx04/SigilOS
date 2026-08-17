@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Flame, BookOpen, Library, Tv, Link2 } from "lucide-react";
+import { Flame, BookOpen, Library, Tv, Link2, BookMarked } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface ResourcesTabsProps {
@@ -16,6 +16,7 @@ interface ResourcesTabsProps {
     encyclopediaSection: React.ReactNode;
     creatorsSection: React.ReactNode;
     linksSection: React.ReactNode;
+    guidesSection: React.ReactNode;
 }
 
 export function ResourcesTabs({
@@ -26,7 +27,8 @@ export function ResourcesTabs({
     newsSection,
     encyclopediaSection,
     creatorsSection,
-    linksSection
+    linksSection,
+    guidesSection
 }: ResourcesTabsProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -45,7 +47,8 @@ export function ResourcesTabs({
         { value: "news", label: "Actualités", icon: BookOpen, color: "text-info", bg: "bg-info/10", border: "border-info/20", tourKey: "ressources-news-tab" },
         { value: "encyclopedia", label: "Encyclopédie", icon: Library, color: "text-info", bg: "bg-info/10", border: "border-info/20", tourKey: null },
         { value: "creators", label: "Créateurs", icon: Tv, color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", tourKey: null },
-        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-success", bg: "bg-success/10", border: "border-success/20", tourKey: "ressources-links-tab" }
+        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-success", bg: "bg-success/10", border: "border-success/20", tourKey: "ressources-links-tab" },
+        { value: "guides", label: "Guides", icon: BookMarked, color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", tourKey: null }
     ];
 
     return (
@@ -97,6 +100,10 @@ export function ResourcesTabs({
 
             <TabsContent value="links" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
                 {linksSection}
+            </TabsContent>
+
+            <TabsContent value="guides" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                {guidesSection}
             </TabsContent>
         </Tabs>
     );

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { logger } from "@/lib/logger";
 
 export interface MapData {
     id: number;
@@ -116,7 +117,7 @@ export class WorldMapService {
             this.playableMaps.forEach(m => {
                 stats[m.worldMap] = (stats[m.worldMap] || 0) + 1;
             });
-            console.log(`[WorldMapService] 🗺️ ${this.maps.size} maps loaded. Playable stats:`, stats);
+            logger.info("[WorldMapService] Worldmap data loaded", { maps: this.maps.size, playable: this.playableMaps.length });
         } catch (error) {
             console.error('[WorldMapService] ❌ Failed to load worldmap data:', error);
         }
@@ -221,6 +222,6 @@ export class WorldMapService {
 
     public setBlacklist(ids: number[]) {
         this.blacklist = new Set(ids);
-        console.log(`[WorldMapService] 🚫 Blacklist updated with ${ids.length} maps.`);
+        logger.info("[WorldMapService] Blacklist updated", { mapCount: ids.length });
     }
 }

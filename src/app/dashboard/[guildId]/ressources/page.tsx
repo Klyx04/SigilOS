@@ -11,8 +11,10 @@ import { NewsGrid } from "@/components/ressources/NewsGrid";
 import { UsefulLinksGrid } from "@/components/ressources/UsefulLinksGrid";
 import { ItemSearchPanel } from "@/components/ressources/ItemSearchPanel";
 import { CreatorsWidget } from "@/components/ressources/CreatorsWidget";
-import { Library, Flame, BookOpen, Link2, Tv } from "lucide-react";
+import { Library, Flame, BookOpen, Link2, Tv, BookMarked } from "lucide-react";
 import { ResourcesTabs } from "@/components/ressources/ResourcesTabs";
+import { GuidesGrid } from "@/components/ressources/GuidesGrid";
+import { publishedGuides } from "@/content/guides";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export const metadata = {
@@ -144,6 +146,12 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                     <section data-tour="ressources-links">
                         <SectionHeader icon={Link2} color="#10b981" label="Bibliothèque de Liens & Outils" />
                         <UsefulLinksGrid guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
+                    </section>
+                }
+                guidesSection={
+                    <section>
+                        <SectionHeader icon={BookMarked} color="#f59e0b" label="Guides Dofus" />
+                        <GuidesGrid guides={publishedGuides} />
                     </section>
                 }
             />

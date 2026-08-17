@@ -1233,4 +1233,17 @@ tsc 0 · lint 0 erreur · **test:run 155/155** · build exit 0.
 - **Recherche & Téléportation Inter-Mondes** : Si le joueur cherche une ressource absente du monde actif (ex: chercher « Chêne » alors qu'on est sur Incarnam), le panneau affiche instantanément une carte d'information avec la liste des mondes disponibles et leur nombre de spots. Un clic sur **« Ouvrir 🚀 »** bascule automatiquement la carte sur ce monde et coche la ressource.
 - **Télécommande Flottante `/travel`** : Guidage pas à pas en bas d'écran avec touches clavier (`Espace` / `Flèche Droite`), copie automatique de la macro dans le presse-papier et recentrage caméra.
 
+### 🌟 Session 17/08/2026 — Chantier SEO, Guides Piliers 2026 & Correctifs Zaaps / UI
+- **Page Publique `/almanax` (ISR 1h)** : Page autonome publique ultra-rapide (<50ms) avec offrande du jour, bonus Méryde, récompenses, prévisions à 30 jours, Schema.org `FAQPage` + `BreadcrumbList`, indexée dans `sitemap.ts` (0.9 daily) et `robots.ts`.
+- **3 Guides SEO Piliers Illustrés Dofus Unity (2026)** :
+  - `guide-elevage-enclos-guilde-dofus` : Guide ultime 2026 aligné sur DPLN (3 familles lvl 1-200, capture sauvage, équilibrage sérénité, 20 enclos de guilde, Makinas *Animakina/Kromakina/Optimakina*). 14 images HD intégrées.
+  - `poids-runes-forgemagie-dofus` : Grille PWR officielle, calcul puits/reliquat, règles d'over et d'exomagie, icônes runes intégrées.
+  - `guide-brisage-rentabilite-runes` : Coefficients dynamiques serveur, formules de rentabilité, option focus de statistiques.
+- **Cartes OpenGraph Dynamiques HD** : Génération instantanée via `/api/og` par guide (titre, style dark émeraude, balises Twitter Card large).
+- **Correctifs Zaaps & UI Dashboard** :
+  - **Zaap Sufokia** calé sur **`[13, 26]`** (Baie de Sufokia) et **Plaine des Porkass** sur **`[-5, -23]`** dans `zaaps.json` et scripts de compilation.
+  - **Navbar Dashboard** : Suppression du conteneur d'ambiance asymétrique en bas de sidebar (`app-sidebar.tsx`) éliminant la démarcation bicolore grise/verte sous les boutons Docs / Maj / Bugs.
+- **Audit Google Search Console** : Validation de correction soumise, 10 pages sitemap confirmées, zéro erreur 404/500, stratégie de bascule zero-downtime vers `sigilos.fr` documentée dans `docs/SEO_REPRISE.md`.
+- **Git** : Branche `feat/chantier-2026-08-19` synchronisée avec `dev`, vérifications pre-commit passées et poussée sur GitHub (`9c102a792`).
+
 

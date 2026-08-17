@@ -214,7 +214,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                     </div>
                                                 </Button>
                                             </DialogTrigger>
-                                            <DialogContent className="bg-[#1a0933] border-purple-500/30 text-foreground">
+                                            <DialogContent className="bg-background border-border text-foreground">
                                                 <DialogHeader>
                                                     <DialogTitle>🛡️ Modifier mon Stuff</DialogTitle>
                                                 </DialogHeader>
@@ -222,10 +222,10 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                     <div className="space-y-2">
                                                         <Label>Choisir un stuff de ma galerie</Label>
                                                         <Select value={selectedStuffId} onValueChange={setSelectedStuffId}>
-                                                            <SelectTrigger className="bg-purple-900/30 border-purple-500/30">
+                                                            <SelectTrigger className="bg-surface border-border">
                                                                 <SelectValue placeholder="Choisir un stuff..." />
                                                             </SelectTrigger>
-                                                            <SelectContent className="bg-[#1a0933] border-purple-500/30">
+                                                            <SelectContent className="bg-background border-border">
                                                                 <SelectItem value="none" className="text-muted-foreground italic">Aucun stuff</SelectItem>
                                                                 {stuffs.map((stuff) => (
                                                                     <SelectItem key={stuff.id} value={stuff.id} className="text-foreground">

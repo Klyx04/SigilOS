@@ -390,8 +390,8 @@ export class GeoguesserRoom {
             });
 
             if (updated.count > 0) {
-                // Update individual total scores in DB for final result
-                for (const p of this.players) {
+                // Update individual total scores in DB for final result (non-spectators only)
+                for (const p of this.players.filter(p => !p.isSpectator && p.userId)) {
                     await db.geoguesserSessionPlayer.updateMany({
                         where: { sessionId: this.id, userId: p.userId },
                         data: { totalScore: p.score }

@@ -462,16 +462,51 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                     </span>
                                                 )}
                                                 {log.targetType === "PROFILE" && (
-                                                    <span>
-                                                        Action sur le profil de <span className="font-medium text-foreground">{metadata.description || log.targetId}</span>
-                                                        {metadata.reason && <span className="text-xs ml-2 opacity-70">({metadata.reason})</span>}
-                                                    </span>
+                                                    <div className="space-y-1 mt-1">
+                                                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                                                            <span className="text-muted-foreground">
+                                                                {log.action === "PROFILE_ARCHIVED"
+                                                                    ? "Archivage du profil de"
+                                                                    : log.action === "PROFILE_REACTIVATED"
+                                                                    ? "Réactivation du profil de"
+                                                                    : log.action === "WEBHOOK_MEMBER_UPDATE"
+                                                                    ? "Mise à jour Discord de"
+                                                                    : "Profil de"}
+                                                            </span>
+                                                            <span className="font-bold text-foreground">
+                                                                {formatTargetLabel(log.targetId, log.metadata)}
+                                                            </span>
+                                                            
+                                                            {(metadata as any).source && (
+                                                                <Badge variant="outline" className="text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest bg-info/10 text-info border-info/20">
+                                                                    {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
+                                                                </Badge>
+                                                            )}
+                                                            {(metadata as any).reason && (
+                                                                <span className="text-xs opacity-70 italic">({(metadata as any).reason})</span>
+                                                            )}
+                                                        </div>
+
+                                                        {(metadata as any).changeDetail && (
+                                                            <div className="text-xs text-info font-medium bg-info/10 px-2 py-0.5 rounded inline-block border border-info/20">
+                                                                {(metadata as any).changeDetail}
+                                                            </div>
+                                                        )}
+
+                                                        {(metadata as any).points !== undefined && (
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-caption font-black text-success flex items-center gap-1">
+                                                                    <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 {log.targetType === "USER" && log.action === "USER_GDPR_DELETE" && (
                                                     <span className="text-danger">
                                                         Compte supprimé (RGPD)
                                                         {metadata.discordId && (
-                                                            <code className="ml-1.5 bg-danger/30 px-1.5 py-0.5 rounded text-caption font-mono">
+                                                             <code className="ml-1.5 bg-danger/30 px-1.5 py-0.5 rounded text-caption font-mono">
                                                                 Discord #{metadata.discordId}
                                                             </code>
                                                         )}
@@ -533,36 +568,6 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                                         <Plus className="w-2.5 h-2.5" /> {(metadata as any).helpersCount} Helpers
                                                                     </span>
                                                                 )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {log.targetType === "PROFILE" && (
-                                                    <div className="space-y-1.5 mt-1">
-                                                        <div className="flex items-center gap-2 flex-wrap text-sm">
-                                                            <span className="text-muted-foreground">Mise à jour du profil de</span>
-                                                            <span className="font-bold text-foreground">
-                                                                {formatTargetLabel(log.targetId, log.metadata)}
-                                                            </span>
-                                                            
-                                                            {(metadata as any).source && (
-                                                                <Badge variant="outline" className={cn(
-                                                                    "text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest",
-                                                                    (metadata as any).source === "discord_button" 
-                                                                        ? "bg-info/10 text-info border-info/20" 
-                                                                        : "bg-info/10 text-info border-info/20"
-                                                                )}>
-                                                                    {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        
-                                                        {(metadata as any).points !== undefined && (
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-caption font-black text-success flex items-center gap-1">
-                                                                    <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
-                                                                </span>
                                                             </div>
                                                         )}
                                                     </div>

@@ -23,6 +23,15 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 25/08 — Lots 120-124 (God Game Data, Restauration Exclus, DofusDB Hub, Anti-Lag)
+
+> **Branche `feat/chantier-2026-08-19`**
+> - **#120 & #121** — Éradication du texte blanc sur blanc, suppression de la navbar redondante Songes/Ladder, adaptation thème clair/sombre sur le panel God (`ThemeToggle`) et l'Arène.
+> - **#122** — Gestion complète des catégories de ressources dans `/god/resources` + persistance serveur du rejet de rappel de planning (`dismissAvailabilityReminder`) sur multi-appareils.
+> - **#123** — Hub récoltables DofusDB (`DofusDbHarvestSyncManager`), diagnostic API DofusDB en direct, métriques Zaaps, refonte ergonomique des Zones Événements (`EventZoneManager`).
+> - **#124** — Mécanique de blacklist & restauration universelle ([ignored-monsters.json](file:///a:/SigilOS/public/game-data/ignored-monsters.json), `ignored-families.json`, `ignored-zones.json`) avec filtres `🗑️ Exclus` dans les managers God ; sync automatique DofusDB des 264 familles de monstres et 562 sous-zones réelles avec niveaux officiels ; pagination instantanée anti-lag (16 à 25 items/page).
+> Vérifs : tsc 0 · lint 0 erreur · **208/208 tests validés** · build OK.
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 19/08 — batch Dashboard (#104 · #105 · #106 · #23)
 
 > **Branche `feat/chantier-2026-08-19`** (base `origin/dev` = `e588f37e5`, PR #483 mergée).
@@ -86,6 +95,19 @@
 >   venir. **Sondages** : libellés de choix passés en `break-words` (fini `truncate`/nowrap → débordement de boîte)
 >   dans `poll-detail` / `poll-card` / `active-polls-widget`.
 > - Vérifs : tsc 0 · lint 0 erreur (warnings pré-existants) · **208/208** · build OK.
+
+
+## 🧭 Chantier global (src/temp/chantier) — SESSION 24/08 — Prérequis Quêtes (#112) + RGPD/Email (#113/#114) + Normalisation Assets Dofus + Relances Inactivité Posts DJ/Songes (#107)
+
+> **Branche `feat/chantier-2026-08-19`** → **PR #484** (suite).
+> Sources : `src/temp/prompt-next-chantier-2026-08-24.md` + `src/temp/chantier.md`.
+> Mémo : `src/temp/memo-2026-08-24-chantier-global.md`.
+>
+> - **#112 — Complétion en cascade des prérequis Dofus** : `getAllUpstreamPrerequisites` (parcours récursif anti-cycle jusqu'à 20 niveaux) dans `toggleQuestStatus` (`dofus-quest-actions.ts`) → valider une quête valide automatiquement tous ses prérequis en amont en transaction DB + `refreshDofusCompletionPercent` recalcule instantanément la complétion de tous les Dofus impactés.
+> - **#113 & #114 — Nettoyage Email & Cohérence RGPD** : Confirmation de l'absence de collecte email (`src/auth.ts` restreint à `scope: "identify guilds"`), suppression du reliquat `{user.email}` dans `public-header.tsx` (`user.name` utilisé), FAQ/CGU 100% conformes.
+> - **Normalisation Assets Dofus (Suite #111)** : Seed JSON `prisma/seed-data/dofus-quests/*.json` pointé vers les chemins locaux `/module-dofus/Dofus_*.png` (retrait des URLs distantes dofusdb.fr), création de `Dofus_Tachete.png` sans accent (fix 400 Linux next/image), harmonisation `DofusIcon.tsx` et `DofusQuestGodClient.tsx`.
+> - **#107 — Relances automatiques & Auto-close des posts DJ / Quêtes / Songes inactifs** : Module `inactive-posts-actions.ts` avec calendrier progressif `7 > 15 > 20 > Fini` (J+7 Rappel 1, J+15 Rappel 2, J+20 Rappel 3 ultime par ping Discord dans le fil du post ; clôture DB `CLOSED`/`ABANDONED` + suppression de l'embed/thread Discord + notification SigilOS à J+21). Intégration route cron `/api/cron/cleanup-inactive-posts` (sécurisée `x-cron-secret`), étape 6c dans `scripts/maintenance.sh` et bloc UI interactif dans `/god?tab=infrastructure` avec bouton de déclenchement manuel.
+> - Vérifs : tsc 0 · lint 0 erreur · **208/208** vitest · build Next.js 65/65 OK.
 
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 21/08 — V2 Mode sombre/clair : Phase 0 tokens GROK + Phase 1 sweep blancs + Phase 2A sweep états + #51
@@ -1173,7 +1195,42 @@ tsc 0 · lint 0 erreur · **test:run 155/155** · build exit 0.
 
 ### 📋 Rappels actions VPS post-déploiement
 
-1. `./scripts/deploy.sh beta` (rebuild app + bot Discord)
-2. `crontab -e` → ajouter la ligne `*/30 * * * *` sync-members (cf. ci-dessus)
-3. Vérifier que `lifecycleNotifyChannelId` est configuré dans **Admin → Settings → Notifications** de chaque guilde
+---
+
+## 🎮 Session 24/08/2026 — Refonte Mini-Jeux & Dé-Slop UI (Chantiers #17, #18, #19)
+
+### 🗺️ Chantier #17 — Sigil Guesser (Client & Multijoueur)
+- **Verrouillage du clic après choix** : Dès la validation, le marqueur reste affiché, les clics suivants sont bloqués (`cursor-not-allowed`) et un badge vert rassurant s'affiche.
+- **Bandeau de statut Multijoueur live (HUD)** : Compteur global de progression (`X/Y joueurs ont validé`) et puces individuelles par joueur (`🟢 Validé` / `⏳ En recherche...`).
+- **Cadrage 100% de la Carte HD** : Suppression du crop excessif, conteneur adaptatif (`h-full lg:w-3/5 object-contain`), et masquage élégant du filigrane « dofusdb » via un dégradé discret en coin inférieur droit.
+- **Élimination du clignotement noir (Map Results)** : Mémorisation de la clé de round (`lastFittedKeyRef`), l'auto-fit de la caméra Leaflet ne s'exécute désormais qu'une seule fois au lieu de tourner en boucle toutes les secondes.
+- **Refonte des lignes de résultat multi (Anti-toile d'araignée)** : Ligne dorée et badge central tracés uniquement pour le joueur local. Les autres joueurs sont matérialisés par des pastilles élégantes et discrètes avec leur nom/initiales.
+- **Nettoyage UI & Boutons** : Suppression de la croix redondante, bouton `[ Quitter ]` rouge unique et propre. Notification toast adaptée en mode Solo vs Multi.
+
+### 🛡️ Chantier #18 — Sigil Guesser God (`/god/mini-games?sub=GUESSER`)
+- **Compteur dynamique en direct** : Total des maps blacklistées et ventilation instantanée par monde en chips cliquables (*Monde des Douze*, *Souterrains*, *Incarnam*, etc.).
+- **Filtres interactifs & Recherche** : Remplacement du menu déroulant brut par des boutons/badges filtrants et un champ de recherche instantané par ID ou coordonnées `[X, Y]`.
+- **Suppression Définitive VPS & Blacklist à vie** : Action en 1 clic `deleteMapFileAndBlacklist` qui supprime le fichier physique `.webp` du disque VPS, verrouille l'ID dans `PlatformConfig.geoguesserBlacklist` et purge le pool mémoire `WorldMapService`. Garantie absolue que la map ne sera plus jamais tirée ni proposée.
+
+### 💣 Chantier #19 — Sigil Bomb (IA du Bot Solo, Dictionnaires & UI)
+- **IA du Bot solo (`Robot Crâ-Mée`)** : Sélection de mots naturels et cohérents (priorité de 65% au Lore Dofus et mots courants de 5 à 10 lettres, éradication des archaïsmes obscurs de 3-4 lettres comme `BEER`/`GREER`).
+- **Simulation de frappe en direct** : Émission de `bomb:typing-update` lettre par lettre (80-140ms par frappe) avec réflexion humaine et taux d'hésitation crédible (~12%).
+- **Formatage des mots composés** : Découpage avec espaces (*« LARVE BLEUE »*, *« TOURNESOL SAUVAGE »*).
+- **Anti-débordement d'écran** : Historique de combat à droite encapsulé en `break-words`, `whitespace-normal` et `max-w-[290px]`.
+- **Correction des messages d'erreur** : Message *« Ce mot n'existe pas dans le monde des Douze ! »* réservé au mode Dofus, et *« Mot inconnu au dictionnaire ! »* pour les modes FR/Mixte.
+- **Synchronisation sonore du compte à rebours** : Bips sonores rigoureusement synchronisés sur chaque seconde du compte à rebours 3... 2... 1... GO! dans Guesser et Bomb.
+
+### 🌾 Chantier #20 — GPS Opti-Farm & Récolte Métiers sur WorldMap
+- **Moteur Officiel `recoltables2` (DofusDB V2/Unity)** : Siphonnage et compilation statique des 85+ ressources sur les 5 métiers (`harvest-resources.json`) via l'endpoint officiel `api.dofusdb.fr/recoltables2`. Les coordonnées `[posX, posY, worldMap]` et quantités par case sont **strictement identiques au pixel près à DofusDB** (ex: 582 Frênes sur Amakna, 53 sur Incarnam).
+- **Icônes 100% Locales & Rendu Visuel DofusDB** : 84 icônes d'objets récoltables et icônes de métiers téléchargées dans `/public/game-data/harvest-icons/`. Rendu de bulles sombres translucides avec vignettes de ressources et badges de quantité numériques centrés.
+- **Moteur de Tuiles Multi-Résolution & Zéro Découpage / Bords Noirs** : Affichage continu 100% fluide via `SigilTilesLayer` sur tous les niveaux de zoom. Éradication des bords de découpage et des îlots noirs dans les donjons/sous-mondes.
+- **Fiche d'Analyse Détaillée HD sur Clic** : Le clic sur n'importe quelle map ouvre la fiche HD (`MapDetailsPanel`) avec capture de salle, monstres, archimonstres et coordonnées, tout en copiant la commande `/travel [X, Y]`.
+- **Compteur Dynamique par Sous-Monde** : Le sélecteur de ressources affiche le nombre de spots et de circuits rattachés au monde actuellement affiché (`activeWorldId`).
+- **Isolation Stricte par Sous-Monde & Auto-Switch** : Filtrage étanche par `worldId` (les spots d'Incarnam ne polluent plus le continent d'Amakna) et basculement automatique de la carte sur le bon monde (ex: Incarnam, Souterrains) dès qu'un circuit dédié est sélectionné. Zaap d'Incarnam recalé sur la statue `[-2, -3]`.
+- **Anti-Pollution Visuelle en Mode Circuit** : Masquage automatique des pastilles de ressources en mode circuit pour ne laisser que le tracé rouge, le Zaap de départ et les étapes avec ordre de passage (`1`, `2`, `3`...).
+- **Filtrage Strict en Sous-Monde (Zéro Pollution Visuelle)** : Quand un sous-monde (ex: Incarnam) est actif, le panneau ne liste **strictement que les ressources, circuits et métiers ayant des spots dans ce monde**. Les badges métiers indiquent instantanément le nombre d'éléments disponibles sur l'île.
+- **Validation Interactive des Étapes de Tournée (100% Navigateur)** : En mode circuit actif, le joueur peut cocher chaque étape au fur et à mesure de sa récolte via la touche `Espace` ou en cliquant directement sur la pastille de la carte. Les étapes récoltées passent en vert `✓` grisé, la télécommande affiche la progression en direct (`X/Y récoltées`) et saute automatiquement à l'étape suivante.
+- **Recherche & Téléportation Inter-Mondes** : Si le joueur cherche une ressource absente du monde actif (ex: chercher « Chêne » alors qu'on est sur Incarnam), le panneau affiche instantanément une carte d'information avec la liste des mondes disponibles et leur nombre de spots. Un clic sur **« Ouvrir 🚀 »** bascule automatiquement la carte sur ce monde et coche la ressource.
+- **Télécommande Flottante `/travel`** : Guidage pas à pas en bas d'écran avec touches clavier (`Espace` / `Flèche Droite`), copie automatique de la macro dans le presse-papier et recentrage caméra.
+
 

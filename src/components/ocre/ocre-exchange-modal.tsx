@@ -50,6 +50,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
     const [copiedUser, setCopiedUser] = useState<string | null>(null);
     const [monsterSearch, setMonsterSearch] = useState("");
     const [memberSearch, setMemberSearch] = useState("");
+    const [hideOwned, setHideOwned] = useState(false);
 
     // Trade Request State
     const [tradeRequest, setTradeRequest] = useState<{ targetProfileId: string; monsterId: number; targetName: string; monsterName: string; monsterImage?: string } | null>(null);
@@ -190,6 +191,11 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                 }
             }
 
+            // Apply hideOwned filter (#24)
+            if (hideOwned && !monster.coversNeed) {
+                return;
+            }
+
             if (!monstersMap.has(monster.id)) {
                 monstersMap.set(monster.id, {
                     id: monster.id,
@@ -239,7 +245,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                             </DialogTitle>
                             <DialogDescription className="text-muted-foreground mt-1">
                                 {totalMatches > 0
-                                    ? `${totalMatches} archimontres dispo dans la guilde (dont ${monstersList.filter(m => m.coversNeed).length} que vous recherchez)`
+                                    ? `${totalMatches} archimonstres dispo dans la guilde (dont ${Array.from(monstersMap.values()).filter(m => m.coversNeed).length} que vous recherchez)`
                                     : "Recherche de correspondances dans la guilde..."}
                             </DialogDescription>
                         </div>
@@ -299,7 +305,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                             className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-success-foreground text-muted-foreground"
                                         >
                                             <Users className="h-3.5 w-3.5 shrink-0" />
-                                            <span>Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})</span>
+                                            <span>Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => (!monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim())) && (!hideOwned || m.coversNeed))).length})</span>
                                         </TabsTrigger>
                                     </TabsList>
                                     <div className="relative w-full group">
@@ -309,28 +315,43 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                         <Input
                                             value={monsterSearch}
                                             onChange={(e) => setMonsterSearch(e.target.value)}
-                                            placeholder="RECHERCHER..."
+                                            placeholder="RECHERCHER UN MONSTRE OU ARCHI..."
                                             className="pl-9 bg-surface/50 border-border h-9 text-caption font-black uppercase tracking-[0.1em] placeholder:text-muted-foreground focus:border-success/40 focus:ring-success/10 transition-all rounded-xl"
                                         />
                                     </div>
                                 </div>
 
-                                {/* Legend row */}
-                                <div className="flex items-center gap-3 text-xs bg-surface/50 backdrop-blur-md border border-border rounded-xl px-3 py-2 self-start">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="relative flex h-2 w-2 shrink-0">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                                {/* Legend & Filter row (#24) */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-surface/50 backdrop-blur-md border border-border rounded-xl px-3 py-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="relative flex h-2 w-2 shrink-0">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                                            </span>
+                                            <span className="font-bold text-success text-caption">Recherché</span>
+                                            <span className="text-caption text-muted-foreground hidden xs:inline">(vous manque)</span>
+                                        </div>
+                                        <div className="w-px h-3 bg-border shrink-0" />
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="h-2 w-2 rounded-full bg-muted shrink-0" />
+                                            <span className="font-bold text-muted-foreground text-caption">Possédé</span>
+                                            <span className="text-caption text-muted-foreground hidden xs:inline">(déjà acquis)</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Toggle Hide Owned (#24) */}
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={hideOwned}
+                                            onChange={(e) => setHideOwned(e.target.checked)}
+                                            className="rounded border-border text-success focus:ring-success/30 w-3.5 h-3.5 cursor-pointer accent-emerald-500"
+                                        />
+                                        <span className={cn("text-caption font-bold transition-colors", hideOwned ? "text-success" : "text-muted-foreground")}>
+                                            Masquer les monstres déjà possédés
                                         </span>
-                                        <span className="font-bold text-success text-caption">Recherché</span>
-                                        <span className="text-caption text-muted-foreground hidden xs:inline">(vous manque)</span>
-                                    </div>
-                                    <div className="w-px h-3 bg-surface shrink-0" />
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-muted shrink-0" />
-                                        <span className="font-bold text-muted-foreground text-caption">Possédé</span>
-                                        <span className="text-caption text-muted-foreground hidden xs:inline">(déjà acquis)</span>
-                                    </div>
+                                    </label>
                                 </div>
                             </div>
 

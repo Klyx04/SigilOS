@@ -187,7 +187,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
     };
 
     return (
-        <div className="relative w-full overflow-hidden rounded-2xl border border-border bg-[#09090b] shadow-2xl transition-all duration-300">
+        <div className="relative w-full overflow-hidden rounded-2xl border border-border bg-surface/90 shadow-2xl transition-all duration-300">
             {/* Background Effects */}
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 via-blue-900/5 to-transparent pointer-events-none" />
             <div
@@ -217,7 +217,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                 {/* Top Row: Back link & Title Row */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
                     <div className="flex flex-col gap-3">
-                        <Link href={`/dashboard/${guildId}/songes`} className="text-xs text-foreground/40 font-bold hover:text-foreground transition-colors flex items-center gap-1 group uppercase tracking-widest">
+                        <Link href={`/dashboard/${guildId}/songes`} className="text-xs text-muted-foreground font-bold hover:text-foreground transition-colors flex items-center gap-1 group uppercase tracking-widest">
                             <ArrowLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" />
                             RETOUR AUX SONGES
                         </Link>
@@ -369,7 +369,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                                 Clôturer la Run
                                             </Button>
                                         </DialogTrigger>
-                                        <DialogContent className="bg-[#09090b] border-border text-foreground sm:max-w-md">
+                                        <DialogContent className="bg-background border-border text-foreground sm:max-w-md">
                                             <DialogHeader>
                                                 <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                                                     <Trophy className="w-5 h-5 text-amber-500" />
@@ -406,7 +406,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
 
                         {/* Chantier Songes — Modale d'édition de la run */}
                         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                            <DialogContent className="bg-[#09090b] border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
+                            <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
                                         <Pencil className="w-5 h-5 text-purple-400" />

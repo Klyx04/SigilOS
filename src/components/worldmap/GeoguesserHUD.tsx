@@ -1,79 +1,138 @@
 'use client';
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C)
 
 import React from 'react';
-import { Clock, Trophy, Flag } from 'lucide-react';
+import { Clock, Trophy, CheckCircle2, Loader2, Eye, MapPin, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface Participant {
+    userId: string;
+    userName: string;
+    userAvatar?: string;
+    score: number;
+    hasGuessed?: boolean;
+    isSpectator?: boolean;
+    isConnected?: boolean;
+}
 
 interface GeoguesserHUDProps {
     round: number;
     maxRounds: number;
     timeLeft: number;
     score: number;
-    gamePhase: 'playing' | 'result' | 'summary';
-    spectators?: any[];
+    gamePhase: 'playing' | 'result' | 'summary' | 'countdown';
+    participants?: Participant[];
+    spectators?: Participant[];
+    currentUserId?: string;
+    hasGuessed?: boolean;
     onReportMap?: () => void;
 }
 
-export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gamePhase, spectators = [], onReportMap }: GeoguesserHUDProps) {
+export default function GeoguesserHUD({
+    round,
+    maxRounds,
+    timeLeft,
+    score,
+    gamePhase,
+    participants = [],
+    spectators = [],
+    currentUserId,
+    hasGuessed = false,
+}: GeoguesserHUDProps) {
+    const activePlayers = participants.filter(p => !p.isSpectator && p.isConnected !== false);
+    const guessedCount = activePlayers.filter(p => p.hasGuessed).length;
+    const totalActive = activePlayers.length;
+
     return (
-        <div className="flex items-center justify-center gap-2 sm:gap-4 animate-in slide-in-from-top-10 duration-300 pointer-events-auto">
-            {/* Spectators - Floating on the left */}
-            {spectators.length > 0 && (
-                <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-surface border border-border rounded-2xl mr-2">
-                    <div className="flex -space-x-2">
-                        {spectators.slice(0, 3).map(s => (
-                             <div key={s.userId || s.id} className="w-6 h-6 rounded-lg border border-black p-0.5 bg-surface overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-help relative" title={s.userName}>
-                                 <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.userName}`} className="w-full h-full object-cover rounded-md" alt="" />
-                             </div>
-                        ))}
-                        {spectators.length > 3 && (
-                            <div className="w-6 h-6 rounded-lg bg-elevated border border-border flex items-center justify-center text-caption font-black text-foreground/40">
-                                +{spectators.length - 3}
-                            </div>
-                        )}
-                    </div>
+        <div className="flex flex-col items-center gap-2 pointer-events-auto select-none">
+            {/* Top Bar: Round + Timer + Score */}
+            <div className="flex items-center justify-center gap-2 sm:gap-3 bg-zinc-950/90 backdrop-blur-md border border-white/10 p-1.5 sm:p-2 rounded-2xl shadow-2xl">
+                {/* Round */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 rounded-xl border border-white/5">
+                    <span className="text-caption font-bold text-zinc-400 uppercase">Round</span>
+                    <span className="text-sm font-black text-white">
+                        {round}<span className="text-zinc-500 font-normal text-xs">/{maxRounds}</span>
+                    </span>
                 </div>
-            )}
 
-            {/* Round Indicator */}
-            <div className="flex flex-col items-center justify-center px-4 py-2 sm:px-6 bg-[#1a1c23]/90 backdrop-blur-xl border border-border rounded-xl sm:rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
-                <span className="text-caption sm:text-caption text-foreground/30 font-black uppercase tracking-[0.2em] mb-0.5 italic">Round</span>
-                <span className="text-foreground font-black text-lg sm:text-xl italic tracking-tighter leading-none">
-                    {round}<span className="text-foreground/20">/{maxRounds}</span>
-                </span>
-            </div>
-
-            {/* Timer */}
-            <div className={cn(
-                "group flex flex-col items-center justify-center px-6 py-2 sm:px-10 sm:py-4 bg-[#1a1c23] border-2 transition-all duration-300 rounded-2xl sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10",
-                timeLeft <= 10 ? "border-danger/60 ring-danger/20" : "border-[#a78bfa]/30 ring-info/20"
-            )}>
-                <span className="text-caption sm:text-caption text-foreground/30 font-black uppercase tracking-[0.2em] mb-0.5 italic">Temps restant</span>
-                <div className="flex items-center gap-2 sm:gap-3">
-                    <Clock size={16} className={cn(
-                        "sm:w-5 sm:h-5 transition-transform duration-300",
-                        timeLeft <= 10 ? "text-danger animate-pulse scale-110" : "text-[#a78bfa]"
-                    )} />
-                    <span className={cn(
-                        "text-xl sm:text-3xl font-black italic tracking-tighter leading-none transition-colors",
-                        timeLeft <= 10 ? "text-danger" : "text-foreground"
-                    )}>
+                {/* Timer */}
+                <div className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all",
+                    timeLeft <= 5
+                        ? "bg-rose-500/20 border-rose-500/50 text-rose-400 animate-pulse"
+                        : timeLeft <= 10
+                            ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
+                            : "bg-zinc-900/90 border-white/5 text-white"
+                )}>
+                    <Clock size={15} className={cn(timeLeft <= 5 && "animate-spin")} />
+                    <span className="text-sm font-black font-mono">
                         {timeLeft}s
+                    </span>
+                </div>
+
+                {/* Score */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 rounded-xl border border-white/5">
+                    <Trophy size={14} className="text-amber-400" />
+                    <span className="text-caption font-bold text-zinc-400 uppercase hidden sm:inline">Score</span>
+                    <span className="text-sm font-black text-amber-300 font-mono">
+                        {score}
                     </span>
                 </div>
             </div>
 
-            {/* Score */}
-            <div className="flex flex-col items-center justify-center px-4 py-2 sm:px-6 bg-[#1a1c23]/90 backdrop-blur-xl border border-border rounded-xl sm:rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
-                <span className="text-caption sm:text-caption text-foreground/30 font-black uppercase tracking-[0.2em] mb-0.5 italic">Score</span>
-                <div className="flex items-center gap-1 sm:gap-2">
-                    <Trophy size={14} className="text-warning sm:w-4 sm:h-4 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
-                    <span className="text-foreground font-black text-2xl sm:text-3xl italic tracking-tighter leading-none">{score}</span>
-                </div>
-            </div>
+            {/* Sub-bar: Player Progress & Validation Status in Multiplayer */}
+            {activePlayers.length > 1 && gamePhase === 'playing' && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-full text-xs shadow-lg animate-in fade-in duration-200">
+                    <span className="text-zinc-400 text-caption font-medium">
+                        Validations : <strong className="text-white font-bold">{guessedCount}/{totalActive}</strong>
+                    </span>
 
-            {/* Report Button removed from playing phase per user request. Available in result phase only. */}
+                    <div className="h-3 w-px bg-white/10 mx-1" />
+
+                    <div className="flex items-center gap-1.5 overflow-x-auto max-w-[280px] sm:max-w-md custom-scrollbar">
+                        {activePlayers.map((p) => {
+                            const isMe = p.userId === currentUserId;
+                            return (
+                                <div
+                                    key={p.userId}
+                                    className={cn(
+                                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-caption border transition-all",
+                                        p.hasGuessed
+                                            ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
+                                            : "bg-zinc-900 border-white/5 text-zinc-400"
+                                    )}
+                                    title={`${p.userName} : ${p.hasGuessed ? 'A validé son choix' : 'En recherche...'}`}
+                                >
+                                    {p.hasGuessed ? (
+                                        <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
+                                    ) : (
+                                        <Loader2 size={10} className="animate-spin text-zinc-500 shrink-0" />
+                                    )}
+                                    <span className="truncate max-w-[70px] font-medium">
+                                        {isMe ? 'Toi' : p.userName}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Personal Status Badge if Guessed */}
+            {hasGuessed && gamePhase === 'playing' && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-caption font-bold rounded-full shadow-lg backdrop-blur-sm animate-in fade-in zoom-in-95">
+                    <Lock size={12} className="text-emerald-400" />
+                    <span>Position validée ! En attente de la fin du tour...</span>
+                </div>
+            )}
+
+            {/* Spectators indicator */}
+            {spectators.length > 0 && (
+                <div className="flex items-center gap-1 text-caption text-zinc-500 font-medium">
+                    <Eye size={12} />
+                    <span>{spectators.length} spectateur{spectators.length > 1 ? 's' : ''}</span>
+                </div>
+            )}
         </div>
     );
 }

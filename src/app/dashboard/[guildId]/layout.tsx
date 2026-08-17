@@ -26,7 +26,6 @@ import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { ServiceReplyModal } from "@/components/services/service-reply-modal";
 import { CommandMenu } from "@/components/layout/command-menu";
-import { SupportOrb } from "@/components/shared/support-orb";
 import { GalacticFooterGate } from "@/components/layout/galactic-footer-gate";
 import { GameProvider } from "@/components/providers/GameProvider";
 import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
@@ -265,9 +264,6 @@ export default async function DashboardLayout({
 
                 {/* Global Service Dialogue Modal — visible sur toute page / refresh */}
                 <ServiceReplyModal guildId={guildId} />
-
-                {/* Support Orb (Donation system STATE OF ART 2026) */}
-                {donationsEnabled && <SupportOrb />}
 
                 {/* Command Palette (Cmd+K) */}
                 <CommandMenu guildId={guildId} user={user} />

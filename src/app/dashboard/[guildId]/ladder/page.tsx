@@ -43,7 +43,6 @@ export default async function LadderPage({ params }: Props) {
             <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
 
             <div className="relative z-10 max-w-6xl mx-auto space-y-8">
-                <ActivitiesNav guildId={guildId} />
                 <div data-tour="ladder-header">
                     <UnifiedModuleHeader
                         title="Classement de Guilde"

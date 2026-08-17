@@ -7,7 +7,7 @@
   "description": "Obtenir le Dofus Cawotte en aidant les gardiens de l'île des Wabbits.",
   "dofusItemId": 972,
   "iconId": 23012,
-  "imageUrl": "https://static.dofusdb.fr/items/972.png",
+  "imageUrl": "/module-dofus/Dofus_Cawotte.png",
   "compiledAt": "2026-04-09T11:20:39.381Z",
   "chains": [
     {

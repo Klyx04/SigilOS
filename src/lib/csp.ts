@@ -73,6 +73,8 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
         "https://ganymede-dofus.com https://ganymede-app.com",
         "https://images.unsplash.com",
         "https://i.imgur.com",
+        "https://unavatar.io", // avatars Createurs (YT/Twitch)
+        "https://media.discordapp.net", // miroir fallback avatars Discord (#23)
     ].join(" ");
 
     // ─── connect-src — Sentry (loader + tunnel) + WebSocket ────────────────

@@ -770,9 +770,7 @@ export function AppSidebar({
             </div>
 
             {/* 3. FOOTER: COMMAND CENTER HUD */}
-            <div className="p-4 bg-background/40 border-t border-border space-y-4 backdrop-blur-3xl relative overflow-hidden">
-                {/* Background Ambient Hud Glow */}
-                <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5  -z-10" />
+            <div className="p-4 bg-surface/40 border-t border-border space-y-4 relative">
                 
                 {!mounted ? (
                     <div className="w-full h-24 bg-surface animate-pulse rounded-2xl" />

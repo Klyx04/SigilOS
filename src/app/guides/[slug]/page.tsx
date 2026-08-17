@@ -24,11 +24,34 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         };
     }
 
+    const ogImageUrl = `${getAppBaseUrl()}/api/og?title=${encodeURIComponent(guide.title)}&subtitle=Guide%20Officiel%20SigilOS`;
+
     return {
         title: guide.title,
         description: guide.description,
         alternates: {
             canonical: `${getAppBaseUrl()}/guides/${guide.slug}`,
+        },
+        openGraph: {
+            type: "article",
+            title: guide.title,
+            description: guide.description,
+            url: `${getAppBaseUrl()}/guides/${guide.slug}`,
+            images: [
+                {
+                    url: ogImageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: guide.title,
+                    type: "image/png",
+                },
+            ],
+        },
+        twitter: {
+            card: "summary_large_image",
+            title: guide.title,
+            description: guide.description,
+            images: [ogImageUrl],
         },
         // Les brouillons ne doivent jamais être indexés
         robots: guide.draft

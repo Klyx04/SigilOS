@@ -289,7 +289,7 @@ export function ItemSearchPanel() {
         }
         setDbLoading(true);
         try {
-            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q)}&limit=8`);
+            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q)}&limit=20`);
             const data = await res.json();
             setDbResults(data.data ?? []);
         } catch {
@@ -315,8 +315,8 @@ export function ItemSearchPanel() {
             const results = Array.isArray(data) ? data : (data.data || data.results || []);
             if (data.error) throw new Error(data.error);
             setBookResults(results);
-        } catch (err: any) {
-            console.error("[Dofusbook Search] Error:", err);
+        } catch {
+            // Echec gracieux Dofusbook : pas de log console en prod.
             setBookResults([]);
             // Optional: You could show a specialized error toast or inline message here
         } finally {
@@ -417,14 +417,14 @@ export function ItemSearchPanel() {
                 <div className="lg:col-span-4 flex flex-col gap-8">
 
                     {/* DofusDB Block */}
-                    <div className="rounded-[2.5rem] p-8 border border-border shadow-2xl bg-surface/40 backdrop-blur-2xl flex flex-col transition-all hover:border-violet-500/20">
+                    <div className="rounded-2xl p-8 border border-border shadow-sm bg-surface flex flex-col transition-colors hover:border-violet-500/20">
                         <div className="flex items-center gap-4 mb-8">
                             <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20 ">
                                 <Search className="h-6 w-6 text-violet-400" />
                             </div>
                             <div>
-                                <h2 className="text-label font-black uppercase tracking-[0.2em] text-foreground">DofusDB Nexus</h2>
-                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-wider mt-1">Global Quick Search</p>
+                                <h2 className="text-label font-semibold text-foreground">DofusDB Nexus</h2>
+                                <p className="text-caption text-muted-foreground font-medium mt-1">Global Quick Search</p>
                             </div>
                         </div>
 
@@ -434,7 +434,7 @@ export function ItemSearchPanel() {
                                 value={dbQuery}
                                 onChange={(e) => setDbQuery(e.target.value)}
                                 placeholder="Rechercher un objet..."
-                                className="w-full bg-background/60 border border-border rounded-2xl pl-12 pr-4 py-4 text-sm text-foreground outline-none focus:border-violet-500/50 focus:bg-background/80 transition-all placeholder:text-muted-foreground shadow-inner"
+                                className="w-full bg-background/60 border border-border rounded-2xl pl-12 pr-4 py-4 text-sm text-foreground outline-none focus:border-violet-500/50 focus:bg-background/80 transition-colors placeholder:text-muted-foreground shadow-inner"
                             />
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         </div>
@@ -446,18 +446,18 @@ export function ItemSearchPanel() {
                                     key={item.id}
                                     onClick={() => handleSelectDB(item)}
                                     className={cn(
-                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-all group",
+                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-colors group",
                                         selectedItem?.id === item.id && source === "dofusdb"
                                             ? "bg-violet-500/10 border-violet-500/40 "
                                             : "bg-surface border-border hover:bg-surface hover:border-border"
                                     )}
                                 >
-                                    <div className="w-11 h-11 rounded-xl bg-black/40 flex items-center justify-center border border-border shrink-0 group- transition-transform">
+                                    <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0 group- transition-transform">
                                         <Image src={item.imgset?.[0]?.icon || item.img || ""} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
                                     </div>
                                     <div className="min-w-0 text-left">
                                         <div className="text-body-sm font-bold text-foreground group-hover:text-foreground truncate">{item.name.fr}</div>
-                                        <div className="text-caption font-black text-muted-foreground uppercase tracking-tighter">Niv. {item.level}</div>
+                                        <div className="text-caption font-medium text-muted-foreground">Niv. {item.level}</div>
                                     </div>
                                 </button>
                             ))}
@@ -465,21 +465,21 @@ export function ItemSearchPanel() {
                     </div>
 
                     {/* Dofusbook Block */}
-                    <div className="rounded-[2.5rem] p-8 border border-success/20 shadow-2xl bg-surface/40 backdrop-blur-2xl flex flex-col flex-1 transition-all hover:border-success/30">
+                    <div className="rounded-2xl p-8 border border-success/20 shadow-sm bg-surface flex flex-col flex-1 transition-colors hover:border-success/30">
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-success/10 flex items-center justify-center border border-success/20 ">
                                     <BookMarked className="h-6 w-6 text-success" />
                                 </div>
                                 <div>
-                                    <h2 className="text-label font-black uppercase tracking-[0.2em] text-success">Dofusbook</h2>
-                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-wider mt-1">Expert Precision</p>
+                                    <h2 className="text-label font-semibold text-success">Dofusbook</h2>
+                                    <p className="text-caption text-muted-foreground font-medium mt-1">Expert Precision</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={cn(
-                                    "p-2.5 rounded-xl border transition-all flex items-center gap-2 text-caption font-black uppercase tracking-widest",
+                                    "p-2.5 rounded-xl border transition-colors flex items-center gap-2 text-caption font-semibold",
                                     showFilters ? "bg-success/20 border-success/40 text-success" : "bg-surface border-border text-muted-foreground hover:text-success-foreground"
                                 )}
                             >
@@ -488,9 +488,9 @@ export function ItemSearchPanel() {
                         </div>
 
                         {showFilters && (
-                            <div className="mb-8 p-6 rounded-[2rem] bg-black/60 border border-success/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+                            <div className="mb-8 p-6 rounded-xl bg-surface border border-success/20 shadow-sm animate-in fade-in zoom-in-95 duration-300">
                                 <div className="flex items-center justify-between mb-4 px-1">
-                                    <p className="text-caption font-black uppercase tracking-[0.2em] text-success">Filtrer par type</p>
+                                    <p className="text-caption font-semibold text-success">Filtrer par type</p>
                                     <button
                                         onClick={() => setBookCategory(null)}
                                         className="text-caption font-bold text-muted-foreground hover:text-foreground transition-colors"
@@ -506,7 +506,7 @@ export function ItemSearchPanel() {
                                                 key={c.id}
                                                 onClick={() => setBookCategory(bookCategory === c.id ? null : c.id)}
                                                 className={cn(
-                                                    "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all group",
+                                                    "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-colors group",
                                                     bookCategory === c.id
                                                         ? "bg-success/20 border-success/50 text-success  scale-105"
                                                         : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-success/20 hover:text-foreground"
@@ -516,7 +516,7 @@ export function ItemSearchPanel() {
                                                     "h-5 w-5 transition-transform group-",
                                                     bookCategory === c.id ? "text-success" : "text-muted-foreground group-hover:text-success/50"
                                                 )} />
-                                                <span className="text-caption font-black uppercase tracking-widest">{c.name}</span>
+                                                <span className="text-caption font-semibold">{c.name}</span>
                                             </button>
                                         );
                                     })}
@@ -530,7 +530,7 @@ export function ItemSearchPanel() {
                                 value={bookQuery}
                                 onChange={(e) => setBookQuery(e.target.value)}
                                 placeholder="Chercher sur Dofusbook..."
-                                className="w-full bg-background/80 border border-success/20 rounded-2xl pl-12 pr-4 py-4 text-sm text-foreground outline-none focus:border-success/50 transition-all placeholder:text-success/30 shadow-2xl"
+                                className="w-full bg-background/80 border border-success/20 rounded-2xl pl-12 pr-4 py-4 text-sm text-foreground outline-none focus:border-success/50 transition-colors placeholder:text-success/30 shadow-sm"
                             />
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-success/40" />
                         </div>
@@ -540,7 +540,7 @@ export function ItemSearchPanel() {
                             {!bookLoading && bookQuery.length >= 2 && bookResults.length === 0 && (
                                 <div className="py-12 text-center">
                                     <PackageOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-20" />
-                                    <p className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aucun résultat sur Dofusbook</p>
+                                    <p className="text-caption font-semibold text-muted-foreground">Aucun résultat sur Dofusbook</p>
                                 </div>
                             )}
                             {bookResults.map((item) => (
@@ -548,18 +548,18 @@ export function ItemSearchPanel() {
                                     key={item.id}
                                     onClick={() => handleSelectBook(item)}
                                     className={cn(
-                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-all group",
+                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-colors group",
                                         selectedItem?.id === item.id && source === "dofusbook"
                                             ? "bg-success/10 border-success/40 "
                                             : "bg-surface border-border hover:bg-surface hover:border-border"
                                     )}
                                 >
-                                    <div className="w-11 h-11 rounded-xl bg-black/40 flex items-center justify-center border border-border shrink-0 group- transition-transform">
+                                    <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0 group- transition-transform">
                                         <Image src={`https://www.dofusbook.net/static/dist/items/${item.picture || item.picture_id || item.id}-70.webp`} alt={item.name} width={32} height={32} className="object-contain" unoptimized />
                                     </div>
                                     <div className="min-w-0 text-left">
                                         <div className="text-body-sm font-bold text-foreground group-hover:text-foreground truncate">{item.name}</div>
-                                        <div className="text-caption font-black text-success/60 uppercase tracking-tighter">Niv. {item.level}</div>
+                                        <div className="text-caption font-semibold text-success/60 uppercase tracking-tighter">Niv. {item.level}</div>
                                     </div>
                                 </button>
                             ))}
@@ -570,20 +570,20 @@ export function ItemSearchPanel() {
                 {/* Detail Panel */}
                 <div className="lg:col-span-8">
                     <div className={cn(
-                        "h-full min-h-[600px] rounded-[3rem] border backdrop-blur-3xl p-10 flex flex-col relative overflow-hidden transition-all duration-300 shadow-2xl",
-                        source === "dofusbook" ? "bg-success/10 border-success/20" : "bg-surface/40 border-border"
+                        "h-full min-h-[600px] rounded-[3rem] border backdrop-blur-3xl p-10 flex flex-col relative overflow-hidden transition-colors duration-300 shadow-sm",
+                        source === "dofusbook" ? "bg-success/10 border-success/20" : "bg-surface border-border"
                     )}>
                         {!selectedItem ? (
                             <div className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-300">
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-violet-500/20 blur-[100px] rounded-full group-hover:bg-success/20 transition-colors duration-300" />
-                                    <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-violet-500/10 to-success/10 border border-border flex items-center justify-center relative z-10 shadow-2xl group- transition-transform duration-300 backdrop-blur-xl">
+                                    <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-violet-500/10 to-success/10 border border-border flex items-center justify-center relative z-10 shadow-sm group- transition-transform duration-300 backdrop-blur-xl">
                                         <Library className="h-10 w-10 text-foreground animate-pulse" />
                                     </div>
                                 </div>
 
                                 <div className="space-y-4 max-w-lg relative z-10">
-                                    <h3 className="text-4xl font-black uppercase tracking-tighter text-foreground leading-none">
+                                    <h3 className="text-4xl font-semibold tracking-tighter text-foreground leading-none">
                                         Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-white to-success">Encyclopédique</span>
                                     </h3>
                                     <p className="text-muted-foreground text-sm font-medium leading-relaxed">
@@ -592,39 +592,39 @@ export function ItemSearchPanel() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl mt-8 relative z-10">
-                                    <div className="p-6 rounded-[2rem] bg-surface border border-border space-y-3 hover:border-violet-500/30 hover:bg-surface transition-all group/card">
+                                    <div className="p-6 rounded-xl bg-surface border border-border space-y-3 hover:border-violet-500/30 hover:bg-surface transition-colors group/card">
                                         <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center mx-auto mb-2 border border-violet-500/20 group-hover/card:scale-110 transition-transform">
                                             <Zap className="h-5 w-5 text-violet-400" />
                                         </div>
                                         <div className="space-y-1">
-                                            <h4 className="text-label font-black uppercase tracking-widest text-foreground">Effets Directs</h4>
+                                            <h4 className="text-label font-semibold text-foreground">Effets Directs</h4>
                                             <p className="text-caption text-muted-foreground font-bold uppercase tracking-tight">Jets min/max & bonus</p>
                                         </div>
                                     </div>
 
-                                    <div className="p-6 rounded-[2rem] bg-surface border border-border space-y-3 hover:border-success/30 hover:bg-surface transition-all group/card">
+                                    <div className="p-6 rounded-xl bg-surface border border-border space-y-3 hover:border-success/30 hover:bg-surface transition-colors group/card">
                                         <div className="w-10 h-10 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-2 border border-success/20 group-hover/card:scale-110 transition-transform">
                                             <Scroll className="h-5 w-5 text-success" />
                                         </div>
                                         <div className="space-y-1">
-                                            <h4 className="text-label font-black uppercase tracking-widest text-foreground">Fabrication</h4>
+                                            <h4 className="text-label font-semibold text-foreground">Fabrication</h4>
                                             <p className="text-caption text-muted-foreground font-bold uppercase tracking-tight">Recettes & quantités</p>
                                         </div>
                                     </div>
 
-                                    <div className="p-6 rounded-[2rem] bg-surface border border-border space-y-3 hover:border-warning/30 hover:bg-surface transition-all group/card">
+                                    <div className="p-6 rounded-xl bg-surface border border-border space-y-3 hover:border-warning/30 hover:bg-surface transition-colors group/card">
                                         <div className="w-10 h-10 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto mb-2 border border-warning/20 group-hover/card:scale-110 transition-transform">
                                             <ExternalLink className="h-5 w-5 text-warning" />
                                         </div>
                                         <div className="space-y-1">
-                                            <h4 className="text-label font-black uppercase tracking-widest text-foreground">Multi-Sources</h4>
+                                            <h4 className="text-label font-semibold text-foreground">Multi-Sources</h4>
                                             <p className="text-caption text-muted-foreground font-bold uppercase tracking-tight">DofusDB & Dofusbook</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="pt-12 text-muted-foreground">
-                                    <p className="text-caption font-black uppercase tracking-widest flex items-center gap-4 justify-center">
+                                    <p className="text-caption font-semibold flex items-center gap-4 justify-center">
                                         <div className="w-12 h-px bg-current opacity-20" />
                                         Recherchez pour commencer
                                         <div className="w-12 h-px bg-current opacity-20" />
@@ -634,7 +634,7 @@ export function ItemSearchPanel() {
                         ) : (
                             <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
                                 {loadingDetail && (
-                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center rounded-[2.5rem]">
+                                    <div className="absolute inset-0 bg-surface backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
                                         <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
                                     </div>
                                 )}
@@ -645,7 +645,7 @@ export function ItemSearchPanel() {
                                             "absolute inset-0 blur-3xl opacity-0 group-hover:opacity-40 transition-opacity",
                                             source === "dofusbook" ? "bg-success/20" : "bg-violet-600/20"
                                         )} />
-                                        <div className="w-40 h-40 rounded-[2.5rem] bg-black/40 border border-border flex items-center justify-center relative z-10 shadow-2xl">
+                                        <div className="w-40 h-40 rounded-2xl bg-background border border-border flex items-center justify-center relative z-10 shadow-sm">
                                             <Image
                                                 src={selectedItem.imgset?.[0]?.sd || selectedItem.img || ""}
                                                 alt={selectedItem.name.fr}
@@ -660,14 +660,14 @@ export function ItemSearchPanel() {
                                     <div className="flex-1 pt-4">
                                         <div className="flex items-center gap-3 mb-4">
                                             <span className={cn(
-                                                "px-4 py-1.5 rounded-full text-caption font-black uppercase tracking-widest border transition-colors",
+                                                "px-4 py-1.5 rounded-full text-caption font-semibold border transition-colors",
                                                 source === "dofusbook"
                                                     ? "bg-success/10 text-success border-success/20"
                                                     : "bg-violet-500/10 text-violet-400 border-violet-500/20"
                                             )}>
                                                 {selectedItem.type.name.fr}
                                             </span>
-                                            <span className="px-4 py-1.5 rounded-full text-caption font-black uppercase tracking-widest bg-surface text-muted-foreground">
+                                            <span className="px-4 py-1.5 rounded-full text-caption font-semibold bg-surface text-muted-foreground">
                                                 Niveau {selectedItem.level}
                                             </span>
                                             <span className="ml-auto text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
@@ -686,7 +686,7 @@ export function ItemSearchPanel() {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className={cn(
-                                                    "px-6 py-3 rounded-2xl text-caption font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg",
+                                                    "px-6 py-3 rounded-2xl text-caption font-semibold flex items-center gap-2 transition-colors shadow-lg",
                                                     source === "dofusbook" ? "bg-success hover:bg-success text-success-foreground" : "bg-violet-600 hover:bg-violet-500 text-success-foreground"
                                                 )}
                                             >
@@ -699,17 +699,17 @@ export function ItemSearchPanel() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto custom-scrollbar pr-4 pb-6">
                                     {/* Stats Card */}
                                     <div className="space-y-6">
-                                        <div className="p-8 rounded-[2.5rem] bg-surface border border-border h-fit shadow-inner">
+                                        <div className="p-8 rounded-2xl bg-surface border border-border h-fit shadow-inner">
                                             <div className="flex items-center gap-3 mb-8">
                                                 <Sword className={cn("h-5 w-5", source === "dofusbook" ? "text-success" : "text-violet-400")} />
-                                                <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">Effets & Bonus</h4>
+                                                <h4 className="text-caption font-semibold text-muted-foreground">Effets & Bonus</h4>
                                             </div>
                                             <div className="space-y-5">
                                                 {(selectedItem.effects || selectedItem.possibleEffects || []).length > 0 ? (
                                                     (selectedItem.effects || selectedItem.possibleEffects || []).map((fx: any, i: number) => (
                                                         <div key={i} className="flex items-center justify-between group/fx">
                                                             <div className="flex items-center gap-4">
-                                                                <div className="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center shrink-0 border border-border">
+                                                                <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center shrink-0 border border-border">
                                                                     <StatIcon characteristicId={fx.characteristic || fx.effectId} />
                                                                 </div>
                                                                 <span className="text-body-sm font-bold text-foreground group-hover/fx:text-foreground transition-colors">{getStatLabel(fx)}</span>
@@ -722,7 +722,7 @@ export function ItemSearchPanel() {
                                                 ) : (
                                                     <div className="py-10 text-center opacity-20">
                                                         <Zap className="h-8 w-8 mx-auto mb-2" />
-                                                        <p className="text-caption font-black uppercase">Aucun effet</p>
+                                                        <p className="text-caption font-semibold">Aucun effet</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -731,23 +731,23 @@ export function ItemSearchPanel() {
 
                                     {/* Recipe Card */}
                                     <div className="space-y-6">
-                                        <div className="p-8 rounded-[2.5rem] bg-surface border border-border shadow-inner">
+                                        <div className="p-8 rounded-2xl bg-surface border border-border shadow-inner">
                                             <div className="flex items-center gap-3 mb-8">
                                                 <Scroll className="h-5 w-5 text-muted-foreground" />
-                                                <h4 className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">Fabrication</h4>
+                                                <h4 className="text-caption font-semibold text-muted-foreground">Fabrication</h4>
                                             </div>
 
                                             {recipe ? (
                                                 <div className="space-y-4">
                                                     <div className="grid grid-cols-1 gap-3">
                                                         {recipe.ingredients.map((ing, i) => (
-                                                            <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-black/50 border border-border group/ing hover:border-border transition-all">
+                                                            <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-surface border border-border group/ing hover:border-border transition-colors">
                                                                 <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center shrink-0">
                                                                     <Image src={ing.img || `https://static.dofusdb.fr/items/${ing.id}.png`} alt="Ingredient" width={32} height={32} unoptimized />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="text-label font-bold text-foreground truncate group-hover/ing:text-foreground transition-colors">{ing.name.fr}</div>
-                                                                    <div className="text-caption font-black text-success">x {recipe.quantities[i]}</div>
+                                                                    <div className="text-caption font-semibold text-success">x {recipe.quantities[i]}</div>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -756,7 +756,7 @@ export function ItemSearchPanel() {
                                             ) : (
                                                 <div className="py-20 border border-dashed border-border rounded-3xl flex flex-col items-center justify-center opacity-20 capitalize">
                                                     <PackageOpen className="h-10 w-10 mb-3" />
-                                                    <p className="text-caption font-black tracking-widest">Pas de recette disponible</p>
+                                                    <p className="text-caption font-medium">Pas de recette disponible</p>
                                                 </div>
                                             )}
                                         </div>

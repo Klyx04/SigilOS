@@ -35,6 +35,7 @@ export const guide = {
                     <th>Rune Ra</th>
                     <th>Poids Unitaire (PWR)</th>
                 </tr>
+            </thead>
             <tbody>
                 <tr>
                     <td>

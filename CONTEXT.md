@@ -23,6 +23,19 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 26/08 — PR #492 mergée : encyclopédie 4 catégories + onglet Guides + fixes UI/sécu/deps
+
+> **Branche `feat/chantier-2026-08-19`** → **PR #492 mergée vers dev** (`eb0aca540`).
+> - **#78 — Encyclopédie** : `/api/dofusdb/search` étendu aux 4 catégories Dofusdude (`equipment`, `resources`, `consumables`, `cosmetics` — avant : 2 seulement, consommables/montiliers introuvables) via `Promise.allSettled` + logger + bornage `ankama_id` + `limit` 8→20 ; dé-slop panneau (`ItemSearchPanel`).
+> - **🆕 Onglet « Guides »** dans Ressources Dofus : `GuidesGrid` → `/guides/[slug]` (guides SEO publics intégrés au dashboard).
+> - **#53 — Galerie-stuff** : refetch redondant au montage supprimé (garde `useRef`, le SSR fournit déjà la page 1).
+> - **#55 résiduel — Worldmap** : `console.log` → `logger.info` (`WorldMapService`, 2 occurrences dont bug `ids` hors scope) ; audit clôturé (aucune mutation serveur dédiée, seul le kill-switch God `setBlacklist`).
+> - **Fix UI (suite #5)** : boutons `sigil-*` → `text-*-foreground` (le blanc piquait les yeux sur fond vert/ambre) + typo boutons profil (`font-black uppercase tracking-wider` → `text-sm font-semibold`, glow supprimé).
+> - **Fix sécu** : CSP `img-src` + `https://unavatar.io` (avatars Créateurs YT/Twitch) + `https://media.discordapp.net` (miroir fallback avatars Discord #23).
+> - **Fix CI** : override `deepmerge-ts ^8.0.0` (CVE-2026-40345 / GHSA-ggr8-5vv4-36mx, via `@prisma/config`) — `npm audit` re-passe (downgrade prisma 6.12.0 refusé).
+> - Vérifs : tsc 0 · lint 0 erreur · **208/208 tests** · build OK · test CSP 16/16.
+> - ⏳ **2 PR dependabot en attente** (prod #489 : next 16.3.1, pg 8.23, sentry 10.70, tiptap 3.30.1… ; dev : esbuild/eslint/tsx) — **`@dependabot rebase` sur dev à jour obligatoire** avant merge (l override `deepmerge-ts` doit survivre, sinon audit CI KO).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 25/08 — Lots 120-124 (God Game Data, Restauration Exclus, DofusDB Hub, Anti-Lag)
 
 > **Branche `feat/chantier-2026-08-19`**

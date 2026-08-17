@@ -177,7 +177,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                             {dofus.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-                                    src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : dofus.imageUrl.replace(/^\/public/, "")}
+                                    src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : dofus.imageUrl.replace(/^\/public/, "")}
                                     alt={dofus.nameShort}
                                     width={56}
                                     height={56}

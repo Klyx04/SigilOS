@@ -2,9 +2,16 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 
 const DOFUSDB_API = "https://api.dofusdb.fr";
+
+// 🛡️ #108 — un sous-god avec la brique "game-data" (scope Données de Jeu) accède
+// au comparateur/sync DofusDB du panneau God (QuestSyncPanel).
+async function canAccessQuestSync(): Promise<boolean> {
+    if (await isSuperAdmin()) return true;
+    return canAccessBrick("game-data");
+}
 
 export type QuestDelta = {
     dofusDbId: number;
@@ -17,8 +24,7 @@ export type QuestDelta = {
 };
 
 export async function checkDofusDbDeltas() {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) {
+    if (!(await canAccessQuestSync())) {
         return { success: false, error: "Non autorisé" };
     }
 
@@ -108,8 +114,7 @@ export async function checkDofusDbDeltas() {
 }
 
 export async function syncDeltas(selectedIds: number[]) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) {
+    if (!(await canAccessQuestSync())) {
         return { success: false, error: "Non autorisé" };
     }
 

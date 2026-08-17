@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getActiveScopes } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { listDelegates, listBrickGrants } from "@/server/actions/god-delegate-actions";
 import { SUBGOD_USABLE_SCOPES } from "@/lib/god-scopes";
 import { DelegatesManager } from "./delegates-manager";
@@ -26,9 +26,11 @@ export default async function DelegatesPage() {
     const session = await auth();
     if (!session?.user?.id) redirect("/");
 
-    // Guard : un utilisateur doit avoir le scope "users" (ou être super-admin)
-    const scopes = await getActiveScopes();
-    if (!scopes.includes("users")) redirect("/god");
+    // 🛡️ Guard (fix #108) : la gestion des sous-gods est RÉSERVÉE au super-admin.
+    // Avant : on acceptait le scope "users" → un sous-god avec ce scope (qui n'ouvre
+    // QUE la brique tickets) pouvait gérer les délégations = montée de privilège.
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) redirect("/god");
 
     const result = await listDelegates();
     const delegates = result.success ? (result.data ?? []) : [];

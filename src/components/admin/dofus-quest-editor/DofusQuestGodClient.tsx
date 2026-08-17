@@ -189,7 +189,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                     "turquoise":            "Dofus_Turquoise.png",
                     "veilleur":             "Dofus_Veilleur.png",
                     "vulbis":               "Dofus_Vulbis.png",
-                    "dofoozbz":             "Dofus_dofoozbz.png",
+                    "dofoozbz":             "Dofus_Dofoozbz.png",
                 };
                 const localImg = `/module-dofus/${DOFUS_IMG_MAP[dofus.slug] ?? "Dofus_Abyssal.png"}`;
 

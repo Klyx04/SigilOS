@@ -440,7 +440,7 @@ export function PollCreator({
                                                         >
                                                             <span className="text-xl mb-1">{c.label.split(" ")[0]}</span>
                                                             <span className={cn(
-                                                                "text-caption font-bold uppercase tracking-tight text-center",
+                                                                "text-caption font-bold uppercase tracking-tight text-center break-words min-w-0",
                                                                 isSelected ? c.color : "text-muted-foreground"
                                                             )}>
                                                                 {c.label.split(" ").slice(1).join(" ")}
@@ -464,7 +464,7 @@ export function PollCreator({
                                                         initial={{ opacity: 0, y: 10 }}
                                                         animate={{ opacity: 1, y: 0 }}
                                                         exit={{ opacity: 0, scale: 0.95 }}
-                                                        className="flex items-center gap-2 p-1.5 rounded-xl bg-surface/30 border border-border focus-within:border-info/30 transition-all font-bold"
+                                                        className="flex items-center gap-2 p-1.5 rounded-xl bg-surface/30 border border-border focus-within:border-info/30 transition-all font-bold min-w-0"
                                                     >
                                                         <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
                                                             <GripVertical className="w-4 h-4 text-muted-foreground" />
@@ -472,14 +472,14 @@ export function PollCreator({
                                                         <input
                                                             value={opt.emoji}
                                                             onChange={(e) => updateOption(i, "emoji", e.target.value)}
-                                                            className="w-10 h-10 bg-transparent border-none text-center text-xl focus:ring-0 outline-none text-foreground"
+                                                            className="w-10 h-10 bg-transparent border-none text-center text-xl focus:ring-0 outline-none text-foreground shrink-0"
                                                         />
                                                         <Input
                                                             value={opt.label}
                                                             onChange={(e) => updateOption(i, "label", e.target.value)}
                                                             placeholder={`Option ${i + 1}`}
                                                             maxLength={100}
-                                                            className="flex-1 bg-transparent border-none text-foreground placeholder:text-foreground h-10 font-bold text-md focus-visible:ring-0"
+                                                            className="flex-1 min-w-0 bg-transparent border-none text-foreground placeholder:text-foreground h-10 font-bold text-md focus-visible:ring-0"
                                                         />
                                                         {options.length > 2 && (
                                                             <button

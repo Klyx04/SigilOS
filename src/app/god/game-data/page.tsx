@@ -41,7 +41,14 @@ export default async function GameDataPage() {
     const session = await auth();
     if (!session?.user?.id) redirect("/");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) redirect("/");
+    // #108 — un sous-god avec la brique game-data atterrit sur l'onglet tab=game-data
+    // (expérience cohérente avec la sidebar) au lieu d'être éjecté.
+    if (!isAdmin) {
+        const { canAccessBrick } = await import("@/server/actions/super-admin-actions");
+        const hasBrick = await canAccessBrick("game-data");
+        if (hasBrick) redirect("/god?tab=game-data");
+        redirect("/");
+    }
 
     return (
         <div className="p-6 md:p-10 lg:p-14 space-y-14 max-w-[1400px] mx-auto">

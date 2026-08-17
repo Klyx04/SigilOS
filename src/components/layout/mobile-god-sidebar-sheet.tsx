@@ -4,17 +4,19 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Menu } from "lucide-react";
 import { GodSidebar } from "./god-sidebar";
 import { useState, useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export function MobileGodSidebarSheet({ user, unreadCount, ticketCount = 0, activeScopes = [], accessibleBricks = [], godRoute = "/god" }: { user: any, unreadCount: number, ticketCount?: number, activeScopes?: string[], accessibleBricks?: string[], godRoute?: string }) {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
-    const searchParams = useSearchParams();
 
     // Close the sliding navigation drawer automatically whenever a link is clicked
+    // ⚠️ #108 : ne dépendre QUE de pathname (pas de searchParams) — `useSearchParams()`
+    // peut renvoyer une nouvelle référence à chaque render, ce qui re-déclenchait
+    // l'effet en boucle → erreur React #441 "too many re-renders" côté sous-god.
     useEffect(() => {
-        setOpen(false);
-    }, [pathname, searchParams]);
+        setOpen((prev) => (prev ? false : prev));
+    }, [pathname]);
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>

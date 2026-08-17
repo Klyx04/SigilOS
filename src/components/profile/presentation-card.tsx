@@ -111,7 +111,7 @@ export function PresentationCard({
                 <Button
                     onClick={() => setIsEditing(true)}
                     variant="sigil-emerald"
-                    className="h-11 px-6 text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
+                    className="h-11 px-6 text-sm font-semibold"
                 >
                     Remplir ma fiche de présentation
                 </Button>
@@ -251,7 +251,7 @@ export function PresentationCard({
                                 onClick={handleSave}
                                 disabled={isSaving || introText.length > MAX_CHARS}
                                 variant="sigil-emerald"
-                                className="h-9 px-5 text-xs font-black uppercase tracking-wider"
+                                className="h-9 px-5 text-sm font-semibold"
                             >
                                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
                                 Enregistrer

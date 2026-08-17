@@ -127,7 +127,7 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                     </div>
 
                     {!readOnly && (
-                        <Button asChild variant="sigil-emerald" className="mt-2 text-xs font-black uppercase tracking-wider h-10 px-5">
+                        <Button asChild variant="sigil-emerald" className="mt-2 text-sm font-semibold h-10 px-5">
                             <Link href={`/dashboard/${guildId}/quetes-dofus?tab=dofus`}>
                                 Accéder au suivi Quêtes Dofus <ArrowRight className="w-3.5 h-3.5 ml-2" />
                             </Link>

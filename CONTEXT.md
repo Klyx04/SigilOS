@@ -34,7 +34,7 @@
 > - **Fix sécu** : CSP `img-src` + `https://unavatar.io` (avatars Créateurs YT/Twitch) + `https://media.discordapp.net` (miroir fallback avatars Discord #23).
 > - **Fix CI** : override `deepmerge-ts ^8.0.0` (CVE-2026-40345 / GHSA-ggr8-5vv4-36mx, via `@prisma/config`) — `npm audit` re-passe (downgrade prisma 6.12.0 refusé).
 > - Vérifs : tsc 0 · lint 0 erreur · **208/208 tests** · build OK · test CSP 16/16.
-> - ⏳ **2 PR dependabot en attente** (prod #489 : next 16.3.1, pg 8.23, sentry 10.70, tiptap 3.30.1… ; dev : esbuild/eslint/tsx) — **`@dependabot rebase` sur dev à jour obligatoire** avant merge (l override `deepmerge-ts` doit survivre, sinon audit CI KO).
+> - ✅ **PR dependabot prod #489 mergée** (dev `4db6153ee` — next 16.3.1, pg 8.23, sentry 10.70, tiptap 3.30.1 ; override `deepmerge-ts ^8.0.0` conservé, audit CI vert). ⚠️ PR dev (esbuild/eslint/tsx) pas encore mergée.
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 25/08 — Lots 120-124 (God Game Data, Restauration Exclus, DofusDB Hub, Anti-Lag)
 

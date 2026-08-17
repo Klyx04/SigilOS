@@ -346,6 +346,19 @@ export default function BombGame({
         window.history.replaceState(null, "", `?room=${id}`);
     };
 
+    // Synchronisation sonore du décompte de départ
+    const prevStartingTimeRef = useRef<number>(-1);
+    useEffect(() => {
+        if (gameState?.state === 'STARTING' && localTimeLeft > 0) {
+            if (localTimeLeft !== prevStartingTimeRef.current) {
+                prevStartingTimeRef.current = localTimeLeft;
+                playUrgentTick();
+            }
+        } else {
+            prevStartingTimeRef.current = -1;
+        }
+    }, [gameState?.state, localTimeLeft, playUrgentTick]);
+
     const handleStartGame = () => socket?.emit("bomb:start-game");
     const handleToggleReady = () => socket?.emit("bomb:toggle-ready");
     const handleUpdateConfig = (cfg: any) => socket?.emit("bomb:update-config", cfg);
@@ -1614,7 +1627,7 @@ export default function BombGame({
                     </form>
 
                     {/* LAST WORDS HISTORY (Combat Log Style) */}
-                    <div className="fixed right-6 bottom-32 hidden xl:flex flex-col gap-3 w-64 pointer-events-none z-[80]">
+                    <div className="fixed right-6 bottom-32 hidden xl:flex flex-col gap-2.5 w-72 max-w-[290px] pointer-events-none z-[80] overflow-hidden">
                         <AnimatePresence>
                             {gameState.lastFoundWords?.map((found: any, i: number) => (
                                 <motion.div
@@ -1622,13 +1635,16 @@ export default function BombGame({
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    className="bg-card/80 backdrop-blur-md border border-border p-3 rounded-xl shadow-lg flex flex-col gap-1"
+                                    className="bg-card/95 backdrop-blur-md border border-border p-3 rounded-xl shadow-lg flex flex-col gap-1 overflow-hidden max-w-full"
                                 >
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-caption text-muted-foreground font-black truncate max-w-[120px] uppercase italic">{found.playerName}</span>
-                                        <span className="text-caption bg-success/10 text-success px-1.5 py-0.5 rounded uppercase font-black tracking-tighter">Success</span>
+                                    <div className="flex justify-between items-center gap-2">
+                                        <span className="text-caption text-foreground/70 font-black truncate max-w-[150px] uppercase italic flex items-center gap-1.5">
+                                            {found.isBot && <span className="text-[10px]">🤖</span>}
+                                            {found.playerName}
+                                        </span>
+                                        <span className="text-[10px] bg-success/15 text-success px-1.5 py-0.5 rounded font-black tracking-wider uppercase shrink-0">Validé</span>
                                     </div>
-                                    <div className="text-sm font-black tracking-tighter text-foreground italic">
+                                    <div className="text-xs font-black tracking-normal text-foreground italic break-words whitespace-normal leading-snug">
                                         {highlightCompoundWord(found.word, gameState.currentSyllable)}
                                     </div>
                                 </motion.div>

@@ -30,15 +30,21 @@ export function DofusIcon({
         if (lower === "glaces" || lower === "des glaces") return "Des_Glaces";
         if (lower === "cauchemar" || lower === "du cauchemar") return "Du_Cauchemar";
         if (lower === "scintillant" || lower === "argente scintillant" || lower === "argenté scintillant") return "Argente_Scintillant";
-        if (lower === "veilleurs" || lower === "veilleur") return "Veilleur";
-        if (lower === "tacheté" || lower === "tachete") return "Tacheté";
+        if (lower === "veilleurs" || lower === "veilleur" || lower === "des veilleurs") return "Veilleur";
+        if (lower === "tacheté" || lower === "tachete") return "Tachete";
+        if (lower === "dofoozbz") return "Dofoozbz";
+        if (lower === "dom de pin" || lower === "dom_de_pin") return "Dom_De_Pin";
 
         // Strip ALL accents (e.g., Ébène -> Ebene, Émeraude -> Emeraude, Argenté -> Argente)
         const deaccented = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         return deaccented.replace(/\s+/g, "_");
     };
 
-    const localSrc = `/module-dofus/Dofus_${normalizeName(name)}.png`;
+    const norm = normalizeName(name);
+    // Dokille and Dom_De_Pin don't have "Dofus_" prefix in public/module-dofus/
+    const localSrc = norm === "Dokille" || norm === "Dom_De_Pin" 
+        ? `/module-dofus/${norm}.png` 
+        : `/module-dofus/Dofus_${norm}.png`;
     // Fallback local (le CDN static.dofusdb.fr renvoyait 500 via /_next/image)
     const fallbackSrc = "/assets/missions/fragment.png";
 

@@ -23,13 +23,12 @@ export function GodDashboardClient({
     };
 
     return (
-        <div className="flex flex-col flex-1 h-full overflow-hidden bg-black">
+        <div className="flex flex-col flex-1 h-full overflow-hidden bg-background text-foreground">
             {/* MAIN CONTENT */}
-            <main className="flex-1 overflow-y-auto bg-black block">
+            <main className="flex-1 overflow-y-auto bg-background block">
                 <div className="w-full max-w-[2500px] mx-auto px-4 lg:px-12 pt-10 pb-40 relative">
                     {children}
                 </div>
-                
             </main>
         </div>
     );

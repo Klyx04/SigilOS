@@ -34,13 +34,14 @@ export class WorldMapService {
             const data = JSON.parse(fileContent);
 
             const excludedKeywords = [
-                // General Interiors/Dungeons
+                // General Interiors/Dungeons/Kanojedo
                 "donjon", "tunnel", "souterrain", "cave", "crypt", "labyrinthe", 
                 "bâtiment", "intérieur", "tactique", "défis", "arène", "mine", 
                 "égout", "cellule", "prison", "temple", "salle", "château",
                 "laboratoire", "secret", "caché", "salle du trône", "boss",
                 "technique", "combat", "kolizéum", "kolyzéum", "tutoriel", "test", "base",
                 "map de combat", "salle de boss", "salle du boss",
+                "kanojédo", "kanojedo", "dojo", "havre-sac", "havre", "sac",
                 
                 // Divine Dimensions (Usually hard to guess/find)
                 "dimension", "ecaflipus", "enutrosor", "srambad", "xelorium", 
@@ -65,22 +66,30 @@ export class WorldMapService {
             }
 
             this.playableMaps = []; // Clear current list for reload
+            const seenCoords = new Set<string>();
+
             if (data.maps) {
                 data.maps.forEach((m: any) => {
                     const subAreaName = subAreaNames.get(m.subAreaId) || "";
                     const isExcluded = excludedKeywords.some(key => subAreaName.includes(key));
 
                     // Strict check: must be outdoor AND from a primary world map AND not excluded by keyword
-                    // We only allow World 1 (Amakna) and World 2 (Incarnam) as "Playable" origins for special mode
-                    // Tunnels (World 3) and small labyrinths (World 4, 5, 6...) are excluded.
-                    // Allowed worlds: Amakna(1), Incarnam(2), and most islands/external areas.
+                    // Allowed worlds: Amakna(1), Incarnam(2), and valid external world maps.
                     // We exclude World 3 (Souterrains) and other known technical/interior worlds.
                     const isPlayableWorld = m.worldMap > 0 && m.worldMap !== 3;
                     
-                    // HEURISTIC: Tactical maps often have IDs in specific extreme ranges or are marked technical.
+                    // Tactical / technical maps often have extreme IDs
                     const isTechnicalMap = m.id >= 200000000;
+
+                    // FIX KANOJEDO / [0, 0] BUG:
+                    // In Dofus client dumps, unanchored interior/dungeon maps default to (0, 0).
+                    // We discard any map falling back to (0, 0) and enforce 1 map per surface coordinate.
+                    const isZeroFallback = m.x === 0 && m.y === 0;
+                    const coordKey = `${m.worldMap}:${m.x}:${m.y}`;
+                    const isDuplicateCoord = seenCoords.has(coordKey);
                     
-                    if (m.outdoor && m.worldMap !== -1 && isPlayableWorld && !isExcluded && !isTechnicalMap) {
+                    if (m.outdoor && m.worldMap !== -1 && isPlayableWorld && !isExcluded && !isTechnicalMap && !isZeroFallback && !isDuplicateCoord) {
+                        seenCoords.add(coordKey);
                         this.playableMaps.push({
                             id: m.id,
                             x: m.x,

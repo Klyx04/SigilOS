@@ -9,6 +9,7 @@ import { DofusIcon } from "./DofusIcon";
 import { toggleDofusObtained } from "@/server/actions/dofus-quest-actions";
 import type { DofusItemWithProgress } from "@/server/actions/dofus-quest-actions";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface DofusGemCardProps {
     dofus: DofusItemWithProgress;
@@ -145,19 +146,22 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
             <button
                 onClick={handleToggleObtained}
                 disabled={isPending}
-                className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 "
-                style={{
-                    background: isObtained ? color : "rgba(255,255,255,0.08)",
-                    border: `1px solid ${isObtained ? color : "rgba(255,255,255,0.15)"}`,
-                    boxShadow: isObtained ? `0 0 10px ${color}66` : "none",
-                }}
+                className={cn(
+                    "absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 border",
+                    isObtained ? "border-transparent text-white shadow-md" : "bg-muted/50 border-border text-muted-foreground hover:bg-muted"
+                )}
+                style={isObtained ? {
+                    background: color,
+                    borderColor: color,
+                    boxShadow: `0 0 10px ${color}66`,
+                } : undefined}
                 title={isObtained ? "Marquer comme non obtenu" : "Marquer comme obtenu"}
                 aria-label={isObtained ? "Dofus obtenu — cliquer pour annuler" : "Marquer comme obtenu"}
             >
                 {isObtained ? (
-                    <span className="text-sm text-foreground font-bold">✓</span>
+                    <span className="text-sm font-bold text-white">✓</span>
                 ) : (
-                    <span className="text-sm text-foreground/40">○</span>
+                    <span className="text-sm">○</span>
                 )}
             </button>
 
@@ -206,8 +210,11 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
             {/* Info */}
             <div className="flex flex-col px-4 pb-4 gap-1">
                 <h3
-                    className="text-sm font-bold text-center leading-tight"
-                    style={{ color: isObtained ? color : "white" }}
+                    className={cn(
+                        "text-sm font-bold text-center leading-tight transition-colors",
+                        isObtained ? "" : "text-foreground"
+                    )}
+                    style={isObtained ? { color } : undefined}
                 >
                     {dofus.nameShort}
                 </h3>
@@ -215,8 +222,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                 {hasChain ? (
                     <div className="flex items-center justify-center gap-1.5 mt-1">
                         <div
-                            className="flex-1 h-1 rounded-full overflow-hidden"
-                            style={{ background: "rgba(255,255,255,0.08)" }}
+                            className="flex-1 h-1 rounded-full overflow-hidden bg-muted/60"
                         >
                             <div
                                 className="h-full rounded-full transition-all duration-300"
@@ -228,22 +234,25 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                                 }}
                             />
                         </div>
-                        <span className="text-caption tabular-nums font-black" style={{ color: dofus.progressPercent > 0 ? color : "rgba(255,255,255,0.2)" }}>
+                        <span 
+                            className="text-caption tabular-nums font-black" 
+                            style={{ color: dofus.progressPercent > 0 ? color : undefined }}
+                        >
                             {dofus.progressPercent}%
                         </span>
-                        <span className="text-caption tabular-nums text-foreground/20 whitespace-nowrap">
+                        <span className="text-caption tabular-nums text-muted-foreground whitespace-nowrap">
                             ({dofus.completedQuests}/{dofus.totalQuests})
                         </span>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-1 mt-1">
-                        <Lock className="w-3 h-3 text-foreground/25" />
-                        <span className="text-caption text-foreground/25">Guide à venir</span>
+                        <Lock className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-caption text-muted-foreground">Guide à venir</span>
                     </div>
                 )}
 
                 {dofus.levelRecommended > 0 && (
-                    <p className="text-caption text-foreground/30 text-center mt-0.5">
+                    <p className="text-caption text-muted-foreground text-center mt-0.5">
                         Niveau {dofus.levelRecommended}+
                     </p>
                 )}

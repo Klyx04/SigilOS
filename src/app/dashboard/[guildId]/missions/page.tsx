@@ -109,7 +109,6 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     return (
         <div className="space-y-6 pb-12">
-            <ActivitiesNav guildId={guildId} />
             <div data-tour="missions-header">
                 <UnifiedModuleHeader
                     title="Missions de Guilde"

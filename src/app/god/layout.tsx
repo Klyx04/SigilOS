@@ -13,6 +13,7 @@ import { getGodRoute } from "@/lib/god-route";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createGodAuditLog } from "@/server/actions/audit-actions";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 // R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
 export const metadata: Metadata = {
@@ -64,9 +65,9 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     const ticketCount = unreadStats.tickets;
 
     return (
-        <div className="flex h-screen bg-[#050505] font-sans text-zinc-100 selection:bg-white/20 overflow-hidden dashboard-layout">
+        <div className="flex h-screen bg-background font-sans text-foreground selection:bg-primary/20 overflow-hidden dashboard-layout">
             {/* Sidebar for all God pages */}
-            <Suspense fallback={<div className="w-72 bg-black border-r border-white/5 h-full animate-pulse" />}>
+            <Suspense fallback={<div className="w-72 bg-surface border-r border-border h-full animate-pulse" />}>
                 <GodSidebar 
                     className="hidden lg:flex shrink-0" 
                     user={session.user} 
@@ -78,19 +79,22 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                 />
             </Suspense>
             
-            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#0a0a0a] border-l border-white/5 relative">
+            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background border-l border-border relative">
                 {/* Mobile Topbar & Hamburger Menu (Visible on lg:hidden) */}
-                <div className="lg:hidden flex items-center justify-between p-4 px-6 border-b border-white/5 bg-[#050505] z-50 shrink-0">
+                <div className="lg:hidden flex items-center justify-between p-4 px-6 border-b border-border bg-background z-50 shrink-0">
                     <div className="flex items-center gap-3">
-                        <span className="text-xl font-black tracking-tight text-white leading-none font-heading flex gap-1">
+                        <span className="text-xl font-black tracking-tight text-foreground leading-none font-heading flex gap-1">
                             SIGIL<span className="text-amber-500">GOD</span>
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="p-1 rounded-xl bg-surface border border-border shrink-0">
+                            <ThemeToggle />
+                        </div>
                         <Link
                             href={`${godRoute}?tab=notifications`}
                             aria-label="Notifications"
-                            className="relative flex p-2.5 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-colors"
+                            className="relative flex p-2.5 items-center justify-center rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <Bell className="w-5 h-5" />
                             {unreadCount > 0 && (
@@ -99,14 +103,14 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                                 </span>
                             )}
                         </Link>
-                        <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
+                        <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-surface animate-pulse" />}>
                             <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} accessibleBricks={accessibleBricks} godRoute={godRoute} />
                         </Suspense>
                     </div>
                 </div>
 
                 {/* Scrollable content view */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
                     <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} myGrants={myGrants} />
                     {children}
                 </div>

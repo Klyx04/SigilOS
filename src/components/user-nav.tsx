@@ -58,7 +58,7 @@ export function UserNav({ user }: { user: UserContext }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     {user.isMember && (
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer">
                             <Link href="/dashboard/profile" className="cursor-pointer">
                                 <User className="mr-2 h-4 w-4" />
                                 <span>Mon Profil</span>
@@ -66,7 +66,7 @@ export function UserNav({ user }: { user: UserContext }) {
                         </DropdownMenuItem>
                     )}
                     {user.isAdmin && (
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer font-medium">
                             <Link href="/dashboard/admin" className="cursor-pointer font-medium">
                                 <Sparkles className="mr-2 h-4 w-4 text-info text-info animate-pulse" />
                                 <span className="text-info text-info">Administration</span>

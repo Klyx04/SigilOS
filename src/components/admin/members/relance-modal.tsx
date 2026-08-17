@@ -103,7 +103,7 @@ export function RelanceModal({ guildId, targets, onClose }: RelanceModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-lg bg-background border-border rounded-3xl">
+            <DialogContent className="max-w-lg bg-background border-border rounded-3xl max-h-[85dvh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-foreground">
                         <Bell className="w-5 h-5 text-warning" />

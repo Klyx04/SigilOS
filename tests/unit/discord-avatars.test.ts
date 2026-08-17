@@ -6,6 +6,8 @@ import {
     discordAvatarErrorFallback,
     isDiscordAvatarUrl,
     isDiscordAvatarHostname,
+    extractUserIdFromAvatarUrl,
+    getDefaultDiscordAvatar,
 } from "@/lib/discord-avatars";
 
 describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () => {
@@ -122,6 +124,54 @@ describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () 
         it("retourne null sur entrée invalide", () => {
             expect(discordAvatarErrorFallback("not a url")).toBeNull();
             expect(discordAvatarErrorFallback(null)).toBeNull();
+        });
+    });
+
+    describe("extractUserIdFromAvatarUrl (#134)", () => {
+        it("extrait le snowflake d'une URL CDN d'avatar", () => {
+            expect(extractUserIdFromAvatarUrl("https://cdn.discordapp.com/avatars/123/hash.webp?size=256")).toBe("123");
+        });
+
+        it("extrait aussi depuis le miroir media.discordapp.net", () => {
+            expect(extractUserIdFromAvatarUrl("https://media.discordapp.net/avatars/456/h.png?width=256&height=256")).toBe("456");
+        });
+
+        it("rejette les hôtes non-Discord et les faux avatars (F-29)", () => {
+            expect(extractUserIdFromAvatarUrl("https://example.com/avatars/123/h.png")).toBeUndefined();
+            expect(extractUserIdFromAvatarUrl("https://evildiscordapp.com/avatars/123/h.png")).toBeUndefined();
+            expect(extractUserIdFromAvatarUrl("https://cdn.discordapp.com/guilds/1/users/2/avatars/h.png")).toBeUndefined();
+        });
+
+        it("fail-closed sur entrées vides/invalides", () => {
+            expect(extractUserIdFromAvatarUrl(null)).toBeUndefined();
+            expect(extractUserIdFromAvatarUrl(undefined)).toBeUndefined();
+            expect(extractUserIdFromAvatarUrl("not a url")).toBeUndefined();
+        });
+    });
+
+    describe("getDefaultDiscordAvatar (#134)", () => {
+        it("produit une URL embed/avatars bornée à l'index 0..5", () => {
+            for (const id of ["111111111111111111", "222222222222222222", "123456789012345678", "1", "123"]) {
+                const url = getDefaultDiscordAvatar(id);
+                expect(url).toMatch(/^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/[0-5]\.png$/);
+            }
+        });
+
+        it("est déterministe (même snowflake → même index)", () => {
+            expect(getDefaultDiscordAvatar("111111111111111111")).toBe(getDefaultDiscordAvatar("111111111111111111"));
+        });
+
+        it("recalcule l'index via (id >> 22) % 6", () => {
+            const id = "123456789012345678";
+            const expected = ((BigInt(id) >> 22n) % 6n).toString();
+            expect(getDefaultDiscordAvatar(id)).toBe(`https://cdn.discordapp.com/embed/avatars/${expected}.png`);
+        });
+
+        it("fail-closed sur entrées vides/invalides", () => {
+            expect(getDefaultDiscordAvatar(null)).toBeNull();
+            expect(getDefaultDiscordAvatar(undefined)).toBeNull();
+            expect(getDefaultDiscordAvatar("")).toBeNull();
+            expect(getDefaultDiscordAvatar("not-a-number")).toBeNull();
         });
     });
 });

@@ -139,7 +139,7 @@ export function GenderFilter({
     selectedGender, onSelectGender
 }: { selectedGender: string | null; onSelectGender: (gender: string | null) => void }) {
     return (
-        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-border">
+        <div className="flex items-center gap-1 bg-elevated p-1 rounded-xl border border-border">
             <button
                 onClick={() => onSelectGender(selectedGender === "M" ? null : "M")}
                 className={cn(

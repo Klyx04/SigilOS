@@ -7,7 +7,8 @@ import { format, addWeeks, startOfWeek, endOfWeek, getISOWeek, getYear } from "d
 import { fr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarDays, Plane, Sunrise, Sun, Moon, AlertCircle, Search, Sunset, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { startOfMonth, differenceInWeeks, addMonths, isSameMonth } from "date-fns";
@@ -286,7 +287,7 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
                 <div
                     ref={scrollContainerRef}
                     onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-                    className="max-h-[68vh] overflow-auto premium-scrollbar"
+                    className="max-h-[68vh] overflow-auto premium-scrollbar overscroll-contain scroll-smooth"
                 >
                     <div className="min-w-[800px]">
                         {/* En-tête sticky */}
@@ -333,7 +334,7 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
                                                 className="flex items-center gap-3 min-w-0 w-full group/member outline-none"
                                             >
                                                 <Avatar className="w-10 h-10 shrink-0 border border-border">
-                                                    <AvatarImage src={member.user?.image} />
+                                                    <DiscordAvatarImage src={member.user?.image} />
                                                     <AvatarFallback className="bg-surface text-xs font-bold text-muted-foreground">
                                                         {(member.pseudoDofus || member.discordNickname || member.user?.name || "?").substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>

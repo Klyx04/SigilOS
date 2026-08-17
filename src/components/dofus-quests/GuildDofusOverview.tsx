@@ -390,7 +390,7 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                     >
                                         <div className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center flex-shrink-0 p-1 overflow-hidden">
                                             {s.imageUrl ? (
-                                                <img src={s.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : s.imageUrl.replace(/^\/public/, "")} alt={s.nameShort} className="w-full h-full object-contain" />
+                                                <img src={s.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : s.imageUrl.replace(/^\/public/, "")} alt={s.nameShort} className="w-full h-full object-contain" />
                                             ) : (
                                                 <div className="w-full h-full rounded-lg" style={{ background: dofusGlow }} />
                                             )}
@@ -473,7 +473,7 @@ export function GuildDofusOverview({ stats, topMembers, members = [], totalMembe
                                     <div className="w-12 h-12 bg-black/60 rounded-2xl border border-border flex items-center justify-center p-1.5 shadow-lg shrink-0">
                                         {selectedDofus.imageUrl ? (
                                             <img 
-                                                src={selectedDofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : selectedDofus.imageUrl.replace(/^\/public/, "")} 
+                                                src={selectedDofus.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : selectedDofus.imageUrl.replace(/^\/public/, "")} 
                                                 alt={selectedDofus.nameShort} 
                                                 className="w-full h-full object-contain" 
                                             />
@@ -657,7 +657,7 @@ function DofusGuildProgressCard({ stat, onClick }: { stat: GuildDofusStats; onCl
                 >
                     {stat.imageUrl ? (
                         <img 
-                            src={stat.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : stat.imageUrl.replace(/^\/public/, "")} 
+                            src={stat.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : stat.imageUrl.replace(/^\/public/, "")} 
                             alt={stat.nameShort} 
                             className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] group-hover:drop-shadow-[0_0_12px_var(--dofus-glow)]"
                             style={{

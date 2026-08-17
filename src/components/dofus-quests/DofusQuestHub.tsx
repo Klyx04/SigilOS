@@ -544,7 +544,7 @@ export function DofusQuestHub({
                                                 >
                                                     <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center" style={{ background: `${color}15` }}>
                                                         {dofus.imageUrl ? (
-                                                            <img src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : dofus.imageUrl.replace(/^\/public/, "")} alt={dofus.nameShort} className="w-7 h-7 object-contain" />
+                                                            <img src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : dofus.imageUrl.replace(/^\/public/, "")} alt={dofus.nameShort} className="w-7 h-7 object-contain" />
                                                         ) : (
                                                             <div className="w-6 h-6 rounded-full" style={{ background: color }} />
                                                         )}
@@ -595,7 +595,7 @@ export function DofusQuestHub({
                                                     <div key={gp.guideId} className="flex items-center gap-4 p-3.5 rounded-2xl bg-surface border border-border">
                                                         <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden" style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
                                                             {correspondingDofus?.imageUrl ? (
-                                                                <img src={correspondingDofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : correspondingDofus.imageUrl.replace(/^\/public/, "")} alt={gp.guideName} className="w-7 h-7 object-contain" />
+                                                                <img src={correspondingDofus.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : correspondingDofus.imageUrl.replace(/^\/public/, "")} alt={gp.guideName} className="w-7 h-7 object-contain" />
                                                             ) : (
                                                                 <BookOpen className="w-4 h-4" style={{ color }} />
                                                             )}

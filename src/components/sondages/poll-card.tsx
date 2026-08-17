@@ -143,11 +143,11 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                         )}
 
                         <div>
-                            <h3 className="text-foreground font-black text-2xl sm:text-3xl tracking-tight line-clamp-2 leading-[1.05]">
+                            <h3 className="text-foreground font-black text-2xl sm:text-3xl tracking-tight line-clamp-2 leading-[1.05] break-words whitespace-normal">
                                 {poll.title}
                             </h3>
                             {poll.description && (
-                                <p className="text-muted-foreground text-sm mt-4 line-clamp-2 leading-relaxed font-medium max-w-[90%]">
+                                <p className="text-muted-foreground text-sm mt-4 line-clamp-2 leading-relaxed font-medium max-w-[90%] break-words whitespace-normal">
                                     {poll.description}
                                 </p>
                             )}

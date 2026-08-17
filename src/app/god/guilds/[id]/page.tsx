@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getGuildMembersForGod } from "@/server/actions/god-lifecycle-actions";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
 import { Shield, ChevronLeft, Users } from "lucide-react";
@@ -12,8 +12,11 @@ interface GodGuildDetailsPageProps {
 
 export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPageProps) {
     const isAdmin = await isSuperAdmin();
+    // #108 — un sous-god avec la brique "guilds" accède à l'inspection (lecture seule :
+    // le tableau est rendu avec isSuperAdmin=false pour masquer les actions destructives).
+    const isGuildBrick = isAdmin ? true : await canAccessBrick("guilds");
 
-    if (!isAdmin) {
+    if (!isAdmin && !isGuildBrick) {
         redirect("/");
     }
 
@@ -97,7 +100,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         initialMembers={members.members as any}
                         guildId={guild.discordGuildId}
                         welcomeBadgeName={guild.welcomeBadgeName}
-                        isSuperAdmin={true}
+                        isSuperAdmin={isAdmin}
                         ownerId={members.ownerId}
                     />
                 </div>
@@ -106,8 +109,9 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
                 <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
                     <span className="font-black uppercase tracking-widest mr-2">Note :</span>
-                    En tant que Super-Admin, vous pouvez modifier les statuts des membres directement.
-                    Toute action effectuée ici sera enregistrée dans le journal d'audit de la guilde avec votre identité.
+                    {isAdmin
+                        ? "En tant que Super-Admin, vous pouvez modifier les statuts des membres directement. Toute action effectuée ici sera enregistrée dans le journal d'audit de la guilde avec votre identité."
+                        : "Vous consultez ce roster en lecture seule (accès sous-god). Toute action destructrice est masquée."}
                 </p>
             </div>
         </div>

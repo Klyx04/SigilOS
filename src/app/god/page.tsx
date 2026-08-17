@@ -59,24 +59,9 @@ import { getGodRoute } from "@/lib/god-route";
 export default async function SuperAdminPage(props: {
     searchParams: Promise<{ tab?: string }>;
 }) {
-    // 🔄 R1 — Every God tab must be scope-gated. A sub-god who requests a tab
-    // outside their scopes (or no tab at all → "overview" which is admin-only)
-    // is redirected to their FIRST allowed page. Fail-closed: never "overview".
-    const TAB_SCOPE: Record<string, string | null> = {
-        overview: null,          // super-admin only
-        telemetry: null,         // super-admin only
-        "game-data": "game-data",
-        "mini-games": "game-data",
-        guilds: "guilds",
-        infrastructure: "maintenance",
-        storage: null,           // super-admin only (Stockage & Captures)
-        notifications: null,     // super-admin only
-        tickets: null,           // super-admin only
-        security: "logs",
-        "game-data/bounties": "game-data",
-    };
     // 🔄 P2 — Correspondance tab → brickId (registre `god-bricks.ts`), pour
-    // vérifier l'accès d'un sous-god via `getAccessibleBricks`.
+    // vérifier l'accès d'un sous-god via `getAccessibleBricks` (source de vérité).
+    // Fail-closed : tout tab SANS brique listée ici est refusé aux sous-gods.
     const TAB_TO_BRICK: Record<string, string> = {
         overview: "overview",
         telemetry: "telemetry",
@@ -147,16 +132,15 @@ export default async function SuperAdminPage(props: {
     const requestedTab = resolvedSearchParams.tab || "overview";
     let tab = requestedTab;
 
-    // 🔄 P2 — Guard : si le tab demandé n'est pas couvert par les briques/ scopes
-    // du sub-god, rediriger vers son premier tab autorisé (jamais "overview"/tab sensible).
+    // 🔄 P2 — Guard fail-closed STRICT (fix #108) : un sous-god n'accède à un onglet
+    // QUE si la BRIQUE correspondante est réellement accessible (getAccessibleBricks
+    // respecte déjà subGodAccess + scope→brique). Avant : on testait les scopes bruts,
+    // ce qui laissait un sous-god scope "game-data"/"logs" ouvrir des onglets super-admin
+    // (mini-games, security) par URL directe → fuite de surface.
     if (!isAdmin) {
-        const requiredScope = TAB_SCOPE[requestedTab];
-        const hasScope = requiredScope === null
-            ? isAdmin
-            : activeScopes.includes(requiredScope as never);
-        const hasBrick = accessibleBricks.includes(requestedTab as never) || accessibleBricks.includes(TAB_TO_BRICK[requestedTab] || "");
-        const hasAccess = hasScope || hasBrick;
-        if (!hasAccess) {
+        const brickId = TAB_TO_BRICK[requestedTab] || requestedTab;
+        const hasBrick = accessibleBricks.includes(brickId);
+        if (!hasBrick) {
             redirect(resolveGodLanding(activeScopes, accessibleBricks, godRoute));
         }
     }

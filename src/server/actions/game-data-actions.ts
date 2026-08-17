@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/lib/prisma";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
@@ -16,6 +16,46 @@ type ActionResponse<T = void> = {
     error?: string;
     data?: T;
 };
+
+/**
+ * 🛡️ Guard fail-closed (PIM sous-god) pour le module Données de Jeu.
+ * Autorise super-admin OU un sous-god avec la brique "game-data" (scope game-data).
+ * Sans ça, un sous-god légitime voyait des listes vides / erreurs "Non autorisé"
+ * (#108 — passe sous-god).
+ */
+async function canAccessGameData(): Promise<boolean> {
+    if (await isSuperAdmin()) return true;
+    return canAccessBrick("game-data");
+}
+
+/**
+ * 🛡️ Variante "Avis de Recherche" : la brique "game-data-bounties" ouvre le module
+ * bounties même si le scope global game-data n'est pas actif (grant PIM ciblé).
+ */
+async function canAccessBounties(): Promise<boolean> {
+    if (await isSuperAdmin()) return true;
+    return (await canAccessBrick("game-data")) || (await canAccessBrick("game-data-bounties"));
+}
+
+// 🛡️ Trace une écriture God UNIQUEMENT pour un sous-god (qui/quoi/sur quoi).
+// #108/#109 : les écritures des sous-gods du module Données de Jeu sont auditées
+// avec l'opération et la cible (les super-admins passent par d'autres canaux).
+async function logGameDataWrite(op: string, targetId?: string, metadata?: Record<string, any>) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return;
+        if (await isSuperAdmin()) return;
+        const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+        await createGodAuditLog({
+            action: "GOD_GAME_DATA_UPDATE",
+            targetType: "DATA_SYNC",
+            targetId,
+            metadata: { op, ...metadata },
+        });
+    } catch {
+        // Non bloquant : ne jamais interrompre l'action applicative
+    }
+}
 
 /** Filtres de recherche de la carte du monde (monstres/archis/boss). */
 export type MapSearchFilter = 'all' | 'zones' | 'archis' | 'boss' | 'mobs' | 'ocre';
@@ -178,7 +218,7 @@ export async function upsertEventZone(data: {
     eventZoneKey: string;
     dpnlUrl?: string;
 }): Promise<ActionResponse<any>> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         const payload = { name: data.name, level: data.level || 1, eventZoneKey: data.eventZoneKey, dpnlUrl: data.dpnlUrl, isEventZone: true as const };
         const zone = await db.zone.upsert({
@@ -195,7 +235,7 @@ export async function upsertEventZone(data: {
 
 /** Delete an event zone */
 export async function deleteEventZone(zoneId: string): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.zone.delete({ where: { id: zoneId } });
         return { success: true };
@@ -207,7 +247,7 @@ export async function deleteEventZone(zoneId: string): Promise<ActionResponse> {
 
 /** Link a monster family to an event zone */
 export async function linkFamilyToZone(zoneId: string, familyId: string): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.zone.update({ where: { id: zoneId }, data: { families: { connect: { id: familyId } } } });
         return { success: true };
@@ -219,7 +259,7 @@ export async function linkFamilyToZone(zoneId: string, familyId: string): Promis
 
 /** Unlink a monster family from an event zone */
 export async function unlinkFamilyFromZone(zoneId: string, familyId: string): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.zone.update({ where: { id: zoneId }, data: { families: { disconnect: { id: familyId } } } });
         return { success: true };
@@ -231,7 +271,7 @@ export async function unlinkFamilyFromZone(zoneId: string, familyId: string): Pr
 
 /** Link a dungeon to an event zone (also marks it as event dungeon) */
 export async function linkDungeonToZone(zoneId: string, dungeonId: string): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.zone.update({ where: { id: zoneId }, data: { dungeons: { connect: { id: dungeonId } } } });
         await db.dungeon.update({ where: { id: dungeonId }, data: { isEventDungeon: true } });
@@ -244,7 +284,7 @@ export async function linkDungeonToZone(zoneId: string, dungeonId: string): Prom
 
 /** Unlink a dungeon from an event zone */
 export async function unlinkDungeonFromZone(zoneId: string, dungeonId: string): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.zone.update({ where: { id: zoneId }, data: { dungeons: { disconnect: { id: dungeonId } } } });
         return { success: true };
@@ -256,7 +296,7 @@ export async function unlinkDungeonFromZone(zoneId: string, dungeonId: string): 
 
 /** Toggle isEventDungeon flag on a dungeon */
 export async function toggleEventDungeon(dungeonId: string, isEvent: boolean): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.dungeon.update({ where: { id: dungeonId }, data: { isEventDungeon: isEvent } });
         return { success: true };
@@ -270,7 +310,7 @@ export async function toggleEventDungeon(dungeonId: string, isEvent: boolean): P
 
 /** All "Monstre Spécial" game-data monsters (GOD page) */
 export async function getGameDataMonsters(search = ""): Promise<ActionResponse<any[]>> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         const monsters = await db.gameDataMonster.findMany({
             where: search ? { name: { contains: search, mode: 'insensitive' } } : undefined,
@@ -308,7 +348,7 @@ export async function upsertGameDataMonster(data: {
     imageUrl?: string;
     description?: string;
 }): Promise<ActionResponse<any>> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         const name = data.name.trim();
         if (!name) return { success: false, error: 'Le nom du monstre est requis' };
@@ -331,6 +371,7 @@ export async function upsertGameDataMonster(data: {
             ? await db.gameDataMonster.update({ where: { id: existing.id }, data: payload })
             : await db.gameDataMonster.create({ data: payload });
 
+        await logGameDataWrite(existing ? "update-game-data-monster" : "create-game-data-monster", monster?.id, { name });
         return { success: true, data: monster };
     } catch (error) {
         logger.error('[upsertGameDataMonster] Error:', { error });
@@ -340,9 +381,10 @@ export async function upsertGameDataMonster(data: {
 
 /** Delete a "Monstre Spécial" monster */
 export async function deleteGameDataMonster(monsterId: string): Promise<ActionResponse> {
-    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
     try {
         await db.gameDataMonster.delete({ where: { id: monsterId } });
+        await logGameDataWrite("delete-game-data-monster", monsterId);
         return { success: true };
     } catch (error) {
         logger.error('[deleteGameDataMonster] Error:', { error });
@@ -961,8 +1003,7 @@ export async function updateGodBountyRecord(bountyId: string, data: {
     dpnlUrl?: string;
     position?: string;
 }): Promise<ActionResponse> {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: 'Non autorisé — Super Admin uniquement' };
+    if (!(await canAccessBounties())) return { success: false, error: 'Non autorisé' };
 
     try {
         await db.bounty.update({
@@ -982,6 +1023,7 @@ export async function updateGodBountyRecord(bountyId: string, data: {
                 ...(data.position !== undefined && { position: data.position }),
             }
         });
+        await logGameDataWrite("update-bounty", bountyId, { name: data.name ?? null });
         return { success: true };
     } catch (error) {
         logger.error('[updateGodBountyRecord] Error:', { error });
@@ -1682,8 +1724,7 @@ export async function getArchimonstresByFilter(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getArchimonstres(filter?: { type?: string; search?: string }): Promise<ActionResponse<any[]>> {
-    const admin = await isSuperAdmin();
-    if (!admin) return { success: false, error: 'Accès refusé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
         const where: any = {};
@@ -1710,11 +1751,11 @@ export async function getArchimonstres(filter?: { type?: string; search?: string
 }
 
 export async function deleteArchimonstre(id: string): Promise<ActionResponse> {
-    const admin = await isSuperAdmin();
-    if (!admin) return { success: false, error: 'Accès refusé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
         await db.archimonstre.delete({ where: { id } });
+        await logGameDataWrite("delete-archimonstre", id);
         return { success: true };
     } catch (error) {
         logger.error('[deleteArchimonstre] Error:', { error });
@@ -1733,8 +1774,7 @@ export async function deleteArchimonstre(id: string): Promise<ActionResponse> {
  * 5. Upsert dans la table Archimonstre
  */
 export async function syncOcreArchimonstres(guildId?: string): Promise<ActionResponse<{ synced: number; skipped: number }>> {
-    const admin = await isSuperAdmin();
-    if (!admin) return { success: false, error: 'Accès refusé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
         // ── 1. Load worldmap.json ────────────────────────────────────────────
@@ -1988,8 +2028,7 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
     nextSkip: number;
     done: boolean;
 }>> {
-    const admin = await isSuperAdmin();
-    if (!admin) return { success: false, error: 'Accès refusé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     const batchSize = params?.batchSize ?? 50;
     const skip = params?.skip ?? 0;

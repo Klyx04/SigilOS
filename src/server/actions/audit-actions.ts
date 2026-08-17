@@ -527,6 +527,20 @@ export async function createGodAuditLog({
         const { Prisma } = await import("@prisma/client");
         const toJson = (val: unknown) => (val === undefined || val === null ? Prisma.JsonNull : val);
 
+        // 🛡️ #109 — Logs détaillés : on enrichit CHAQUE log God avec l'identité
+        // Discord de l'acteur (qui, avec son compte Discord) en plus du nom interne.
+        // Best-effort : si la requête échoue, on garde le log sans ce détail.
+        let actorDiscordId: string | null = null;
+        try {
+            const discordAccount = await db.account.findFirst({
+                where: { userId: session.user.id, provider: "discord" },
+                select: { providerAccountId: true },
+            });
+            actorDiscordId = discordAccount?.providerAccountId ?? null;
+        } catch {
+            // best-effort — jamais bloquant
+        }
+
         const log = await db.auditLog.create({
             data: {
                 guildId: undefined,
@@ -540,6 +554,7 @@ export async function createGodAuditLog({
                 metadata: toJson({
                     ...metadata,
                     ...(guildId ? { discordGuildId: guildId } : {}),
+                    actorDiscordId,
                     timestamp: new Date().toISOString(),
                     source: "GOD_ACTION"
                 }),

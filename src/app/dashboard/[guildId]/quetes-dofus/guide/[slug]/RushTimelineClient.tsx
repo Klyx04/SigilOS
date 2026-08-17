@@ -302,7 +302,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all scroll-mt-24 ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60"} ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60 bg-emerald-500/[0.04]":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03]" : ""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all scroll-mt-24 ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60"} ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60 bg-emerald-500/[0.04]":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-400/60 bg-amber-500/[0.07]" : ""}`}>
         {isThisBookmarked && !isSeqCompleted && (
           <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-black uppercase tracking-widest text-amber-300">
             <MapPin className="w-2.5 h-2.5" />
@@ -391,7 +391,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-caption font-black uppercase tracking-widest min-w-[90px] ${
                   isThisBookmarked
-                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25"
+                    ? "bg-amber-500/25 border-amber-400/50 text-amber-200 ring-1 ring-amber-500/40 hover:bg-amber-500/35"
                     : "bg-zinc-800/60 border-zinc-700/40 text-zinc-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
                 }`}
                 title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}

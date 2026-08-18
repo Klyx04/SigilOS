@@ -170,7 +170,7 @@ export function GalacticHeader({
                                 <div className="flex flex-col relative pr-6">
                                     <span className="text-caption font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none mb-1">Guilde Active</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-base font-black text-foreground tracking-tight group-hover:text-primary transition-colors line-clamp-1 max-w-[150px]">
+                                        <span className="text-base font-black text-foreground tracking-tight group-hover:text-foreground transition-colors line-clamp-1 max-w-[150px]">
                                             {guildData.name}
                                         </span>
                                         <ChevronDown className="w-4 h-4 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
@@ -202,18 +202,15 @@ export function GalacticHeader({
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex flex-col">
-                                                <span className={cn(
-                                                    "text-sm font-bold",
-                                                    g.id === guildId ? "text-primary" : "text-foreground"
-                                                )}>
+                                                <span className="text-sm font-bold text-foreground">
                                                     {g.name}
                                                 </span>
                                                 {g.id === guildId && (
-                                                    <span className="text-caption font-bold text-primary uppercase tracking-widest">Actuel</span>
+                                                    <span className="text-caption font-bold text-muted-foreground uppercase tracking-widest">Actuel</span>
                                                 )}
                                             </div>
                                             {g.id === guildId && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-primary/80" />
                                             )}
                                         </Link>
                                     </DropdownMenuItem>

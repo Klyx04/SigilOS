@@ -1,5 +1,6 @@
 import { getGuildPresentation, getPublicGuildBasicInfo } from "@/server/actions/presentation-actions";
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { GuildPublicView } from "./_components/guild-public-view";
 import { PrivateGuildView } from "./_components/private-guild-view";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -59,12 +60,15 @@ export default async function GuildPresentationPage({ params }: Props) {
     const { getUserContext } = await import("@/server/actions/user-actions");
     const userContext = await getUserContext(guildId);
 
+    // #142 — session pour le header public : masque le bouton « Connexion » si déjà connecté au Dashboard.
+    const session = await auth();
+
     if (!guild) {
         // Check if it exists but is private
         const basicInfo = await getPublicGuildBasicInfo(guildId);
 
         if (basicInfo && !basicInfo.presentationEnabled) {
-            return <PrivateGuildView guild={basicInfo} isMember={userContext.isMember} />;
+            return <PrivateGuildView guild={basicInfo} isMember={userContext.isMember} user={session?.user} />;
         }
 
         notFound();
@@ -118,7 +122,7 @@ export default async function GuildPresentationPage({ params }: Props) {
                 // nosemgrep
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
-            <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} />
+            <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} user={session?.user} />
         </>
     );
 }

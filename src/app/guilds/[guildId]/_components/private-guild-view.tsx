@@ -7,6 +7,7 @@ import { ArrowLeft, Lock, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
+import type { User } from "next-auth";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 
 type Props = {
@@ -15,12 +16,14 @@ type Props = {
         iconUrl: string | null;
     };
     isMember?: boolean;
+    /** #142 — session utilisateur : le header public affiche le profil connecté au lieu du bouton « Connexion ». */
+    user?: User;
 };
 
-export function PrivateGuildView({ guild, isMember }: Props) {
+export function PrivateGuildView({ guild, isMember, user }: Props) {
     return (
         <div className="min-h-screen bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col relative overflow-hidden">
-            <PublicHeader variant="standard" isMember={isMember} />
+            <PublicHeader variant="standard" isMember={isMember} user={user} />
 
             {/* Background Effects (5% Opacity as per 2026 specs) */}
             <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_70%)]" />

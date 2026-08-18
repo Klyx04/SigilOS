@@ -12,6 +12,7 @@ interface ProductStoryProps {
 
 export function ProductStory({ screens = [] }: ProductStoryProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [zoomUrl, setZoomUrl] = useState<string | null>(null);
     const activeIndex = activeId === null
         ? 0
         : Math.max(0, screens.findIndex((s) => s.id === activeId));
@@ -89,6 +90,12 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                         )}
                     </div>
                     <div className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]">
+                        <button
+                            type="button"
+                            onClick={() => setZoomUrl(active.imageUrl)}
+                            className="absolute inset-0 z-10 cursor-zoom-in"
+                            aria-label="Agrandir la capture d'écran"
+                        />
                         <Image
                             src={active.imageUrl}
                             alt={active.alt || active.label || "Capture d'écran SigilOS"}
@@ -99,6 +106,26 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                     </div>
                 </div>
             </div>
+
+            {/* 🖼️ #140 — zoom plein écran du screen */}
+            {zoomUrl && (
+                <div
+                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+                    onClick={() => setZoomUrl(null)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Capture d'écran agrandie"
+                >
+                    <div className="relative w-full max-w-6xl max-h-[92vh]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={zoomUrl}
+                            alt="Capture d'écran SigilOS agrandie"
+                            className="w-full h-full max-h-[92vh] object-contain rounded-xl border border-border shadow-2xl"
+                        />
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

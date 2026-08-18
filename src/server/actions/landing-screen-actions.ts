@@ -54,7 +54,9 @@ const DEFAULT_PRODUCT_STORY: Omit<PublicLandingScreen, "id">[] = [
 /**
  * 🖼️ #140 — Lecture PUBLIQUE des screens de la landing.
  * Sans session requise : retourne les screens actifs de la section demandée.
- * Si aucun screen n'a encore été configuré par le God → fallback sur les captures par défaut.
+ * - `section="product-story"` : un screen par onglet (le `label` = nom de l'onglet).
+ *   Si aucun screen → fallback sur les captures par défaut.
+ * - `section="hero"` : 1 seule image (la 1ʳᵉ active). Si aucune → la landing garde son image par défaut.
  */
 export async function getPublicLandingScreens(section = "product-story"): Promise<ActionResponse<PublicLandingScreen[]>> {
     try {
@@ -67,14 +69,22 @@ export async function getPublicLandingScreens(section = "product-story"): Promis
             orderBy: { sortOrder: "asc" },
         });
 
-        const data = screens.map(s => ({ ...s }));
-        if (data.length === 0) {
+        if (screens.length > 0) {
+            return { success: true, data: screens.map(s => ({ ...s })) };
+        }
+
+        // Fallback : uniquement pour la section Product Story (les autres sections ont
+        // une image par défaut codée dans leur composant).
+        if (section === "product-story") {
             return { success: true, data: DEFAULT_PRODUCT_STORY.map((d, i) => ({ id: `default-${i}`, ...d })) };
         }
-        return { success: true, data };
+        return { success: true, data: [] };
     } catch (error) {
         logger.error("[getPublicLandingScreens] Error:", error);
-        return { success: true, data: DEFAULT_PRODUCT_STORY.map((d, i) => ({ id: `default-${i}`, ...d })) };
+        if (section === "product-story") {
+            return { success: true, data: DEFAULT_PRODUCT_STORY.map((d, i) => ({ id: `default-${i}`, ...d })) };
+        }
+        return { success: true, data: [] };
     }
 }
 

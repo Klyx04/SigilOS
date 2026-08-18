@@ -23,6 +23,28 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 03/09 — refonte Succès vue Guilde (retours user)
+
+> **PR #501 (`feat/chantier-2026-08-31 → dev`) MERGÉE** → `dev` = `1ab013221` (merge #501). Nouvelle branche
+> **`feat/chantier-2026-09-04`** (créée depuis `origin/dev`, poussée) = **1 commit non mergé** : `6207a8d33`
+> (refonte vue Guilde — retours user 03/09). **PR à ouvrir** :
+> https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-04
+> Mémo : `src/temp/memo-2026-09-03-chantier-succes-refonte-guilde.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-04.md`.
+>
+> - **Refonte Succès Commun (vue Guilde) — retours user 03/09** (`src/components/succes/SuccesDirectory.tsx`) :
+>   - **Accordéon par succès** : header « Succès du donjon · X / Y » + badge « Toute la guilde a tout validé »,
+>     ligne compacte par succès (icône, nom, `X / Y validés · Z manquent · %`, mini-barre ambre, badge
+>     « Tous validé 🎉 »), **1 seul succès ouvert**, ouverture par défaut `?achievementId=` → 1er non terminé → 1er.
+>   - **Filtres scoped au succès ouvert** : recherche pseudo **+ classe** (NFD, insensible casse/accents),
+>     **filtre classe multi-sélection** (popover `DOFUS_CLASSES` + comptes, URL `&classes=iop,pandawa`),
+>     états **Tous / Cherchent encore / Déjà validé**, **pagination 24 + « Afficher 24 de plus »**.
+>   - Deep-link `?achievementId=` (URL = source de vérité, ids obsolètes nettoyés) + ajouté au lien
+>     « Chercher un groupe » ; skeleton résumé ; **favicons** « Guide DPNL » (dofuspourlesnoobs) et
+>     « Dofensive » (dofensive via google s2). `?dungeon=` reste le **CUID** du donjon (id stable, expliqué).
+>   - V0 sans nouvelle server action ni migration (réutilise `getDungeonDirectory`, RBAC `canViewGuildSucces` inchangée).
+>   - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK · pre-commit vert (1 commit).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 02/09 — #138 module « Succès » dédié
 
 > **Branche `feat/chantier-2026-08-31`** (PR en cours vers `dev`, `dev` = `e183d4245`).

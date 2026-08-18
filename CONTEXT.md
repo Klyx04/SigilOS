@@ -23,6 +23,23 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 29/08 — #151 Dashboard allégé + suite #155 · #139 · #150 · #162 (3 commits poussés)
+
+> **Branche `docs/context-2026-08-28`** (consigne utilisateur : pas de nouvelle branche) → 3 commits poussés :
+> `97d5ae347` (#151) · `64bda8000` (suite #155/#139/#150/#162) · `1b8cb4bef` (passe 3 retours user #150).
+> ⚠️ **Non encore mergés vers dev** (`dev` = `a12cb78cd`) — PR depuis cette branche à décider en début de session.
+> Mémo : `src/temp/memo-2026-08-29-chantier-global.md` (3 vagues).
+>
+> - **#151 — Page Dashboard allégée** : cartes « Songes complétés » / « Événements » retirées (`quick-stats-row.tsx`), gros bloc Almanax du bas + bloc « Sondages Actifs » supprimés (widgets `almanax-widget.tsx` / `active-polls-widget.tsx` supprimés), **« À faire maintenant »** : item Almanax avec **image de l'offrande** (vignette + badge quantité + nom, clic → `/ressources?tab=almanax`), **Agenda de Guilde + Flux de Vie de la Guilde en pleine largeur** (comme Groupes & Activités), tour `dashboardBricks` allégé (étapes Sondages/Almanax/Galerie mortes retirées).
+> - **#155 — Notifications** : plus de tremblement au changement de filtre (`font-bold` uniforme sur les onglets + `transition-colors`, fini le reflow du `flex-wrap`).
+> - **#139 — Renommage modules admin** (`modules-client.tsx`) : « Succès 2.0 » → **« Ladder Ankama »**, « Sync Manuelle » → **« Ladder Analyse OC »** (+ libellés « Pages : » alignés).
+> - **#150 — /members + Solliciter** (3 passes) :
+>   1. **hover filtres annuaire illisible** → cause racine tokens (`--accent-foreground` très sombre en dark L=0.16 / presque blanc en clair L=0.98 sur fond `surface`) → **`aria-selected:text-foreground!`** (important) sur les items Classe/Métier (`member-directory.tsx`) ;
+>   2. bouton « Solliciter ce membre » + boutons « Suivant » de la modale → style teinté lisible (`bg-info/15 text-info border-info/25`…) ;
+>   3. **onglet « Service »** dans la modale de sollicitation (`user-request-modal.tsx`, services ACTIVE du membre) + `sendUserRequest` type `"service"` (vérif fail-closed) + **bouton « Répondre » sur l'embed Discord** (`userreq:reply:{notifId}` → modale → `replyToUserRequestAction` : notif dashboard à l'expéditeur + ping Discord, **seul le sollicité peut répondre**) + **modale sans débordements** (grille 2 colonnes, `truncate`/`nowrap`, `min-w-0`, DialogContent `max-w-[calc(100vw-1rem)]`).
+> - **#162 — « Voir tout l'historique »** du widget Flux de Vie **masqué sans RBAC `canViewAuditLogs`** (prop `canViewLogs` passée depuis la page dashboard) → plus de redirection vers l'Accès Restreint.
+> - Vérifs : tsc 0 · lint 0 erreur · **225/225 tests** · build OK · pre-commit vert (3 commits).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 28/08 (suite) — #156 (429 God) + #134 backend (cron avatars Discord)
 
 > **Branche `feat/chantier-2026-08-28`** → **PR #495 mergée vers dev** (`a12cb78cd`), déployée en beta (CD GHCR).

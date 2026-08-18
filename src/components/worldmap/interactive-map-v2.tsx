@@ -2994,7 +2994,7 @@ export default function InteractiveMapV2({
                                         {activeSession.hostId === currentUserId && (
                                             <div className="space-y-6">
                                                 <div className="pt-6 border-t border-border">
-                                                    <span className="text-foreground/20 text-caption font-black uppercase tracking-[0.2em] block mb-4 pl-1">Rounds</span>
+                                                    <span className="text-muted-foreground text-caption font-black uppercase tracking-[0.2em] block mb-4 pl-1">Rounds</span>
                                                     <div className="grid grid-cols-4 gap-2">
                                                         {[3, 5, 10, 20].map(r => (
                                                             <button
@@ -3004,7 +3004,7 @@ export default function InteractiveMapV2({
                                                                     socket?.emit("geoguesser:room:settings", { maxRounds: r });
                                                                     setActiveSession({ ...activeSession, maxRounds: r });
                                                                 }}
-                                                                className={`py-2 rounded-xl text-caption font-black transition-all ${activeSession.maxRounds === r ? 'bg-success text-success-foreground shadow-lg shadow-emerald-500/30' : 'bg-surface text-success-foreground/30 hover:bg-surface'}`}
+                                                                className={`py-2 rounded-xl text-caption font-black transition-colors ${activeSession.maxRounds === r ? 'bg-success text-success-foreground' : 'bg-surface text-foreground/70 hover:bg-elevated'}`}
                                                             >
                                                                 {r}
                                                             </button>
@@ -3012,7 +3012,7 @@ export default function InteractiveMapV2({
                                                     </div>
                                                 </div>
                                                 <div className="pt-6 border-t border-border">
-                                                    <span className="text-foreground/20 text-caption font-black uppercase tracking-[0.2em] block mb-4 pl-1">Mode de Jeu</span>
+                                                    <span className="text-muted-foreground text-caption font-black uppercase tracking-[0.2em] block mb-4 pl-1">Mode de Jeu</span>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <button
                                                             onClick={(e) => {
@@ -3021,7 +3021,7 @@ export default function InteractiveMapV2({
                                                                 socket?.emit("geoguesser:room:settings", { gameMode: m });
                                                                 setActiveSession({ ...activeSession, gameMode: m });
                                                             }}
-                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${(!activeSession.gameMode || activeSession.gameMode === 'NORMAL') ? 'bg-info text-info-foreground shadow-lg shadow-indigo-500/30' : 'bg-surface text-info-foreground/30 hover:bg-surface'}`}
+                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-colors ${(!activeSession.gameMode || activeSession.gameMode === 'NORMAL') ? 'bg-info text-info-foreground' : 'bg-surface text-foreground/70 hover:bg-elevated'}`}
                                                         >
                                                             Normal
                                                         </button>
@@ -3032,7 +3032,7 @@ export default function InteractiveMapV2({
                                                                 socket?.emit("geoguesser:room:settings", { gameMode: m });
                                                                 setActiveSession({ ...activeSession, gameMode: m });
                                                             }}
-                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-all ${activeSession.gameMode === 'SPECIAL' ? 'bg-info text-info-foreground shadow-lg shadow-indigo-500/30' : 'bg-surface text-info-foreground/30 hover:bg-surface'}`}
+                                                            className={`py-3 rounded-xl text-caption font-black uppercase transition-colors ${activeSession.gameMode === 'SPECIAL' ? 'bg-info text-info-foreground' : 'bg-surface text-foreground/70 hover:bg-elevated'}`}
                                                         >
                                                             Spécial
                                                         </button>

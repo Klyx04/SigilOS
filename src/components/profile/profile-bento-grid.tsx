@@ -175,7 +175,8 @@ export function ProfileBentoGrid({
         canViewLadder = true, 
         canViewMissions = true,
         canSyncLadder = false,
-        canManualSyncLadder = true,
+        // #137 — fail-closed : sans valeur fournie, la capture OCR (Manuel) reste masquée.
+        canManualSyncLadder = false,
         missionVitrineMode = false,
     } = permissions;
 

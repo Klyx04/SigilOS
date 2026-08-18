@@ -415,13 +415,13 @@ export function AppSidebar({
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className={cn("text-sm font-semibold truncate", g.id === guildId ? "text-primary" : "")}>
+                                                    <span className={cn("text-sm font-semibold truncate", g.id === guildId ? "text-foreground" : "")}>
                                                         {g.name}
                                                     </span>
-                                                    {g.id === guildId && <span className="text-caption font-medium text-primary/70">Connecté</span>}
+                                                    {g.id === guildId && <span className="text-caption font-medium text-muted-foreground">Connecté</span>}
                                                 </div>
                                                 {g.id === guildId && (
-                                                    <div className="ml-auto w-1 h-4 bg-primary rounded-full " />
+                                                    <div className="ml-auto w-1 h-4 bg-primary/80 rounded-full" />
                                                 )}
                                             </Link>
                                         </DropdownMenuItem>

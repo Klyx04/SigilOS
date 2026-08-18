@@ -14,15 +14,14 @@ import { getPolls } from "@/server/actions/poll-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { hasFilledAvailability } from "@/lib/dofus-assets";
 import { getISOWeek, getYear } from "date-fns";
+import NextImage from "next/image";
 import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
 import { RecentDjPosts } from "./_components/recent-dj-posts";
-import { AlmanaxWidget } from "./_components/almanax-widget";
 import { GuildActivityFeed } from "./_components/guild-activity-feed";
 import { UpcomingEventsWidget } from "./_components/upcoming-events-widget";
 import { EchoDuSigil } from "./_components/echo-du-sigil";
-import { ActivePollsWidget } from "./_components/active-polls-widget";
 import { RaidHeroBanner } from "./_components/raid-hero-banner";
 
 import { AccessDenied } from "@/components/layout/access-denied";
@@ -118,19 +117,15 @@ export default async function DashboardPage({
     const onlineCount = onlineUsersResult.success ? (onlineUsersResult.totalActive || 0) : 0;
     const onlineUsers = onlineUsersResult.success ? onlineUsersResult.data : [];
     const totalMembers = guildStats?.activeMembers || 0;
-    const songesCompleted = guildStats?.totalSongesCompleted || 0;
-    const eventsCount = guildStats?.totalEvents || 0;
     const topActivityName = guildStats?.records?.[0]?.label || "";
     const topActivityValue = guildStats?.records?.[0]?.value || "";
 
-    // Comparaisons temporelles (point 4 — KPI "parlants") : réutilise des données
+    // Comparaison temporelle (point 4 — KPI "parlant") : réutilise des données
     // DÉJÀ calculées par getGuildStats (0 requête supplémentaire → pas d'impact sur le pool).
     // - Membres : croissance nette du dernier mois (joins − leaves) via retention.growth.
-    // - Événements : nombre créés ce mois-ci via events.thisMonth.
     const growth = guildStats?.retention?.growth || [];
     const lastGrowth = growth[growth.length - 1];
     const membersDelta = lastGrowth ? lastGrowth.joins - lastGrowth.leaves : null;
-    const eventsDelta = typeof guildStats?.events?.thisMonth === "number" ? guildStats.events.thisMonth : null;
     // Vitrine (admin → missions) : on masque la carte "Progression Dofus" (même règle
     // que l'onglet "Présence & Feed" des profils — infos de progression cachées en lecture seule).
     const isVitrineActive = !!user.missionVitrineMode;
@@ -144,12 +139,18 @@ export default async function DashboardPage({
         ? `Prochain rendez-vous : ${nextEvent.title}`
         : "Rien de prévu — la guilde est au calme";
     // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
-    const todoItems: { href: string; label: string; action: string }[] = [];
+    const todoItems: { href: string; label: string; action: string; image?: string | null; imageQty?: number }[] = [];
     const activePolls = (polls as any[]).filter((p: any) => p?.status === "ACTIVE");
     if (activePolls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${activePolls.length} sondage${activePolls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
     if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: `Prochain : ${nextEvent.title}`, action: "Voir" });
     const todayAlmanax = almanaxItems?.[0];
-    if (todayAlmanax) todoItems.push({ href: `/dashboard/${guildId}/ressources`, label: "Almanax du jour", action: "Offrande" });
+    if (todayAlmanax) todoItems.push({
+        href: `/dashboard/${guildId}/ressources?tab=almanax`,
+        label: todayAlmanax.tribute.item.name,
+        action: "Offrande",
+        image: todayAlmanax.tribute.item.image_urls.icon,
+        imageQty: todayAlmanax.tribute.quantity,
+    });
 
 
 
@@ -189,14 +190,11 @@ export default async function DashboardPage({
                     <QuickStatsRow
                         onlineCount={onlineCount}
                         totalMembers={totalMembers}
-                        songesCompleted={songesCompleted}
-                        eventsCount={eventsCount}
                         dofusCompletionRate={dofusCompletionRate}
                         topActivityName={topActivityName}
                         topActivityValue={topActivityValue}
                         onlineUsers={onlineUsers}
                         membersDelta={membersDelta}
-                        eventsDelta={eventsDelta}
                         hideDofusProgress={isVitrineActive}
                     />
                 </section>
@@ -216,7 +214,24 @@ export default async function DashboardPage({
                                         href={item.href}
                                         className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
                                     >
-                                        <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                                        {item.image ? (
+                                            <div className="relative h-9 w-9 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
+                                                <NextImage
+                                                    src={item.image}
+                                                    alt={item.label}
+                                                    fill
+                                                    className="object-contain p-1"
+                                                    unoptimized
+                                                />
+                                                {item.imageQty != null && (
+                                                    <span className="absolute -bottom-0.5 -right-0.5 bg-warning text-warning-foreground text-[10px] font-bold px-1 rounded-sm leading-tight">
+                                                        x{item.imageQty}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                                        )}
                                         <span className="text-body-sm truncate">{item.label}</span>
                                         <span className="ml-auto text-label font-medium text-success/80 shrink-0">{item.action}</span>
                                     </Link>
@@ -240,26 +255,14 @@ export default async function DashboardPage({
                     </section>
                 )}
 
-                {/* ── 4. EVENTS + SONDAGES ─────────────────────────────── */}
-                {(user.canViewCalendar || user.canViewPolls) && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    {user.canViewCalendar && (
-                        <section data-tour="dash-events" className={`${user.canViewPolls ? "lg:col-span-7" : "lg:col-span-12"} min-h-[340px]`}>
-                            <UpcomingEventsWidget
-                                guildId={guildId}
-                                events={upcomingEvents as any}
-                            />
-                        </section>
-                    )}
-                    {user.canViewPolls && (
-                        <section data-tour="dash-polls" className="lg:col-span-5 min-h-[340px]">
-                            <ActivePollsWidget
-                                guildId={guildId}
-                                polls={polls}
-                            />
-                        </section>
-                    )}
-                </div>
+                {/* ── 4. AGENDA DE GUILDE (pleine largeur) ─────────────── */}
+                {user.canViewCalendar && (
+                    <section data-tour="dash-events" className="min-h-[340px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                        <UpcomingEventsWidget
+                            guildId={guildId}
+                            events={upcomingEvents as any}
+                        />
+                    </section>
                 )}
 
                 {/* ── 5. GROUPES ACTIFS (pleine largeur) ─────────────────── */}
@@ -267,18 +270,10 @@ export default async function DashboardPage({
                     <RecentDjPosts guildId={guildId} groups={activeGroups} />
                 </section>
 
-                {/* ── 6. ALMANAX + ACTIVITÉ ────────────────────────────── */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    <section data-tour="dash-almanax">
-                        <AlmanaxWidget
-                            guildId={guildId}
-                            initialAlmanax={almanaxItems?.[0] ?? null}
-                        />
-                    </section>
-                    <section data-tour="dash-activity">
-                        <GuildActivityFeed logs={guildLogs} guildId={guildId} />
-                    </section>
-                </div>
+                {/* ── 6. FLUX DE VIE DE LA GUILDE (pleine largeur) ─────── */}
+                <section data-tour="dash-activity" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <GuildActivityFeed logs={guildLogs} guildId={guildId} />
+                </section>
 
             </div>
 

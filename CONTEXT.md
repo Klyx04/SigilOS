@@ -23,6 +23,28 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 02/09 — #138 module « Succès » dédié
+
+> **Branche `feat/chantier-2026-08-31`** (PR en cours vers `dev`, `dev` = `e183d4245`).
+> → **5 commits poussés le 02/09 : `8fcc25aff` (#138) · `24d3228b7` (docs 02/09) · `103c68543` (polish UI) · `6494c59d1` (perf)** —
+> la branche porte **7 commits non mergés** : `277b82d4e` (#131) · `6e5691a13` (docs 31/08) · `3ee1c8f03` (#141) ·
+> `8fcc25aff` (#138) · `24d3228b7` (docs 02/09) · `103c68543` (polish) · `6494c59d1` (perf).
+> Mémo : `src/temp/memo-2026-09-02-chantier-succes.md`. Amorce suivante : `src/temp/prompt-next-chantier-2026-09-03.md`.
+>
+> - **#138 — Module « Succès » dédié extrait de Donjons & Quêtes** :
+>   - Nouveau module `succes` (migration `20260902000000` : `GuildModules.succes` + `UserDungeonProgress.source`),
+>     permission RBAC `success:view`, flags `canViewSucces`/`canEditOwnSucces`/`canViewGuildSucces`, page
+>     `/dashboard/[guildId]/succes` (vue `?view=moi|guilde`), navbar « Succès », toggle admin `/admin/modules`.
+>   - **Donjons & Quêtes = posts uniquement** (plus d'onglets tracker/directory ; deep-link `?dungeonId=` pont depuis /succes).
+>     Refonte `src/components/succes/` (SuccesTracker split-view + batch toggle + hint partenaires, SuccesDirectory social-first).
+>   - **Clôture post → validation succès obligatoire** (Oui/Non par succès, idempotent, écrit pour TOUS les présents, toast).
+>   - **Polish + perf (retours user 02/09)** : navbar « Succès » icône `Award` (fini le doublon Trophy/Ladder) · auto-sélection
+>     du 1er donjon « à faire » (plus jamais de panneau vide) · liste sticky scroll interne · `getMonsterStats` cache
+>     mémoire 1h + vue Guilde découplée (social BDD local instantané, fiche dofusdb en arrière-plan).
+>   - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK · pre-commit vert (5 commits). ⚠️ Déploiement :
+>     `prisma migrate deploy` + activer « Succès » dans `/admin/modules` + octroyer `success:view` en RBAC.
+
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 01/09 — #141 page « Accès Restreint »
 
 > **Branche `feat/chantier-2026-08-31`** (PR en cours vers `dev`, `dev` = `e183d4245`).

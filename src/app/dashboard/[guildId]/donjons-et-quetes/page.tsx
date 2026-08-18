@@ -12,7 +12,7 @@ import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-but
 
 export const metadata = {
     title: "Donjons & Quêtes | SigilOS",
-    description: "Trouvez des compagnons pour vos donjons et gérez vos succès.",
+    description: "Trouvez des compagnons pour vos donjons et quêtes.",
 };
 
 export default async function FinderPage({
@@ -51,7 +51,7 @@ export default async function FinderPage({
             <div data-tour="donjons-header">
                 <UnifiedModuleHeader
                     title="Donjons & Quêtes"
-                    description="Cherchez des coéquipiers, ciblez des succès, et suivez votre progression."
+                    description="Cherchez des coéquipiers pour vos donjons et quêtes, ou créez un post."
                     icon={Swords}
                     iconColor="#ffffff"
                     backHref={`/dashboard/${guildId}`}

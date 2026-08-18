@@ -27,6 +27,7 @@ export const PERMISSIONS = {
     // Game & Activities
     GAME_VIEW: "game:view",
     GAME_OPERATIONS: "game:operations",
+    SUCCESS_VIEW: "success:view",
     RAID_OFFICER: "game:raid_officer",
     RAID_MEMBER: "game:raid_member",
     POINTS_MANAGE: "points:manage",
@@ -152,6 +153,13 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Organisation des runs de Songes, services VIP et gestion du module Donjons & Quêtes.", 
         module: "game",
         modules: ["Songes", "Services VIP", "Donjons & Quêtes (Finder)"]
+    },
+    // #138 — module Succès dédié (Mes Succès + Succès Commun), indépendant du finder DJ.
+    [PERMISSIONS.SUCCESS_VIEW]: {
+        label: "Succès",
+        description: "Consulter sa checklist de succès de donjons, cocher sa progression et voir l'annuaire « qui a quoi » dans la guilde.",
+        module: "game",
+        modules: ["Mes Succès", "Succès Commun"]
     },
     [PERMISSIONS.RAID_OFFICER]: { 
         label: "Gestion des Raids", 

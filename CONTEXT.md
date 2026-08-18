@@ -23,6 +23,26 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 01/09 — #141 page « Accès Restreint »
+
+> **Branche `feat/chantier-2026-08-31`** (PR en cours vers `dev`, `dev` = `e183d4245`).
+> → **1 commit poussé le 01/09 : `3ee1c8f03` (#141)** — la branche porte **3 commits non mergés** : `277b82d4e` (#131) ·
+> `6e5691a13` (docs 31/08) · `3ee1c8f03` (#141).
+> Mémo : `src/temp/memo-2026-09-01-chantier-acces-restreint.md`. Amorce suivante : `src/temp/prompt-next-chantier-2026-09-02.md`.
+>
+> - **#141 — Page « Accès Restreint » engageante pour compte sans guilde** :
+>   - `no-guild-message.tsx` : titre + message + CTA « Chef de Guilde ? Inscrire ma Guilde » / « Changer de compte »
+>     **toujours affichés** (fini le plein écran « Vérification indisponible »). Le rate-limit Discord n'est plus qu'une
+>     **note discrète non bloquante** (« Vérification des accès en cours — l'API Discord répond avec un léger délai » +
+>     lien « Relancer la vérification ») ; auto-reload 15s **suspendu si la modale de demande d'accès est ouverte**.
+>   - `public-header.tsx` : prop `isMember` enfin honorée (déclarée mais ignorée) → « Gestion Multi-Guilde » et
+>     « Dashboard Central » masqués quand `isMember === false` (rétro-compatible : `undefined` → affichage inchangé).
+> - 🔒 Vérif sécu complémentaire : les connexions Discord **refusées** (sans guilde) n'écrivent **rien en base**
+>   (Auth.js v5 : `signIn` s'exécute avant `createUser`/`linkAccount` — fail-closed à la création) ; tokens OAuth chiffrés
+>   au repos à l'identique pour tous (F-05 + hooks Prisma `$extends`). **Chantier #168 ajouté** (rétention/purge comptes orphelins).
+> - Vérifs : tsc 0 · lint 0 erreur · **225/225 tests** · build OK · pre-commit vert (1 commit).
+
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 31/08 — #131 refonte légère galerie builds
 
 > **Branche `feat/chantier-2026-08-31`** (nouvelle, créée depuis `origin/dev` = `e183d4245` après merge de la PR #498

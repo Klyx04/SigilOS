@@ -8,6 +8,7 @@ import { Image as ImageIcon, Loader2, Upload, Trash2, ArrowUp, ArrowDown, EyeOff
 import { getLandingScreensAdmin, uploadLandingScreen, deleteLandingScreen, updateLandingScreen, reorderLandingScreens } from "@/server/actions/landing-screen-actions";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface ScreenRow {
     id: string;
@@ -23,9 +24,15 @@ interface ScreenRow {
 
 /**
  * 🖼️ #140 — Interface God : uploader / supprimer / réordonner / masquer les screens
- * de la landing (section « Product Story ») à la volée.
+ * de la landing à la volée.
+ * - Section « product-story » : UN screen = UN onglet (le `label` devient le nom de
+ *   l'onglet : « Guides », « Sorties & groupes », « Progression »…).
+ * - Section « hero » : 1 seule image (la 1ʳᵉ active remplace la capture du haut de page).
  */
+type LandingSection = "product-story" | "hero";
+
 export function LandingScreensClient() {
+    const [section, setSection] = useState<LandingSection>("product-story");
     const [screens, setScreens] = useState<ScreenRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
@@ -34,11 +41,13 @@ export function LandingScreensClient() {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
 
+    const isHero = section === "hero";
+
     const load = useCallback(async () => {
-        const res = await getLandingScreensAdmin("product-story");
+        const res = await getLandingScreensAdmin(section);
         if (res.success && res.data) setScreens(res.data);
         setLoading(false);
-    }, []);
+    }, [section]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -48,14 +57,14 @@ export function LandingScreensClient() {
         try {
             const res = await uploadLandingScreen({
                 file,
-                section: "product-story",
+                section,
                 label: label || file.name.replace(/\.[^.]+$/, ""),
-                title: title || undefined,
-                description: description || undefined,
+                title: isHero ? undefined : (title || undefined),
+                description: isHero ? undefined : (description || undefined),
                 slug: (label || file.name).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40) || undefined,
             });
             if (res.success) {
-                toast.success("Screen uploadé et visible sur la landing");
+                toast.success(isHero ? "Image du hero remplacée" : "Screen uploadé — nouvel onglet créé sur la landing");
                 setLabel(""); setTitle(""); setDescription("");
                 load();
             } else {
@@ -104,21 +113,60 @@ export function LandingScreensClient() {
                         Screens de la landing
                     </h3>
                     <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-                        Les captures de la section « Produit » de la landing (sigilos.fr). Upload à la volée,
-                        optimisation WebP automatique (max 1920px), masquage et réordonnancement sans toucher au code.
-                        Tant qu'aucun screen n'est uploadé, les captures par défaut sont affichées.
+                        Upload à la volée, optimisation WebP automatique (max 1920px), masquage et
+                        réordonnancement sans toucher au code. Tant qu'aucun screen n'est uploadé,
+                        les captures par défaut sont affichées.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="Libellé (ex: Calendrier)" className="bg-black/40 border-border h-10 rounded-xl" />
-                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titre (optionnel)" className="bg-black/40 border-border h-10 rounded-xl" />
-                    <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optionnelle)" className="bg-black/40 border-border h-10 rounded-xl" />
+                {/* Choix de l'emplacement */}
+                <div className="inline-flex items-center gap-1 p-1 bg-black/30 border border-border rounded-xl">
+                    {(["product-story", "hero"] as LandingSection[]).map((s) => (
+                        <button
+                            key={s}
+                            type="button"
+                            onClick={() => setSection(s)}
+                            className={cn(
+                                "px-4 py-2 rounded-lg text-caption font-bold uppercase tracking-wide transition-colors",
+                                section === s ? "bg-info/20 text-info border border-info/30" : "text-muted-foreground hover:text-foreground border border-transparent"
+                            )}
+                        >
+                            {s === "product-story" ? "🏞️ Onglets Produit" : "🖼️ Image du hero"}
+                        </button>
+                    ))}
+                </div>
+
+                {isHero ? (
+                    <p className="text-xs text-amber-400/90 leading-relaxed">
+                        C'est l'image en haut de page, à côté de « Votre guilde mérite mieux qu'un tableur Discord ».
+                        Une seule image : la première active remplace la capture par défaut. Le libellé sert de texte
+                        alternatif (accessibilité).
+                    </p>
+                ) : (
+                    <p className="text-xs text-amber-400/90 leading-relaxed">
+                        Chaque screen = un onglet de la section « Produit ». <strong className="text-foreground">Le libellé devient le nom de l'onglet</strong> :
+                        « Guides », « Sorties & groupes », « Progression »… Le titre et la description s'affichent à côté de l'image.
+                    </p>
+                )}
+
+                <div className={cn("grid grid-cols-1 gap-3", isHero ? "md:grid-cols-1" : "md:grid-cols-3")}>
+                    <Input
+                        value={label}
+                        onChange={e => setLabel(e.target.value)}
+                        placeholder={isHero ? "Libellé / texte alternatif (ex: Dashboard SigilOS)" : "Nom de l'onglet (ex: Guides, Sorties & groupes, Progression…)"}
+                        className="bg-black/40 border-border h-10 rounded-xl"
+                    />
+                    {!isHero && (
+                        <>
+                            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titre affiché à côté de l'image (optionnel)" className="bg-black/40 border-border h-10 rounded-xl" />
+                            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Description courte (optionnelle)" className="bg-black/40 border-border h-10 rounded-xl" />
+                        </>
+                    )}
                 </div>
 
                 <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-info/10 hover:bg-info/20 border border-info/30 text-info font-bold text-sm cursor-pointer transition-colors">
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {uploading ? "Upload en cours..." : "Uploader une capture (max 10 Mo)"}
+                    {uploading ? "Upload en cours..." : isHero ? "Remplacer l'image du hero (max 10 Mo)" : "Ajouter un onglet (max 10 Mo)"}
                     <input
                         type="file"
                         accept="image/*"
@@ -137,7 +185,9 @@ export function LandingScreensClient() {
                 <div className="text-caption text-muted-foreground italic py-4">Chargement des screens...</div>
             ) : screens.length === 0 ? (
                 <div className="text-caption text-muted-foreground italic py-4">
-                    Aucun screen personnalisé — la landing affiche les captures par défaut.
+                    {isHero
+                        ? "Aucune image personnalisée — le hero affiche la capture par défaut."
+                        : "Aucun screen personnalisé — la landing affiche les onglets par défaut (Guides / Sorties & groupes / Progression)."}
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -154,13 +204,16 @@ export function LandingScreensClient() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge className={isHero ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-caption" : "bg-success/10 text-success border border-success/20 text-caption"}>
+                                        {isHero ? "Hero" : "Onglet"}
+                                    </Badge>
                                     <span className="font-bold text-foreground text-sm truncate">{s.label || "Sans libellé"}</span>
                                     <Badge className="bg-muted/20 text-muted-foreground border border-border text-caption">{s.sortOrder}</Badge>
                                     <Badge className={s.enabled ? "bg-success/10 text-success border border-success/20 text-caption" : "bg-muted/20 text-muted-foreground border border-border text-caption"}>
                                         {s.enabled ? "Visible" : "Masqué"}
                                     </Badge>
                                 </div>
-                                {s.title && <p className="text-caption text-muted-foreground mt-1 truncate">{s.title}</p>}
+                                {!isHero && s.title && <p className="text-caption text-muted-foreground mt-1 truncate">{s.title}</p>}
                                 <p className="text-caption text-muted-foreground/70 truncate">{s.imageUrl}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">

@@ -55,8 +55,13 @@ export default async function Home({
   const showcaseGuilds = await getPublicGuildShowcase(6);
 
   // 🖼️ #140 — screens de la landing pilotés par le God (fallback captures par défaut)
-  const productScreensRes = await getPublicLandingScreens("product-story");
+  const [productScreensRes, heroScreensRes] = await Promise.all([
+      getPublicLandingScreens("product-story"),
+      getPublicLandingScreens("hero"),
+  ]);
   const productScreens = (productScreensRes.success && productScreensRes.data) ? productScreensRes.data : [];
+  const heroScreens = (heroScreensRes.success && heroScreensRes.data) ? heroScreensRes.data : [];
+  const heroImageUrl = heroScreens[0]?.imageUrl;
 
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);
@@ -94,7 +99,7 @@ export default async function Home({
         <main className="flex-1 w-full relative z-10 flex flex-col">
 
           {/* Hero */}
-          <HeroSection user={session?.user} userGuilds={userGuilds} />
+          <HeroSection user={session?.user} userGuilds={userGuilds} heroImageUrl={heroImageUrl} />
 
           {/* Problème / solution */}
           <ProblemSolution />

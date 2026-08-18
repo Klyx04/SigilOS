@@ -32,6 +32,7 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
+import type { User } from "next-auth";
 
 // Activity icons mapping
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
@@ -52,6 +53,8 @@ type Props = {
     guild: GuildPresentation;
     foundedYear: number;
     isMember?: boolean;
+    /** #142 — session utilisateur : le header public affiche le profil connecté au lieu du bouton « Connexion ». */
+    user?: User;
 };
 
 // Animation Variants
@@ -83,7 +86,7 @@ const scaleIn = {
     }
 };
 
-export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
+export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
     const headerRef = useRef<HTMLElement>(null);
     const { scrollY } = useScroll();
 
@@ -127,7 +130,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
             </div>
 
             {/* Sticky Header Nav (Consistent with Directory) */}
-            <PublicHeader backHref="/guilds" backLabel="Annuaire" isMember={isMember} />
+            <PublicHeader backHref="/guilds" backLabel="Annuaire" isMember={isMember} user={user} />
 
             {/* Guild Header Content (Overlapping Hero) — le badge membre est intégré
                 ici (1er bloc du conteneur) pour ne plus empiéter sur la présentation (#83). */}

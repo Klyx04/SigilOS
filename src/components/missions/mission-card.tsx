@@ -201,6 +201,9 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
         ? getEventImage()
         : (payload.imageUrl || payload.image || (config as any).fallbackImage || null);
 
+    // OBJECTIF MANUEL (#152) : icône exclamation mise en avant dans le rendu de l'image (comme les icônes de boss DJ/Songes).
+    const isManualObjective = mission.category === 'EVENT' && payload.eventType === 'OBJECTIF';
+
     // Check user's submission status for this mission
     const userSubmission = mission.submissions?.[0];
     const isValidated = userSubmission?.status === "VALIDATED";
@@ -390,19 +393,33 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 {/* Cinematic Overlay: Gradient Fade to Right */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-elevated/40 z-10" />
 
-                                {/* OBJECTIF MANUEL — gros badge exclamation sur l'image */}
-                                {mission.category === 'EVENT' && payload.eventType === 'OBJECTIF' && (
-                                    <div className="absolute bottom-1 right-1 z-20 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-warning/95 border-2 border-border-strong  flex items-center justify-center overflow-hidden group- transition-transform duration-300">
-                                        <Image
-                                            src="/exclamation.png"
-                                            alt="Objectif manuel"
-                                            width={64}
-                                            height={64}
-                                            className="object-contain w-full h-full p-1"
-                                            unoptimized={true}
-                                        />
+                                {/* OBJECTIF MANUEL (#152) — icône exclamation GRANDE et centrée sur l'image */}
+                                {isManualObjective && (
+                                    <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-warning/95 border-2 border-border-strong flex items-center justify-center overflow-hidden">
+                                            <Image
+                                                src="/exclamation.png"
+                                                alt="Objectif manuel"
+                                                width={80}
+                                                height={80}
+                                                className="object-contain w-full h-full p-1.5"
+                                                unoptimized={true}
+                                            />
+                                        </div>
                                     </div>
                                 )}
+                            </div>
+                        ) : isManualObjective ? (
+                            /* OBJECTIF MANUEL sans image — l'icône exclamation EST le visuel principal */
+                            <div className="w-full h-full flex items-center justify-center">
+                                <Image
+                                    src="/exclamation.png"
+                                    alt="Objectif manuel"
+                                    width={96}
+                                    height={96}
+                                    className="object-contain w-16 h-16 sm:w-24 sm:h-24 opacity-90"
+                                    unoptimized={true}
+                                />
                             </div>
                         ) : (
                             <div className="w-12 h-12 rounded-2xl bg-elevated/50 border border-border flex items-center justify-center">

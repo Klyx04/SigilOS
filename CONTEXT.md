@@ -23,6 +23,15 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 28/08 (suite) — #156 (429 God) + #134 backend (cron avatars Discord)
+
+> **Branche `feat/chantier-2026-08-28`** → **PR #495 mergée vers dev** (`a12cb78cd`), déployée en beta (CD GHCR).
+> - **#156 — 429 côté God** (`src/proxy.ts`) : cause racine = rate-limit par IP `rateLimit("${ip}:god", 120/min)` sur toutes les routes God → chaque clic d'édition (action serveur + revalidation RSC + fetch parallèles) dépassait le plafond. Fix : le Super Admin **authentifié** (JWT `discordId` ∈ `SUPER_ADMIN_IDS`, cookie `__Secure-authjs.session-token` vérifié par `getToken`) est exempté de ce rate-limit IP. L'anti-brute-force reste intact : rate-limit strict `${ip}:god-invalid` (10/min) sur les mauvais secrets, secret `GOD_ROUTE`, session JWT, allowlist IP optionnelle `GOD_IP_ALLOWLIST`.
+> - **#134 (reste backend) — cron de resync des hashs d'avatars** : `src/server/actions/avatar-sync.ts` (`resyncGuildAvatarHashes`/`syncAllGuildAvatars`) via `GET /guilds/{id}/members` — avatar de guilde `member.avatar` prioritaire sur `user.avatar`, mise à jour de `User.image` UNIQUEMENT si changement (anti-writes), `null` → avatar par défaut côté UI (`getDefaultDiscordAvatar`) ; endpoint cron `/api/cron/avatar-resync` (protégé `x-cron-secret`, même pattern que `sync-members`) + **9 tests** (`tests/unit/avatar-sync.test.ts`) + doc `MAINTENANCE.md` (sous-section « Crons HTTP »).
+> - **VPS vérifié (prod)** : crontab corrigé — tous les `x-cron-secret` passés **en dur** (avant : vides → 401 fail-closed sur TOUS les crons HTTP, dont `sync-members`) ; ligne `0 5 * * *` avatar-resync ajoutée → 1ᵉʳ run : **118 avatars resynchronisés** ; 2ᵉ run : 130 unchanged (0 écriture inutile, mécanique anti-writes confirmée) ; `check-hardening.sh` = script **manuel** de diagnostic VPS (affiche crons/disque/containers/SSH/firewall/fail2ban/MAJ — ne planifie rien).
+> - Vérifs : tsc 0 · lint 0 erreur · **225/225 tests** · build OK · pre-commit vert (2 commits `a6cb21323` + `1b49bdf83`).
+
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 28/08 — #128 · #130 · #132 · #134 (Dashboard UI/UX + avatars Discord)
 
 > **Branche `feat/chantier-2026-08-19`** → commit **`fd8923d0f` poussé (28/08)** (le #126 27/08 est déjà poussé en `36335919c`).

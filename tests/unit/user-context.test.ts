@@ -121,6 +121,7 @@ function makeGuildConfig(overrides: Record<string, any> = {}) {
             profile: true, roster: true, stats: true, presentation: true,
             polls: true, logs: true, quests: true, worldmap: true,
             resources: true, ladderSync: false, manualLadderSync: false, minigames: true,
+            succes: true,
         },
         ...overrides,
     };
@@ -592,6 +593,92 @@ describe("getUserContext — calcul des permissions RBAC", () => {
     });
 });
 
+describe("getUserContext — module Succès (#138)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000);
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockFetchGuild.mockResolvedValue({ id: "111111111111111111", owner_id: "other-owner", roles: [] });
+        mockAuth.mockResolvedValue({
+            user: { id: "user-1", discordId: "discord-user-1", name: "Test" },
+        });
+    });
+
+    it("refuse les succès par défaut (fail-closed, sans success:view)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-membre", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN] },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewSucces).toBe(false);
+        expect(ctx.canEditOwnSucces).toBe(false);
+        expect(ctx.canViewGuildSucces).toBe(false);
+    });
+
+    it("accorde les 3 flags succès à un membre success:view + module succes on", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-succes"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-succes", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: { "role-succes": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.SUCCESS_VIEW] },
+                modules: { ...makeGuildConfig().modules, succes: true },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewSucces).toBe(true);
+        expect(ctx.canEditOwnSucces).toBe(true);
+        expect(ctx.canViewGuildSucces).toBe(true);
+        // Indépendant du finder DJ : GAME_OPERATIONS ne donne PAS les succès.
+        expect(ctx.canViewFinder).toBe(false);
+    });
+
+    it("verrouille les succès si le module succes est OFF (non-admin)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-succes"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-succes", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: { "role-succes": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.SUCCESS_VIEW] },
+                modules: { ...makeGuildConfig().modules, succes: false },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewSucces).toBe(false);
+        expect(ctx.canEditOwnSucces).toBe(false);
+        expect(ctx.canViewGuildSucces).toBe(false);
+    });
+
+    it("laisse les succès à un admin même module OFF (bypass admin)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-admin"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-admin", permissions: "8", name: "Discord Admin" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                // rolesMapping non-vide → onboarding considéré complet (isRbacConfigured)
+                rolesMapping: { "role-admin": [PERMISSIONS.DASHBOARD_LOGIN] },
+                modules: { ...makeGuildConfig().modules, succes: false },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isOnboardingComplete).toBe(true);
+        expect(ctx.canViewSucces).toBe(true);
+        expect(ctx.canEditOwnSucces).toBe(true);
+        expect(ctx.canViewGuildSucces).toBe(true);
+    });
+});
+
 describe("getUserContext — onboarding incomplete", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -637,6 +724,9 @@ describe("getUserContext — onboarding incomplete", () => {
         expect(ctx.canViewOcre).toBe(false);
         expect(ctx.canViewSonges).toBe(false);
         expect(ctx.canViewLadder).toBe(false);
+        expect(ctx.canViewSucces).toBe(false);
+        expect(ctx.canEditOwnSucces).toBe(false);
+        expect(ctx.canViewGuildSucces).toBe(false);
     });
 });
 

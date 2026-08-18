@@ -40,6 +40,7 @@ const UpdateModulesSchema = z.object({
     ladderSync: z.boolean(),
     manualLadderSync: z.boolean(),
     minigames: z.boolean(),
+    succes: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -109,6 +110,7 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             ladderSync: dbModules.ladderSync ?? DEFAULT_MODULES.ladderSync,
             manualLadderSync: dbModules.manualLadderSync ?? DEFAULT_MODULES.manualLadderSync,
             minigames: dbModules.minigames ?? DEFAULT_MODULES.minigames,
+            succes: dbModules.succes ?? DEFAULT_MODULES.succes,
         };
 
         moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });

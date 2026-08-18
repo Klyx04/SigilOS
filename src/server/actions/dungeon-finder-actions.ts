@@ -1115,6 +1115,68 @@ export async function updateDjPost(
  */
 
 /**
+ * #138 — Valide les succès d'un groupe à la clôture d'un post DJ/Quête.
+ * Écrit UNE SEULE fois par (profil, succès) : un succès déjà validé n'est pas ré-écrit
+ * (contrainte unique `profileId_achievementId` + `skipDuplicates`).
+ * Tenant : on ne retient que les succès rattachés à un donjon PORTÉ PAR CE POST (simple
+ * ou multi) — tout succès forgé hors du post est ignoré (fail-closed).
+ */
+async function applySuccessValidations(opts: {
+    guildId: string; // discordGuildId
+    post: { dungeonId: string | null; dungeonsJson?: unknown; profileId: string };
+    successValidations: { dungeonId: string; achievementId: string }[];
+    profileIds: string[];
+}): Promise<{ created: number }> {
+    const { successValidations, profileIds, post } = opts;
+    if (!successValidations.length || profileIds.length === 0) return { created: 0 };
+
+    // 1. Donjons autorisés = ceux portés par CE post.
+    const allowedDungeonIds = new Set<string>();
+    if (post.dungeonId) allowedDungeonIds.add(post.dungeonId);
+    if (Array.isArray(post.dungeonsJson)) {
+        (post.dungeonsJson as any[]).forEach((d) => {
+            if (d?.dungeonId) allowedDungeonIds.add(String(d.dungeonId));
+        });
+    }
+
+    const candidates = successValidations.filter(
+        (s) => s?.achievementId && s?.dungeonId && allowedDungeonIds.has(s.dungeonId)
+    );
+    if (candidates.length === 0) return { created: 0 };
+
+    // 2. Vérifier que chaque (succès, donjon) existe réellement dans le catalogue.
+    const achievementIds = Array.from(new Set(candidates.map((s) => s.achievementId)));
+    const realRows = await (db as any).dungeonAchievement.findMany({
+        where: { id: { in: achievementIds } },
+        select: { id: true, dungeonId: true },
+    });
+    const valid = new Map<string, string>(); // achievementId -> dungeonId
+    realRows.forEach((r: any) => {
+        if (allowedDungeonIds.has(r.dungeonId)) valid.set(r.id, r.dungeonId);
+    });
+
+    const uniqueProfiles = Array.from(new Set(profileIds));
+    const data: any[] = [];
+    for (const pid of uniqueProfiles) {
+        for (const s of candidates) {
+            const realDungeonId = valid.get(s.achievementId);
+            if (realDungeonId) {
+                data.push({ profileId: pid, dungeonId: realDungeonId, achievementId: s.achievementId, source: "GROUP" });
+            }
+        }
+    }
+    if (data.length === 0) return { created: 0 };
+
+    try {
+        const res = await (db as any).userDungeonProgress.createMany({ data, skipDuplicates: true });
+        return { created: res.count ?? data.length };
+    } catch (error) {
+        logger.error("[applySuccessValidations]", error);
+        return { created: 0 };
+    }
+}
+
+/**
  * Close a DJ search post (creator only) and award contribution points to validated participants.
  * The creator themselves gets 0 points.
  * @param validatedProfileIds - profileIds of participants who participated and should get points
@@ -1122,7 +1184,8 @@ export async function updateDjPost(
 export async function closeDjPostWithContributions(
     guildId: string,
     postId: string,
-    validatedProfileIds: string[]
+    validatedProfileIds: string[],
+    successValidations?: { dungeonId: string; achievementId: string }[]
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
     if (!user.canViewFinder || !user.profileId) return { success: false, error: "Accès refusé" };
@@ -1136,6 +1199,8 @@ export async function closeDjPostWithContributions(
                 guildId: true,
                 discordChannelId: true,
                 discordMessageId: true,
+                dungeonId: true,
+                dungeonsJson: true,
                 dungeon: { select: { level: true } },
             },
         });
@@ -1166,6 +1231,13 @@ export async function closeDjPostWithContributions(
                 where: { id: { in: toReward } },
                 data: { contributionPoints: { increment: pts } },
             });
+        }
+
+        // #138 — Validation des succès pour TOUS les présents (participants validés + créateur).
+        // Idempotent : les succès déjà validés ne sont pas ré-écrits (skipDuplicates).
+        const successProfiles = Array.from(new Set([...validatedProfileIds, post.profileId]));
+        if (successValidations && successValidations.length > 0 && successProfiles.length > 0) {
+            await applySuccessValidations({ guildId, post, successValidations, profileIds: successProfiles });
         }
 
         // Désactiver l'embed Discord (fire-and-forget)
@@ -1226,7 +1298,9 @@ export async function getDjGuildMembersForClose(
  */
 export async function closeDjPost(
     guildId: string,
-    postId: string
+    postId: string,
+    successValidations?: { dungeonId: string; achievementId: string }[],
+    validatedProfileIds?: string[]
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
     if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
@@ -1234,7 +1308,7 @@ export async function closeDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true },
+            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true, dungeonId: true, dungeonsJson: true },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
@@ -1246,6 +1320,12 @@ export async function closeDjPost(
             where: { id: postId },
             data: { status: "CLOSED" },
         });
+
+        // #138 — Validation des succès (chemin admin : pas de points, mais succès possibles).
+        const successProfiles = Array.from(new Set([...(validatedProfileIds ?? []), post.profileId]));
+        if (successValidations && successValidations.length > 0 && successProfiles.length > 0) {
+            await applySuccessValidations({ guildId, post, successValidations, profileIds: successProfiles });
+        }
 
         disableDjDiscordEmbed(guildId, post.discordChannelId, post.discordMessageId).catch(() => { });
 
@@ -1810,18 +1890,27 @@ export async function rejectDjParticipant(
  */
 export async function getUserDungeonProgress(
     guildId: string
-): Promise<ActionResponse<{ achievementId: string; dungeonId: string }[]>> {
+): Promise<ActionResponse<{ achievementId: string; dungeonId: string; source: string; completedAt: string | null }[]>> {
     const user = await getUserContext(guildId);
-    if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
+    // #138 — le progrès succès appartient au module Succès (plus au finder DJ).
+    if (!user.canViewSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
     try {
         const progress = await (db as any).userDungeonProgress.findMany({
             where: { profileId: user.profileId },
-            select: { achievementId: true, dungeonId: true },
+            select: { achievementId: true, dungeonId: true, source: true, completedAt: true },
         });
 
-        return { success: true, data: progress };
+        return {
+            success: true,
+            data: progress.map((p: any) => ({
+                achievementId: p.achievementId,
+                dungeonId: p.dungeonId,
+                source: p.source ?? "MANUAL",
+                completedAt: p.completedAt?.toISOString?.() ?? null,
+            })),
+        };
     } catch (error) {
         logger.error("[getUserDungeonProgress]", error);
         return { success: false, error: "Erreur" };
@@ -1837,7 +1926,8 @@ export async function toggleAchievementCompleted(
     achievementId: string
 ): Promise<ActionResponse<{ completed: boolean }>> {
     const user = await getUserContext(guildId);
-    if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
+    // #138 — cocher son progrès = module Succès (canEditOwnSucces), plus le finder DJ.
+    if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
     try {
@@ -1861,6 +1951,7 @@ export async function toggleAchievementCompleted(
                     profileId: user.profileId,
                     dungeonId,
                     achievementId,
+                    source: "MANUAL",
                 },
             });
             return { success: true, data: { completed: true } };
@@ -1868,6 +1959,72 @@ export async function toggleAchievementCompleted(
     } catch (error) {
         logger.error("[toggleAchievementCompleted]", error);
         return { success: false, error: "Erreur" };
+    }
+}
+
+/**
+ * #138 — Batch toggle des succès d'un donjon (remplace le `for await toggle` séquentiel).
+ * Mode "all" : coche tout. "none" : décoche tout. "ids" : ne coche QUE les succès listés
+ * (strictement rattachés à ce donjon — validation côté serveur). 1 round-trip max.
+ */
+export async function toggleDungeonAchievements(
+    guildId: string,
+    dungeonId: string,
+    payload: { mode: "all" } | { mode: "none" } | { mode: "ids"; ids: string[] }
+): Promise<ActionResponse<{ toggled: number }>> {
+    const user = await getUserContext(guildId);
+    if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
+    if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+    try {
+        // 1. Autorité = catalogue game-data : les succès du donjon.
+        const achievements = await (db as any).dungeonAchievement.findMany({
+            where: { dungeonId },
+            select: { id: true },
+        });
+        if (achievements.length === 0) return { success: false, error: "Donjon sans succès" };
+
+        let targetIds: string[];
+        if (payload.mode === "all") targetIds = achievements.map((a: any) => a.id);
+        else if (payload.mode === "none") targetIds = [];
+        else {
+            const validSet = new Set(achievements.map((a: any) => a.id));
+            targetIds = (payload.ids ?? []).filter((id) => validSet.has(id));
+        }
+
+        // 2. État actuel du membre sur ce donjon.
+        const existing = await (db as any).userDungeonProgress.findMany({
+            where: { profileId: user.profileId, dungeonId },
+            select: { achievementId: true },
+        });
+        const existingSet = new Set<string>(existing.map((p: any) => String(p.achievementId)));
+
+        const toCreate = targetIds.filter((id) => !existingSet.has(id));
+        const toDelete = [...existingSet].filter((id) => !targetIds.includes(id));
+
+        if (toDelete.length > 0) {
+            await (db as any).userDungeonProgress.deleteMany({
+                where: { profileId: user.profileId, achievementId: { in: toDelete } },
+            });
+        }
+        let created = 0;
+        if (toCreate.length > 0) {
+            const res = await (db as any).userDungeonProgress.createMany({
+                data: toCreate.map((achievementId) => ({
+                    profileId: user.profileId,
+                    dungeonId,
+                    achievementId,
+                    source: "MANUAL",
+                })),
+                skipDuplicates: true,
+            });
+            created = res.count ?? toCreate.length;
+        }
+
+        return { success: true, data: { toggled: created + toDelete.length } };
+    } catch (error) {
+        logger.error("[toggleDungeonAchievements]", error);
+        return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
 
@@ -1884,7 +2041,8 @@ export async function findMissingAchievements(
     membersWhoHaveIt: { name: string; imageUrl: string | null }[];
 }[]>> {
     const user = await getUserContext(guildId);
-    if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
+    // #138 — « qui a quoi » appartient au module Succès.
+    if (!user.canViewSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
     try {
@@ -2126,7 +2284,8 @@ export async function getDungeonDirectory(
     missing: { id: string; name: string; imageUrl: string | null; classe: string | null }[];
 }[]>> {
     const user = await getUserContext(guildId);
-    if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
+    // #138 — l'annuaire de guilde = vue Succès Commun (canViewGuildSucces).
+    if (!user.canViewGuildSucces) return { success: false, error: "Accès refusé" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({

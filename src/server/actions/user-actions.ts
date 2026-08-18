@@ -185,6 +185,9 @@ export type UserContext = {
     canViewQuests: boolean;
     canViewWorldmap: boolean;
     canViewFinder: boolean;
+    canViewSucces: boolean;
+    canEditOwnSucces: boolean;
+    canViewGuildSucces: boolean;
     canViewServices: boolean;
     canViewStuffGallery: boolean;
     canViewMiniGames: boolean;
@@ -324,6 +327,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewQuests: false,
         canViewWorldmap: false,
         canViewFinder: false,
+        canViewSucces: false,
+        canEditOwnSucces: false,
+        canViewGuildSucces: false,
         canViewServices: false,
         canViewStuffGallery: false,
         canViewMiniGames: false,
@@ -419,6 +425,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         manualLadderSync: true,
                         minigames: true,
                         availability: true,
+                        succes: true,
                     }
                 }
             }
@@ -934,6 +941,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewQuests = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewWorldmap = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewDJQuests = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    // #138 — Module Succès dédié : indépendant du finder DJ (GAME_OPERATIONS). Permission
+    // `success:view` seule pour v1 — canEditOwnSucces / canViewGuildSucces exposés séparément
+    // pour granularité future (ex. « cocher pour un autre » = permission dédiée plus tard).
+    const canViewSucces = permissionSet.has(PERMISSIONS.SUCCESS_VIEW) || isAdminFinal;
+    const canEditOwnSucces = canViewSucces;
+    const canViewGuildSucces = canViewSucces;
     const canViewServices = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canViewMiniGames = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
@@ -1011,6 +1024,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewQuests: !!applyModule(!!mod?.quests, !!canViewQuests),
         canViewWorldmap: !!applyModule(!!mod?.worldmap, !!canViewWorldmap),
         canViewFinder: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
+        canViewSucces: !!applyModule(!!mod?.succes, !!canViewSucces),
+        canEditOwnSucces: !!applyModule(!!mod?.succes, !!canEditOwnSucces),
+        canViewGuildSucces: !!applyModule(!!mod?.succes, !!canViewGuildSucces),
         canViewServices: !!applyModule(!!mod?.services, !!canViewServices),
         canViewStuffGallery: !!applyModule(!!mod?.gallery, !!canViewStuffGallery),
         canViewMiniGames: !!applyModule(!!mod?.minigames, !!canViewMiniGames),
@@ -1080,6 +1096,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewQuests = false;
         finalContext.canViewWorldmap = false;
         finalContext.canViewFinder = false;
+        finalContext.canViewSucces = false;
+        finalContext.canEditOwnSucces = false;
+        finalContext.canViewGuildSucces = false;
         finalContext.canViewServices = false;
         finalContext.canViewStuffGallery = false;
         finalContext.canViewMiniGames = false;

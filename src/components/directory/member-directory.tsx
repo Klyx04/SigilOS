@@ -238,8 +238,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                      className={cn(
                                                         "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all gap-1.5 border h-auto",
                                                         selectedClass === c.id
-                                                            ? "bg-info/20 border-info/40 text-foreground aria-selected:bg-info/30 "
-                                                            : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface"
+                                                            ? "bg-info/20 border-info/40 text-foreground aria-selected:bg-info/30 aria-selected:text-foreground "
+                                                            : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface aria-selected:text-foreground"
                                                     )}
                                                 >
                                                     <ClassIcon classId={c.id} size={36} className="filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
@@ -309,8 +309,8 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                             className={cn(
                                                                 "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all gap-1.5 border h-auto",
                                                                 selectedJob === job.id
-                                                                    ? "bg-warning/20 border-warning/40 text-foreground aria-selected:bg-warning/30 "
-                                                                    : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface"
+                                                                    ? "bg-warning/20 border-warning/40 text-foreground aria-selected:bg-warning/30 aria-selected:text-foreground "
+                                                                    : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface aria-selected:text-foreground"
                                                             )}
                                                         >
                                                             <div className="relative w-9 h-9 flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">

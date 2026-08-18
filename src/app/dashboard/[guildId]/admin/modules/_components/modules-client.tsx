@@ -66,8 +66,8 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
     ocre: [{ label: "Quête Ocre", href: "/dashboard/{guildId}/quete-ocre" }],
     ladder: [{ label: "Classement", href: "/dashboard/{guildId}/ladder" }],
     gallery: [{ label: "Galerie Guilde", href: "/dashboard/{guildId}/galerie-stuff" }],
-    ladderSync: [{ label: "Classement (sync auto)", href: "/dashboard/{guildId}/ladder" }],
-    manualLadderSync: [{ label: "Classement (sync manuelle)", href: "/dashboard/{guildId}/ladder" }],
+    ladderSync: [{ label: "Classement (Ladder Ankama)", href: "/dashboard/{guildId}/ladder" }],
+    manualLadderSync: [{ label: "Classement (Ladder Analyse OC)", href: "/dashboard/{guildId}/ladder" }],
     services: [{ label: "Services Guilde", href: "/dashboard/{guildId}/services" }],
     donjons: [{ label: "Donjons & Quêtes", href: "/dashboard/{guildId}/donjons-et-quetes" }],
     docs: [{ label: "Documentation (Wiki)", href: "/docs" }],
@@ -193,7 +193,7 @@ const MODULE_GROUPS: ModuleGroup[] = [
             },
             {
                 key: "ladderSync",
-                label: "Succès 2.0",
+                label: "Ladder Ankama",
                 description: "Synchronisation automatique des points de succès via le ladder officiel (Cloudflare Worker).",
                 icon: Trophy,
                 color: "text-warning",
@@ -202,7 +202,7 @@ const MODULE_GROUPS: ModuleGroup[] = [
             },
             {
                 key: "manualLadderSync",
-                label: "Sync Manuelle",
+                label: "Ladder Analyse OC",
                 description: "Permet aux membres de synchroniser leurs points via capture d'écran (Backup OCR).",
                 icon: Camera,
                 color: "text-muted-foreground",

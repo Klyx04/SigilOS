@@ -112,7 +112,8 @@ export default async function MemberProfilePage({
                             jobs: (profile.metiers as string[]) || [],
                             alignment: profile.alignment,
                             alignmentOrder: profile.alignmentOrder,
-                            legendaryCrafts: profile.legendaryCrafts || []
+                            legendaryCrafts: profile.legendaryCrafts || [],
+                            services: (profile.activeServices as any[]) || []
                         }}
                     />
                 )}

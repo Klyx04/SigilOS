@@ -23,9 +23,11 @@ import {
     Check,
     PackageOpen,
     Handshake,
+    Send,
     Bell,
     Search,
-    Users
+    Users,
+    X
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -310,14 +312,23 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                     </TabsList>
                                     <div className="relative w-full group">
                                         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                            <Search className="h-3.5 w-3.5 text-muted-foreground group-focus-within:text-success transition-colors" />
+                                            <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-success transition-colors" />
                                         </div>
                                         <Input
                                             value={monsterSearch}
                                             onChange={(e) => setMonsterSearch(e.target.value)}
-                                            placeholder="RECHERCHER UN MONSTRE OU ARCHI..."
-                                            className="pl-9 bg-surface/50 border-border h-9 text-caption font-black uppercase tracking-[0.1em] placeholder:text-muted-foreground focus:border-success/40 focus:ring-success/10 transition-all rounded-xl"
+                                            placeholder="Rechercher un monstre ou archi…"
+                                            className="pl-9 pr-9 bg-surface/60 border-border h-10 text-sm font-medium placeholder:text-muted-foreground focus:border-success/40 focus:ring-success/10 transition-all rounded-xl"
                                         />
+                                        {monsterSearch && (
+                                            <button
+                                                onClick={() => setMonsterSearch("")}
+                                                className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                                                aria-label="Effacer la recherche"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -420,7 +431,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"
-                                                                    className="h-6 w-6 p-0 hover:text-success"
+                                                                    className="h-7 px-2.5 gap-1.5 text-caption font-bold text-success hover:bg-success/10 hover:text-success rounded-lg"
                                                                     title="Envoyer une demande d'échange SigilOS"
                                                                     onClick={() => setTradeRequest({
                                                                         targetProfileId: provider.profileId,
@@ -430,7 +441,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                         monsterImage: monster.imageUrl,
                                                                     })}
                                                                 >
-                                                                    <Handshake className="h-3.5 w-3.5" />
+                                                                    <Send className="h-3.5 w-3.5" />
+                                                                    Échanger
                                                                 </Button>
                                                                 <Button
                                                                     variant="ghost"
@@ -456,6 +468,28 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                             </TabsContent>
 
                             <TabsContent value="members" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden flex flex-col min-h-0">
+                                <div className="flex-shrink-0 px-6 pb-3">
+                                    <div className="relative w-full group">
+                                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                            <Users className="h-4 w-4 text-muted-foreground group-focus-within:text-success transition-colors" />
+                                        </div>
+                                        <Input
+                                            value={memberSearch}
+                                            onChange={(e) => setMemberSearch(e.target.value)}
+                                            placeholder="Filtrer par membre…"
+                                            className="pl-9 pr-9 bg-surface/60 border-border h-10 text-sm font-medium placeholder:text-muted-foreground focus:border-success/40 focus:ring-success/10 transition-all rounded-xl"
+                                        />
+                                        {memberSearch && (
+                                            <button
+                                                onClick={() => setMemberSearch("")}
+                                                className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                                                aria-label="Effacer la recherche"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                                 <div className="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
                                     <div className="space-y-4">
                                         {partners
@@ -465,7 +499,12 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                     !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim())
                                                 )
                                             }))
-                                            .filter(partner => partner.monstersTheyHave.length > 0)
+                                            .filter(partner => {
+                                                if (partner.monstersTheyHave.length === 0) return false;
+                                                if (!memberSearch.trim()) return true;
+                                                const q = memberSearch.toLowerCase().trim();
+                                                return partner.characterName.toLowerCase().includes(q) || partner.username.toLowerCase().includes(q);
+                                            })
                                             .map((partner) => (
                                                 <div
                                                     key={partner.username}
@@ -533,7 +572,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
-                                                                        className="h-6 w-6 p-0 hover:text-success"
+                                                                        className="h-7 px-2.5 gap-1.5 text-caption font-bold text-success hover:bg-success/10 hover:text-success rounded-lg"
                                                                         title="Envoyer une demande d'échange SigilOS"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -546,7 +585,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                             });
                                                                         }}
                                                                     >
-                                                                        <Handshake className="h-3.5 w-3.5 text-muted-foreground hover:text-success" />
+                                                                        <Send className="h-3.5 w-3.5" />
+                                                                        Échanger
                                                                     </Button>
                                                                     <Button
                                                                         variant="ghost"

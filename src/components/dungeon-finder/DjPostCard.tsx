@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -66,6 +66,14 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         ? post.participants.find((p) => p.profile.id === currentProfileId)
         : null;
 
+    // #138 — Le post porte-t-il des succès (simple OU multi) ? → validation obligatoire à la clôture.
+    const postHasSuccesses = useMemo(() => {
+        if (Array.isArray(post.dungeonsJson) && post.dungeonsJson.length > 0) {
+            return post.dungeonsJson.some((d) => (d?.wantedAchievementIds?.length ?? 0) > 0);
+        }
+        return (post.wantedAchievementIds?.length ?? 0) > 0;
+    }, [post]);
+
     const acceptedCount = post._acceptedCount + 1; // +1 creator
     const spotsLeft = post.maxMembers - acceptedCount;
 
@@ -99,6 +107,12 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     }
 
     function handleClose() {
+        // #138 — Si le post porte des succès, la validation succès est OBLIGATOIRE → on passe
+        // par la modale de clôture (mode admin : pas de points, mais succès possibles).
+        if (postHasSuccesses) {
+            setIsCloseModalOpen(true);
+            return;
+        }
         // Admin quick-close (no contribution modal)
         startTransition(async () => {
             const res = await closeDjPost(guildId, post.id);
@@ -583,11 +597,12 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 onRefresh={onRefresh}
             />
 
-            {isOwner && (
+            {(isOwner || (isAdmin && !isOwner && postHasSuccesses)) && (
                 <DjCloseModal
                     isOpen={isCloseModalOpen}
                     post={post}
                     guildId={guildId}
+                    adminMode={isAdmin && !isOwner}
                     onClose={() => setIsCloseModalOpen(false)}
                     onClosed={onRefresh}
                 />

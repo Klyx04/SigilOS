@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Circle, Trophy, X, Loader2, Star, ShieldCheck, UserPlus, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { closeDjPostWithContributions, getDjGuildMembersForClose } from "@/server/actions/dungeon-finder-actions";
+import { closeDjPostWithContributions, closeDjPost, getDjGuildMembersForClose } from "@/server/actions/dungeon-finder-actions";
 import { toast } from "sonner";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 
@@ -14,6 +14,8 @@ interface DjCloseModalProps {
     guildId: string;
     onClose: () => void;
     onClosed: () => void;
+    /** #138 — vrai pour une clôture admin (pas de points de contribution, mais succès possibles). */
+    adminMode?: boolean;
 }
 
 type GuildMember = { id: string; name: string; image: string | null };
@@ -27,7 +29,7 @@ function getPointsFromLevel(level?: number | null): number {
     return 1;
 }
 
-export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjCloseModalProps) {
+export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMode = false }: DjCloseModalProps) {
     const [isPending, startTransition] = useTransition();
 
     // ── Participants qui se sont inscrits formellement ──────────────────────
@@ -39,6 +41,37 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
     const [validated, setValidated] = useState<Set<string>>(
         new Set(acceptedParticipants.map((p) => p.profile.id))
     );
+
+    // ── #138 Succès concernés par ce post (simple OU multi-donjons) ──────────
+    const successItems = useMemo(() => {
+        const items: { dungeonId: string; achievementId: string; dungeonName: string; label: string }[] = [];
+        if (Array.isArray(post.dungeonsJson) && post.dungeonsJson.length > 0) {
+            for (const d of post.dungeonsJson) {
+                const names = new Map((d.achievements ?? []).map((a: any) => [a.id, a.name]));
+                for (const aid of d.wantedAchievementIds ?? []) {
+                    items.push({ dungeonId: d.dungeonId, achievementId: aid, dungeonName: d.name, label: names.get(aid) ?? "Succès" });
+                }
+            }
+        } else if ((post.wantedAchievementIds?.length ?? 0) > 0 && post.dungeon) {
+            const names = new Map((post.dungeon.achievements ?? []).map((a: any) => [a.id, a.challenge.name]));
+            for (const aid of post.wantedAchievementIds) {
+                items.push({ dungeonId: post.dungeon.id, achievementId: aid, dungeonName: post.dungeon.name, label: names.get(aid) ?? "Succès" });
+            }
+        }
+        return items;
+    }, [post]);
+
+    // Succès validés « Oui » par le créateur/admin (défaut : Non — fail-closed, on n'écrit rien sans confirmation).
+    const [validatedSuccesses, setValidatedSuccesses] = useState<Set<string>>(new Set());
+
+    function toggleSuccess(achievementId: string) {
+        setValidatedSuccesses((prev) => {
+            const next = new Set(prev);
+            if (next.has(achievementId)) next.delete(achievementId);
+            else next.add(achievementId);
+            return next;
+        });
+    }
 
     // ── Membres supplémentaires (hors-post) ─────────────────────────────────
     const [allMembers, setAllMembers] = useState<GuildMember[]>([]);
@@ -114,11 +147,29 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
 
     function handleConfirm() {
         startTransition(async () => {
-            const res = await closeDjPostWithContributions(guildId, post.id, Array.from(validated));
+            // #138 — Succès cochés « Oui » uniquement (fail-closed par défaut).
+            const successValidations = successItems
+                .filter((s) => validatedSuccesses.has(s.achievementId))
+                .map((s) => ({ dungeonId: s.dungeonId, achievementId: s.achievementId }));
+
+            const res = adminMode
+                ? await closeDjPost(guildId, post.id, successValidations, Array.from(validated))
+                : await closeDjPostWithContributions(guildId, post.id, Array.from(validated), successValidations);
+
             if (res.success) {
                 const count = validated.size;
-                const awarded = (res as any).data?.pointsAwarded ?? pts;
-                toast.success(`Groupe clôturé ! ${count} membre${count > 1 ? "s ont" : " a"} reçu +${awarded} point${awarded > 1 ? "s" : ""} de contribution.`);
+                const successCount = successValidations.length;
+                const successMsg = successCount > 0
+                    ? ` 🏆 ${successCount} succès validé${successCount > 1 ? "s" : ""} pour le groupe.`
+                    : "";
+                if (adminMode) {
+                    toast.success(`Post fermé.${successMsg}`);
+                } else {
+                    const awarded = (res as any).data?.pointsAwarded ?? pts;
+                    toast.success(
+                        `Groupe clôturé ! ${count} membre${count > 1 ? "s ont" : " a"} reçu +${awarded} point${awarded > 1 ? "s" : ""} de contribution.${successMsg}`
+                    );
+                }
                 onClosed();
                 onClose();
             } else {
@@ -346,8 +397,68 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed }: DjClo
                                 </div>
                             </div>
 
+                            {/* #138 — Validation des succès (obligatoire si le post porte des succès) */}
+                            {successItems.length > 0 && (
+                                <div className="pt-4 border-t border-border">
+                                    <div className="flex items-center justify-between gap-3 mb-2">
+                                        <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                            <Trophy className="w-3.5 h-3.5 text-warning" />
+                                            Succès concernés — avez-vous validé ?
+                                        </p>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setValidatedSuccesses(new Set())}
+                                                className="text-caption font-bold text-muted-foreground hover:text-foreground underline underline-offset-2"
+                                            >
+                                                Tout Non
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setValidatedSuccesses(new Set(successItems.map((s) => s.achievementId)))}
+                                                className="text-caption font-black text-warning hover:opacity-80"
+                                            >
+                                                Tout Oui
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                        {successItems.map((s) => {
+                                            const isOk = validatedSuccesses.has(s.achievementId);
+                                            return (
+                                                <div key={s.achievementId} className="flex items-center justify-between gap-3 bg-surface/50 border border-border rounded-xl px-3 py-2.5">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-foreground truncate">{s.label}</p>
+                                                        <p className="text-caption text-muted-foreground truncate">{s.dungeonName}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleSuccess(s.achievementId)}
+                                                            className={`px-3 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wide transition-colors ${!isOk ? "bg-danger/10 border-danger/30 text-danger" : "border-border text-muted-foreground"}`}
+                                                        >
+                                                            Non
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleSuccess(s.achievementId)}
+                                                            className={`px-3 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wide transition-colors ${isOk ? "bg-success/15 border-success/40 text-success" : "border-border text-muted-foreground"}`}
+                                                        >
+                                                            Oui
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-caption text-muted-foreground mt-2">
+                                        Les succès cochés « Oui » seront écrits pour tous les présents (participants + toi). Les succès déjà validés ne sont pas ré-écrits.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Summary */}
-                            {validatedCount > 0 && (
+                            {!adminMode && validatedCount > 0 && (
                                 <p className="text-caption text-muted-foreground text-center">
                                     <strong className="text-foreground">{validatedCount}</strong> membre{validatedCount > 1 ? "s" : ""} recevra{validatedCount > 1 ? "ont" : ""}{" "}
                                     <strong className="text-violet-300">+{pts} point{pts > 1 ? "s" : ""} de contribution</strong>

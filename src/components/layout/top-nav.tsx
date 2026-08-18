@@ -43,6 +43,7 @@ const MODULE_NAMES: Record<string, string> = {
     missions: "Missions",
     songes: "Songes Infinis",
     "donjons-et-quetes": "Donjons & Quêtes",
+    "succes": "Mes Succès",
     "quete-ocre": "Quête Ocre",
     ladder: "Classement",
     services: "Services & Artisans",

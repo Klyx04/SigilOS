@@ -23,6 +23,25 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 31/08 — #131 refonte légère galerie builds
+
+> **Branche `feat/chantier-2026-08-31`** (nouvelle, créée depuis `origin/dev` = `e183d4245` après merge de la PR #498
+> `docs/context-2026-08-28 → dev`). → **1 commit poussé : `277b82d4e` (#131)** — ⚠️ **PR `feat/chantier-2026-08-31 → dev` en cours**.
+> Mémo : `src/temp/memo-2026-08-31-chantier-galerie.md`.
+>
+> - **#131 — Refonte légère galerie builds** (Lots 1-3, **SANS bouton « Dupliquer »** — refusé par l'utilisateur) :
+>   - **Barre de filtres en 3 groupes** (Filtres / Tri / Résultats) : tri en select shadcn « Trier par » (Récents/Favoris),
+>     éléments avec coche + fond coloré + ring, **Tags Avancés multi-sélection + recherche** (popover, serveur
+>     `getStuffGalleryPage(tags?: string[])` en **intersection**), compteur « X builds sur Y » + « Réinitialiser (n) ».
+>   - **Ligne de stats clés sur les cartes** (`12 PA · 5 PM · 1 588 INT · 28 % Crit.` — `BuildStatsLine`,
+>     `Intl.NumberFormat("fr-FR")` + espace insécable avant %, caractéristique principale FOR/INT/CHA/AGI, repli Soin).
+>   - **États** : skeleton (6 cartes, pas de layout shift), erreur + « Réessayer » (`ErrorState`/`loadError`),
+>     vide différencié (« Aucun build ne correspond à ces filtres » si filtres actifs).
+>   - **Fiche** : « Copier le lien » (primaire) + « Ouvrir sur Dofusbook » (secondaire) dans `DofusbookPreview` ;
+>     tags carte limités à 4 + chip `+n` ; aria-labels sur les 5 actions ; bandeau en-tête réduit.
+>   - Fichiers : `gallery-client.tsx` · `gallery-filters.tsx` · `dofusbook-preview.tsx` · `gallery-actions.ts` (+339/−118).
+> - Vérifs : tsc 0 · lint 0 erreur · **225/225 tests** · build OK · pre-commit vert (1 commit).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 30/08 — batch Dashboard (#152 · #157 · #159 · #137 · #142)
 
 > **Branche `docs/context-2026-08-28`** (consigne utilisateur : « reste sur cette branche ») → 2 commits poussés le 30/08 :

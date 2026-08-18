@@ -16,7 +16,7 @@ Réfère-toi à @/CONTEXT.md pour le contexte complet.
   (✅ FAIT / 🔸 PARTIEL / ⚪ EN ATTENTE). Ne supprime jamais de demande ; annoter chaque item traité
   en 1-2 lignes à chaque itération. ⚠️ Deux items sont numérotés « 46 » — le 2ᵉ = #46bis.
   (⚠️ le chemin exact est `src/temp/chantier.md` — le fichier `chantier` sans extension n'existe pas).
-- La mémo de session la plus récente (src/temp/memo-2026-08-30-chantier-dashboard.md) pour l'état réel (ce qui reste à faire,
+- La mémo de session la plus récente (src/temp/memo-2026-08-31-chantier-galerie.md) pour l'état réel (ce qui reste à faire,
   les PR en attente, les migrations à vérifier).
 
 🔒 Exigences systématiques (état de l'art) :

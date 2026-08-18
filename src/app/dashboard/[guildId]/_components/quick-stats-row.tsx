@@ -1,22 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Users, Moon, CalendarDays, Sparkles, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Users, Sparkles, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { PresenceFacepile } from "./presence-facepile";
 import { cn } from "@/lib/utils";
 
 interface QuickStatsRowProps {
     onlineCount: number;
     totalMembers: number;
-    songesCompleted: number;
-    eventsCount: number;
     dofusCompletionRate: number;
     topActivityName: string;
     topActivityValue: string;
     onlineUsers: { id: string; name: string; image: string | null }[];
-    // Comparaisons temporelles (point 4) — deltas déjà calculés côté serveur, 0 requête en plus.
+    // Comparaison temporelle — delta déjà calculé côté serveur, 0 requête en plus.
     membersDelta?: number | null;
-    eventsDelta?: number | null;
     // Vitrine (admin → missions) : masque la carte "Progression Dofus".
     hideDofusProgress?: boolean;
 }
@@ -78,18 +75,15 @@ function StatCard({
 export function QuickStatsRow({
     onlineCount,
     totalMembers,
-    songesCompleted,
-    eventsCount,
     dofusCompletionRate,
     topActivityName,
     topActivityValue,
     onlineUsers,
     membersDelta,
-    eventsDelta,
     hideDofusProgress = false,
 }: QuickStatsRowProps) {
-    // En mode vitrine, on masque la carte "Progression Dofus" → la grille passe à 3 colonnes.
-    const gridCols = hideDofusProgress ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4";
+    // En mode vitrine, on masque la carte "Progression Dofus" → une seule carte reste.
+    const gridCols = hideDofusProgress ? "grid-cols-1" : "sm:grid-cols-2";
 
     return (
         <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
@@ -114,16 +108,6 @@ export function QuickStatsRow({
                     </div>
                 )}
             </div>
-
-            <StatCard icon={Moon} label="Songes complétés" value={songesCompleted} sublabel="Run terminés" />
-
-            <StatCard
-                icon={CalendarDays}
-                label="Événements"
-                value={eventsCount}
-                delta={eventsDelta}
-                sublabel="Organisés"
-            />
 
             {!hideDofusProgress && (
                 <StatCard

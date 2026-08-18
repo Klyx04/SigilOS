@@ -167,7 +167,7 @@ const DASHBOARD_BRICKS_STEPS: TourStep[] = [
     {
         target: '[data-tour="dash-stats"]',
         title: "Vue d'ensemble",
-        description: "Les indicateurs clés de la guilde : membres en ligne, progression Dofus, événements et actualité du haut du classement.",
+        description: "Les indicateurs clés de la guilde : membres en ligne et progression Dofus.",
         placement: "bottom"
     },
     {
@@ -177,27 +177,9 @@ const DASHBOARD_BRICKS_STEPS: TourStep[] = [
         placement: "top"
     },
     {
-        target: '[data-tour="dash-polls"]',
-        title: "Sondages",
-        description: "Donne ton avis sur les décisions de la guilde via les sondages actifs.",
-        placement: "top"
-    },
-    {
         target: '[data-tour="dash-groups"]',
         title: "Groupes & Quêtes",
         description: "Rejoins des groupes pour les donjons et les quêtes, ou crée le tien.",
-        placement: "top"
-    },
-    {
-        target: '[data-tour="dash-gallery"]',
-        title: "Galerie Stuffs",
-        description: "Les derniers équipements partagés par les membres. Inspire-toi ou partage le tien.",
-        placement: "top"
-    },
-    {
-        target: '[data-tour="dash-almanax"]',
-        title: "Almanax",
-        description: "Le don du jour de l'Almanax et son bonus associé, mis à jour quotidiennement.",
         placement: "top"
     },
     {

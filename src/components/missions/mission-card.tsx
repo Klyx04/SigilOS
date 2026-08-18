@@ -725,24 +725,25 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
             }
             if (payload.type === 'FRAGMENTS') {
                 return (
-                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie (tous niveaux)</>
+                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie</>
                 );
             }
             if (payload.type === 'STABILISATION') {
                 const elixir = payload.elixir || 'majeur';
-                if (elixir === 'aucun') {
-                    return (
-                        <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> (tous niveaux)</>
-                    );
-                }
                 const labelMap: Record<string, string> = {
+                    uchronique: "Élixir uchronique",
                     mineur: "Élixir uchronique mineur",
                     ameliore: "Élixir uchronique amélioré",
                     majeur: "Élixir uchronique majeur"
                 };
                 const elixirLabel = labelMap[elixir as keyof typeof labelMap] || labelMap.majeur;
+                if (elixir === 'aucun') {
+                    return (
+                        <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span></>
+                    );
+                }
                 return (
-                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[{elixirLabel}]</span> (tous niveaux)</>
+                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[{elixirLabel}]</span></>
                 );
             }
             return (
@@ -773,7 +774,7 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
         case "EVENT":
             if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
                 return (
-                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie (tous niveaux)</>
+                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie</>
                 );
             }
             if (payload.eventType === 'OBJECTIF' || payload.description) {

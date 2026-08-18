@@ -1486,6 +1486,24 @@ model GameQuest {
   @@index([category])
 }
 
+/// 🖼️ #140 — Screens de la landing pilotés par le God (upload/suppression à la volée).
+/// `section` = emplacement sur la landing (ex. "product-story"). `sortOrder` = ordre d'affichage.
+model LandingScreen {
+  id        String   @id @default(cuid())
+  section   String   @default("product-story")
+  label     String?
+  title     String?
+  description String?
+  imageUrl  String
+  alt       String?
+  sortOrder Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([section, enabled, sortOrder])
+}
+
 model ServiceListing {
   id                       String          @id @default(cuid())
   guildId                  String

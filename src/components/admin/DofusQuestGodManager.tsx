@@ -13,6 +13,8 @@ import {
 } from "@/server/actions/dofus-quest-admin-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AsyncCombobox } from "@/components/ui/async-combobox";
+import { searchZones } from "@/server/actions/game-data-actions";
 import { toast } from "sonner";
 import { 
     Gem, Plus, Trash2, Edit2, ChevronRight, 
@@ -343,28 +345,41 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     });
     const [prerequisites, setPrerequisites] = useState<any[]>([]);
     const [siblingEntries, setSiblingEntries] = useState<any[]>([]);
+    // #146 : prérequis préparés en mode CRÉATION (l'étape n'existe pas encore en base) —
+    // les liens sont appliqués à la sauvegarde, une fois l'entrée créée.
+    const [pendingPrereqIds, setPendingPrereqIds] = useState<string[]>([]);
     const [loadingPrereqs, setLoadingPrereqs] = useState(false);
     const [prereqSearch, setPrereqSearch] = useState("");
     const [loading, setLoading] = useState(false);
+    // Libellé de zone pour le combobox (valeur existante hors résultats game-data)
+    const [zoneLabel, setZoneLabel] = useState("");
 
     // Position GPS input state
     const [positionsInput, setPositionsInput] = useState("");
 
+    // #146 : prérequis dispo aussi en CRÉATION (une entrée avec chainId suffit).
+    // En édition, on charge les liens existants ; en création, on charge les candidats du même Dofus.
     useEffect(() => {
-        if (entry?.id && open) {
-            setLoadingPrereqs(true);
-            Promise.all([
-                import("@/server/actions/dofus-quest-admin-actions").then(m => m.getQuestPrerequisites(entry.id)),
-                import("@/server/actions/dofus-quest-admin-actions").then(m => m.getSiblingQuestEntries(entry.chainId, entry.id))
-            ]).then(([prereqRes, siblingRes]) => {
+        setPrerequisites([]);
+        setSiblingEntries([]);
+        setPendingPrereqIds([]);
+        if (!open || !entry?.chainId) return;
+        setLoadingPrereqs(true);
+        (async () => {
+            const mod = await import("@/server/actions/dofus-quest-admin-actions");
+            const siblingRes = await mod.getSiblingQuestEntries(entry.chainId, entry?.id);
+            if (siblingRes.success && siblingRes.data) setSiblingEntries(siblingRes.data);
+            if (entry?.id) {
+                const prereqRes = await mod.getQuestPrerequisites(entry.id);
                 if (prereqRes.success && prereqRes.data) setPrerequisites(prereqRes.data.from.map((p: any) => p.fromQuest));
-                if (siblingRes.success && siblingRes.data) setSiblingEntries(siblingRes.data);
-                setLoadingPrereqs(false);
-            }).catch(() => setLoadingPrereqs(false));
-        } else { setPrerequisites([]); setSiblingEntries([]); }
+            }
+            setLoadingPrereqs(false);
+        })().catch(() => setLoadingPrereqs(false));
     }, [entry?.id, entry?.chainId, open]);
 
     useEffect(() => {
+        setPrereqSearch("");
+        setPendingPrereqIds([]);
         if (entry) {
             const positions = entry.positions as any[] || [];
             setFormData({
@@ -390,6 +405,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl || "",
                 weight: entry.weight ?? 1
             });
+            setZoneLabel(entry.zone || "");
         } else {
             setFormData({
                 chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
@@ -399,6 +415,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
                 weight: 1
             });
+            setZoneLabel("");
         }
     }, [entry, open]);
 
@@ -420,7 +437,24 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             dofusdbUrl: formData.dofusdbUrl,
             dofuspourlesnoobsUrl: formData.dofuspourlesnoobsUrl,
         } as any);
-        if (res.success) { toast.success("Étape enregistrée"); onOpenChange(false); onSuccess(); }
+        if (res.success) {
+            // #146 : en création, on lie les prérequis préparés une fois l'étape créée en base.
+            const newEntryId = (res.data as any)?.id;
+            if (!entry?.id && pendingPrereqIds.length > 0 && newEntryId) {
+                const mod = await import("@/server/actions/dofus-quest-admin-actions");
+                let linked = 0;
+                for (const pid of pendingPrereqIds) {
+                    const linkRes = await mod.addQuestPrerequisite(pid, newEntryId);
+                    if (linkRes.success) linked++;
+                }
+                toast.success(linked === pendingPrereqIds.length
+                    ? `Étape enregistrée · ${linked} prérequis liés`
+                    : `Étape enregistrée · ${linked}/${pendingPrereqIds.length} prérequis liés`);
+            } else {
+                toast.success("Étape enregistrée");
+            }
+            onOpenChange(false); onSuccess();
+        }
         else toast.error(res.error);
         setLoading(false);
     }
@@ -451,6 +485,19 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         setFormData((prev: any) => ({ ...prev, positions: (prev.positions || []).filter((_: any, i: number) => i !== idx) }));
     };
 
+    // #146 : zones siphonnées depuis dofusdb stockées en game-data local → pas d'écriture manuelle.
+    const zoneFetcher = useCallback(async (query: string) => {
+        const res = await searchZones(query);
+        if (res.success && res.data) {
+            return res.data.map((z: any) => ({
+                value: z.name,
+                label: z.name,
+                subLabel: z.level ? `Niv. ${z.level}` : undefined,
+            }));
+        }
+        return [];
+    }, []);
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="bg-background border-border text-foreground max-w-3xl rounded-3xl overflow-hidden p-0">
@@ -476,7 +523,17 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Zone</label>
-                                <Input value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" placeholder="Astrub" />
+                                {/* #146 : sélecteur zones game-data (siphon dofusdb) */}
+                                <AsyncCombobox
+                                    value={formData.zone}
+                                    initialLabel={zoneLabel}
+                                    onSelect={(val) => { setFormData((prev: any) => ({ ...prev, zone: val })); setZoneLabel(val); }}
+                                    fetcher={zoneFetcher}
+                                    placeholder="Choisir une zone (game-data)..."
+                                    searchPlaceholder="Rechercher une zone..."
+                                    emptyText="Aucune zone en game-data"
+                                    className="bg-black/40 border-border h-11 rounded-xl"
+                                />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">PNJ</label>
@@ -537,19 +594,32 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             </div>
                         </div>
 
-                        {/* Prérequis section (already done) */}
-                        {entry?.id && (
+                        {/* Prérequis section (#146) : dispo aussi en CRÉATION (chainId présent) */}
+                        {entry?.chainId && (
                             <div className="border-t border-border pt-4">
                                 <div className="flex items-center justify-between mb-3">
                                     <h4 className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><span>🔗</span> PRÉREQUIS</h4>
-                                    <span className="text-caption text-muted-foreground font-bold">{prerequisites.length} lié{prerequisites.length > 1 ? "s" : ""}</span>
+                                    <span className="text-caption text-muted-foreground font-bold">
+                                        {prerequisites.length} lié{prerequisites.length > 1 ? "s" : ""}
+                                        {pendingPrereqIds.length > 0 && <span className="text-amber-500"> · +{pendingPrereqIds.length} en attente</span>}
+                                    </span>
                                 </div>
+                                {!entry?.id && (
+                                    <p className="text-caption text-amber-500/90 italic mb-2">💡 Les prérequis sélectionnés seront liés à la sauvegarde de l'étape.</p>
+                                )}
                                 {loadingPrereqs ? <div className="text-caption text-muted-foreground italic py-2">Chargement...</div> : prerequisites.length > 0 ? (
                                     <div className="flex flex-wrap gap-1.5 mb-3">
                                         {prerequisites.map((p: any) => (
                                             <div key={p.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-info/10 border border-info/20 text-info text-caption font-bold">
                                                 <span className="truncate max-w-[120px]">{p.name}</span>
                                                 <button onClick={async () => {
+                                                    if (!entry?.id) {
+                                                        // Création : simple retrait de la préparation locale.
+                                                        setPrerequisites(prev => prev.filter((x: any) => x.id !== p.id));
+                                                        setPendingPrereqIds(prev => prev.filter((x: any) => x !== p.id));
+                                                        toast.success(`Prérequis "${p.name}" retiré`);
+                                                        return;
+                                                    }
                                                     const { getQuestPrerequisites, removeQuestPrerequisite } = await import("@/server/actions/dofus-quest-admin-actions");
                                                     const res = await getQuestPrerequisites(entry.id);
                                                     if (res.success && res.data) {
@@ -571,6 +641,13 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                         <div className="max-h-[120px] overflow-y-auto custom-scrollbar space-y-0.5">
                                             {siblingEntries.filter((s: any) => !prerequisites.some((p: any) => p.id === s.id) && s.name.toLowerCase().includes(prereqSearch.toLowerCase())).slice(0, 8).map((s: any) => (
                                                 <button key={s.id} onClick={async () => {
+                                                    if (!entry?.id) {
+                                                        // Création : on prépare le lien, appliqué après la sauvegarde.
+                                                        setPrerequisites(prev => [...prev, s]);
+                                                        setPendingPrereqIds(prev => [...prev, s.id]);
+                                                        toast.success(`Prérequis "${s.name}" préparé`);
+                                                        return;
+                                                    }
                                                     const { addQuestPrerequisite } = await import("@/server/actions/dofus-quest-admin-actions");
                                                     const res = await addQuestPrerequisite(s.id, entry.id);
                                                     if (res.success) { toast.success(`Prérequis "${s.name}" ajouté`); setPrerequisites(prev => [...prev, s]); }

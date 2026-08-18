@@ -3,49 +3,24 @@
 import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
 
-const STORIES = [
-    {
-        id: "guides",
-        label: "Guides",
-        title: "Une quête devient un rendez-vous de guilde.",
-        description:
-            "Coordonnées copiables, position de reprise, étapes validées et membres actuellement sur le même objectif : le guide devient collectif.",
-        bullets: ["Présence en direct", "Coordonnées & carte", "Étapes validées"],
-        image: "/assets/screenshots/guide-complet.png",
-        alt: "Guide de quête SigilOS : étapes, positions et membres présents sur le même objectif",
-        ratio: "aspect-[2.3/1]",
-    },
-    {
-        id: "sorties",
-        label: "Sorties & groupes",
-        title: "Une sortie ne se perd plus dans un salon Discord.",
-        description:
-            "Créez le groupe, définissez les besoins, partagez les succès visés et notifiez uniquement les rôles concernés.",
-        bullets: ["Date & places", "Besoins de classe", "Notification Discord"],
-        image: "/assets/screenshots/screenshot3.png",
-        alt: "Calendrier de sorties SigilOS : groupes, besoins de classe et notifications",
-        ratio: "aspect-[16/10]",
-    },
-    {
-        id: "progression",
-        label: "Progression",
-        title: "Voyez ce que votre guilde accomplit vraiment.",
-        description:
-            "Missions, Dofus, Songes et services : des signaux clairs pour décider quoi faire ce soir.",
-        bullets: ["Vue guilde", "Métriques utiles", "Recrutement"],
-        image: "/assets/screenshots/screenshot6.png",
-        alt: "Validation des missions de guilde SigilOS : progression et statistiques",
-        ratio: "aspect-[16/10]",
-    },
-];
+interface ProductStoryProps {
+    /** Screens pilotés par le God (#140) — sinon fallback sur les captures par défaut. */
+    screens?: PublicLandingScreen[];
+}
 
-export function ProductStory() {
-    const [activeId, setActiveId] = useState(STORIES[0].id);
-    const active = STORIES.find((s) => s.id === activeId) ?? STORIES[0];
+export function ProductStory({ screens = [] }: ProductStoryProps) {
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const activeIndex = activeId === null
+        ? 0
+        : Math.max(0, screens.findIndex((s) => s.id === activeId));
+    const active = screens[activeIndex];
+
+    if (!active) return null;
 
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-        const last = STORIES.length - 1;
+        const last = screens.length - 1;
         let next = -1;
         if (e.key === "ArrowRight") next = index === last ? 0 : index + 1;
         if (e.key === "ArrowLeft") next = index === 0 ? last : index - 1;
@@ -53,8 +28,8 @@ export function ProductStory() {
         if (e.key === "End") next = last;
         if (next >= 0) {
             e.preventDefault();
-            setActiveId(STORIES[next].id);
-            document.getElementById(`story-tab-${STORIES[next].id}`)?.focus();
+            setActiveId(screens[next].id);
+            document.getElementById(`story-tab-${screens[next].id}`)?.focus();
         }
     };
 
@@ -70,28 +45,29 @@ export function ProductStory() {
                     </h2>
                 </div>
 
+                {/* #140 : vignettes + aperçu actif (progressive disclosure) */}
                 <div
                     role="tablist"
                     aria-label="Fonctionnalités SigilOS"
                     className="flex gap-1 border-b border-border mb-8 overflow-x-auto overflow-y-hidden no-scrollbar"
                 >
-                    {STORIES.map((s, idx) => (
+                    {screens.map((s, idx) => (
                         <button
                             key={s.id}
                             role="tab"
                             id={`story-tab-${s.id}`}
-                            aria-selected={activeId === s.id}
+                            aria-selected={s.id === active.id}
                             aria-controls={`story-panel-${s.id}`}
                             onClick={() => setActiveId(s.id)}
                             onKeyDown={(e) => onTabKeyDown(e, idx)}
                             className={cn(
                                 "px-4 py-2.5 rounded-t-lg text-body-sm font-semibold whitespace-nowrap border-b-2 transition-colors -mb-px",
-                                activeId === s.id
+                                s.id === active.id
                                     ? "text-foreground border-success"
                                     : "text-muted-foreground border-transparent hover:text-foreground"
                             )}
                         >
-                            {s.label}
+                            {s.label || `Screen ${idx + 1}`}
                         </button>
                     ))}
                 </div>
@@ -104,31 +80,18 @@ export function ProductStory() {
                 >
                     <div>
                         <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight mb-3">
-                            {active.title}
+                            {active.title || (active.label || "SigilOS")}
                         </h3>
-                        <p className="text-muted-foreground text-[15px] leading-relaxed mb-5">
-                            {active.description}
-                        </p>
-                        <ul className="flex flex-wrap gap-2">
-                            {active.bullets.map((b) => (
-                                <li
-                                    key={b}
-                                    className="text-caption font-semibold text-foreground bg-surface border border-border px-3 py-1 rounded-full"
-                                >
-                                    {b}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div
-                        className={cn(
-                            "relative w-full overflow-hidden rounded-xl border border-border bg-surface",
-                            active.ratio
+                        {active.description && (
+                            <p className="text-muted-foreground text-[15px] leading-relaxed mb-5">
+                                {active.description}
+                            </p>
                         )}
-                    >
+                    </div>
+                    <div className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]">
                         <Image
-                            src={active.image}
-                            alt={active.alt}
+                            src={active.imageUrl}
+                            alt={active.alt || active.label || "Capture d'écran SigilOS"}
                             fill
                             sizes="(max-width: 768px) 100vw, 520px"
                             className="object-cover object-top"
@@ -139,4 +102,3 @@ export function ProductStory() {
         </section>
     );
 }
-

@@ -364,6 +364,45 @@ export async function POST(request: NextRequest) {
                         }
                     });
                 }
+            } else if (prefix === "userreq") {
+                if (action === "reply") {
+                    // Sollicitation : ouvrir une modale de réponse — réservée au membre sollicité.
+                    const notificationId = entityId;
+                    const notif = await db.notification.findUnique({ where: { id: notificationId } });
+                    const gcfg = await db.guildConfig.findUnique({ where: { discordGuildId: guild_id }, select: { id: true } });
+
+                    if (!notif || !gcfg || notif.guildId !== gcfg.id || notif.userId !== account!.userId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Seul le membre sollicité peut répondre à cette demande.", flags: 64 },
+                        });
+                    }
+
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `userreq:submit_reply:${notificationId}`,
+                            title: "💬 Répondre à la sollicitation",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "reply_message",
+                                            label: "Votre message",
+                                            style: 2, // Paragraph style
+                                            placeholder: "Ex: Salut ! Je suis dispo ce soir, envoie-moi un MP en jeu.",
+                                            required: true,
+                                            min_length: 5,
+                                            max_length: 500,
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    });
+                }
             } else if (prefix === "validate") {
                 // =========================================================
                 // VALIDATE / REJECT — Mission, Achievement, KamaDonation
@@ -886,6 +925,37 @@ export async function POST(request: NextRequest) {
                         data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
                     });
                 }
+            } else if (prefix === "userreq" && action === "submit_reply") {
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                let replyMessage = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "reply_message") {
+                            replyMessage = comp.value?.trim() || "";
+                        }
+                    }
+                }
+
+                const { replyToUserRequestAction } = await import("@/server/actions/user-request-actions");
+                const res = await replyToUserRequestAction(guild_id, entityId, replyMessage);
+
+                if (res.success) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "✅ Votre réponse a été envoyée au demandeur !", flags: 64 },
+                    });
+                }
+                return NextResponse.json({
+                    type: 4,
+                    data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
+                });
             }
 
             // =========================================================

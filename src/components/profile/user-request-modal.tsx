@@ -103,7 +103,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary, s
             disabled={disabled}
             onClick={onClick}
             className={cn(
-                "relative group flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all duration-300 outline-none",
+                "relative group flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-colors duration-200 outline-none min-w-0",
                 isActive
                     ? [cfg.border, cfg.glow, "bg-surface/80 scale-[1.02]"].join(" ")
                     : "border-border/40 bg-surface/30 hover:border-border/60 hover:bg-surface/50",
@@ -130,7 +130,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary, s
 
             {/* Label */}
             <span className={cn(
-                "relative z-10 text-caption font-black uppercase tracking-widest transition-colors duration-300",
+                "relative z-10 text-caption font-bold uppercase tracking-wide text-center leading-tight break-words max-w-full transition-colors duration-200",
                 isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
             )}>
                 {cfg.label}
@@ -139,7 +139,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary, s
             {/* Availability badge */}
             {availability && (
                 <span className={cn(
-                    "relative z-10 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                    "relative z-10 text-caption font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap max-w-full truncate",
                     type === "job" && jobsCount
                         ? "bg-warning/10 text-warning/70 border-warning/20"
                         : type === "legendary" && hasLegendary
@@ -255,7 +255,7 @@ export function UserRequestModal({
         <Dialog open={isOpen} onOpenChange={(val) => {
             if (!val) { resetModal(); onClose(); }
         }}>
-            <DialogContent className="sm:max-w-[520px] bg-background border-border/60 shadow-2xl text-foreground p-0 gap-0 overflow-hidden rounded-3xl">
+            <DialogContent className="sm:max-w-[520px] max-w-[calc(100vw-1rem)] bg-background border-border/60 shadow-2xl text-foreground p-0 gap-0 overflow-hidden rounded-3xl">
                 {/* Header with gradient accent */}
                 <div className="relative overflow-hidden">
                     <div className={cn(
@@ -282,8 +282,8 @@ export function UserRequestModal({
                                     "text-success"
                                 )} />
                             </div>
-                            <div>
-                                <DialogTitle className="text-base font-black tracking-wide">
+                            <div className="flex-1 min-w-0">
+                                <DialogTitle className="text-base font-bold truncate">
                                     Solliciter <span className="text-success">{targetName}</span>
                                 </DialogTitle>
                                 <p className="text-caption text-muted-foreground font-medium mt-0.5">
@@ -298,9 +298,9 @@ export function UserRequestModal({
                                 const idx = ["type", "value", "message"].indexOf(step);
                                 const isDone = i <= idx;
                                 return (
-                                    <div key={s} className="flex items-center gap-2 flex-1">
+                                    <div key={s} className="flex items-center gap-2 flex-1 min-w-0">
                                         <div className={cn(
-                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest border transition-all",
+                                            "flex items-center gap-1 px-2 py-1 rounded-full text-caption font-bold uppercase tracking-wide border transition-colors whitespace-nowrap",
                                             isDone
                                                 ? [activeCfg.border, activeCfg.badge, "shadow-sm"].join(" ")
                                                 : "border-border text-muted-foreground bg-surface/50"
@@ -311,7 +311,7 @@ export function UserRequestModal({
                                             )}>
                                                 {isDone ? "✓" : i + 1}
                                             </span>
-                                            <span className="hidden sm:inline">
+                                            <span className="hidden sm:inline whitespace-nowrap">
                                                 {s === "type" ? "Type" : s === "value" ? "Objet" : "Message"}
                                             </span>
                                         </div>
@@ -343,7 +343,7 @@ export function UserRequestModal({
                                         Choisissez le type de service
                                     </Label>
                                 </div>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     <TypeCard
                                         type="job"
                                         current={type}

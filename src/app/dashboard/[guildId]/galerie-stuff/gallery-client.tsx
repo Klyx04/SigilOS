@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Link2, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight, Copy, Star, Sword, Sparkles, Info, Mars, Venus, Megaphone, Send } from "lucide-react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { Check, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight, Copy, Star, Sword, Sparkles, Info, Mars, Venus, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
+import type { DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,8 +23,6 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ClassFilter, GenderFilter, AdvancedTagFilter, getNumericClassId } from "@/components/gallery/gallery-filters";
-
-const ADVANCED_TAG_IDS = ["tank","soin","pp","dopou","docrit","ini","retpa","retpm","terrefeu","terreeau","terreair","feueau","feuair","eauair","multinocrit","sagesse","leveling","songes"];
 
 interface GalleryClientProps {
     initialBuilds: GalleryBuild[];
@@ -61,7 +62,8 @@ export function GalleryClient({
     
     // Global Filter State
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [selectedElement, setSelectedElement] = useState<string | null>(null);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedGender, setSelectedGender] = useState<string | null>(null);
     const [selectedSource, setSelectedSource] = useState<"dofusbook" | null>(null);
@@ -71,7 +73,22 @@ export function GalleryClient({
     const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
     const [sharingIds, setSharingIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedSkin, setSelectedSkin] = useState<GallerySkin | null>(null);
+
+    // Tags actifs combinés : élément (sélection unique) + tags avancés (multi-sélection).
+    const activeTags = useMemo(
+        () => (selectedElement ? [selectedElement, ...selectedTags] : selectedTags),
+        [selectedElement, selectedTags]
+    );
+    // Nombre de filtres actifs (pour le compteur de réinitialisation).
+    const activeFilterCount =
+        (searchQuery ? 1 : 0) +
+        (selectedElement ? 1 : 0) +
+        selectedTags.length +
+        (selectedClass ? 1 : 0) +
+        (selectedGender ? 1 : 0) +
+        (selectedSource ? 1 : 0);
 
     // Debounced search - triggers server-side re-fetch after 300ms
     const debouncedSearch = useDebounce(searchQuery, 300);
@@ -80,25 +97,28 @@ export function GalleryClient({
 
     // Reset and re-fetch from page 1 when filters change
     const applyFilters = useCallback((
-        query: string, 
-        tag: string | null, 
-        classId: string | null, 
-        gender: string | null, 
-        sortKey: "newest" | "votes", 
+        query: string,
+        tags: string[],
+        classId: string | null,
+        gender: string | null,
+        sortKey: "newest" | "votes",
         tab: "STUFF" | "SKIN",
         source: "dofusbook" | null
     ) => {
         const runFilters = async () => {
             setIsLoading(true);
+            setLoadError(null);
             try {
                 if (tab === "STUFF") {
-                    const res = await getStuffGalleryPage(guildId, 1, query || undefined, tag || undefined, classId || undefined, sortKey, source || undefined);
+                    const res = await getStuffGalleryPage(guildId, 1, query || undefined, tags.length > 0 ? tags : undefined, classId || undefined, sortKey, source || undefined);
                     if (res.success && res.data) {
                         setStuffBuilds(res.data.builds);
                         setStuffTotal(res.data.total);
                         setStuffHasMore(res.data.hasMore);
                         setStuffShareConfigured(res.data.isDiscordShareConfigured);
                         setStuffPage(1);
+                    } else {
+                        setLoadError(res.error || "Erreur lors du chargement de la galerie");
                     }
                 } else {
                     const res = await getSkinGalleryPage(guildId, 1, query || undefined, classId || undefined, gender || undefined, sortKey);
@@ -108,8 +128,12 @@ export function GalleryClient({
                         setSkinHasMore(res.data.hasMore);
                         setSkinShareConfigured(res.data.isDiscordShareConfigured);
                         setSkinPage(1);
+                    } else {
+                        setLoadError(res.error || "Erreur lors du chargement de la galerie");
                     }
                 }
+            } catch {
+                setLoadError("Erreur réseau : les builds n'ont pas pu être récupérés.");
             } finally {
                 setIsLoading(false);
             }
@@ -128,50 +152,70 @@ export function GalleryClient({
             return;
         }
         if (debouncedSearch !== undefined) {
-            applyFilters(debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+            applyFilters(debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
         }
-    }, [debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource, applyFilters]);
+    }, [debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource, applyFilters]);
 
-    const handleTagChange = (tag: string | null) => {
-        setSelectedTag(tag);
-        applyFilters(searchQuery, tag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+    const handleElementChange = (element: string | null) => {
+        setSelectedElement(element);
+        applyFilters(searchQuery, element ? [element, ...selectedTags] : selectedTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+    };
+
+    const handleToggleAdvancedTag = (tagId: string) => {
+        const nextTags = selectedTags.includes(tagId)
+            ? selectedTags.filter(t => t !== tagId)
+            : [...selectedTags, tagId];
+        setSelectedTags(nextTags);
+        applyFilters(searchQuery, selectedElement ? [selectedElement, ...nextTags] : nextTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
     };
 
     const handleClassChange = (classId: string | number | null) => {
         const idStr = classId !== null ? String(classId) : null;
         setSelectedClass(idStr);
-        applyFilters(searchQuery, selectedTag, idStr, selectedGender, sortBy, activeTab, selectedSource);
+        applyFilters(searchQuery, activeTags, idStr, selectedGender, sortBy, activeTab, selectedSource);
     };
 
     const handleGenderChange = (gender: string | null) => {
         setSelectedGender(gender);
-        applyFilters(searchQuery, selectedTag, selectedClass, gender, sortBy, activeTab, selectedSource);
+        applyFilters(searchQuery, activeTags, selectedClass, gender, sortBy, activeTab, selectedSource);
     };
 
     const handleSourceChange = (source: "dofusbook" | null) => {
         setSelectedSource(source);
-        applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, sortBy, activeTab, source);
+        applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, source);
     };
     
     const handleSortChange = (newSort: "newest" | "votes") => {
         setSortBy(newSort);
-        applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, newSort, activeTab, selectedSource);
+        applyFilters(searchQuery, activeTags, selectedClass, selectedGender, newSort, activeTab, selectedSource);
     };
 
     const handleTabChange = (newTab: "STUFF" | "SKIN") => {
         setActiveTab(newTab);
         // Reseting filters when changing tab to avoid confusing state
-        setSelectedTag(null);
+        setSelectedElement(null);
+        setSelectedTags([]);
         setSelectedClass(null);
         setSelectedGender(null);
         setSelectedSource(null);
-        applyFilters(searchQuery, null, null, null, sortBy, newTab, null);
+        applyFilters(searchQuery, [], null, null, sortBy, newTab, null);
+    };
+
+    const handleResetFilters = () => {
+        setSearchQuery("");
+        setSelectedElement(null);
+        setSelectedTags([]);
+        setSelectedClass(null);
+        setSelectedGender(null);
+        setSelectedSource(null);
+        applyFilters("", [], null, null, sortBy, activeTab, null);
     };
 
     // Infinite scroll: load next page
     const loadMore = () => {
         const runLoadMore = async () => {
             setIsLoading(true);
+            setLoadError(null);
             try {
                 if (activeTab === "STUFF") {
                     const nextPage = stuffPage + 1;
@@ -179,7 +223,7 @@ export function GalleryClient({
                         guildId, 
                         nextPage, 
                         searchQuery || undefined, 
-                        selectedTag || undefined,
+                        activeTags.length > 0 ? activeTags : undefined,
                         selectedClass || undefined,
                         sortBy,
                         selectedSource || undefined
@@ -188,6 +232,8 @@ export function GalleryClient({
                         setStuffBuilds(prev => [...prev, ...res.data!.builds]);
                         setStuffHasMore(res.data.hasMore);
                         setStuffPage(nextPage);
+                    } else {
+                        setLoadError(res.error || "Erreur lors du chargement des builds suivants");
                     }
                 } else {
                     const nextPage = skinPage + 1;
@@ -203,8 +249,12 @@ export function GalleryClient({
                         setSkinBuilds(prev => [...prev, ...res.data!.skins]);
                         setSkinHasMore(res.data.hasMore);
                         setSkinPage(nextPage);
+                    } else {
+                        setLoadError(res.error || "Erreur lors du chargement des skins suivants");
                     }
                 }
+            } catch {
+                setLoadError("Erreur réseau lors du chargement de la suite.");
             } finally {
                 setIsLoading(false);
             }
@@ -222,7 +272,7 @@ export function GalleryClient({
             const res = await refreshBuildMetadata(guildId, build.author.id, build.url);
             if (res.success) {
                 toast.success("Build mis à jour !");
-                applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+                applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
             } else {
                 toast.error(res.error || "Échec du rafraîchissement");
             }
@@ -331,8 +381,8 @@ export function GalleryClient({
     return (
         <div className="space-y-6 pb-20">
             {/* Hero Header */}
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-surface/40 p-8 lg:p-10">
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-surface/40 p-6 lg:p-8">
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-6">
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border text-muted-foreground text-xs font-medium shrink-0 w-fit">
@@ -341,31 +391,31 @@ export function GalleryClient({
                             </div>
                             
                             <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as any)} className="w-full sm:w-auto">
-                                <TabsList className="bg-elevated border border-border h-14 p-1.5 rounded-xl">
+                                <TabsList className="bg-elevated border border-border h-12 p-1 rounded-xl">
                                     <TabsTrigger 
                                         value="STUFF" 
-                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-success data-[state=active]:text-success-foreground transition-colors duration-200"
+                                        className="rounded-lg px-5 h-full text-sm font-semibold gap-2 data-[state=active]:bg-success data-[state=active]:text-success-foreground transition-colors duration-200"
                                     >
                                         <Sword className={cn("w-4 h-4 transition-transform", activeTab === "STUFF" ? "scale-110" : "opacity-40")} />
                                         Équipements
                                         <span className={cn(
-                                            "ml-1 px-1.5 py-0.5 rounded-md text-xs font-semibold",
-                                            activeTab === "STUFF" ? "bg-elevated text-foreground" : "bg-surface text-muted-foreground"
+                                            "tabular-nums font-semibold",
+                                            activeTab === "STUFF" ? "text-success-foreground/80" : "text-muted-foreground"
                                         )}>
-                                            {stuffTotal}
+                                            · {stuffTotal}
                                         </span>
                                     </TabsTrigger>
                                     <TabsTrigger 
                                         value="SKIN" 
-                                        className="rounded-lg px-6 h-full text-sm font-semibold gap-3 data-[state=active]:bg-sky-500 data-[state=active]:text-foreground transition-colors duration-200"
+                                        className="rounded-lg px-5 h-full text-sm font-semibold gap-2 data-[state=active]:bg-sky-500 data-[state=active]:text-foreground transition-colors duration-200"
                                     >
                                         <Sparkles className={cn("w-4 h-4 transition-transform", activeTab === "SKIN" ? "scale-110" : "opacity-40")} />
                                         Skins & Looks
                                         <span className={cn(
-                                            "ml-1 px-1.5 py-0.5 rounded-md text-xs font-semibold",
-                                            activeTab === "SKIN" ? "bg-elevated text-foreground" : "bg-surface text-muted-foreground"
+                                            "tabular-nums font-semibold",
+                                            activeTab === "SKIN" ? "text-foreground/80" : "text-muted-foreground"
                                         )}>
-                                            {skinTotal}
+                                            · {skinTotal}
                                         </span>
                                     </TabsTrigger>
                                 </TabsList>
@@ -373,10 +423,10 @@ export function GalleryClient({
                         </div>
 
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
+                            <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight mb-1">
                                 Galerie <span className={cn("transition-colors duration-200", activeTab === "STUFF" ? "text-success" : "text-sky-400")}>Guilde</span>
                             </h1>
-                            <p className="text-muted-foreground max-w-xl text-base leading-relaxed">
+                            <p className="text-muted-foreground max-w-xl text-sm lg:text-base leading-relaxed">
                                 {activeTab === "STUFF" 
                                     ? "Découvrez les meilleurs builds optis partagés par les membres de la guilde."
                                     : "L'élégance à l'état pur. Explorez les plus beaux looks et skins de la communauté."}
@@ -394,7 +444,7 @@ export function GalleryClient({
                             placeholder={activeTab === "STUFF" ? "Rechercher un build, un pseudo..." : "Rechercher un skin, un auteur..."}
                             value={searchQuery}
                             onChange={(e) => handleSearchChange(e.target.value)}
-                            className="bg-background/80 border-border pl-11 h-14 rounded-2xl focus:ring-success/20 focus:border-success/50 transition-all text-sm text-foreground placeholder:text-muted-foreground shadow-2xl"
+                            className="bg-background/80 border-border pl-11 h-12 rounded-xl focus:ring-success/20 focus:border-success/50 transition-all text-sm text-foreground placeholder:text-muted-foreground"
                         />
                         {isLoading && (
                             <Loader2 className={cn(
@@ -406,12 +456,11 @@ export function GalleryClient({
                 </div>
             </div>
 
-            {/* Filter Bar */}
+            {/* Filter Bar — 3 groupes : Filtres / Tri / Résultats */}
             <div className="sticky top-0 z-30 pt-2">
-                <div className="bg-background/80 border border-border rounded-2xl px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-                    {/* Left: Filters — min-h fixe pour éviter le layout shift entre onglets STUFF/SKIN */}
+                <div className="bg-background/80 border border-border rounded-2xl px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    {/* Groupe Filtres */}
                     <div className="flex items-center gap-3 flex-wrap min-h-[48px]">
-                        {/* 1. Class Filter */}
                         <div className="flex items-center gap-2 bg-elevated p-1 rounded-xl border border-border" data-tour="galerie-filters">
                             <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
                         </div>
@@ -424,13 +473,16 @@ export function GalleryClient({
                             <>
                                 <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
 
-                                {/* 2. Primary Elements */}
-                                <div className="flex items-center gap-1.5 bg-elevated p-1 rounded-xl border border-border">
+                                {/* Éléments */}
+                                <div className="flex items-center gap-1.5 bg-elevated p-1 rounded-xl border border-border" aria-label="Filtres par élément">
                                     <button
-                                        onClick={() => handleTagChange(null)}
+                                        onClick={() => handleElementChange(null)}
+                                        aria-pressed={!selectedElement}
                                         className={cn(
                                             "h-8 px-4 rounded-lg text-xs font-semibold transition-colors shrink-0",
-                                            !selectedTag || ADVANCED_TAG_IDS.includes(selectedTag) ? "bg-surface text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                            !selectedElement
+                                                ? "bg-surface text-foreground border border-border-strong"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
                                         Tous
@@ -438,15 +490,20 @@ export function GalleryClient({
 
                                     {["eau","feu","terre","air","multi"].map(id => {
                                         const tag = DO_TAGS.find(t => t.id === id)!;
+                                        const active = selectedElement === id;
                                         return (
                                             <button
                                                 key={id}
-                                                onClick={() => handleTagChange(selectedTag === id ? null : id)}
+                                                onClick={() => handleElementChange(active ? null : id)}
+                                                aria-pressed={active}
                                                 className={cn(
-                                                    "h-8 px-3 rounded-lg text-xs font-medium transition-colors shrink-0",
-                                                    selectedTag === id ? `${tag.className} ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                                    "h-8 px-3 rounded-lg text-xs font-medium transition-colors shrink-0 flex items-center gap-1",
+                                                    active
+                                                        ? `${tag.className} ring-1 ring-white/20`
+                                                        : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                                 )}
                                             >
+                                                {active && <Check className="w-3 h-3 shrink-0" />}
                                                 {tag.label}
                                             </button>
                                         );
@@ -455,57 +512,52 @@ export function GalleryClient({
 
                                 <div className="w-px h-6 bg-surface shrink-0 hidden sm:block" />
 
-                                {/* 3. Advanced / Specialities */}
+                                {/* Tags avancés */}
                                 <div className="flex items-center bg-elevated p-1 rounded-xl border border-border">
-                                    <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
+                                    <AdvancedTagFilter selectedTags={selectedTags} onToggleTag={handleToggleAdvancedTag} />
                                 </div>
-
-
                             </>
                         )}
                     </div>
 
-                    {/* Right: Count & Reset & Sort */}
-                    <div className="flex items-center gap-4 text-sm w-full xl:w-auto shrink-0 justify-between xl:justify-end border-t border-border pt-4 xl:border-0 xl:pt-0 flex-wrap">
-                        <div className="flex items-center gap-2 bg-elevated p-1 rounded-xl border border-border mr-2">
-                            <button
-                                onClick={() => handleSortChange("newest")}
-                                className={cn(
-                                    "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
-                                    sortBy === "newest" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
-                                )}
-                            >
-                                <RefreshCw className="w-3.5 h-3.5" /> Récents
-                            </button>
-                            <button
-                                onClick={() => handleSortChange("votes")}
-                                className={cn(
-                                    "flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium transition-colors shrink-0",
-                                    sortBy === "votes" ? "bg-warning text-warning-foreground" : "text-muted-foreground hover:text-warning hover:bg-surface"
-                                )}
-                            >
-                                <Star className={cn("w-3.5 h-3.5", sortBy === "votes" && "fill-black")} /> Favoris
-                            </button>
+                    {/* Groupe Tri + Résultats */}
+                    <div className="flex items-center gap-4 text-sm w-full lg:w-auto shrink-0 justify-between lg:justify-end border-t border-border pt-4 lg:border-0 lg:pt-0 flex-wrap">
+                        {/* Tri */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide shrink-0">Trier par</span>
+                            <Select value={sortBy} onValueChange={(v) => handleSortChange(v as "newest" | "votes")}>
+                                <SelectTrigger size="sm" aria-label="Trier les résultats" className="w-[8.5rem] rounded-xl bg-elevated border-border text-xs font-medium">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="end">
+                                    <SelectItem value="newest">
+                                        <span className="flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Récents</span>
+                                    </SelectItem>
+                                    <SelectItem value="votes">
+                                        <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5" /> Favoris</span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                        
+
+                        {/* Résultats */}
                         <div className="flex items-center gap-3">
                             <p className="text-sm text-muted-foreground flex items-center gap-2 tabular-nums">
                                 <span className="text-foreground font-semibold">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
-                                <span> sur {activeTab === "STUFF" ? stuffTotal : skinTotal} item{ (activeTab === "STUFF" ? stuffTotal : skinTotal) !== 1 ? "s" : ""}</span>
+                                <span> {activeTab === "STUFF" ? "builds" : "skins"} sur {activeTab === "STUFF" ? stuffTotal : skinTotal}</span>
                             </p>
-                            {/* Espace du bouton Reset TOUJOURS réservé → pas de saut de page
-                                quand un filtre devient actif (#67 anti-layout-shift) */}
+                            {/* Espace du bouton Réinitialiser TOUJOURS réservé → pas de saut de page (#67 anti-layout-shift) */}
                             <div className="w-px h-4 bg-surface shrink-0" />
                             <button
-                                onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
-                                tabIndex={(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? 0 : -1}
-                                aria-hidden={!(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource)}
+                                onClick={handleResetFilters}
+                                tabIndex={activeFilterCount > 0 ? 0 : -1}
+                                aria-hidden={activeFilterCount === 0}
                                 className={cn(
                                     "text-xs text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1 shrink-0",
-                                    !(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) && "invisible"
+                                    activeFilterCount === 0 && "invisible"
                                 )}
                             >
-                                <RefreshCw className="w-3 h-3" /> Reset
+                                <RefreshCw className="w-3 h-3" /> Réinitialiser{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
                             </button>
                         </div>
                     </div>
@@ -515,10 +567,12 @@ export function GalleryClient({
             {/* Grid */}
             <div data-tour="galerie-grid" className={cn(
                 "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-                isLoading && "opacity-50 pointer-events-none transition-opacity"
+                isLoading && (activeTab === "STUFF" ? stuffBuilds.length > 0 : skinBuilds.length > 0) && "opacity-50 pointer-events-none transition-opacity"
             )}>
                 {activeTab === "STUFF" ? (
-                    stuffBuilds.length > 0 ? (
+                    loadError ? (
+                        <ErrorState onRetry={() => applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, "STUFF", selectedSource)} />
+                    ) : stuffBuilds.length > 0 ? (
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
@@ -531,6 +585,7 @@ export function GalleryClient({
                                                 disabled={refreshingIds.has(build.id)}
                                                 className="p-1.5 bg-elevated/90 rounded-lg text-foreground hover:bg-muted transition-colors pointer-events-auto disabled:opacity-50"
                                                 title="Actualiser depuis Dofusbook"
+                                                aria-label="Actualiser les données du build"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", refreshingIds.has(build.id) && "animate-spin")} />
                                             </button>
@@ -544,6 +599,7 @@ export function GalleryClient({
                                                         : "bg-elevated/90 text-muted-foreground hover:text-warning hover:bg-muted"
                                                 )}
                                                 title={build.hasVoted ? "Retirer mon vote" : "Voter pour ce stuff !"}
+                                                aria-label={build.hasVoted ? "Retirer mon vote pour ce build" : "Voter pour ce build"}
                                             >
                                                 <Star className={cn("w-3.5 h-3.5", build.hasVoted && "fill-current")} />
                                                 {build.votesCount > 0 && (
@@ -557,6 +613,8 @@ export function GalleryClient({
                                                     toast.success("Lien copié !");
                                                 }}
                                                 className="p-1.5 bg-elevated/90 rounded-lg text-foreground hover:text-foreground hover:bg-muted transition-colors pointer-events-auto"
+                                                title="Copier le lien"
+                                                aria-label="Copier le lien du build"
                                             >
                                                 <Copy className="w-3.5 h-3.5" />
                                             </button>
@@ -569,6 +627,7 @@ export function GalleryClient({
                                                         "bg-info text-info-foreground hover:bg-info"
                                                     )}
                                                     title={stuffShareConfigured ? "Propulser sur Discord !" : "Non configuré (Admin)"}
+                                                    aria-label="Partager ce build sur Discord"
                                                 >
                                                     {sharingIds.has(build.id) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Megaphone className="w-3.5 h-3.5" />}
                                                 </button>
@@ -578,12 +637,14 @@ export function GalleryClient({
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="p-1.5 bg-success rounded-lg text-success-foreground hover:bg-success transition-colors pointer-events-auto"
+                                                aria-label="Ouvrir ce build sur Dofusbook"
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
                                             </a>
                                         </div>
                                     </div>
                                 </div>
+                                <BuildStatsLine previewData={build.previewData} />
                                 <div className="flex items-center justify-between px-2">
                                     <div className="flex items-center gap-2.5">
                                         <Avatar className="w-6 h-6 border border-border">
@@ -619,11 +680,15 @@ export function GalleryClient({
                                 </div>
                             </div>
                         ))
-                    ) : !isLoading && (
-                        <EmptyState guildId={guildId} tab="STUFF" searchQuery={searchQuery} onReset={() => handleTabChange("STUFF")} />
+                    ) : !isLoading ? (
+                        <EmptyState guildId={guildId} tab="STUFF" hasActiveFilters={activeFilterCount > 0} onReset={handleResetFilters} />
+                    ) : (
+                        <GallerySkeleton />
                     )
                 ) : (
-                    skinBuilds.length > 0 ? (
+                    loadError ? (
+                        <ErrorState onRetry={() => applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, "SKIN", selectedSource)} />
+                    ) : skinBuilds.length > 0 ? (
                         skinBuilds.map((skin) => (
                             <div key={skin.id} className="group/card flex flex-col gap-3">
                                 <div 
@@ -742,8 +807,10 @@ export function GalleryClient({
                                 </div>
                             </div>
                         ))
-                    ) : !isLoading && (
-                        <EmptyState guildId={guildId} tab="SKIN" searchQuery={searchQuery} onReset={() => handleTabChange("SKIN")} />
+                    ) : !isLoading ? (
+                        <EmptyState guildId={guildId} tab="SKIN" hasActiveFilters={activeFilterCount > 0} onReset={handleResetFilters} />
+                    ) : (
+                        <GallerySkeleton />
                     )
                 )}
             </div>
@@ -969,25 +1036,31 @@ export function GalleryClient({
     );
 }
 
-function EmptyState({ guildId, tab, searchQuery, onReset }: { guildId: string, tab: "STUFF"|"SKIN", searchQuery: string, onReset: () => void }) {
+function EmptyState({ guildId, tab, hasActiveFilters, onReset }: { guildId: string, tab: "STUFF"|"SKIN", hasActiveFilters: boolean, onReset: () => void }) {
     return (
         <div className="col-span-full py-20 bg-background/20 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center gap-4">
             <div className="w-16 h-16 rounded-full bg-surface/50 flex items-center justify-center border border-border">
                 <Search className="w-8 h-8 text-muted-foreground" />
             </div>
             <div className="space-y-1">
-                <h3 className="text-foreground font-semibold text-lg">Aucun {tab === "STUFF" ? "build" : "skin"} trouvé</h3>
+                <h3 className="text-foreground font-semibold text-lg">
+                    {hasActiveFilters
+                        ? `Aucun ${tab === "STUFF" ? "build" : "skin"} ne correspond à ces filtres`
+                        : `Aucun ${tab === "STUFF" ? "build" : "skin"} trouvé`}
+                </h3>
                 <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                    {tab === "STUFF" 
-                        ? "Importez vos stuffs DofusBook depuis votre profil pour qu'ils s'affichent ici."
-                        : "Importez vos skins Barbofus ou SkinManga depuis votre profil pour inspirer la guilde !"}
+                    {hasActiveFilters
+                        ? "Essayez d'élargir votre recherche ou de réinitialiser les filtres."
+                        : tab === "STUFF"
+                            ? "Importez vos stuffs DofusBook depuis votre profil pour qu'ils s'affichent ici."
+                            : "Importez vos skins Barbofus ou SkinManga depuis votre profil pour inspirer la guilde !"}
                 </p>
             </div>
             <div className="flex items-center gap-3 mt-2">
-                {searchQuery && (
+                {hasActiveFilters && (
                     <Button variant="outline" size="sm" onClick={onReset} className="border-border hover:bg-surface text-muted-foreground">
                         <RefreshCw className="w-4 h-4 mr-2" />
-                        Réinitialiser
+                        Réinitialiser les filtres
                     </Button>
                 )}
                 <a href={`/dashboard/${guildId}/profile?tab=${tab === "STUFF" ? "combat" : "skins"}`}>
@@ -1000,3 +1073,94 @@ function EmptyState({ guildId, tab, searchQuery, onReset }: { guildId: string, t
         </div>
     );
 }
+
+
+/**
+ * Ligne de statistiques clés sur la carte : `12 PA · 5 PM · 1 588 INT · 28 % Crit.`
+ * (3-4 stats max, format localisé fr-FR, espace insécable avant %).
+ */
+const frNumber = new Intl.NumberFormat("fr-FR");
+
+function BuildStatsLine({ previewData }: { previewData?: DofusbookPreviewData | null }) {
+    const items = useMemo(() => {
+        if (!previewData) return [] as { label: string; value: string }[];
+        const stats = previewData?.stats;
+        const elements = previewData?.elements;
+        if (!stats || typeof stats !== "object") return [] as { label: string; value: string }[];
+
+        const parts: { label: string; value: string }[] = [];
+        if (typeof stats.pa === "number") parts.push({ label: "PA", value: String(stats.pa) });
+        if (typeof stats.pm === "number") parts.push({ label: "PM", value: String(stats.pm) });
+
+        // Caractéristique principale (hors sagesse/puissance)
+        if (elements && typeof elements === "object") {
+            const mains: [keyof DofusbookPreviewData["elements"], string][] = [["fo", "FOR"], ["in", "INT"], ["ch", "CHA"], ["ag", "AGI"]];
+            let bestLabel: string | null = null;
+            let bestVal = 0;
+            for (const [key, label] of mains) {
+                const v = Number(elements[key]) || 0;
+                if (v > bestVal) { bestVal = v; bestLabel = label; }
+            }
+            if (bestLabel && bestVal > 0) {
+                parts.push({ label: bestLabel, value: frNumber.format(bestVal) });
+            }
+        }
+
+        // Critique ou soin selon le ciblage du build
+        if (typeof stats.cc === "number" && stats.cc > 0) {
+            parts.push({ label: "Crit.", value: `${frNumber.format(stats.cc)}\u00A0%` });
+        } else if (typeof stats.so === "number" && stats.so > 0) {
+            parts.push({ label: "Soin", value: frNumber.format(stats.so) });
+        }
+
+        return parts.slice(0, 4);
+    }, [previewData]);
+
+    if (items.length === 0) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-xs font-semibold text-foreground" aria-label="Statistiques clés du build">
+            {items.map((item, i) => (
+                <span key={item.label} className="flex items-center gap-1">
+                    {i > 0 && <span className="text-muted-foreground/60 mr-1">·</span>}
+                    <span className="tabular-nums">{item.value}</span>
+                    <span className="text-muted-foreground">{item.label}</span>
+                </span>
+            ))}
+        </div>
+    );
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+    return (
+        <div className="col-span-full py-16 bg-background/20 rounded-3xl border border-dashed border-danger/30 flex flex-col items-center justify-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-danger/10 flex items-center justify-center border border-danger/20">
+                <Info className="w-7 h-7 text-danger" />
+            </div>
+            <div className="space-y-1">
+                <h3 className="text-foreground font-semibold text-lg">Erreur de chargement</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                    La galerie n'a pas pu être chargée. Vérifiez votre connexion puis réessayez.
+                </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={onRetry} className="border-border hover:bg-surface text-muted-foreground gap-2">
+                <RefreshCw className="w-4 h-4" /> Réessayer
+            </Button>
+        </div>
+    );
+}
+
+function GallerySkeleton() {
+    return (
+        <>
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-3" aria-hidden>
+                    <Skeleton className="aspect-[4/3] rounded-2xl" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                </div>
+            ))}
+        </>
+    );
+}
+

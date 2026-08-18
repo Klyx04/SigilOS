@@ -23,6 +23,23 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 04/09 — #153 Place de Marché metamob (UI)
+
+> **Branche `feat/chantier-2026-09-04`** = **2 commits non mergés** : `6207a8d33` (refonte Succès vue Guilde 03/09)
+> + `df221fc17` (**#153** Place de Marché metamob — UI 04/09). **PR à ouvrir / continuer** :
+> https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-04
+> Mémo : `src/temp/memo-2026-09-04-chantier-place-marche-metamob.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-05.md`.
+>
+> - **#153 — Place de Marché metamob (modale d'échange Ocre)** (`src/components/ocre/ocre-exchange-modal.tsx`) :
+>   - recherche monstre assainie (placeholder normal, bouton effacer, input propre) ;
+>   - **recherche par membre ajoutée** dans l'onglet « Par Membre » (état `memberSearch` câblé — filtre par
+>     `characterName`/`username`, insensible casse) ;
+>   - icône « main » (`Handshake`) peu claire → boutons libellés **« Échanger »** (icône `Send`) sur les deux
+>     onglets ; `Handshake` conservé en décoratif sur l'en-tête « Demander un échange ».
+>   - **API metamob : ⚪ EN ATTENTE** — constat : déjà en v2 (matching natif + queue BullMQ) ; réétudier si on
+>     peut faire mieux sur le dashboard reste à creuser (session dédiée).
+>   - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK · pre-commit vert.
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 03/09 — refonte Succès vue Guilde (retours user)
 
 > **PR #501 (`feat/chantier-2026-08-31 → dev`) MERGÉE** → `dev` = `1ab013221` (merge #501). Nouvelle branche

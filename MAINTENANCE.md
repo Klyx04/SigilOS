@@ -32,6 +32,16 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 4. Rotation logs application (>10MB)
 5. Alerte Discord si disque >85%
 
+### Crons HTTP (endpoints protégés `x-cron-secret`)
+Appelés depuis le crontab VPS (`crontab -l`) via
+`curl -s -H "x-cron-secret: $CRON_SECRET" https://beta.sigilos.fr/api/cron/<name>` :
+
+- `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h)
+- `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
+- `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` — purges
+- `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
+- `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
+
 ---
 
 ## 🔍 Monitoring

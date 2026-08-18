@@ -61,7 +61,8 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -709,7 +710,7 @@ export default function MemberManagement({
                                                         <div className="flex items-center gap-4">
                                                             <div className="relative">
                                                                 <Avatar className="w-12 h-12 rounded-xl border border-border transition-colors">
-                                                                    <AvatarImage
+                                                                    <DiscordAvatarImage
                                                                         src={getDiscordAvatarUrl(member.discordId, member.avatar)}
                                                                         alt={member.displayName}
                                                                         className="object-cover rounded-xl"
@@ -792,17 +793,7 @@ export default function MemberManagement({
                                                                      <ArrowUpRight className="w-4 h-4" />
                                                                  </a>
                                                              </Button>
-                                                         ) : (
-                                                             <Button 
-                                                                 variant="outline" 
-                                                                 size="sm" 
-                                                                 className="h-9 rounded-xl border-warning/30 bg-warning/10 hover:bg-warning hover:text-warning-foreground hover:border-warning transition-colors text-caption font-semibold uppercase tracking-wide px-3 gap-1.5"
-                                                                 onClick={() => setRelanceTargets([{ id: member.discordId, name: member.displayName }])}
-                                                             >
-                                                                 <Bell className="w-3.5 h-3.5" />
-                                                                 Relancer
-                                                             </Button>
-                                                         )}
+                                                         ) : null}
                                                      </TableCell>
                                                 </TableRow>
                                             ))

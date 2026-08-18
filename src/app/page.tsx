@@ -13,6 +13,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
+import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
 
 export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accélère le chargement & la performance SEO
 
@@ -52,6 +53,10 @@ export default async function Home({
 
   // Landing v3 — showcase mini-dashboards par guilde (stats réelles, cache Redis 5 min)
   const showcaseGuilds = await getPublicGuildShowcase(6);
+
+  // 🖼️ #140 — screens de la landing pilotés par le God (fallback captures par défaut)
+  const productScreensRes = await getPublicLandingScreens("product-story");
+  const productScreens = (productScreensRes.success && productScreensRes.data) ? productScreensRes.data : [];
 
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);
@@ -95,7 +100,7 @@ export default async function Home({
           <ProblemSolution />
 
           {/* Démo produit narrative */}
-          <ProductStory />
+          <ProductStory screens={productScreens} />
 
           {/* Showcase mini-dashboards par guilde (landing v3) */}
           {showcaseGuilds.length > 0 && <GuildShowcaseSection guilds={showcaseGuilds} />}

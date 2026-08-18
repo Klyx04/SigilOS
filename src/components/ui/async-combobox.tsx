@@ -36,6 +36,8 @@ interface AsyncComboboxProps {
     renderItem?: (item: ComboboxItem) => React.ReactNode
     disabled?: boolean
     className?: string
+    // Libellé affiché pour une valeur existante introuvable dans les résultats (ex. zone saisie manuellement).
+    initialLabel?: string
 }
 
 export function AsyncCombobox({
@@ -47,7 +49,8 @@ export function AsyncCombobox({
     emptyText = "Aucun résultat.",
     renderItem,
     disabled = false,
-    className
+    className,
+    initialLabel
 }: AsyncComboboxProps) {
     const [open, setOpen] = React.useState(false)
     const [inputValue, setInputValue] = React.useState("")
@@ -88,18 +91,20 @@ export function AsyncCombobox({
             const item = items.find(i => i.value === value)
             if (item) {
                 setSelectedLabel(item.label)
+            } else if (initialLabel) {
+                // Valeur existante hors résultats de recherche (ex. zone saisie manuellement) → libellé stable.
+                setSelectedLabel(initialLabel)
             } else if (!selectedLabel) {
                 // If we have a value but no label (initial load), we might want to fetch the specific item
-                // For now, we'll just show the value or rely on the parent to pass the initial label 
+                // For now, we'll just show the value or rely on the parent to pass the initial label
                 // effectively, this component assumes 'fetcher' returns relevant items including the selected one if hinted
                 // or simplistic approach:
                 // Currently do nothing, label will be empty until user searches or parent handles it.
-                // IMPROVEMENT: Add an `initialLabel` prop if needed.
             }
         } else {
             setSelectedLabel("")
         }
-    }, [value, items])
+    }, [value, items, initialLabel])
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

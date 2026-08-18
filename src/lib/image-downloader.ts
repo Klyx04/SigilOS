@@ -84,10 +84,11 @@ const IMAGE_SIZES = {
     achievement: 256,  // Achievements: 256px max (icons)
     dungeon: 512,      // Dungeons: 512px max
     item: 256,         // Items/Bonuses: 256px max
-    legendary: 256     // Legendary items: 256px max
+    legendary: 256,    // Legendary items: 256px max
+    landing: 1920      // #140 — screens de la landing : 1920px max (captures plein écran)
 };
 
-type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary";
+type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "landing";
 
 export async function downloadExternalImage(
     url: string,

@@ -506,7 +506,7 @@ export async function getQuestPrerequisites(questId: string): Promise<ActionResp
     }
 }
 
-export async function getSiblingQuestEntries(chainId: string, excludeQuestId: string): Promise<ActionResponse<any[]>> {
+export async function getSiblingQuestEntries(chainId: string, excludeQuestId?: string | null): Promise<ActionResponse<any[]>> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 
@@ -518,11 +518,15 @@ export async function getSiblingQuestEntries(chainId: string, excludeQuestId: st
 
         if (!chain) return { success: false, error: "Chaîne introuvable" };
 
+        // #146 : exclusion optionnelle — en mode création (pas encore d'entrée) on liste
+        // toutes les quêtes du même Dofus pour préparer les prérequis.
+        const where: any = {
+            chain: { dofusId: chain.dofusId }
+        };
+        if (excludeQuestId) where.id = { not: excludeQuestId };
+
         const entries = await (db as any).dofusQuestEntry.findMany({
-            where: {
-                chain: { dofusId: chain.dofusId },
-                id: { not: excludeQuestId }
-            },
+            where,
             select: {
                 id: true,
                 name: true,

@@ -269,6 +269,90 @@ export async function unlinkFamilyFromZone(zoneId: string, familyId: string): Pr
     }
 }
 
+/**
+ * 🧬 #144 — Association intelligente zones ↔ familles SANS faux positif.
+ * Principe : un archimonstre/monstre siphonné porte sa zone (Metamob/DofusDB). On croise
+ * `Archimonstre.zone|subzone` (nom EXACT de la zone game-data) avec `Monster.name`
+ * (nom EXACT) pour remonter à la `MonsterFamily`. Aucun matching flou → aucun faux positif.
+ * Soulage le God et rend les familles proposables dans les missions (Régulation).
+ */
+export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
+    zonesScanned: number;
+    familiesLinked: number;
+    matches: { zoneName: string; familyName: string }[];
+}>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
+
+    try {
+        const zones = await db.zone.findMany({
+            select: { id: true, name: true, families: { select: { id: true } } },
+            orderBy: { name: 'asc' },
+        });
+
+        const allArchis = await db.archimonstre.findMany({
+            where: { OR: [{ zone: { not: null } }, { subzone: { not: null } }] },
+            select: { zone: true, subzone: true, name: true },
+        });
+
+        // Index zone name → archimonstres (nom exact uniquement).
+        const archisByZone = new Map<string, string[]>();
+        for (const a of allArchis) {
+            for (const zoneName of [a.zone, a.subzone]) {
+                if (!zoneName) continue;
+                const list = archisByZone.get(zoneName) ?? [];
+                if (!list.includes(a.name)) list.push(a.name);
+                archisByZone.set(zoneName, list);
+            }
+        }
+
+        // Précharge les familles par nom de monstre (nom exact, un seul par famille).
+        const allMonsters = await db.monster.findMany({ select: { name: true, familyId: true } });
+        const familyByMonsterName = new Map<string, string>();
+        for (const m of allMonsters) {
+            if (!familyByMonsterName.has(m.name)) familyByMonsterName.set(m.name, m.familyId);
+        }
+
+        let familiesLinked = 0;
+        const matches: { zoneName: string; familyName: string }[] = [];
+
+        for (const zone of zones) {
+            const monsterNames = archisByZone.get(zone.name) ?? [];
+            if (monsterNames.length === 0) continue;
+
+            const linkedIds = new Set(zone.families.map(f => f.id));
+            const familyIdsToLink = new Set<string>();
+
+            for (const name of monsterNames) {
+                const fid = familyByMonsterName.get(name);
+                if (fid && !linkedIds.has(fid)) familyIdsToLink.add(fid);
+            }
+
+            if (familyIdsToLink.size === 0) continue;
+
+            const families = await db.monsterFamily.findMany({
+                where: { id: { in: Array.from(familyIdsToLink) } },
+                select: { id: true, name: true },
+            });
+
+            if (families.length === 0) continue;
+
+            await db.zone.update({
+                where: { id: zone.id },
+                data: { families: { connect: families.map(f => ({ id: f.id })) } },
+            });
+
+            familiesLinked += families.length;
+            for (const f of families) matches.push({ zoneName: zone.name, familyName: f.name });
+        }
+
+        logger.info(`[autoAssociateAllZoneFamilies] ${matches.length} familles liées sur ${zones.length} zones`);
+        return { success: true, data: { zonesScanned: zones.length, familiesLinked, matches } };
+    } catch (error) {
+        logger.error('[autoAssociateAllZoneFamilies] Error:', { error });
+        return { success: false, error: 'Erreur lors de l\'association automatique' };
+    }
+}
+
 /** Link a dungeon to an event zone (also marks it as event dungeon) */
 export async function linkDungeonToZone(zoneId: string, dungeonId: string): Promise<ActionResponse> {
     if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };

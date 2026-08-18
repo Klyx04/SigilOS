@@ -445,6 +445,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                         </SelectTrigger>
                         <SelectContent className="bg-background border-border">
                             <SelectItem value="aucun">Sans élixir (Simple)</SelectItem>
+                            <SelectItem value="uchronique">Élixir uchronique (sans niveau)</SelectItem>
                             <SelectItem value="mineur">Élixir uchronique mineur</SelectItem>
                             <SelectItem value="ameliore">Élixir uchronique amélioré</SelectItem>
                             <SelectItem value="majeur">Élixir uchronique majeur</SelectItem>
@@ -462,23 +463,21 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 <div className="flex-1 text-caption text-muted-foreground leading-relaxed py-0.5">
                     <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Visualisation Mission</div>
                     {anomalieType === 'ZONE' && (
-                        <>Vaincre 50 monstres dans un territory de niveau <span className="text-foreground font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                        <>Vaincre 50 monstres dans un territoire de niveau <span className="text-foreground font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'BOSS' && (
                         <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'FRAGMENTS' && (
-                        <>Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
+                        <>Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie</>
                     )}
                     {anomalieType === 'STABILISATION' && (
                         <>
                             Vaincre <span className="text-foreground font-black">3 Gardiens des anomalies</span>
-                            {elixir === 'aucun' ? (
-                                <span className="text-fuchsia-300 font-bold"> (tous niveaux)</span>
-                            ) : (
+                            {elixir !== 'aucun' && (
                                 <> sous l'effet d'un <span className="text-fuchsia-300 font-bold">
-                                    {elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}
-                                </span> <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
+                                    {elixir === 'uchronique' ? "[Élixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}
+                                </span></>
                             )}
                         </>
                     )}
@@ -886,7 +885,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
 
     const handleSubTypeChange = (newType: EventSubType) => {
         if (newType === 'FRAGMENTS_ANOMALIE') {
-            const defaultDesc = "Obtenir 20 Fragments d'anomalie dans une anomalie (tous niveaux)";
+            const defaultDesc = "Obtenir 20 Fragments d'anomalie dans une anomalie";
             onPayloadChange({
                 ...payload,
                 eventType: newType,
@@ -1408,7 +1407,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                             </div>
                             <div className="flex-1 text-caption text-muted-foreground leading-relaxed py-0.5">
                                 <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Mission Événement Fragments</div>
-                                Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie <span className="text-fuchsia-300 font-bold">(tous niveaux)</span>
+                                Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie
                             </div>
                         </div>
                     </div>

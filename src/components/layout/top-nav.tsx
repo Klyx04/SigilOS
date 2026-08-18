@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -281,7 +282,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                         </span>
                                     </div>
                                     <Avatar className="h-8 w-8 border border-border rounded-lg shrink-0">
-                                        <AvatarImage src={sidebarProps.user.image || ""} />
+                                        <DiscordAvatarImage src={sidebarProps.user.image || undefined} />
                                         <AvatarFallback className="text-xs font-bold bg-elevated text-foreground">
                                             {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
                                         </AvatarFallback>
@@ -297,14 +298,14 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                                     Mon Compte
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-surface" />
-                                <DropdownMenuItem asChild className="focus:bg-surface cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
                                     <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-2.5 text-xs font-medium text-foreground hover:text-foreground">
                                         <Users className="w-4 h-4 text-muted-foreground" />
                                         <span>Mon Profil</span>
                                     </Link>
                                 </DropdownMenuItem>
                                 
-                                <DropdownMenuItem asChild className="focus:bg-surface cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
                                     <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-2.5 text-xs font-medium text-foreground hover:text-foreground">
                                         <Settings className="w-4 h-4 text-muted-foreground" />
                                         <span>Réglages</span>
@@ -325,7 +326,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     ) : (
                         <div className="h-9 w-9 rounded-xl bg-muted border border-border/40 flex items-center justify-center opacity-40">
                              <Avatar className="h-7 w-7 opacity-50 grayscale">
-                                <AvatarImage src={sidebarProps.user.image || ""} />
+                                <DiscordAvatarImage src={sidebarProps.user.image || undefined} />
                                 <AvatarFallback>?</AvatarFallback>
                             </Avatar>
                         </div>

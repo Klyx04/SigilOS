@@ -67,7 +67,8 @@ import { RunProgressModal } from "@/components/songes/RunProgressModal";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import { RunEditModal } from "@/components/songes/RunEditModal";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -214,10 +215,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     }
 
     return (
-        <div className="group relative overflow-hidden rounded-3xl bg-surface/90 border border-border p-7 transition-colors duration-200 hover:border-border-strong shadow-lg">
+        <div className="group relative overflow-hidden rounded-2xl bg-surface/90 border border-border p-6 transition-colors duration-200 hover:border-border-strong shadow-sm">
             
             {/* --- HEADER --- */}
-            <div className="relative z-10 flex justify-between items-center gap-4 mb-8">
+            <div className="relative z-10 flex justify-between items-start gap-4 mb-6">
                 <div className="flex items-center gap-4 min-w-0">
                     <div className="relative w-12 h-12 shrink-0 bg-elevated rounded-xl border border-border p-2 flex items-center justify-center overflow-hidden shadow-xs">
                         <Image
@@ -235,17 +236,17 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         />
                     </div>
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <h3 className="text-xl font-black uppercase tracking-tight text-foreground leading-none truncate">{difficulty?.label || run.difficulty}</h3>
-                            <div className="px-2 py-0.5 rounded-md bg-elevated border border-border shadow-xs">
-                                <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">{objective?.label}</span>
+                            <div className="px-2 py-0.5 rounded-md bg-elevated border border-border">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{objective?.label}</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 text-caption font-black text-muted-foreground uppercase tracking-[0.2em]">
-                            <Users className="w-3 h-3" /> {run.members.length}/4
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            <Users className="w-3.5 h-3.5" /> {run.members.length}/4
                             <span className="opacity-40">•</span>
                             <span className="flex items-center gap-1.5">
-                                Leader <span className="text-foreground font-bold">{getDisplayName(run.leaderId)}</span><span className="opacity-40">•</span><span className="flex items-center gap-1" title={run.scheduledAt ? "Départ programmé" : "Création de la run"}><Clock className="w-3 h-3" />{runTimeLabel}</span>
+                                Leader <span className="text-foreground font-bold">{getDisplayName(run.leaderId)}</span><span className="opacity-40">•</span><span className="flex items-center gap-1" title={run.scheduledAt ? "Départ programmé" : "Création de la run"}><Clock className="w-3.5 h-3.5" />{runTimeLabel}</span>
                             </span>
                         </div>
                     </div>
@@ -301,7 +302,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- ÉPREUVE BOX --- */}
             {epreuve && (
-                <div className="relative z-10 p-4 rounded-2xl border border-border bg-elevated/70 mb-6">
+                <div className="relative z-10 p-4 rounded-2xl border border-border bg-elevated/70 mb-5">
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xl">{epreuve.icon}</span>
                         <span className="text-caption font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
@@ -311,10 +312,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             )}
 
             {/* --- PROGRESSION --- */}
-            <div className="relative z-10 mb-8">
+            <div className="relative z-10 mb-6">
                 <div className="flex justify-between items-end mb-3">
                     <div className="flex flex-col">
-                        <span className="text-caption font-black uppercase tracking-widest text-muted-foreground mb-1">Étage Actuel</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Étage Actuel</span>
                         <div className="flex items-baseline gap-2">
                            <span className="text-4xl font-black text-foreground">{run.currentFloor}</span>
                            <span className="text-sm font-bold text-muted-foreground/60 uppercase">/ 26</span>
@@ -332,7 +333,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             </div>
 
             {/* --- MEMBERS --- */}
-            <div className="relative z-10 space-y-3 mb-8">
+            <div className="relative z-10 space-y-3 mb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[1, 2, 3, 4].map((slot) => {
                         const member = run.members.find((m) => m.slot === slot);
@@ -349,7 +350,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-surface border border-border overflow-hidden">
                                     {member ? (
                                         <Avatar className="w-full h-full">
-                                            <AvatarImage src={profile?.avatar || undefined} />
+                                            <DiscordAvatarImage src={profile?.avatar || undefined} />
                                             <AvatarFallback className="text-caption font-black">
                                                 {profile?.pseudoDofus?.charAt(0) || "?"}
                                             </AvatarFallback>
@@ -404,7 +405,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3 min-w-0">
                                             <Avatar className="w-9 h-9 border border-border rounded-xl">
-                                                <AvatarImage src={profile?.avatar || undefined} />
+                                                <DiscordAvatarImage src={profile?.avatar || undefined} />
                                                 <AvatarFallback className="bg-elevated text-caption font-bold">{name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">

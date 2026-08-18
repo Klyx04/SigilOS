@@ -8,7 +8,8 @@ import {
     Swords, Map, Users, Clock, Calendar, CheckCircle2,
     XCircle, LogIn, LogOut, Crown, Link2, Bell
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { closeDjPost, joinDjPost, leaveDjPost, sendDjReminder } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
 import { DjCloseModal } from "./DjCloseModal";
@@ -236,7 +237,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 {/* Content */}
                 <div className="p-5 flex flex-col flex-1 gap-5">
                     {/* Mode + Slots */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center gap-2 justify-between">
                         <span className={cn(
                             "inline-flex items-center gap-2 text-caption uppercase font-black tracking-widest px-3 py-1.5 rounded-xl border",
                             modeMeta.color
@@ -266,7 +267,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {/* Leader */}
                         <div key={post.profileId} className="relative group/avatar" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
                             <Avatar className="h-9 w-9 ring-2 ring-ring hover:ring-ring transition-all border-2 border-border shadow-lg">
-                                <AvatarImage src={post.profile.user.image || undefined} />
+                                <DiscordAvatarImage src={post.profile.user.image || undefined} />
                                 <AvatarFallback className="bg-info text-info text-caption font-black">
                                     {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
@@ -280,7 +281,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.participants.map((p) => (
                             <div key={p.id} className="relative group/avatar" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
                                 <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-ring/50 transition-all border-2 border-border shadow-lg">
-                                    <AvatarImage src={p.profile.user.image || undefined} />
+                                    <DiscordAvatarImage src={p.profile.user.image || undefined} />
                                     <AvatarFallback className="bg-elevated text-muted-foreground text-caption font-bold">
                                         {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
@@ -468,12 +469,12 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex flex-wrap gap-2 pt-2">
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsDetailOpen(true)}
-                            className="flex-1 h-10 text-caption font-black uppercase tracking-widest bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
+                            className="flex-1 min-w-[92px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
                         >
                             Détails
                         </Button>
@@ -484,7 +485,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 onClick={handleQuickJoin}
                                 disabled={isPending}
                                 className={cn(
-                                    "flex-1 h-10 text-caption font-black uppercase tracking-widest text-foreground transition-colors",
+                                    "flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap text-foreground transition-colors",
                                     isDonjon 
                                         ? "bg-info hover:bg-info" 
                                         : "bg-info hover:bg-info"
@@ -501,7 +502,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 variant="outline"
                                 onClick={handleLeave}
                                 disabled={isPending}
-                                className="flex-1 h-10 text-caption font-black uppercase tracking-widest border-danger/30 text-danger hover:text-danger-foreground hover:bg-danger transition-colors"
+                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-danger/30 text-danger hover:text-danger-foreground hover:bg-danger transition-colors"
                             >
                                 <LogOut className="w-4 h-4 mr-2" />
                                 Annuler
@@ -509,19 +510,19 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         )}
 
                         {myParticipation?.status === "ACCEPTED" && (
-                            <div className="flex-1 flex items-center justify-center h-10 rounded-xl bg-success/10 text-success border border-success/30 font-black text-caption uppercase tracking-widest">
+                            <div className="flex-1 min-w-[110px] flex items-center justify-center h-10 rounded-xl bg-success/10 text-success border border-success/30 font-bold text-xs uppercase tracking-wide whitespace-nowrap">
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Accepté
                             </div>
                         )}
 
                         {myParticipation?.status === "REJECTED" && (
-                            <div className="flex-1 flex items-center justify-center h-10 rounded-xl bg-danger/10 text-danger border border-danger/30 font-black text-caption uppercase tracking-widest">
+                            <div className="flex-1 min-w-[110px] flex items-center justify-center h-10 rounded-xl bg-danger/10 text-danger border border-danger/30 font-bold text-xs uppercase tracking-wide whitespace-nowrap">
                                 <XCircle className="w-4 h-4 mr-2" /> Refusé
                             </div>
                         )}
 
                         {isOwner && post.status === "OPEN" && (
-                            <div className="flex flex-1 gap-2">
+                            <div className="flex flex-1 flex-wrap gap-2">
                                 {post.participants.length > 0 && (
                                     <Button
                                         size="sm"
@@ -539,7 +540,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     onClick={() => setIsCloseModalOpen(true)}
                                     disabled={isPending}
                                     title="Valider et donner des points"
-                                    className="flex-1 h-10 text-caption font-black uppercase tracking-widest bg-success/15 hover:bg-success text-success hover:text-success-foreground border border-success/30 hover:border-success transition-colors"
+                                    className="flex-1 min-w-[130px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-success/15 hover:bg-success text-success hover:text-success-foreground border border-success/30 hover:border-success transition-colors"
                                 >
                                     <CheckCircle2 className="w-4 h-4 mr-2" />
                                     Terminer
@@ -562,7 +563,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 variant="outline"
                                 onClick={handleClose}
                                 disabled={isPending}
-                                className="flex-1 h-10 text-caption font-black uppercase tracking-widest border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
+                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
                             >
                                 <XCircle className="w-4 h-4 mr-2" />
                                 Fermer

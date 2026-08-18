@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Swords } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Swords, Search, X } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -42,6 +43,18 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const [pagination, setPagination] = useState<{ totalPages: number; totalCount: number } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    // #132 — recherche de pseudo dans le classement (filtre client-side sur la page courante).
+    const [search, setSearch] = useState("");
+
+    // Filtre client-side : pseudo Discord ou pseudo Dofus.
+    const filteredLadder = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return ladder;
+        return ladder.filter((e) =>
+            e.discordNickname?.toLowerCase().includes(q) ||
+            e.pseudoDofus?.toLowerCase().includes(q)
+        );
+    }, [ladder, search]);
 
     // Reset page when switching tabs or timeframes
     useEffect(() => {
@@ -417,8 +430,28 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             </Link>
                         </Button>
                     )}
+                    </div>
+
+                    {/* #132 — Recherche de pseudo dans le classement */}
+                    <div className="relative w-full sm:w-64 shrink-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Rechercher un pseudo…"
+                            className="h-9 pl-9 pr-8 rounded-xl bg-surface border-border text-sm placeholder:text-muted-foreground"
+                        />
+                        {search && (
+                            <button
+                                onClick={() => setSearch("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                aria-label="Effacer la recherche"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
 
             {/* Ladder Results */}
             <div className="relative min-h-[400px]">
@@ -427,14 +460,16 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         <Loader2 className="h-8 w-8 animate-spin" />
                         <span className="text-caption font-black uppercase tracking-widest">Calcul du classement...</span>
                     </div>
-                ) : ladder.length === 0 ? (
+                ) : filteredLadder.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                        <p className="text-xs font-medium italic">Aucune donnée disponible pour ce classement.</p>
+                        <p className="text-xs font-medium italic">
+                            {search.trim() ? "Aucun membre ne correspond à cette recherche." : "Aucune donnée disponible pour ce classement."}
+                        </p>
                     </div>
                 ) : (
                     <div className="space-y-8">
                         <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300" data-tour="ladder-list">
-                            {ladder.map((entry) => (
+                            {filteredLadder.map((entry) => (
                                 <LeaderboardCard
                                     key={entry.profileId}
                                     entry={entry}

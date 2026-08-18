@@ -81,6 +81,38 @@ export function normalizeDiscordAvatarUrl(url: string | null | undefined, size =
 }
 
 /**
+ * #134 — Extrait l'identifiant Discord (snowflake) d'une URL d'avatar
+ * `https://cdn.discordapp.com/avatars/{userId}/{hash}.ext` (ou miroir media.discordapp.net).
+ * Retourne undefined si l'URL n'est pas un avatar Discord (jamais de levée d'exception).
+ */
+export function extractUserIdFromAvatarUrl(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    try {
+        const parsed = new URL(url);
+        if (!isDiscordAvatarHostname(parsed.hostname)) return undefined;
+        const match = parsed.pathname.match(/^\/avatars\/(\d+)\//);
+        return match?.[1];
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * #134 — Avatar par défaut officiel de Discord (`embed/avatars/{n}.png`, jamais 404).
+ * Index déterministe : `(userId >> 22) % 6` (voir diagnostic-err-blocked-by-orb-avatars.md).
+ * Fail-closed : retourne null si userId absent/invalide (jamais de levée d'exception).
+ */
+export function getDefaultDiscordAvatar(userId: string | null | undefined): string | null {
+    if (!userId) return null;
+    try {
+        const idx = (BigInt(userId) >> 22n) % 6n;
+        return `https://cdn.discordapp.com/embed/avatars/${idx.toString()}.png`;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * #23 — Fallback CDN : en cas d'échec/429 du CDN principal (`cdn.discordapp.com`),
  * on bascule sur le miroir `media.discordapp.net` (proxy de redimensionnement Discord,
  * plus tolérant au hotlinking). Retourne null si l'URL n'est pas un avatar Discord.

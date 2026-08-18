@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -101,6 +101,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
     const [bossStats, setBossStats] = useState<any>(null);
     const [selectedDrop, setSelectedDrop] = useState<any>(null);
     const [showBossSheet, setShowBossSheet] = useState(false);
+    const autoSelectedRef = useRef(false);
 
     const selectedDungeonId = searchParams.get("dungeon");
     const selectedDungeon = dungeons.find((d) => d.id === selectedDungeonId) || null;
@@ -114,6 +115,18 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
         },
         [router, searchParams]
     );
+
+    // #138 UI : jamais de panneau vide à droite — auto-sélection du 1er donjon UNE SEULE fois
+    // au chargement (le « Retour à la liste » mobile efface l'URL sans être surchargé).
+    useEffect(() => {
+        if (autoSelectedRef.current || loadingDb || dungeons.length === 0) return;
+        if (selectedDungeonId) {
+            autoSelectedRef.current = true;
+            return;
+        }
+        autoSelectedRef.current = true;
+        updateParam("dungeon", dungeons[0].id);
+    }, [loadingDb, dungeons, selectedDungeonId, updateParam]);
 
     useEffect(() => {
         let cancelled = false;
@@ -205,7 +218,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
 
             <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
                 {/* ─── LISTE DES DONJONS ─── */}
-                <div className={cn("space-y-2", selectedDungeon && "hidden lg:block")}>
+                <div className={cn("space-y-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar", selectedDungeon && "hidden lg:block")}>
                     {filteredDungeons.length === 0 ? (
                         <div className="py-16 text-center text-muted-foreground">
                             <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />

@@ -48,7 +48,7 @@ interface PublicHeaderProps {
     clientId?: string;
 }
 
-export function PublicHeader({ activePage, user, variant: _variant = "standard", dashboardHref = "/dashboard", isFixed = true, clientId }: PublicHeaderProps) {
+export function PublicHeader({ activePage, user, variant: _variant = "standard", dashboardHref = "/dashboard", isFixed = true, clientId, isMember }: PublicHeaderProps) {
     const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
@@ -142,22 +142,26 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                             </DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-surface mx-2" />
                                             
-                                            <DashboardDrawer clientId={clientId}>
-                                                <DropdownMenuItem 
-                                                    onSelect={(e) => e.preventDefault()}
-                                                    className="focus:bg-success/10 focus:text-success rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
-                                                >
-                                                    <LayoutDashboard className="w-4 h-4" />
-                                                    <span className="text-caption font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
-                                                </DropdownMenuItem>
-                                            </DashboardDrawer>
+                                            {isMember !== false && (
+                                                <>
+                                                    <DashboardDrawer clientId={clientId}>
+                                                        <DropdownMenuItem 
+                                                            onSelect={(e) => e.preventDefault()}
+                                                            className="focus:bg-success/10 focus:text-success rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
+                                                        >
+                                                            <LayoutDashboard className="w-4 h-4" />
+                                                            <span className="text-caption font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
+                                                        </DropdownMenuItem>
+                                                    </DashboardDrawer>
 
-                                            <DropdownMenuItem asChild className="focus:bg-elevated focus:text-foreground rounded-xl p-3 cursor-pointer outline-none">
-                                                <Link href={dashboardHref} className="flex items-center gap-3 w-full">
-                                                    <LayoutDashboard className="w-4 h-4 opacity-40" />
-                                                    <span className="text-caption font-black uppercase tracking-widest">Dashboard Central</span>
-                                                </Link>
-                                            </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild className="focus:bg-elevated focus:text-foreground rounded-xl p-3 cursor-pointer outline-none">
+                                                        <Link href={dashboardHref} className="flex items-center gap-3 w-full">
+                                                            <LayoutDashboard className="w-4 h-4 opacity-40" />
+                                                            <span className="text-caption font-black uppercase tracking-widest">Dashboard Central</span>
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
 
                                             <DropdownMenuSeparator className="bg-surface mx-2" />
                                             

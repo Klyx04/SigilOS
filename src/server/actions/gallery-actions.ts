@@ -110,7 +110,7 @@ export async function getStuffGalleryPage(
     guildId: string,
     page: number = 1,
     searchQuery?: string,
-    tag?: string,
+    tags?: string[],
     classId?: string,
     sortBy?: "newest" | "votes",
     source?: "dofusbook"
@@ -240,9 +240,9 @@ export async function getStuffGalleryPage(
             );
         }
 
-        // Apply tag filter server-side
-        if (tag) {
-            allBuilds = allBuilds.filter(b => b.tags?.includes(tag));
+        // Apply tag filter server-side (multi-sélection : TOUS les tags sélectionnés doivent être présents)
+        if (tags && tags.length > 0) {
+            allBuilds = allBuilds.filter(b => tags.every(t => b.tags?.includes(t)));
         }
 
         // Apply class filter server-side

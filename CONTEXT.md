@@ -27,9 +27,9 @@
 
 > **Branche `docs/context-2026-08-28`** (consigne utilisateur : « reste sur cette branche ») → 2 commits poussés le 30/08 :
 > `6d35b36a0` (batch 5 chantiers Dashboard, 8 fichiers, +58/−33) + `0958ceffc` (MAJ contexte/PROMPT_START).
-> ⚠️ **Toujours non mergés vers dev** (`dev` = `a12cb78cd`) — la branche porte maintenant **7 commits** devant `dev` :
-> `faf72b426` (docs 28/08) · `97d5ae347` (#151) · `64bda8000` (suite #155/#139/#150/#162) · `1b8cb4bef` (retours #150) ·
-> `06e5d3e8e` (docs 29/08) · `6d35b36a0` (30/08) · `0958ceffc` (docs 30/08).
+> ⚠️ **Toujours non mergés vers dev** (`dev` = `a12cb78cd`) — commits portés par la branche : `faf72b426` (docs 28/08) ·
+> `97d5ae347` (#151) · `64bda8000` (suite #155/#139/#150/#162) · `1b8cb4bef` (retours #150) · `06e5d3e8e` (docs 29/08) ·
+> `6d35b36a0` (30/08) · `0958ceffc` (docs 30/08) · `618d39db2` (docs 30/08 précision).
 > → **PR `docs/context-2026-08-28 → dev` à décider en début de session**.
 > Mémo : `src/temp/memo-2026-08-30-chantier-dashboard.md`.
 >

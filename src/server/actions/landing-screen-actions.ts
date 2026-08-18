@@ -54,8 +54,9 @@ const DEFAULT_PRODUCT_STORY: Omit<PublicLandingScreen, "id">[] = [
 /**
  * 🖼️ #140 — Lecture PUBLIQUE des screens de la landing.
  * Sans session requise : retourne les screens actifs de la section demandée.
- * - `section="product-story"` : un screen par onglet (le `label` = nom de l'onglet).
- *   Si aucun screen → fallback sur les captures par défaut.
+ * - `section="product-story"` : **merge** onglets par défaut (Guides / Sorties & groupes / Progression)
+ *   + onglets créés par le God. Un screen dont le libellé correspond à un onglet par défaut
+ *   REMPLACE son image ; les autres s'ajoutent à la fin. → ajouter des onglets ne supprime jamais les 3 existants.
  * - `section="hero"` : 1 seule image (la 1ʳᵉ active). Si aucune → la landing garde son image par défaut.
  */
 export async function getPublicLandingScreens(section = "product-story"): Promise<ActionResponse<PublicLandingScreen[]>> {
@@ -69,16 +70,24 @@ export async function getPublicLandingScreens(section = "product-story"): Promis
             orderBy: { sortOrder: "asc" },
         });
 
-        if (screens.length > 0) {
+        if (section !== "product-story") {
             return { success: true, data: screens.map(s => ({ ...s })) };
         }
 
-        // Fallback : uniquement pour la section Product Story (les autres sections ont
-        // une image par défaut codée dans leur composant).
-        if (section === "product-story") {
-            return { success: true, data: DEFAULT_PRODUCT_STORY.map((d, i) => ({ id: `default-${i}`, ...d })) };
-        }
-        return { success: true, data: [] };
+        // Merge : les onglets du God s'ajoutent aux défauts ; un libellé identique remplace l'image par défaut.
+        const defaultLabels = new Set(DEFAULT_PRODUCT_STORY.map(d => (d.label || "").toLowerCase().trim()));
+        const overrides = screens.filter(s => s.label && defaultLabels.has(s.label.toLowerCase().trim()));
+        const extras = screens.filter(s => !s.label || !defaultLabels.has(s.label.toLowerCase().trim()));
+
+        const merged: PublicLandingScreen[] = DEFAULT_PRODUCT_STORY.map((def) => {
+            const override = overrides.find(o => (o.label || "").toLowerCase().trim() === (def.label || "").toLowerCase().trim());
+            if (override) {
+                return { ...override, sortOrder: def.sortOrder };
+            }
+            return { id: `default-${def.sortOrder}`, ...def };
+        }).concat(extras.map(s => ({ ...s })));
+
+        return { success: true, data: merged };
     } catch (error) {
         logger.error("[getPublicLandingScreens] Error:", error);
         if (section === "product-story") {

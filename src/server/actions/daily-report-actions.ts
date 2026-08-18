@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
+import { auth } from "@/auth";
 import { sendChannelMessage } from "@/server/discord";
 import { isSuperAdmin } from "./super-admin-actions";
 
@@ -27,6 +28,15 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
         const isAdmin = await isSuperAdmin();
         if (!isAdmin) throw new Error("Accès refusé");
     } else {
+        // 🔒 SÉCURITÉ (IDOR) : le chemin AUTO est légitime pour le worker BullMQ (SANS session)
+        // et la route cron (protégée par secret). Un utilisateur connecté NON-God ne doit pas
+        // pouvoir déclencher l'envoi du rapport d'une guilde quelconque.
+        const session = await auth();
+        if (session?.user?.id) {
+            const isAdmin = await isSuperAdmin();
+            if (!isAdmin) throw new Error("Accès refusé");
+        }
+
         // #147 : une seule émission automatique par jour et par guilde (anti-doublon).
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
         const key = `daily-report:${guildId}:${today}`;

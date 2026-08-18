@@ -151,14 +151,17 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
         setDirectory([]);
         setBossStats(null);
         setShowBossSheet(false);
-        Promise.all([
-            getDungeonDirectory(guildId, selectedDungeon.id),
-            getMonsterStats(selectedDungeon.bossName),
-        ]).then(([dirRes, statsRes]) => {
+        // 1. Le social (qui a / qui cherche) vient de NOTRE BDD (local, instantané) → affiché sans attendre.
+        getDungeonDirectory(guildId, selectedDungeon.id).then((dirRes) => {
             if (cancelled) return;
             if (dirRes.success && dirRes.data) setDirectory(dirRes.data);
-            if (statsRes.success && statsRes.data) setBossStats(statsRes.data);
             setLoadingDir(false);
+        });
+        // 2. La fiche donjon (drops/sorts/carte) vient de dofusdb → charge en ARRIÈRE-PLAN,
+        // sans jamais bloquer le « qui a quoi ». (Cache 1h côté serveur + cache state client.)
+        getMonsterStats(selectedDungeon.bossName).then((statsRes) => {
+            if (cancelled) return;
+            if (statsRes.success && statsRes.data) setBossStats(statsRes.data);
         });
         return () => {
             cancelled = true;

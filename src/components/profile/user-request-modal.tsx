@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { sendUserRequest } from "@/server/actions/user-request-actions";
-import { Hammer, Sparkles, Shield, Loader2, Send, Check, ArrowRight } from "lucide-react";
+import { Hammer, Sparkles, Shield, Loader2, Send, Check, ArrowRight, Handshake } from "lucide-react";
 import { DOFUS_JOBS, getOrder } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,10 +29,11 @@ interface UserRequestModalProps {
         alignment?: string | null;
         alignmentOrder?: string | null;
         legendaryCrafts: any[];
+        services?: any[];
     };
 }
 
-type RequestType = "job" | "order" | "legendary";
+type RequestType = "job" | "order" | "legendary" | "service";
 
 const TYPE_CONFIG: Record<RequestType, {
     icon: typeof Hammer;
@@ -66,15 +67,24 @@ const TYPE_CONFIG: Record<RequestType, {
         glow: "shadow-purple-500/20",
         badge: "bg-info/15 text-info border-info/30",
     },
+    service: {
+        icon: Handshake,
+        label: "Service",
+        gradient: "from-success/20 via-success/5 to-transparent",
+        border: "border-success/40",
+        glow: "shadow-emerald-500/20",
+        badge: "bg-success/15 text-success border-success/30",
+    },
 };
 
-function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }: {
+function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary, servicesCount }: {
     type: RequestType;
     current: RequestType;
     onClick: () => void;
     disabled?: boolean;
     jobsCount?: number;
     hasLegendary?: boolean;
+    servicesCount?: number;
 }) {
     const cfg = TYPE_CONFIG[type];
     const Icon = cfg.icon;
@@ -85,6 +95,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
     if (type === "job") availability = jobsCount ? `${jobsCount} métier${jobsCount > 1 ? "s" : ""}` : "Aucun";
     if (type === "legendary") availability = hasLegendary ? "Disponible" : "Aucun";
     if (type === "order") availability = "Disponible";
+    if (type === "service") availability = servicesCount ? `${servicesCount} service${servicesCount > 1 ? "s" : ""}` : "Aucun";
 
     return (
         <button
@@ -92,7 +103,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
             disabled={disabled}
             onClick={onClick}
             className={cn(
-                "relative group flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all duration-300 outline-none",
+                "relative group flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-colors duration-200 outline-none min-w-0",
                 isActive
                     ? [cfg.border, cfg.glow, "bg-surface/80 scale-[1.02]"].join(" ")
                     : "border-border/40 bg-surface/30 hover:border-border/60 hover:bg-surface/50",
@@ -119,7 +130,7 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
 
             {/* Label */}
             <span className={cn(
-                "relative z-10 text-caption font-black uppercase tracking-widest transition-colors duration-300",
+                "relative z-10 text-caption font-bold uppercase tracking-wide text-center leading-tight break-words max-w-full transition-colors duration-200",
                 isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
             )}>
                 {cfg.label}
@@ -128,14 +139,16 @@ function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary }:
             {/* Availability badge */}
             {availability && (
                 <span className={cn(
-                    "relative z-10 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                    "relative z-10 text-caption font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap max-w-full truncate",
                     type === "job" && jobsCount
                         ? "bg-warning/10 text-warning/70 border-warning/20"
                         : type === "legendary" && hasLegendary
                             ? "bg-info/10 text-info/70 border-info/20"
                             : type === "order"
                                 ? "bg-info/10 text-info/70 border-info/20"
-                                : "bg-elevated/60 text-muted-foreground border-border/30"
+                                : type === "service" && servicesCount
+                                    ? "bg-success/10 text-success/70 border-success/20"
+                                    : "bg-elevated/60 text-muted-foreground border-border/30"
                 )}>
                     {availability}
                 </span>
@@ -205,6 +218,7 @@ export function UserRequestModal({
 
     const jobs = (capabilities.jobs || []);
     const legendaryItems = (capabilities.legendaryCrafts || []);
+    const services = (capabilities.services || []);
 
     const handleSubmit = async () => {
         if (!value) {
@@ -241,14 +255,15 @@ export function UserRequestModal({
         <Dialog open={isOpen} onOpenChange={(val) => {
             if (!val) { resetModal(); onClose(); }
         }}>
-            <DialogContent className="sm:max-w-[520px] bg-background border-border/60 shadow-2xl text-foreground p-0 gap-0 overflow-hidden rounded-3xl">
+            <DialogContent className="sm:max-w-[520px] max-w-[calc(100vw-1rem)] bg-background border-border/60 shadow-2xl text-foreground p-0 gap-0 overflow-hidden rounded-3xl">
                 {/* Header with gradient accent */}
                 <div className="relative overflow-hidden">
                     <div className={cn(
                         "absolute inset-0 opacity-20",
                         type === "job" ? "bg-gradient-to-br from-warning/30 via-transparent to-transparent" :
                         type === "order" ? "bg-gradient-to-br from-info/30 via-transparent to-transparent" :
-                        "bg-gradient-to-br from-info/30 via-transparent to-transparent"
+                        type === "legendary" ? "bg-gradient-to-br from-info/30 via-transparent to-transparent" :
+                        "bg-gradient-to-br from-success/30 via-transparent to-transparent"
                     )} />
                     <DialogHeader className="relative p-6 pb-4 border-b border-border">
                         <div className="flex items-center gap-3">
@@ -256,17 +271,19 @@ export function UserRequestModal({
                                 "w-10 h-10 rounded-xl flex items-center justify-center border",
                                 type === "job" ? "bg-warning/10 border-warning/30" :
                                 type === "order" ? "bg-info/10 border-info/30" :
-                                "bg-info/10 border-info/30"
+                                type === "legendary" ? "bg-info/10 border-info/30" :
+                                "bg-success/10 border-success/30"
                             )}>
                                 <Send className={cn(
                                     "w-4 h-4",
                                     type === "job" ? "text-warning" :
                                     type === "order" ? "text-info" :
-                                    "text-info"
+                                    type === "legendary" ? "text-info" :
+                                    "text-success"
                                 )} />
                             </div>
-                            <div>
-                                <DialogTitle className="text-base font-black tracking-wide">
+                            <div className="flex-1 min-w-0">
+                                <DialogTitle className="text-base font-bold truncate">
                                     Solliciter <span className="text-success">{targetName}</span>
                                 </DialogTitle>
                                 <p className="text-caption text-muted-foreground font-medium mt-0.5">
@@ -281,9 +298,9 @@ export function UserRequestModal({
                                 const idx = ["type", "value", "message"].indexOf(step);
                                 const isDone = i <= idx;
                                 return (
-                                    <div key={s} className="flex items-center gap-2 flex-1">
+                                    <div key={s} className="flex items-center gap-2 flex-1 min-w-0">
                                         <div className={cn(
-                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-black uppercase tracking-widest border transition-all",
+                                            "flex items-center gap-1 px-2 py-1 rounded-full text-caption font-bold uppercase tracking-wide border transition-colors whitespace-nowrap",
                                             isDone
                                                 ? [activeCfg.border, activeCfg.badge, "shadow-sm"].join(" ")
                                                 : "border-border text-muted-foreground bg-surface/50"
@@ -294,7 +311,7 @@ export function UserRequestModal({
                                             )}>
                                                 {isDone ? "✓" : i + 1}
                                             </span>
-                                            <span className="hidden sm:inline">
+                                            <span className="hidden sm:inline whitespace-nowrap">
                                                 {s === "type" ? "Type" : s === "value" ? "Objet" : "Message"}
                                             </span>
                                         </div>
@@ -326,7 +343,7 @@ export function UserRequestModal({
                                         Choisissez le type de service
                                     </Label>
                                 </div>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     <TypeCard
                                         type="job"
                                         current={type}
@@ -346,6 +363,13 @@ export function UserRequestModal({
                                         disabled={legendaryItems.length === 0}
                                         hasLegendary={legendaryItems.length > 0}
                                     />
+                                    <TypeCard
+                                        type="service"
+                                        current={type}
+                                        onClick={() => { setType("service"); setValue(""); }}
+                                        disabled={services.length === 0}
+                                        servicesCount={services.length}
+                                    />
                                 </div>
 
                                 {type === "order" && !orderData && (
@@ -356,14 +380,15 @@ export function UserRequestModal({
                                     </div>
                                 )}
 
-                                {((type === "job" && jobs.length > 0) || (type === "legendary" && legendaryItems.length > 0) || (type === "order" && orderData)) && (
+                                {((type === "job" && jobs.length > 0) || (type === "legendary" && legendaryItems.length > 0) || (type === "order" && orderData) || (type === "service" && services.length > 0)) && (
                                     <Button
                                         onClick={() => setStep("value")}
                                         className={cn(
-                                            "w-full h-11 rounded-xl font-black text-caption uppercase tracking-widest shadow-lg transition-all",
-                                            type === "job" ? "bg-warning hover:bg-warning shadow-amber-600/30" :
-                                            type === "order" ? "bg-info hover:bg-info shadow-indigo-600/30" :
-                                            "bg-info hover:bg-info shadow-purple-600/30"
+                                            "w-full h-11 rounded-xl font-black text-caption uppercase tracking-widest transition-colors",
+                                            type === "job" ? "bg-warning/15 hover:bg-warning/25 text-warning border border-warning/25" :
+                                            type === "order" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
+                                            type === "legendary" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
+                                            "bg-success/15 hover:bg-success/25 text-success border border-success/25"
                                         )}
                                     >
                                         Suivant
@@ -384,10 +409,10 @@ export function UserRequestModal({
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="w-1 h-1 rounded-full" style={{
-                                        backgroundColor: type === "job" ? "#f59e0b" : type === "order" ? "#6366f1" : "#a855f7"
+                                        backgroundColor: type === "job" ? "#f59e0b" : type === "order" ? "#6366f1" : type === "legendary" ? "#a855f7" : "#10b981"
                                     }} />
                                     <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest">
-                                        {type === "job" ? "Métier recherché" : type === "order" ? "Ordre d'alignement" : "Légendaire à crafter"}
+                                        {type === "job" ? "Métier recherché" : type === "order" ? "Ordre d'alignement" : type === "legendary" ? "Légendaire à crafter" : "Service demandé"}
                                     </Label>
                                 </div>
 
@@ -422,6 +447,15 @@ export function UserRequestModal({
                                             onClick={() => setValue(value === item.id ? "" : item.id)}
                                         />
                                     ))}
+                                    {type === "service" && services.map((svc: any) => (
+                                        <ValueCard
+                                            key={svc.id}
+                                            label={svc.title}
+                                            icon={svc.imageUrl}
+                                            isSelected={value === svc.id}
+                                            onClick={() => setValue(value === svc.id ? "" : svc.id)}
+                                        />
+                                    ))}
                                 </div>
 
                                 {!value && (
@@ -442,10 +476,11 @@ export function UserRequestModal({
                                         onClick={() => setStep("message")}
                                         disabled={!value}
                                         className={cn(
-                                            "flex-1 h-10 rounded-xl font-black text-caption uppercase tracking-widest shadow-lg transition-all",
-                                            type === "job" ? "bg-warning hover:bg-warning shadow-amber-600/30" :
-                                            type === "order" ? "bg-info hover:bg-info shadow-indigo-600/30" :
-                                            "bg-info hover:bg-info shadow-purple-600/30"
+                                            "flex-1 h-10 rounded-xl font-black text-caption uppercase tracking-widest transition-colors",
+                                            type === "job" ? "bg-warning/15 hover:bg-warning/25 text-warning border border-warning/25" :
+                                            type === "order" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
+                                            type === "legendary" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
+                                            "bg-success/15 hover:bg-success/25 text-success border border-success/25"
                                         )}
                                     >
                                         Suivant
@@ -469,7 +504,8 @@ export function UserRequestModal({
                                     "flex items-center gap-3 p-3 rounded-xl border",
                                     type === "job" ? "bg-warning/5 border-warning/20" :
                                     type === "order" ? "bg-info/5 border-info/20" :
-                                    "bg-info/5 border-info/20"
+                                    type === "legendary" ? "bg-info/5 border-info/20" :
+                                    "bg-success/5 border-success/20"
                                 )}>
                                     {(() => {
                                         let icon = "";
@@ -485,6 +521,10 @@ export function UserRequestModal({
                                             const item = legendaryItems.find((i: any) => i.id === value);
                                             icon = item?.imageUrl;
                                             label = item?.name || value;
+                                        } else if (type === "service") {
+                                            const svc = services.find((s: any) => s.id === value);
+                                            icon = svc?.imageUrl;
+                                            label = svc?.title || value;
                                         }
                                         return (
                                             <>

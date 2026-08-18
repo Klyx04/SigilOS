@@ -272,7 +272,7 @@ export default async function DashboardPage({
 
                 {/* ── 6. FLUX DE VIE DE LA GUILDE (pleine largeur) ─────── */}
                 <section data-tour="dash-activity" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    <GuildActivityFeed logs={guildLogs} guildId={guildId} />
+                    <GuildActivityFeed logs={guildLogs} guildId={guildId} canViewLogs={user.canViewAuditLogs} />
                 </section>
 
             </div>

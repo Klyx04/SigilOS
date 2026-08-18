@@ -23,6 +23,34 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 30/08 — batch Dashboard (#152 · #157 · #159 · #137 · #142)
+
+> **Branche `docs/context-2026-08-28`** (consigne utilisateur : « reste sur cette branche ») → 1 commit poussé :
+> `6d35b36a0` (batch 5 chantiers Dashboard, 8 fichiers, +58/−33). ⚠️ **Toujours non mergés vers dev**
+> (`dev` = `a12cb78cd`) — la branche porte maintenant **5 commits** devant `dev` : `faf72b426` (docs) ·
+> `97d5ae347` (#151) · `64bda8000` (suite #155/#139/#150/#162) · `1b8cb4bef` (retours #150) · `6d35b36a0` (30/08).
+> → **PR `docs/context-2026-08-28 → dev` à décider en début de session**.
+> Mémo : `src/temp/memo-2026-08-30-chantier-dashboard.md`.
+>
+> - **#152 — Mission spéciale (OBJECTIF manuel)** : `mission-card.tsx` — icône `exclamation.png` **en grand et
+>   centrée** sur l'image de la carte (`w-14 h-14 sm:w-20 sm:h-20` quand une image existe) ; **sans image, l'icône
+>   devient le visuel principal** (`w-16 h-16 sm:w-24 sm:h-24`) — comme les icônes de boss DJ/Songes. Petit badge
+>   en coin bas-droit supprimé.
+> - **#157 — Navbar « Changer de guilde »** : `app-sidebar.tsx` + `galactic-header.tsx` — noms de guilde
+>   `text-primary` (vert illisible dark + clair) → `text-foreground`, « Connecté »/« Actuel » →
+>   `text-muted-foreground`, pastille d'accent `bg-primary/80` (fini `animate-pulse`), hover du trigger dé-verté.
+> - **#159 — Lobby Guesser** : `interactive-map-v2.tsx` — labels « Rounds »/« Mode de Jeu » `text-foreground/20`
+>   (invisibles) → `text-muted-foreground`, boutons inactifs `text-*-foreground/30` → `text-foreground/70`
+>   (+ hover `bg-elevated`), glows d'état retirés, `transition-colors`.
+> - **#137 — Capture OCR (Manuel)** : cause racine = **défaut fail-open** `canManualSyncLadder = true` dans
+>   `profile-bento-grid.tsx` → passé à `false` (fail-closed) → la capture OCR est masquée quand le module
+>   « Ladder Analyse OC » est désactivé (les 2 pages profil passent déjà le flag depuis `userContext`).
+> - **#142 — Header public `/guilds/[id]`** : cause racine = **la session n'était jamais passée au `PublicHeader`**
+>   → bouton « Connexion » affiché même connecté. Fix : `auth()` dans `guilds/[guildId]/page.tsx` + prop `user`
+>   propagée dans `GuildPublicView` **et** `PrivateGuildView` → le header affiche le profil connecté (dropdown
+>   Session) au lieu du bouton de reconnexion.
+> - Vérifs : tsc 0 · lint 0 erreur · **225/225 tests** · build OK · pre-commit vert (1 commit).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 29/08 — #151 Dashboard allégé + suite #155 · #139 · #150 · #162 (3 commits poussés)
 
 > **Branche `docs/context-2026-08-28`** (consigne utilisateur : pas de nouvelle branche) → 3 commits poussés :

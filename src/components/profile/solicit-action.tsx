@@ -14,6 +14,7 @@ interface SolicitActionProps {
         alignment?: string | null;
         alignmentOrder?: string | null;
         legendaryCrafts: any[];
+        services?: any[];
     };
 }
 
@@ -32,7 +33,7 @@ export function SolicitAction({
 
                     setIsOpen(true);
                 }}
-                className="bg-info hover:bg-info text-info-foreground font-bold uppercase tracking-widest text-xs h-9 px-4 gap-2 transition-colors duration-150"
+                className="bg-info/15 hover:bg-info/25 text-info border border-info/25 font-bold uppercase tracking-widest text-xs h-9 px-4 gap-2 transition-colors duration-150"
             >
                 <Send className="w-3.5 h-3.5" />
                 Solliciter ce membre

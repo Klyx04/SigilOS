@@ -13,7 +13,7 @@ export async function sendUserRequest(
     guildId: string,
     targetUserId: string,
     data: {
-        type: "job" | "order" | "legendary";
+        type: "job" | "order" | "legendary" | "service";
         value: string;
         message: string;
     }
@@ -87,6 +87,19 @@ export async function sendUserRequest(
             const item = await db.legendaryItem.findUnique({ where: { id: data.value } });
             requestLabel = `Craft Légendaire : ${item?.name || data.value}`;
             iconUrl = item?.imageUrl || "";
+        } else if (data.type === "service") {
+            // Fail-closed : le service doit exister, appartenir à la cible, à la guilde et être ACTIF.
+            const service = await db.serviceListing.findUnique({ where: { id: data.value } });
+            if (
+                !service ||
+                service.profileId !== targetProfile.id ||
+                service.guildId !== guildConfig.id ||
+                service.status !== "ACTIVE"
+            ) {
+                return { success: false, error: "Service introuvable ou plus disponible." };
+            }
+            requestLabel = `Service : ${service.title}`;
+            iconUrl = service.dofusItemIconUrl || service.dungeonImageUrl || "";
         }
 
         // 3. Create Dashboard Notification

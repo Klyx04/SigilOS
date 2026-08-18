@@ -216,7 +216,7 @@ export default function NotificationsPage() {
                         key={st.id}
                         onClick={() => setStatusFilter(st.id as any)}
                         className={cn(
-                            "flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                            "flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-colors",
                             statusFilter === st.id
                                 ? "bg-surface text-foreground border border-border-strong shadow-lg shadow-white/5"
                                 : "text-muted-foreground hover:text-foreground hover:bg-surface"
@@ -246,9 +246,9 @@ export default function NotificationsPage() {
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border",
                                 activeTab === cat.id
-                                    ? "bg-info text-info-foreground border-info/50 shadow-md shadow-cyan-900/30 font-black"
+                                    ? "bg-info text-info-foreground border-info/50 shadow-md shadow-cyan-900/30"
                                     : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-surface"
                             )}
                         >

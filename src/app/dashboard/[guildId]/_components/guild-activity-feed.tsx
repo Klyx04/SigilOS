@@ -19,11 +19,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface GuildActivityFeedProps {
     logs?: any[];
     guildId?: string;
+    canViewLogs?: boolean;
 }
 
 export function GuildActivityFeed({ 
     logs = [],
     guildId,
+    canViewLogs = false,
 }: GuildActivityFeedProps) {
     // Count unique actors for activity counter
     const uniqueActorsToday = new Set<string>();
@@ -118,7 +120,7 @@ export function GuildActivityFeed({
                     )}
                 </div>
 
-                {logs.length > 0 && guildId && (
+                {logs.length > 0 && guildId && canViewLogs && (
                     <div className="mt-4 pt-3 border-t border-border text-center">
                         <Link
                             href={`/dashboard/${guildId}/admin/logs`}

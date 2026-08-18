@@ -217,12 +217,27 @@ export default auth(async (req) => {
             }
         }
 
+        // #156 — Le Super Admin authentifié (JWT vérifié, discordId ∈ SUPER_ADMIN_IDS)
+        // est exempté du rate-limit par IP : chaque édition du panel (action serveur +
+        // revalidation RSC + fetch parallèles des sous-routes) dépasse vite le plafond
+        // de 120 req/min. La protection anti-brute-force reste INTACTE :
+        //   1. le rate-limit strict `${ip}:god-invalid` (10/min) sur les MAUVAIS secrets
+        //      (bloc isGodSecretPath, exécuté AVANT pour un attaquant sans secret valide),
+        //   2. le secret GOD_ROUTE lui-même (rewrite → 404 sans secret valide),
+        //   3. la vérification de session JWT (getToken ci-dessus) + isAuthenticated,
+        //   4. l'allowlist IP optionnelle GOD_IP_ALLOWLIST (ci-dessus, toujours appliquée).
+        const superAdminIds = (process.env.SUPER_ADMIN_IDS || "")
+            .split(",")
+            .map(id => id.trim())
+            .filter(Boolean);
+        const isSuperAdminUser = !!token?.discordId && superAdminIds.includes(token.discordId as string);
+
         // Rate-limit GÉNÉREUX (120 req/min) sur les routes God LÉGITIMES (secret
         // valide / connecté) : évite les faux positifs 429 pendant la navigation
         // du panel (chargement parallèle de multiples tabs/sous-routes). La vraie
         // protection anti-brute-force est le rate-limit strict sur les MAUVAIS
         // secrets (voir bloc isGodSecretPath) + le secret + la session.
-        if (!nextUrl.pathname.startsWith("/api/god/notify")) {
+        if (!isSuperAdminUser && !nextUrl.pathname.startsWith("/api/god/notify")) {
             const allowed = ipRateLimit(`${ip}:god`, 120, 60_000);
             if (!allowed) {
                 return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });

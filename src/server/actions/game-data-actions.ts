@@ -545,7 +545,18 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
         return { success: false, error: 'Erreur lors de la récupération des avis' };
     }
 }
+// #138 — cache mémoire 1h pour les fiches monstres (dofusdb externe, jusqu'à 5 requêtes/boss).
+const monsterStatsCache = new Map<string, { data: any; expiresAt: number }>();
+const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
+
 export async function getMonsterStats(monsterName: string, dungeonName?: string): Promise<ActionResponse<any>> {
+    // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
+    const cacheKey = `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
+    const cached = monsterStatsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return { success: true, data: cached.data };
+    }
+
     let coordinates = null;
 
     // Attempt local coordinate lookup first (very fast and reliable)
@@ -918,10 +929,8 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             } catch (err) { logger.error("Fallback coordinate fetch error:", err); }
         }
 
-        return {
-            success: true,
-            data: {
-                id: monster.id,
+        const resultData = {
+            id: monster.id,
                 name: monster.name.fr,
                 imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
                 coordinates,
@@ -980,8 +989,9 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                         castInDiagonal: level.castInDiagonal ?? false
                     };
                 })
-            }
         };
+        monsterStatsCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + MONSTER_STATS_TTL });
+        return { success: true, data: resultData };
     } catch (error) {
         logger.error('[getMonsterStats] Error:', { error });
         return { success: false, error: 'Erreur DofusDB' };

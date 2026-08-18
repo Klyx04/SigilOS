@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Loader2, Sparkles, RefreshCw, Edit2, ExternalLink, UserSearch, Info, Camera, Upload, Check, X, Swords } from "lucide-react";
+import { Trophy, Loader2, Sparkles, RefreshCw, Edit2, ExternalLink, UserSearch, Info, Camera, Upload, Check, X } from "lucide-react";
 import { refreshUserSuccessPoints, getLadderPreview, syncMemberSuccessPoints } from "@/server/actions/profile-actions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -499,8 +499,8 @@ export function SuccessSync({
                         variant="outline"
                         className="flex-1 h-11 border-border bg-surface hover:bg-elevated text-foreground font-bold"
                     >
-                        <Link href={`/dashboard/${guildId}/donjons-et-quetes?tab=shared-achievements`}>
-                            <Swords className="w-4 h-4 text-warning" />
+                        <Link href={`/dashboard/${guildId}/succes?view=guilde`}>
+                            <Trophy className="w-4 h-4 text-warning" />
                             <span>Succès Communs</span>
                         </Link>
                     </Button>

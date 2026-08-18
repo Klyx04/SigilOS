@@ -506,6 +506,7 @@ model GuildModules {
   minigames        Boolean     @default(true)
   manualLadderSync Boolean     @default(true)
   availability     Boolean     @default(false)
+  succes           Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -1439,6 +1440,13 @@ model UserDungeonProgress {
   dungeonId     String
   achievementId String
   completedAt   DateTime           @default(now())
+  /**
+   * #138 — provenance de la validation :
+   *  - "MANUAL" : cochée par le membre dans « Mes Succès » (interface classique)
+   *  - "GROUP"  : validée à la clôture d'un post DJ/Quête (tout le groupe présent)
+   *  Sert à la notification « tes succès ont été mis à jour » côté participant.
+   */
+  source        String             @default("MANUAL")
   achievement   DungeonAchievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
   dungeon       Dungeon            @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
   profile       UserProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)

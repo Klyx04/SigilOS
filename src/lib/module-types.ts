@@ -31,7 +31,8 @@ export type ModuleKey =
     | "gallery"
     | "ladderSync"
     | "manualLadderSync"
-    | "minigames";
+    | "minigames"
+    | "succes";
 
 export type GuildModulesState = {
     // Général
@@ -64,6 +65,7 @@ export type GuildModulesState = {
     ladderSync: boolean;
     manualLadderSync: boolean;
     minigames: boolean;
+    succes: boolean;
 };
 
 /**
@@ -102,4 +104,5 @@ export const DEFAULT_MODULES: GuildModulesState = {
     ladderSync: false,
     manualLadderSync: false,
     minigames: false,
+    succes: false,
 };

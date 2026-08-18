@@ -23,6 +23,25 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 28/08 — #128 · #130 · #132 · #134 (Dashboard UI/UX + avatars Discord)
+
+> **Branche `feat/chantier-2026-08-19`** → commit **`fd8923d0f` poussé (28/08)** (le #126 27/08 est déjà poussé en `36335919c`).
+> - **#128 — Posts DJ responsives** (`DjPostCard.tsx`) : actions « Détails/Rejoindre/Annuler/Accepté/Terminer/Fermer » en `flex-wrap` + `min-w` + `whitespace-nowrap` → plus rien ne sort de la carte ; typo `text-caption font-black tracking-widest` → `text-xs font-bold tracking-wide` ; rangée Mode/Placement en wrap.
+> - **#130 — Batch UI Dashboard** :
+>   - navbar scrollbar fluide (`app-sidebar.tsx`) : ScrollArea Radix → conteneur natif `overflow-y-auto custom-scrollbar overscroll-contain` (scrollbar visible, haut/bas fluide) ;
+>   - galerie-stuff (`gallery-client.tsx` + `gallery-filters.tsx`) : tabs/filtres `bg-black/60|bg-black/40` → `bg-elevated` (fini le noir-sur-noir) + `min-h-[48px]` sur la barre de filtres → plus de layout shift Équipements ↔ Skins & Looks ;
+>   - cartes songes aérées (`RunCard.tsx` + `RunCardGrid.tsx`) : header `mb-8→mb-6`, meta wrap `text-xs`, sections dé-serrées, grille `gap-5` ;
+>   - admin/members : modale Relance `max-h-[85dvh] overflow-y-auto` (plus inscrollable) + **bouton « Relancer » par membre supprimé** (la « Relance groupée » filtrée reste).
+> - **#132 — Batch UI / dark mode** :
+>   - calendrier : bouton « Nouvel évent » → `bg-warning text-warning-foreground` (fini la police blanche sur fond jaune ; glow/scale retirés) ;
+>   - dropdown profil dark : « Mon Profil »/« Réglages » ne cachent plus la police au hover (`focus:text-foreground` + `data-[highlighted]:bg-surface/text-foreground`, top-nav + user-nav) ;
+>   - **`/planning`** : nouveau **`PlanningEditButton`** (« Éditer mon planning » → Dialog `AvailabilityHeatmap`, sauvegarde via `updateAvailability` = même source que le profil perso) + grille `overscroll-contain scroll-smooth` ;
+>   - **`/ladder`** : recherche de pseudo (input client-side sur pseudo Discord + pseudo Dofus, état vide dédié).
+> - **#134 — Avatars Discord (ERR_BLOCKED_BY_ORB)** : `DiscordAvatarImage` → fallback en cascade **CDN → miroir `media.discordapp.net` → avatar par défaut `embed/avatars/{n}.png` → initiales** (plus jamais d'image brisée). Adopté partout : ladder (`leaderboard-card`), admin membres, top-nav, cartes songes, posts DJ, planning. Helpers `extractUserIdFromAvatarUrl`/`getDefaultDiscordAvatar` dans `src/lib/discord-avatars.ts` + **tests unitaires ajoutés**.
+> - **#126 (27/08, 6/7)** : rappel semaine responsive · countdown Guesser visible · bouton « Suivant » réservé à l'hôte · popup partie à 2 joueurs · nav mini-jeux client-side · Dofoozbz vérifié.
+> - Vérifs : tsc 0 · lint 0 erreur · **216/216 tests** · build OK · pre-commit vert (lint-staged + scan secrets + tsc).
+> - ⚠️ **PR `feat/chantier-2026-08-19` → dev à merger** (contient #126 + #128/#130/#132/#134 + commits docs) ; la PR dependabot **dev** (esbuild/eslint/tsx) est toujours en attente (sans risque).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 26/08 — PR #492 mergée : encyclopédie 4 catégories + onglet Guides + fixes UI/sécu/deps
 
 > **Branche `feat/chantier-2026-08-19`** → **PR #492 mergée vers dev** (`eb0aca540`).

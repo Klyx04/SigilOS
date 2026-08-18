@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, memo } from "react";
 import { getClassName, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
-import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield, Sparkles, RefreshCw } from "lucide-react";
+import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield, Sparkles, RefreshCw, Copy } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
@@ -349,10 +349,10 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     </TooltipProvider>
                 </div>
 
-                {/* Tags */}
+                {/* Tags — limités à 4 pour ne pas surcharger la carte */}
                 {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                        {tags.map(tagId => {
+                        {tags.slice(0, 4).map(tagId => {
                             const tagDef = DO_TAGS.find(t => t.id === tagId);
                             return tagDef ? (
                                 <span key={tagId} className={cn("px-1.5 py-0.5 text-caption rounded font-black uppercase tracking-tighter", tagDef.className)}>
@@ -360,6 +360,11 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                 </span>
                             ) : null;
                         })}
+                        {tags.length > 4 && (
+                            <span className="px-1.5 py-0.5 text-caption rounded font-black uppercase tracking-tighter bg-surface text-muted-foreground border border-border">
+                                +{tags.length - 4}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>
@@ -726,12 +731,21 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                 </div>
                             )}
 
-                            <div className="mt-8">
+                            <div className="mt-8 flex flex-wrap items-center gap-3">
+                                <Button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(url);
+                                        toast.success("Lien copié !");
+                                    }}
+                                    className="w-full sm:w-auto inline-flex px-6 py-3 rounded-2xl text-center text-label font-bold gap-2 items-center justify-center"
+                                >
+                                    <Copy className="w-4 h-4" /> Copier le lien
+                                </Button>
                                 <a
                                     href={url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full sm:w-auto inline-flex px-8 py-4 bg-background text-foreground rounded-2xl text-center text-label font-black uppercase tracking-widest hover:bg-surface transition-all items-center justify-center gap-3 shadow-xl shadow-white/5"
+                                    className="w-full sm:w-auto inline-flex px-6 py-3 bg-background text-foreground rounded-2xl text-center text-label font-bold uppercase tracking-wider hover:bg-surface transition-all items-center justify-center gap-2 border border-border"
                                 >
                                     Ouvrir sur Dofusbook <ExternalLink className="w-4 h-4" />
                                 </a>

@@ -90,6 +90,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     const [partners, setPartners] = useState<Record<string, Partner[]>>({});
     const [loadingPartners, setLoadingPartners] = useState(false);
     const toastFired = useRef(false);
+    const autoSelectedRef = useRef(false);
 
     const selectedDungeonId = searchParams.get("dungeon");
 
@@ -153,6 +154,22 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     }, [progressEntries]);
 
     const selectedDungeon = dungeons.find((d) => d.id === selectedDungeonId) || null;
+
+    // #138 UI : jamais de panneau vide à droite — on auto-sélectionne le 1er donjon « à faire »
+    // (sinon le 1er de la liste) UNE SEULE fois au chargement (le « Retour à la liste » mobile
+    // efface l'URL sans être surchargé).
+    useEffect(() => {
+        if (autoSelectedRef.current || loading || dungeons.length === 0) return;
+        if (selectedDungeonId) {
+            autoSelectedRef.current = true;
+            return;
+        }
+        const firstTodo = dungeons.find((d) => d.achievements.some((a) => !completedIds.has(a.id))) || dungeons[0];
+        if (firstTodo) {
+            autoSelectedRef.current = true;
+            updateParam("dungeon", firstTodo.id);
+        }
+    }, [loading, dungeons, selectedDungeonId, completedIds, updateParam]);
 
     // Hint « partenaires » : chargé à la sélection, une seule fois par donjon.
     useEffect(() => {
@@ -221,6 +238,16 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         [dungeons, completedIds]
     );
     const totalCount = useMemo(() => dungeons.reduce((acc, d) => acc + d.achievements.length, 0), [dungeons]);
+    const totalPoints = useMemo(
+        () =>
+            dungeons.reduce(
+                (acc, d) =>
+                    acc +
+                    d.achievements.filter((a) => completedIds.has(a.id)).reduce((p, a) => p + (a.points || 0), 0),
+                0
+            ),
+        [dungeons, completedIds]
+    );
     const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
     const filteredDungeons = useMemo(() => {
@@ -279,16 +306,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 </div>
                 <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col justify-center">
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Points</p>
-                    <p className="text-2xl font-black text-warning tabular-nums mt-1">
-                        {dungeons.reduce(
-                            (acc, d) =>
-                                acc +
-                                d.achievements
-                                    .filter((a) => completedIds.has(a.id))
-                                    .reduce((p, a) => p + (a.points || 0), 0),
-                            0
-                        )}
-                    </p>
+                    <p className="text-2xl font-black text-warning tabular-nums mt-1">{totalPoints}</p>
                 </div>
             </div>
 
@@ -360,7 +378,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
 
                 {/* ─── LISTE DES DONJONS ─── */}
-                <div className={cn("space-y-2", selectedDungeon && "hidden lg:block")}>
+                <div className={cn("space-y-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar", selectedDungeon && "hidden lg:block")}>
                     {filteredDungeons.length === 0 ? (
                         <div className="py-16 text-center text-muted-foreground">
                             <Trophy className="w-10 h-10 mx-auto mb-3 opacity-20" />

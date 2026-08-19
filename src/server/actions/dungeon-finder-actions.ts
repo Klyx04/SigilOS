@@ -1398,20 +1398,21 @@ export async function joinDjPost(
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
-        if (post.status !== "OPEN") return { success: false, error: "Ce post n'est plus ouvert" };
+        if (post.status !== "OPEN" && post.status !== "FULL") return { success: false, error: "Ce post n'est plus ouvert" };
 
-        // Already joined?
+        // Creator can't join their own post
         if (post.profileId === user.profileId) return { success: false, error: "Tu es le créateur de ce post" };
 
+        // Already joined (ACCEPTED or PENDING)?
         const existing = await (db as any).djSearchParticipant.findFirst({
-            where: { postId, profileId: user.profileId },
+            where: { postId, profileId: user.profileId, status: { in: ["ACCEPTED", "PENDING"] } },
         });
-        if (existing) return { success: false, error: "Tu as déjà rejoint ce groupe" };
+        if (existing) return { success: false, error: "Tu as déjà rejoint ce groupe ou es en file d'attente" };
 
-        // Post full?
-        if (post.participants.length >= post.maxMembers) {
-            return { success: false, error: "Ce groupe est complet" };
-        }
+        // Determine if the post is full (accepted participants + creator >= maxMembers)
+        const acceptedCount = post.participants.length + 1; // +1 for creator
+        const isFull = acceptedCount >= post.maxMembers;
+        const newStatus = isFull ? "PENDING" : "ACCEPTED";
 
         await (db as any).djSearchParticipant.create({
             data: {
@@ -1420,37 +1421,42 @@ export async function joinDjPost(
                 userId: user.id!,
                 classe: options?.classe || null,
                 message: options?.message || null,
-                status: "ACCEPTED",
+                status: newStatus,
             },
         });
 
-        // Auto-fill check
-        const newCount = post.participants.length + 1;
-        if (newCount >= post.maxMembers) {
-            await (db as any).djSearchPost.update({
-                where: { id: postId },
-                data: { status: "FULL" },
-            });
+        // Auto-fill check: mark post as FULL if accepted count just reached max
+        if (newStatus === "ACCEPTED") {
+            const newAcceptedCount = post.participants.length + 1; // +1 for creator
+            if (newAcceptedCount >= post.maxMembers) {
+                await (db as any).djSearchPost.update({
+                    where: { id: postId },
+                    data: { status: "FULL" },
+                });
+            }
         }
 
-        // Notify post creator (respect leur préférence notif)
+        // Notify post creator
         if (post.profile?.userId && post.profile.userId !== user.id) {
             const creatorProfile = await (db as any).userProfile.findFirst({
                 where: { userId: post.profile.userId },
                 select: { notificationPrefs: true },
             });
             const notifPrefs = (creatorProfile?.notificationPrefs as any) || {};
-            const wantsNotif = notifPrefs.donjons !== false; // true par défaut
+            const wantsNotif = notifPrefs.donjons !== false;
 
             if (wantsNotif) {
                 const { createNotification } = await import("@/server/actions/notification-actions");
                 const joinerName = user.name || "Un joueur";
                 const postTitle = post.questName || post.dungeon?.name || "Groupe";
+                const msg = newStatus === "PENDING"
+                    ? `**${joinerName}** a rejoint la file d'attente de ton groupe « ${postTitle} »`
+                    : `**${joinerName}** a rejoint ton groupe « ${postTitle} »`;
                 await createNotification(
                     post.profile.userId,
                     "SYSTEM_INFO",
-                    "Nouvelle candidature DJ",
-                    `**${joinerName}** a rejoint ton groupe « ${postTitle} »`,
+                    newStatus === "PENDING" ? "Nouvelle demande en file d'attente" : "Nouvelle candidature DJ",
+                    msg,
                     `/dashboard/${guildId}/donjons-et-quetes`,
                     guildId
                 );
@@ -1461,7 +1467,7 @@ export async function joinDjPost(
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
-        return { success: true };
+        return { success: true, data: { waitlisted: newStatus === "PENDING" } as any };
     } catch (error) {
         logger.error("[joinDjPost]", error);
         return { success: false, error: "Erreur lors de l'inscription" };
@@ -1482,7 +1488,7 @@ export async function leaveDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, status: true },
+            select: { profileId: true, status: true, maxMembers: true, guildId: true },
         });
         if (!post) return { success: false, error: "Post introuvable" };
 
@@ -1496,16 +1502,55 @@ export async function leaveDjPost(
         });
         if (!participation) return { success: false, error: "Tu n'es pas dans ce groupe" };
 
+        const wasAccepted = participation.status === "ACCEPTED";
+
         await (db as any).djSearchParticipant.delete({
             where: { id: participation.id },
         });
 
-        // Re-open if it was FULL
-        if (post.status === "FULL") {
-            await (db as any).djSearchPost.update({
-                where: { id: postId },
-                data: { status: "OPEN" },
+        if (wasAccepted) {
+            // Recalculate accepted count after deletion
+            const remainingAccepted = await (db as any).djSearchParticipant.count({
+                where: { postId, status: "ACCEPTED" },
             });
+            const newAcceptedTotal = remainingAccepted + 1; // +1 creator
+
+            if (newAcceptedTotal < post.maxMembers) {
+                // Place freed — try to promote first PENDING in waitlist
+                const firstWaiting = await (db as any).djSearchParticipant.findFirst({
+                    where: { postId, status: "PENDING" },
+                    orderBy: { createdAt: "asc" },
+                    include: { profile: { select: { userId: true, discordNickname: true, pseudoDofus: true } } },
+                });
+
+                if (firstWaiting) {
+                    await (db as any).djSearchParticipant.update({
+                        where: { id: firstWaiting.id },
+                        data: { status: "ACCEPTED" },
+                    });
+
+                    // Notify promoted participant
+                    if (firstWaiting.profile?.userId) {
+                        const { createNotification } = await import("@/server/actions/notification-actions");
+                        await createNotification(
+                            firstWaiting.profile.userId,
+                            "SYSTEM_INFO",
+                            "Place disponible dans un groupe DJ",
+                            `Une place s'est libérée dans ton groupe en attente — tu es maintenant **inscrit** !`,
+                            `/dashboard/${guildId}/donjons-et-quetes`,
+                            guildId
+                        );
+                    }
+                }
+
+                // Re-open post
+                if (post.status === "FULL") {
+                    await (db as any).djSearchPost.update({
+                        where: { id: postId },
+                        data: { status: "OPEN" },
+                    });
+                }
+            }
         }
 
         updateDjDiscordEmbed(guildId, postId).catch(() => { });

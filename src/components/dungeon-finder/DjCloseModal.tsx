@@ -6,6 +6,8 @@ import { CheckCircle2, Circle, Trophy, X, Loader2, Star, ShieldCheck, UserPlus, 
 import { Button } from "@/components/ui/button";
 import { closeDjPostWithContributions, closeDjPost, getDjGuildMembersForClose } from "@/server/actions/dungeon-finder-actions";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 
 interface DjCloseModalProps {
@@ -266,10 +268,15 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                                                     <p className="text-sm font-bold text-foreground truncate">
                                                         {p.profile.discordNickname || p.profile.pseudoDofus || (p.profile as any).dofusPseudo || "Membre"}
                                                     </p>
-                                                    {p.classe && <p className="text-caption text-muted-foreground">{p.classe}</p>}
+                                                    <p className="text-caption text-muted-foreground">
+                                                        {p.classe && <span>{p.classe} · </span>}
+                                                        <span title={new Date(p.createdAt).toLocaleString("fr-FR")}>
+                                                            Inscrit {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}
+                                                        </span>
+                                                    </p>
                                                 </div>
                                                 {isVal && (
-                                                    <span className="flex items-center gap-1 text-caption font-black text-success bg-success/20 px-2 py-0.5 rounded-md border border-success/30">
+                                                    <span className="flex items-center gap-1 text-caption font-black text-success bg-success/20 px-2 py-0.5 rounded-md border border-success/30 shrink-0">
                                                         <Star className="w-2.5 h-2.5" /> +{pts} pt{pts > 1 ? "s" : ""}
                                                     </span>
                                                 )}
@@ -425,9 +432,31 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                                     <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                                         {successItems.map((s) => {
                                             const isOk = validatedSuccesses.has(s.achievementId);
+                                            // Chercher l'iconUrl dans les achievements du post
+                                            const iconUrl = (() => {
+                                                if (post.dungeon) {
+                                                    const ach = post.dungeon.achievements.find(a => a.id === s.achievementId);
+                                                    return ach?.challenge?.iconUrl ?? null;
+                                                }
+                                                if (Array.isArray(post.dungeonsJson)) {
+                                                    for (const d of post.dungeonsJson) {
+                                                        const ach = (d.achievements ?? []).find((a: any) => a.id === s.achievementId);
+                                                        if (ach?.iconUrl) return ach.iconUrl as string;
+                                                    }
+                                                }
+                                                return null;
+                                            })();
                                             return (
-                                                <div key={s.achievementId} className="flex items-center justify-between gap-3 bg-surface/50 border border-border rounded-xl px-3 py-2.5">
-                                                    <div className="min-w-0">
+                                                <div key={s.achievementId} className="flex items-center gap-3 bg-surface/50 border border-border rounded-xl px-3 py-2.5">
+                                                    {/* Icône du succès */}
+                                                    <div className="w-8 h-8 rounded-lg bg-warning/10 border border-warning/20 shrink-0 flex items-center justify-center p-1">
+                                                        {iconUrl ? (
+                                                            <img src={iconUrl} alt="" className="w-full h-full object-contain" />
+                                                        ) : (
+                                                            <Trophy className="w-4 h-4 text-warning/60" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-bold text-foreground truncate">{s.label}</p>
                                                         <p className="text-caption text-muted-foreground truncate">{s.dungeonName}</p>
                                                     </div>
@@ -435,14 +464,14 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleSuccess(s.achievementId)}
-                                                            className={`px-3 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wide transition-colors ${!isOk ? "bg-danger/10 border-danger/30 text-danger" : "border-border text-muted-foreground"}`}
+                                                            className={`px-2.5 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wide transition-colors ${!isOk ? "bg-danger/10 border-danger/30 text-danger" : "border-border text-muted-foreground"}`}
                                                         >
                                                             Non
                                                         </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleSuccess(s.achievementId)}
-                                                            className={`px-3 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wide transition-colors ${isOk ? "bg-success/15 border-success/40 text-success" : "border-border text-muted-foreground"}`}
+                                                            className={`px-2.5 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wide transition-colors ${isOk ? "bg-success/15 border-success/40 text-success" : "border-border text-muted-foreground"}`}
                                                         >
                                                             Oui
                                                         </button>

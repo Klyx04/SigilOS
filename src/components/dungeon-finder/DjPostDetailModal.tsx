@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers
+    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -24,7 +24,7 @@ import { DjCloseModal } from "./DjCloseModal";
 import { DjEditModal } from "./DjEditModal";
 import { DjReminderModal } from "./DjReminderModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 
@@ -66,8 +66,9 @@ export function DjPostDetailModal({
         ? post.participants.find((p) => p.profile.id === currentProfileId)
         : null;
 
-    // Creator counts as 1 slot, participants are separate
+    // Creator counts as 1 slot, ACCEPTED participants fill remaining slots
     const acceptedParticipants = post.participants.filter((p) => p.status === "ACCEPTED");
+    const pendingParticipants = post.participants.filter((p) => p.status === "PENDING");
     const acceptedCount = acceptedParticipants.length + 1; // +1 for creator
     const spotsLeft = post.maxMembers - acceptedCount;
 
@@ -75,7 +76,11 @@ export function DjPostDetailModal({
         startTransition(async () => {
             const res = await joinDjPost(guildId, post.id, { classe: classe || null, message: message || null });
             if (res.success) {
-                toast.success("Candidature envoyée !");
+                const wasWaitlisted = (res as any).data?.waitlisted;
+                toast.success(wasWaitlisted
+                    ? "Tu es en file d'attente ! Le créateur sera notifié."
+                    : "Candidature envoyée !"
+                );
                 onRefresh();
                 onClose();
             } else {
@@ -323,15 +328,15 @@ export function DjPostDetailModal({
                                     <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-warning/10 to-transparent pointer-events-none" />
                                 </div>
 
-                                {/* Participants */}
-                                {visibleParticipants.map((p) => (
+                                {/* Participants ACCEPTED */}
+                                {acceptedParticipants.map((p) => (
                                     <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border hover:bg-surface/60 transition-colors group">
                                         <div className="flex items-center gap-4 flex-1 min-w-0">
                                             <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-white/10">
                                                 {p.profile.user.image && <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <p className="text-sm font-bold text-foreground truncate group-hover:text-foreground transition-colors">{displayName(p.profile)}</p>
                                                     {p.classe && <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5">{p.classe}</Badge>}
                                                     {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
@@ -340,28 +345,23 @@ export function DjPostDetailModal({
                                                         </Badge>
                                                     )}
                                                 </div>
+                                                <p className="text-caption text-muted-foreground mt-0.5">
+                                                    Inscrit {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}
+                                                </p>
                                                 {p.message && <p className="text-caption text-muted-foreground italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-                                            <Badge className={`text-caption font-bold uppercase tracking-wider ${STATUS_COLORS[p.status] || STATUS_COLORS.PENDING}`}>
-                                                {p.status === "PENDING" ? "En attente" : p.status === "ACCEPTED" ? "Approuvé" : "Refusé"}
+                                            <Badge className="text-caption font-bold uppercase tracking-wider text-success bg-success/10 border-success/20">
+                                                Inscrit
                                             </Badge>
-
                                             {/* Owner actions */}
                                             {(isOwner || isAdmin) && post.status === "OPEN" && (
                                                 <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
-                                                    {p.status === "PENDING" && (
-                                                        <Button size="icon" variant="ghost"
-                                                            className="w-8 h-8 text-success hover:bg-success/20 hover:text-success rounded-md"
-                                                            onClick={() => handleAccept(p.id)} disabled={isPending}>
-                                                            <CheckCircle2 className="w-4 h-4" />
-                                                        </Button>
-                                                    )}
                                                     <Button size="icon" variant="ghost"
                                                         className="w-8 h-8 text-danger hover:bg-danger/20 hover:text-danger rounded-md"
                                                         onClick={() => handleReject(p.id)} disabled={isPending}
-                                                        title={p.status === "PENDING" ? "Refuser" : "Retirer"}>
+                                                        title="Retirer du groupe">
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>
@@ -370,16 +370,80 @@ export function DjPostDetailModal({
                                     </div>
                                 ))}
 
-                                {visibleParticipants.length === 0 && (
-                                    <p className="text-center text-sm text-muted-foreground py-4">Aucun participant pour l'instant</p>
+                                {acceptedParticipants.length === 0 && (
+                                    <p className="text-center text-sm text-muted-foreground py-4">Aucun participant inscrit pour l'instant</p>
                                 )}
                             </div>
+
+                            {/* File d'attente (PENDING) */}
+                            {pendingParticipants.length > 0 && (
+                                <div className="mt-4">
+                                    <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
+                                        <AlarmClock className="w-3 h-3" /> File d'attente ({pendingParticipants.length})
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {pendingParticipants.map((p, idx) => (
+                                            <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-warning/5 rounded-xl p-3 border border-warning/15 hover:bg-warning/10 transition-colors group">
+                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                    <div className="relative">
+                                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-warning/30">
+                                                            {p.profile.user.image && <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />}
+                                                        </div>
+                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-warning text-warning-foreground text-caption font-black flex items-center justify-center">{idx + 1}</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <p className="text-sm font-bold text-foreground truncate">{displayName(p.profile)}</p>
+                                                            {p.classe && <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5">{p.classe}</Badge>}
+                                                        </div>
+                                                        <p className="text-caption text-muted-foreground mt-0.5">
+                                                            En attente depuis {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}
+                                                        </p>
+                                                        {p.message && <p className="text-caption text-muted-foreground italic truncate mt-0.5 leading-tight">"{p.message}"</p>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                                                    {/* Owner actions */}
+                                                    {(isOwner || isAdmin) && post.status === "OPEN" && (
+                                                        <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
+                                                            {spotsLeft > 0 && (
+                                                                <Button size="icon" variant="ghost"
+                                                                    className="w-8 h-8 text-success hover:bg-success/20 hover:text-success rounded-md"
+                                                                    onClick={() => handleAccept(p.id)} disabled={isPending}
+                                                                    title="Accepter dans le groupe">
+                                                                    <CheckCircle2 className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
+                                                            <Button size="icon" variant="ghost"
+                                                                className="w-8 h-8 text-danger hover:bg-danger/20 hover:text-danger rounded-md"
+                                                                onClick={() => handleReject(p.id)} disabled={isPending}
+                                                                title="Refuser">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Join form */}
-                        {!isOwner && !myParticipation && post.status === "OPEN" && spotsLeft > 0 && (
+                        {/* Join form — visible si OPEN ou FULL (file d'attente) */}
+                        {!isOwner && !myParticipation && (post.status === "OPEN" || post.status === "FULL") && (
                             <div className="border-t border-border pt-6 space-y-4">
-                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Candidature</p>
+                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">
+                                    {spotsLeft > 0 ? "Candidature" : "Rejoindre la file d'attente"}
+                                </p>
+                                {spotsLeft <= 0 && (
+                                    <div className="flex items-start gap-2.5 bg-warning/8 border border-warning/20 rounded-xl px-3.5 py-3">
+                                        <AlarmClock className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+                                        <p className="text-xs text-foreground leading-relaxed">
+                                            Le groupe est <strong>complet</strong>. Tu peux rejoindre la file d'attente — si une place se libère, le créateur pourra t'accepter.
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="bg-surface/40 rounded-xl p-4 border border-border grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-inner">
                                     <div className="sm:col-span-1">
                                         <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block mb-2">Ta classe</label>
@@ -394,16 +458,16 @@ export function DjPostDetailModal({
                                                         onClick={() => setClasse(isSelected ? "" : c.name)}
                                                         className={cn(
                                                             "aspect-square rounded-lg flex items-center justify-center transition-all border group/class",
-                                                            isSelected 
-                                                                ? "border-info/50 bg-info/20  scale-110 z-10" 
+                                                            isSelected
+                                                                ? "border-info/50 bg-info/20  scale-110 z-10"
                                                                 : "border-transparent opacity-40 hover:opacity-100 hover:bg-surface hover:border-border"
                                                         )}
                                                     >
-                                                        <img 
-                                                            src={c.icon} 
-                                                            alt={c.name} 
-                                                            className="w-5 h-5 object-contain drop-shadow-md group-hover/class:scale-110 transition-transform" 
-                                                            onError={(e) => e.currentTarget.style.display = 'none'} 
+                                                        <img
+                                                            src={c.icon}
+                                                            alt={c.name}
+                                                            className="w-5 h-5 object-contain drop-shadow-md group-hover/class:scale-110 transition-transform"
+                                                            onError={(e) => e.currentTarget.style.display = 'none'}
                                                         />
                                                     </button>
                                                 );
@@ -422,21 +486,26 @@ export function DjPostDetailModal({
                                     </div>
                                 </div>
                                 <Button
-                                    className="w-full bg-info hover:bg-info font-black h-12 shadow-lg shadow-indigo-900/20"
+                                    className={cn(
+                                        "w-full font-black h-12 shadow-lg",
+                                        spotsLeft > 0
+                                            ? "bg-info/15 text-info border border-info/30 hover:bg-info hover:text-info-foreground"
+                                            : "bg-warning/15 text-warning border border-warning/30 hover:bg-warning hover:text-warning-foreground"
+                                    )}
                                     onClick={handleJoin}
                                     disabled={isPending}
                                 >
                                     <LogIn className="w-5 h-5 mr-2" />
-                                    Envoyer ma candidature
+                                    {spotsLeft > 0 ? "Envoyer ma candidature" : "Rejoindre la file d'attente"}
                                 </Button>
                             </div>
                         )}
 
-                        {/* My pending status */}
+                        {/* My pending / waitlist status */}
                         {myParticipation?.status === "PENDING" && (
                             <div className="border-t border-border pt-5 flex items-center justify-between">
                                 <p className="text-sm font-bold text-warning flex items-center gap-2">
-                                    <Clock className="w-4 h-4" /> Candidature en cours d'examen...
+                                    <AlarmClock className="w-4 h-4" /> En file d'attente — le créateur peut t'accepter si une place se libère
                                 </p>
                                 <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
                                     className="border-danger/50 bg-danger/20 text-danger hover:bg-danger/40 hover:text-danger">

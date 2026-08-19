@@ -357,12 +357,19 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         </Avatar>
                                     ) : <UserPlus className="w-3.5 h-3.5 text-muted-foreground/60" />}
                                 </div>
-                                <span className={cn(
-                                    "text-xs font-black truncate flex-1",
-                                    member ? "text-foreground" : "text-muted-foreground/60"
-                                )}>
-                                    {pseudo}
-                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <span className={cn(
+                                        "text-xs font-black block truncate",
+                                        member ? "text-foreground" : "text-muted-foreground/60"
+                                    )}>
+                                        {pseudo}
+                                    </span>
+                                    {member?.joinedAt && (
+                                        <span className="text-[10px] text-foreground/30 font-medium block truncate" title={new Date(member.joinedAt).toLocaleString("fr-FR")}>
+                                            {format(new Date(member.joinedAt), "d MMM à HH:mm", { locale: fr })}
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                                     {memberClassData && (
                                         <div

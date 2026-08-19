@@ -1,5 +1,6 @@
 "use server";
 import { logger } from "@/lib/logger";
+import { isSafeImageUrl } from "@/lib/security";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -105,7 +106,11 @@ const EntrySchema = z.object({
     })).optional().default([]),
     dofusdbUrl: z.string().optional().nullable(),
     dofuspourlesnoobsUrl: z.string().optional().nullable(),
-    localImageUrl: z.string().optional().nullable(),
+    // #148 CodeQL High — URL d'image strictement allowlistée (http(s) ou chemin relatif) : fail-closed.
+    localImageUrl: z.string().optional().nullable().refine(
+        (v) => v === null || v === undefined || v === "" || isSafeImageUrl(v),
+        { message: "URL d'image invalide (http(s) ou chemin relatif requis)" }
+    ),
 });
 
 // --- Actions ---

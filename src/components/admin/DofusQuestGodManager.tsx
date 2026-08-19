@@ -17,6 +17,7 @@ import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { searchZonesDetected } from "@/server/actions/game-data-actions";
 import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
+import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
 import { 
     Gem, Plus, Trash2, Edit2, 
     MapPin, BookOpen, Castle, Trophy, Search,
@@ -457,7 +458,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             positions: formData.positions,
             dofusdbUrl: formData.dofusdbUrl,
             dofuspourlesnoobsUrl: formData.dofuspourlesnoobsUrl,
-            localImageUrl: formData.localImageUrl || null,
+            // CodeQL High — ne JAMAIS persister une URL d'image non allowlistée.
+            localImageUrl: isSafeImageUrl(formData.localImageUrl) ? String(formData.localImageUrl).trim() : null,
             dungeonsRequired: formData.dungeons,
         } as any);
         if (res.success) {
@@ -528,8 +530,11 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     };
 
     // #148 — Image de la quête : localImageUrl prioritaire, sinon tentative image DofusDB (id), sinon icône livre.
-    const questImageUrl = (formData.localImageUrl || "").trim()
-        || (formData.dofusdbId ? `https://static.ankama.com/dofus/www/game/quests/${formData.dofusdbId}.png` : "");
+    // CodeQL High — URL allowlistée (http(s)/relatif) avant usage dans <img src> (fail-closed).
+    const questImageUrl = safeImageUrl(
+        (formData.localImageUrl || "").trim()
+            || (formData.dofusdbId ? `https://static.ankama.com/dofus/www/game/quests/${formData.dofusdbId}.png` : "")
+    );
 
     const copyPosition = (x: number, y: number) => {
         navigator.clipboard?.writeText(`/travel ${x},${y}`).then(() => toast.success(`Copié : /travel ${x},${y}`)).catch(() => {});

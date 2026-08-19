@@ -23,28 +23,33 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 05/09 — 10 chantiers (responsivité · God/Game-Data · sécu · landing)
+## 🧭 Chantier global (src/temp/chantier) — SESSION 06/09 — Fix CodeQL #505 + #126 slugs membres + #129 sweep suite
 
 > **dev** = `26ff44c5d` — PRs #502/#503/#504 mergées (Succès 03/09 + #153 UI 04/09 dans dev).
-> **Branche `feat/chantier-2026-09-04`** = **15 commits session 05/09 non mergés** (`47597eacd` → `5edfff72e`) :
-> 10 chantiers + docs + fix CodeQL path-injection + fix cron cleanup-logs. **PR #505 OUVERTE** :
-> https://github.com/Klyx04/SigilOS/pull/505
-> Mémo : `src/temp/memo-2026-09-05-chantier-multi.md`. Amorce suivante :
-> `src/temp/prompt-next-chantier-2026-09-06.md`.
+> **Branche `feat/chantier-2026-09-04`** = **18 commits non mergés** : 15 (session 05/09) +
+> `abed25d71` (docs) + `0c9bfcaeb` (fix CodeQL) + `6fe8d3d97` (#126 + #129). **PR #505 OUVERTE** :
+> https://github.com/Klyx04/SigilOS/pull/505 → **vérifier CodeQL au vert avant merge**.
+> Mémo : `src/temp/memo-2026-09-06-chantier-multi.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-07.md`.
 >
-> ### ✅ FAIT (session 05/09)
-> - **#145** missions anomalie : option « Élixir uchronique (sans niveau) » (`elixir:'uchronique'`) + « (tous niveaux) » retiré partout (`mission-payloads.ts`, `category-forms.tsx`, `mission-card.tsx`).
-> - **#146** modale quête God : zone = sélecteur game-data (AsyncCombobox `searchZones`, zones siphonnées en local) + **prérequis dispo dès la création** (liens préparés appliqués à la sauvegarde ; une quête ne peut pas être son propre prérequis). `DofusQuestGodManager.tsx`, `async-combobox.tsx` (prop `initialLabel`), `dofus-quest-admin-actions.ts`.
-> - **#154** God game-data : onglets `flex-nowrap overflow-x-auto` (plus d'écrasement), onglet « Archis & Boss », **bouton « Siphonner les quêtes DofusDB »** (`QuestSiphonPanel.tsx` + `siphonQuestsFromDofusDB` anti-doublon paginé).
-> - **#144** zones↔familles : `autoAssociateAllZoneFamilies` **matching strict sans faux positif** (nom exact) + bouton dans ZoneManager.
-> - **#147** rapport guilde embed en double : 2 planificateurs (route cron + job BullMQ) → **déduplication Redis quotidienne** (SET NX) sur envois auto + **fix IDOR** (session connectée non-God refusée sur le chemin auto). `daily-report-actions.ts`.
-> - **#153** API metamob v2 : étude conclue → **matchScore en badge** + **lien profil Metamob** du partenaire (`ocre-exchange-modal.tsx`).
-> - **#168** rétention comptes orphelins : `purgeOrphanAccountsCore` (`src/server/account-retention-core.ts`, **module interne NON exposé comme action** — le bypass `allowCron` contrôlable client a été supprimé) + route cron `/api/cron/account-retention` (protégée `verifyCronSecret`).
-> - **#129** responsivité : grille calendrier 7 colonnes scrollable mobile (`calendar-grid.tsx` min-w 840px) — ⚪ sweep composant par composant restant.
-> - **#140** landing screens pilotés par le God : modèle `LandingScreen` (**migration `20260905000000_add_landing_screen`**), page God `/god/landing` (sections « Onglets Produit » + « Image du hero »), upload WebP 1920px max 10 Mo. **Merge** : les 3 onglets par défaut restent ; même libellé = **galerie/carrousel multi-images** (miniatures, flèches, compteur, autoplay 5s + pause, zoom plein écran navigable, navigation clavier) ; titre+description rendus depuis l'**image active**. 🔴 **Stockage** : `private_uploads/landing/` (le middleware `/uploads/*`→`/api/storage/*` sert depuis `private_uploads` ; segment `landing` = **PUBLIC** dans `api/storage/[...path]/route.ts`). Slug de fichier **unique** par upload (`{libellé}-{timestamp}`), suppression du fichier au delete.
-> - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build EXIT=0.
-> - ⚠️ **Au déploiement (VPS)** : ① `prisma migrate deploy` (migration LandingScreen) ; ② ajouter au crontab : `curl -s -H "x-cron-secret: $CRON_SECRET" https://<app>/api/cron/account-retention` (quotidien, ex `0 6 * * *`) ; ③ vérifier `/god/landing` (upload) + `/uploads/landing/*` (public) + la landing.
-> - 🔜 **Suggestion prochaine session** : #148 (gros lot modale édition quête God) · #126 (slugs `members/<pseudo>`) · #129 (sweep responsivité) · compléter les screens de la landing via `/god/landing`.
+> ### ✅ FAIT (session 06/09)
+> - **Fix CodeQL js/path-injection (PR #505 débloquée)** : les guards précédents (#75→#79) n'étaient
+>   pas reconnus par CodeQL → **le chemin d'écriture ne vient plus jamais de l'utilisateur** dans
+>   `image-downloader.ts` : répertoire CONSTANT (`destDirFor(type)` → littéraux) + nom `basename()`/allowlist
+>   `[a-zA-Z0-9._-]`. Signatures `destinationPath` → `fileName` (routes god, landing, legendary). `ImageType` exporté.
+> - **#126 (7/7) URL membres lisibles `members/<pseudo>`** : helper `src/lib/profile-slug.ts`
+>   (`buildProfileSlug`/`buildProfileHref`), champ `slug` dans `getActivePresence`/`getGuildatonData`/
+>   `getMemberReconciliation`/`findMonsterOwnersAction`, ~12 liens refactorés (welcome, guildaton, members
+>   admin, archis, ocre, présence — dont un lien `user.id` corrigé), harmonisation `search-actions`/
+>   `profile-actions`/`gallery-actions`. Anciennes URLs cuid toujours résolues (backward-compat).
+> - **#129 (suite)** : bouton « Nouvel évent » du calendrier teinté `bg-warning/15 text-warning`
+>   (lisible en dark — item #132 clos) ; planning (déjà virtualisé) + ladder (recherche pseudo déjà là) re-vérifiés.
+> - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK · pre-commit vert.
+> - ⚠️ **Au déploiement (VPS, au merge #505)** : ① `prisma migrate deploy` (migration
+>   `20260905000000_add_landing_screen`) ; ② crontab `/api/cron/account-retention` (quotidien) ;
+>   ③ vérifier `/god/landing` + `/uploads/landing/*` (public) ; ④ prod : `REDIS_PASSWORD` à vérifier.
+> - 🔜 **Suggestion prochaine session** : **#148 (gros lot God modale édition quête)** · #129 (reste sweep)
+>   · #151 (Dashboard nettoyage) · #149 (bypass God) · #140 reste (uploader de vrais screens `/god/landing`).
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 04/09 — #153 Place de Marché metamob (UI)
 
 > **Branche `feat/chantier-2026-09-04`** = **2 commits non mergés** : `6207a8d33` (refonte Succès vue Guilde 03/09)

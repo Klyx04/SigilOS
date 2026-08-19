@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
 
@@ -57,7 +58,40 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
 
     if (!activeTab) return null;
 
-    const activeImage = activeTab.images[Math.min(imageIdx, activeTab.images.length - 1)];
+    const imageCount = activeTab.images.length;
+    const safeIdx = Math.min(Math.max(0, imageIdx), Math.max(0, imageCount - 1));
+    const activeImage = activeTab.images[safeIdx];
+    const isCarousel = imageCount > 1;
+
+    const goPrev = (e?: React.MouseEvent | React.KeyboardEvent) => {
+        e?.preventDefault();
+        if (imageCount <= 1) return;
+        setImageIdx((prev) => (prev <= 0 ? imageCount - 1 : prev - 1));
+    };
+    const goNext = (e?: React.MouseEvent | React.KeyboardEvent) => {
+        e?.preventDefault();
+        if (imageCount <= 1) return;
+        setImageIdx((prev) => (prev >= imageCount - 1 ? 0 : prev + 1));
+    };
+    const onImageKeyDown = (e: React.KeyboardEvent) => {
+        if (!isCarousel) return;
+        if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+        if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+    };
+
+    // Navigation du carrousel en plein écran (zoom) : met à jour imageIdx ET l'image zoomée.
+    const zoomPrev = () => {
+        if (imageCount <= 1) return;
+        const nextIdx = safeIdx <= 0 ? imageCount - 1 : safeIdx - 1;
+        setImageIdx(nextIdx);
+        setZoomUrl(activeTab.images[nextIdx].imageUrl);
+    };
+    const zoomNext = () => {
+        if (imageCount <= 1) return;
+        const nextIdx = safeIdx >= imageCount - 1 ? 0 : safeIdx + 1;
+        setImageIdx(nextIdx);
+        setZoomUrl(activeTab.images[nextIdx].imageUrl);
+    };
 
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
         const last = tabs.length - 1;
@@ -133,8 +167,16 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                     </div>
 
                     <div className="space-y-3">
-                        {/* Image active (zoom plein écran au clic) */}
-                        <div className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]">
+                        {/* Carrousel : image active + flèches + compteur + zoom */}
+                        <div
+                            className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]"
+                            onKeyDown={onImageKeyDown}
+                            tabIndex={isCarousel ? 0 : undefined}
+                            role={isCarousel ? "group" : undefined}
+                            aria-roledescription={isCarousel ? "carrousel" : undefined}
+                            aria-label={isCarousel ? `Carrousel de ${imageCount} captures` : undefined}
+                        >
+                            {/* Zoom plein écran au clic */}
                             <button
                                 type="button"
                                 onClick={() => setZoomUrl(activeImage.imageUrl)}
@@ -148,6 +190,31 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                                 sizes="(max-width: 768px) 100vw, 520px"
                                 className="object-cover object-top"
                             />
+
+                            {/* Flèches carrousel + compteur */}
+                            {isCarousel && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={goPrev}
+                                        aria-label="Capture précédente"
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center border border-white/10 transition-colors"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={goNext}
+                                        aria-label="Capture suivante"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center border border-white/10 transition-colors"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                    <span className="absolute bottom-2 right-2 z-20 text-caption font-bold bg-black/60 text-white px-2 py-0.5 rounded-full tabular-nums">
+                                        {safeIdx + 1} / {imageCount}
+                                    </span>
+                                </>
+                            )}
                         </div>
 
 
@@ -181,7 +248,7 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                 </div>
             </div>
 
-            {/* 🖼️ #140 — zoom plein écran du screen */}
+            {/* 🖼️ #140 — zoom plein écran du screen (+ navigation carrousel) */}
             {zoomUrl && (
                 <div
                     className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
@@ -198,6 +265,30 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                             className="w-full h-full max-h-[92vh] object-contain rounded-xl border border-border shadow-2xl"
                         />
                     </div>
+
+                    {isCarousel && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); zoomPrev(); }}
+                                aria-label="Capture précédente"
+                                className="fixed left-4 top-1/2 -translate-y-1/2 z-[210] h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center border border-white/20 transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); zoomNext(); }}
+                                aria-label="Capture suivante"
+                                className="fixed right-4 top-1/2 -translate-y-1/2 z-[210] h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center border border-white/20 transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                            <span className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[210] text-caption font-bold bg-black/70 text-white px-3 py-1 rounded-full tabular-nums">
+                                {safeIdx + 1} / {imageCount}
+                            </span>
+                        </>
+                    )}
                 </div>
             )}
         </section>

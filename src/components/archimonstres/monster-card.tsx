@@ -282,7 +282,7 @@ function OwnerBadge({
             <TooltipTrigger asChild>
                 <div className="group flex items-center gap-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-full px-2 py-0.5 transition-colors">
                     <Link
-                        href={`/dashboard/${guildId}/members/${owner.profileId}`}
+                        href={`/dashboard/${guildId}/members/${encodeURIComponent(owner.slug || owner.profileId)}`}
                         className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                         <User className="h-3 w-3" />

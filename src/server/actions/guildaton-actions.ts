@@ -27,6 +27,7 @@ export type GuildatonMember = {
     isRegistered: boolean;
     isOnDiscord: boolean;
     profileId?: string;
+    slug?: string;
     discordRoleName?: string;
 };
 
@@ -117,6 +118,8 @@ export async function getGuildatonData(guildId: string): Promise<ActionResponse<
                 select: { 
                     id: true, 
                     ankamaId: true,
+                    pseudoDofus: true,
+                    discordNickname: true,
                     user: { 
                         select: { 
                             name: true,
@@ -203,6 +206,7 @@ export async function getGuildatonData(guildId: string): Promise<ActionResponse<
                 isRegistered: !!profile,
                 isOnDiscord: !!discordMember,
                 profileId: profile?.id,
+                slug: (profile?.pseudoDofus || profile?.discordNickname || profile?.id || "").trim(),
                 discordRoleName: mainRoleName
             };
         });

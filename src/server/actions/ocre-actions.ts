@@ -112,6 +112,7 @@ export interface ExchangePartner {
     discordId: string;
     discordAvatar?: string;
     profileId: string;
+    slug?: string;
     parallelQuests: number;
     lastActive?: string;
     monstersTheyHave: MatchMonster[];
@@ -890,6 +891,8 @@ export async function findMonsterOwnersAction(
             },
             select: {
                 id: true,
+                pseudoDofus: true,
+                discordNickname: true,
                 metamobPseudo: true,
                 metamobQuestSlug: true,
                 metamobApiKey: true,
@@ -956,6 +959,7 @@ export async function findMonsterOwnersAction(
                             discordId: member.user.id || "",
                             discordAvatar: member.user.image || undefined,
                             profileId: member.id,
+                            slug: (member.pseudoDofus || member.discordNickname || member.id).trim(),
                             parallelQuests: pq,
                             monstersTheyHave: [{
                                 id: resolvedId,

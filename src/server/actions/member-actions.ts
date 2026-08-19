@@ -19,6 +19,7 @@ export type MemberReconciliationData = {
     isBot: boolean;
     hasDashboardProfile: boolean;
     profileId?: string;
+    slug?: string;
     ankamaId?: string | null;
     avatar?: string | null;
     discordMessageCountWeekly?: number;
@@ -69,6 +70,8 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                     userId: true, 
                     id: true, 
                     ankamaId: true,
+                    pseudoDofus: true,
+                    discordNickname: true,
                     discordMessageCountWeekly: true,
                     discordVoiceTimeWeekly: true,
                     discordMessageCountMonthly: true,
@@ -96,11 +99,12 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
         );
 
         // Map profiles by Discord ID
-        const profileByDiscordId = new Map<string, { id: string, ankamaId?: string | null, discordMessageCountWeekly: number, discordVoiceTimeWeekly: number, discordMessageCountMonthly: number, discordVoiceTimeMonthly: number, discordMessageCountTotal: number, discordVoiceTimeTotal: number }>();
+        const profileByDiscordId = new Map<string, { id: string, slug?: string, ankamaId?: string | null, discordMessageCountWeekly: number, discordVoiceTimeWeekly: number, discordMessageCountMonthly: number, discordVoiceTimeMonthly: number, discordMessageCountTotal: number, discordVoiceTimeTotal: number }>();
         dbProfiles.forEach(p => {
             const discordId = p.user.accounts[0]?.providerAccountId;
             if (discordId) profileByDiscordId.set(discordId, { 
                 id: p.id, 
+                slug: (p.pseudoDofus || p.discordNickname || p.id).trim(),
                 ankamaId: p.ankamaId,
                 discordMessageCountWeekly: p.discordMessageCountWeekly || 0,
                 discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0,
@@ -123,6 +127,7 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                 isBot: !!m.user.bot,
                 hasDashboardProfile: profileByDiscordId.has(m.user.id),
                 profileId: profileByDiscordId.get(m.user.id)?.id,
+                slug: profileByDiscordId.get(m.user.id)?.slug,
                 ankamaId: profileByDiscordId.get(m.user.id)?.ankamaId,
                 avatar: m.user.avatar || null,
                 discordMessageCountWeekly: profileByDiscordId.get(m.user.id)?.discordMessageCountWeekly || 0,

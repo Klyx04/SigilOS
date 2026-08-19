@@ -13,6 +13,7 @@ import { analyzeImage, hashImage, shouldAutoValidate } from "@/lib/llm-ocr";
 import { writeFile, mkdir } from "fs/promises";
 import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
+import { buildProfileSlug } from "@/lib/profile-slug";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
@@ -1814,8 +1815,12 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 
         const channelId = guildConfig.absenceChannelId;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        // Utilize the readable pseudo for the Discord link
-        const profileSlug = encodeURIComponent(profile.pseudoDofus || profileId);
+        // 🔗 #126 : slug lisible pour le lien Discord (pseudoDofus → discordNickname → id)
+        const profileSlug = encodeURIComponent(buildProfileSlug({
+            pseudoDofus: profile.pseudoDofus,
+            discordNickname: profile.discordNickname,
+            id: profileId,
+        }));
         const profileUrl = `${appUrl}/dashboard/${guildId}/members/${profileSlug}`;
 
         // Format dates — Discord dynamic timestamps <t:...> (each viewer sees their own timezone)

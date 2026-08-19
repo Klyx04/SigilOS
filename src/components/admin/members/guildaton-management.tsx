@@ -783,7 +783,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                             <div className="flex items-center justify-end gap-1">
                                                 {m.profileId && (
                                                     <Button variant="ghost" size="sm" className="w-8 h-8 p-0 rounded-lg hover:bg-violet-600/20 hover:text-violet-400 transition-all" asChild>
-                                                        <a href={`/dashboard/${guildId}/members/${m.profileId}`} target="_blank">
+                                                        <a href={`/dashboard/${guildId}/members/${encodeURIComponent(m.slug || m.profileId)}`} target="_blank">
                                                             <ArrowUpRight className="w-4 h-4" />
                                                         </a>
                                                     </Button>

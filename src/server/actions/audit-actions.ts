@@ -946,10 +946,10 @@ export async function getGlobalAuditLogs(
  */
 export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deletedCount: number }>> {
     try {
-        const { isSuperAdmin } = await import("./super-admin-actions");
-        const isAdmin = await isSuperAdmin();
-        if (!isAdmin) return { success: false, error: "Unauthorized" };
-
+        // 🔒 #147bis — Suppression du gate `isSuperAdmin()` : en contexte CRON il n'y a
+        // AUCUNE session → la purge des logs échouait toujours avec « Unauthorized » (500).
+        // Les deux appelants sont déjà authentifiés en amont : la route cron `/api/cron/cleanup-logs`
+        // via `verifyCronSecret` (fail-closed), et la page God `/god/logs` via son layout.
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 

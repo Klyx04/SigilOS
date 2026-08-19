@@ -17,10 +17,15 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 interface HeroSectionProps {
     user?: User;
     userGuilds?: { id: string; name: string; iconUrl: string | null }[];
+    /** 🖼️ #140 — image du hero pilotée par le God (section "hero"), sinon capture par défaut. */
+    heroImageUrl?: string;
 }
 
-export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
+export function HeroSection({ user, userGuilds = [], heroImageUrl }: HeroSectionProps) {
     const [showAccessModal, setShowAccessModal] = useState(false);
+    const [zoomOpen, setZoomOpen] = useState(false);
+
+    const heroSrc = heroImageUrl || "/assets/screenshots/screenshot1.png";
 
     return (
         <section className="relative w-full border-b border-border overflow-hidden">
@@ -85,7 +90,12 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
 
                     {/* Product visual */}
                     <div className="relative">
-                        <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
+                        <button
+                            type="button"
+                            onClick={() => setZoomOpen(true)}
+                            className="block w-full text-left rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)] cursor-zoom-in transition-transform hover:scale-[1.01]"
+                            aria-label="Agrandir la capture d'écran"
+                        >
                             <div className="h-9 border-b border-border flex items-center gap-1.5 px-4">
                                 <span className="w-2.5 h-2.5 rounded-full bg-muted" />
                                 <span className="w-2.5 h-2.5 rounded-full bg-muted" />
@@ -93,7 +103,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             </div>
                             <div className="relative aspect-[16/10]">
                                 <Image
-                                    src="/assets/screenshots/screenshot1.png"
+                                    src={heroSrc}
                                     alt="Tableau de bord SigilOS : missions, sorties et progression de guilde"
                                     fill
                                     className="object-cover object-top"
@@ -101,10 +111,30 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                     priority
                                 />
                             </div>
-                        </div>
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* 🖼️ #140 — zoom plein écran de l'image du hero */}
+            {zoomOpen && (
+                <div
+                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+                    onClick={() => setZoomOpen(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Capture d'écran agrandie"
+                >
+                    <div className="relative w-full max-w-6xl max-h-[92vh]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={heroSrc}
+                            alt="Capture d'écran SigilOS agrandie"
+                            className="w-full h-full max-h-[92vh] object-contain rounded-xl border border-border shadow-2xl"
+                        />
+                    </div>
+                </div>
+            )}
 
             <AccessRequestModal open={showAccessModal} onClose={() => setShowAccessModal(false)} />
         </section>

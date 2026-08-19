@@ -21,6 +21,7 @@ import {
     getMonsterFamilies, 
     getDungeons, 
     syncZonesFromDofusDb,
+    autoAssociateAllZoneFamilies,
     getIgnoredZonesAction,
     restoreIgnoredZoneAction,
     clearAllIgnoredZonesAction
@@ -37,7 +38,8 @@ import {
     ChevronLeft, 
     ChevronRight,
     RotateCcw,
-    ShieldAlert
+    ShieldAlert,
+    Link2
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -71,6 +73,7 @@ export default function ZoneManager() {
     const [dungeons, setDungeons] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncingZones, setSyncingZones] = useState(false);
+    const [associatingFamilies, setAssociatingFamilies] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -146,6 +149,28 @@ export default function ZoneManager() {
             toast.error("Erreur de connexion DofusDB");
         } finally {
             setSyncingZones(false);
+        }
+    };
+
+    // #144 : matching strict (nom exact) zones ↔ familles via les archimonstres siphonnés.
+    const handleAssociateFamilies = async () => {
+        setAssociatingFamilies(true);
+        try {
+            const res = await autoAssociateAllZoneFamilies();
+            if (res.success && res.data) {
+                if (res.data.familiesLinked === 0) {
+                    toast.info("Aucune nouvelle famille à associer (matching strict, sans faux positif)");
+                } else {
+                    toast.success(`${res.data.familiesLinked} famille(s) associée(s) sur ${res.data.zonesScanned} zone(s)`);
+                }
+                await loadData();
+            } else {
+                toast.error(res.error || "Erreur lors de l'association");
+            }
+        } catch {
+            toast.error("Erreur serveur");
+        } finally {
+            setAssociatingFamilies(false);
         }
     };
 
@@ -314,6 +339,17 @@ export default function ZoneManager() {
                         >
                             {syncingZones ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                             <span>{syncingZones ? "Sync en cours…" : "Sync Zones (DofusDB)"}</span>
+                        </Button>
+
+                        {/* #144 : association auto familles ↔ zones (matching strict, sans faux positif) */}
+                        <Button
+                            onClick={handleAssociateFamilies}
+                            disabled={associatingFamilies}
+                            variant="outline"
+                            className="w-full md:w-auto border-fuchsia-500/40 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 text-fuchsia-400 hover:text-fuchsia-300 font-bold rounded-xl shadow-sm transition-all"
+                        >
+                            {associatingFamilies ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
+                            <span>{associatingFamilies ? "Association…" : "Associer familles (auto)"}</span>
                         </Button>
 
                         <Button

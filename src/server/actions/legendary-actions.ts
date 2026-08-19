@@ -7,7 +7,6 @@ import { logger } from "@/lib/logger";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { z } from "zod";
 import { downloadExternalImage } from "@/lib/image-downloader";
-import { join, normalize } from "path";
 
 
 export type ActionResponse<T = null> = {
@@ -225,9 +224,10 @@ export async function createLegendaryItem(data: z.infer<typeof LegendaryItemSche
     if (itemData.imageUrl && (itemData.imageUrl.startsWith("http://") || itemData.imageUrl.startsWith("https://"))) {
         try {
             const slug = itemData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-            const root = process.cwd();
-            const destination = normalize(join(root, "public", "game-data", "legendary", `${slug}.webp`));
-            const downloadResult = await downloadExternalImage(itemData.imageUrl, destination, "legendary");
+            // Le répertoire de destination (`public/game-data/legendary`) est une CONSTANTE
+            // gérée dans image-downloader.ts (destDirFor("legendary")) — on ne passe ici que
+            // le nom de fichier (le slug est assaini par le regex ci-dessus).
+            const downloadResult = await downloadExternalImage(itemData.imageUrl, `${slug}.webp`, "legendary");
             if (downloadResult.success && downloadResult.path) {
                 itemData.imageUrl = downloadResult.path;
             }
@@ -258,9 +258,10 @@ export async function updateLegendaryItem(id: string, data: z.infer<typeof Legen
     if (itemData.imageUrl && (itemData.imageUrl.startsWith("http://") || itemData.imageUrl.startsWith("https://"))) {
         try {
             const slug = itemData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-            const root = process.cwd();
-            const destination = normalize(join(root, "public", "game-data", "legendary", `${slug}.webp`));
-            const downloadResult = await downloadExternalImage(itemData.imageUrl, destination, "legendary");
+            // Le répertoire de destination (`public/game-data/legendary`) est une CONSTANTE
+            // gérée dans image-downloader.ts (destDirFor("legendary")) — on ne passe ici que
+            // le nom de fichier (le slug est assaini par le regex ci-dessus).
+            const downloadResult = await downloadExternalImage(itemData.imageUrl, `${slug}.webp`, "legendary");
             if (downloadResult.success && downloadResult.path) {
                 itemData.imageUrl = downloadResult.path;
             }

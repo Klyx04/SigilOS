@@ -649,6 +649,98 @@ export async function deleteGameQuest(id: string): Promise<ActionResponse> {
     }
 }
 
+// ===========================
+// GAME QUESTS — SIPHON DOFUSDB (#154)
+// ===========================
+
+/**
+ * 🧲 #154 — Siphonne des quêtes depuis l'API DofusDB vers la table locale GameQuest.
+ * Elles deviennent alors réutilisables dans les posts DJ/quêtes (recherche locale d'abord,
+ * fallback dofusdb ensuite via `searchGameQuests`/`dofus-search-actions`).
+ *
+ * Anti-doublons : les quêtes déjà présentes (par dofusDbId ou par nom) sont ignorées.
+ * Bornage : 10 ≤ limit ≤ 300 par clic (appel paginé en tâches de 50).
+ */
+export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionResponse<{
+    created: number;
+    skipped: number;
+    errors: number;
+}>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    const capped = Math.min(300, Math.max(10, Math.round(limit) || 100));
+
+    try {
+        let created = 0;
+        let skipped = 0;
+        let errors = 0;
+        let fetched = 0;
+        let page = 1;
+        const pageSize = 50;
+
+        while (fetched < capped) {
+            const take = Math.min(pageSize, capped - fetched);
+            const res = await fetch(`https://api.dofusdb.fr/quests?limit=${take}&page=${page}`, {
+                headers: { Accept: "application/json" },
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (!res.ok) {
+                // DofusDB indisponible → on s'arrête proprement (fail-stop, sans casser l'existant).
+                logger.error(`[siphonQuestsFromDofusDB] DofusDB HTTP ${res.status}`);
+                break;
+            }
+
+            const json = await res.json();
+            const data: any[] = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+
+            if (data.length === 0) break;
+
+            for (const q of data) {
+                const dofusDbId = Number(q?.id) || null;
+                const name = String(q?.name?.fr || q?.name || q?.className || "").trim();
+                if (!name) { errors++; continue; }
+
+                const existingById = dofusDbId
+                    ? await db.gameQuest.findFirst({ where: { dofusDbId }, select: { id: true } })
+                    : null;
+                if (existingById) { skipped++; continue; }
+
+                const existingByName = await db.gameQuest.findUnique({ where: { name }, select: { id: true } });
+                if (existingByName) { skipped++; continue; }
+
+                try {
+                    await db.gameQuest.create({
+                        data: {
+                            name,
+                            dofusDbId,
+                            levelMin: Number(q?.levelMin) || null,
+                            levelMax: Number(q?.levelMax) || null,
+                            description: q?.description?.fr || q?.description || null,
+                            imageUrl: q?.img || null,
+                            category: String(q?.category?.name?.fr || "DofusDB").slice(0, 60),
+                        },
+                    });
+                    created++;
+                } catch (e: any) {
+                    if (e?.code === "P2002") { skipped++; continue; }
+                    errors++;
+                }
+            }
+
+            fetched += data.length;
+            page++;
+        }
+
+        if (created > 0) revalidatePath('/god/game-data');
+        return { success: true, data: { created, skipped, errors } };
+    } catch (error: any) {
+        logger.error('[siphonQuestsFromDofusDB] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphonnage des quêtes' };
+    }
+}
+
 
 // ===========================
 // DUNGEON ACHIEVEMENTS (Manual management)

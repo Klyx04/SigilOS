@@ -2,6 +2,8 @@
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
+import { redis } from "@/lib/redis";
+import { auth } from "@/auth";
 import { sendChannelMessage } from "@/server/discord";
 import { isSuperAdmin } from "./super-admin-actions";
 
@@ -15,11 +17,39 @@ import { isSuperAdmin } from "./super-admin-actions";
  * `auth()` → le worker BullMQ (aucune session) échouait avec « Unauthorized:
  * God scope required » → le rapport n'arrivait JAMAIS, sans log d'erreur).
  * Les statistiques sont désormais calculées en requêtes directes scopées guilde.
+ *
+ * 🔒 FIX (chantier #147) : deux planificateurs coexistent (route `/api/cron/daily-summary`
+ * + job BullMQ `daily-summary` dans `metamob-worker.ts`) → le rapport partait en DOUBLE.
+ * Déduplication Redis quotidienne par guilde sur les envois AUTOMATIQUES uniquement
+ * (le bouton manuel "Envoyer maintenant" envoie toujours).
  */
 export async function sendDailySummaryReport(guildId: string, isManual = false) {
     if (isManual) {
         const isAdmin = await isSuperAdmin();
         if (!isAdmin) throw new Error("Accès refusé");
+    } else {
+        // 🔒 SÉCURITÉ (IDOR) : le chemin AUTO est légitime pour le worker BullMQ (SANS session)
+        // et la route cron (protégée par secret). Un utilisateur connecté NON-God ne doit pas
+        // pouvoir déclencher l'envoi du rapport d'une guilde quelconque.
+        const session = await auth();
+        if (session?.user?.id) {
+            const isAdmin = await isSuperAdmin();
+            if (!isAdmin) throw new Error("Accès refusé");
+        }
+
+        // #147 : une seule émission automatique par jour et par guilde (anti-doublon).
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+        const key = `daily-report:${guildId}:${today}`;
+        try {
+            const claimed = await redis.set(key, "1", "EX", 86_400, "NX");
+            if (claimed !== "OK") {
+                logger.info(`[Daily Report] Déjà envoyé aujourd'hui pour ${guildId} (${today}) — skip anti-doublon.`);
+                return { success: true, messageId: null, skipped: true };
+            }
+        } catch (e) {
+            // Redis indisponible → on laisse passer (degraded, pas de blocage).
+            logger.warn("[Daily Report] Redis indisponible, pas de déduplication:", e);
+        }
     }
 
     try {

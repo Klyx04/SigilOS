@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
-import { processAndSaveImage } from "@/lib/image-downloader";
+import { processAndSaveImage, type ImageType } from "@/lib/image-downloader";
 import { logger } from "@/lib/logger";
-import { normalize } from "path";
 
 export async function POST(req: NextRequest) {
     try {
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if (!["monster", "achievement", "dungeon", "item", "legendary"].includes(type)) {
+        if (!["monster", "achievement", "dungeon", "item", "legendary", "landing"].includes(type)) {
             return NextResponse.json(
                 { success: false, error: "Invalid type" },
                 { status: 400 }
@@ -42,17 +41,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 3. Construct destination path
-        const root = process.cwd();
-        let folder = "";
-        switch (type) {
-            case "achievement": folder = "achievements"; break;
-            case "monster": folder = "monsters"; break;
-            case "dungeon": folder = "dungeons"; break;
-            case "item": folder = "items"; break;
-            case "legendary": folder = "legendary"; break;
-        }
-
         // #47 — bornage fail-closed de la taille d'upload (anti-DoS) : 10 Mo max,
         // refusé AVANT de lire le buffer en mémoire.
         const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -63,7 +51,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const destination = normalize(root + "/public/game-data/" + folder + "/" + identifier + ".webp");
+        // 3. Destination : le répertoire (`public/game-data/{type}`) est une CONSTANTE gérée
+        // dans image-downloader.ts (destDirFor(type)) — on ne passe ici que le nom de fichier,
+        // déjà validé par le regex /^[a-z0-9-]+$/ ci-dessus (fail-closed avant écriture).
+        const destination = `${identifier}.webp`;
 
         // 4. Read file buffer
         const arrayBuffer = await file.arrayBuffer();
@@ -71,7 +62,7 @@ export async function POST(req: NextRequest) {
         const originalSize = buffer.length;
 
         // 5. Optimize and save
-        const result = await processAndSaveImage(buffer, destination, type as any, originalSize);
+        const result = await processAndSaveImage(buffer, destination, type as ImageType, originalSize);
 
         if (!result.success) {
             return NextResponse.json(

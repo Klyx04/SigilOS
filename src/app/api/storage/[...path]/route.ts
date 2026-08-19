@@ -40,7 +40,8 @@ export async function GET(
     // 🌟 Identify Public vs Private Assets
     // Pattern: guilds/{guildId}/{filename} -> Presentation Banner/Photo
     // Pattern: assets/ -> General public assets
-    const isPublicPresentationAsset = (segment === "guilds" && !!guildId && rest.length === 1) || segment === "assets" || segment === "guides";
+    // Pattern: landing/ -> Screens de la landing (#140, publics)
+    const isPublicPresentationAsset = (segment === "guilds" && !!guildId && rest.length === 1) || segment === "assets" || segment === "guides" || segment === "landing";
 
     // 🛡️ Authentication Check (Bypass for public images)
     let session = null;

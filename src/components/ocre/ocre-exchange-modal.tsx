@@ -27,7 +27,8 @@ import {
     Bell,
     Search,
     Users,
-    X
+    X,
+    ExternalLink
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -536,9 +537,33 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                     <span className="text-caption bg-elevated text-muted-foreground px-1.5 rounded font-semibold">
                                                                         {partner.username}
                                                                     </span>
+                                                                    {/* #153 : lien direct vers le profil Metamob du partenaire (voir sa quête en cours) */}
+                                                                    <a
+                                                                        href={`https://www.metamob.fr/profile/${encodeURIComponent(partner.username)}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        title="Voir la quête Metamob du partenaire"
+                                                                        className="text-muted-foreground hover:text-success transition-colors"
+                                                                    >
+                                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                                    </a>
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {/* #153 : matchScore surface — pertinence de la correspondance calculée par l'API Metamob */}
+                                                        <span
+                                                            className={cn(
+                                                                "shrink-0 text-caption font-black px-2 py-1 rounded-lg border",
+                                                                partner.matchScore >= 70
+                                                                    ? "bg-success/10 text-success border-success/30"
+                                                                    : partner.matchScore >= 40
+                                                                        ? "bg-warning/10 text-warning border-warning/30"
+                                                                        : "bg-muted/20 text-muted-foreground border-border"
+                                                            )}
+                                                            title="Score de correspondance Metamob (100 = partenaire idéal)"
+                                                        >
+                                                            Score {partner.matchScore}
+                                                        </span>
                                                     </div>
 
                                                     <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">

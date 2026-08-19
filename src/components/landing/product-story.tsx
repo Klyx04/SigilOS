@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
@@ -10,18 +10,57 @@ interface ProductStoryProps {
     screens?: PublicLandingScreen[];
 }
 
-export function ProductStory({ screens = [] }: ProductStoryProps) {
-    const [activeId, setActiveId] = useState<string | null>(null);
-    const [zoomUrl, setZoomUrl] = useState<string | null>(null);
-    const activeIndex = activeId === null
-        ? 0
-        : Math.max(0, screens.findIndex((s) => s.id === activeId));
-    const active = screens[activeIndex];
+interface ProductTab {
+    key: string;
+    label: string;
+    title?: string | null;
+    description?: string | null;
+    images: PublicLandingScreen[];
+}
 
-    if (!active) return null;
+/**
+ * 🖼️ #140 — Groupe les screens par libellé : un libellé partagé par plusieurs screens
+ * devient UN onglet avec plusieurs images (galerie cliquable + zoom plein écran).
+ */
+function groupIntoTabs(screens: PublicLandingScreen[]): ProductTab[] {
+    const map = new Map<string, ProductTab>();
+    for (const s of screens) {
+        const key = (s.label || "").toLowerCase().trim() || s.id;
+        const existing = map.get(key);
+        if (existing) {
+            existing.images.push(s);
+        } else {
+            map.set(key, {
+                key,
+                label: s.label || s.id,
+                title: s.title,
+                description: s.description,
+                images: [s],
+            });
+        }
+    }
+    return Array.from(map.values());
+}
+
+export function ProductStory({ screens = [] }: ProductStoryProps) {
+    const tabs = useMemo(() => groupIntoTabs(screens), [screens]);
+    const [activeKey, setActiveKey] = useState<string | null>(null);
+    const [imageIdx, setImageIdx] = useState(0);
+    const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+
+    const activeTab = tabs[activeKey ? Math.max(0, tabs.findIndex((t) => t.key === activeKey)) : 0];
+
+    // Reset de l'image active quand on change d'onglet.
+    useEffect(() => {
+        setImageIdx(0);
+    }, [activeTab?.key]);
+
+    if (!activeTab) return null;
+
+    const activeImage = activeTab.images[Math.min(imageIdx, activeTab.images.length - 1)];
 
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-        const last = screens.length - 1;
+        const last = tabs.length - 1;
         let next = -1;
         if (e.key === "ArrowRight") next = index === last ? 0 : index + 1;
         if (e.key === "ArrowLeft") next = index === 0 ? last : index - 1;
@@ -29,8 +68,8 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
         if (e.key === "End") next = last;
         if (next >= 0) {
             e.preventDefault();
-            setActiveId(screens[next].id);
-            document.getElementById(`story-tab-${screens[next].id}`)?.focus();
+            setActiveKey(tabs[next].key);
+            document.getElementById(`story-tab-${tabs[next].key}`)?.focus();
         }
     };
 
@@ -46,63 +85,98 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                     </h2>
                 </div>
 
-                {/* #140 : vignettes + aperçu actif (progressive disclosure) */}
+                {/* Barre d'onglets (scroll horizontal si beaucoup d'onglets) */}
                 <div
                     role="tablist"
                     aria-label="Fonctionnalités SigilOS"
                     className="flex gap-1 border-b border-border mb-8 overflow-x-auto overflow-y-hidden no-scrollbar"
                 >
-                    {screens.map((s, idx) => (
+                    {tabs.map((t, idx) => (
                         <button
-                            key={s.id}
+                            key={t.key}
                             role="tab"
-                            id={`story-tab-${s.id}`}
-                            aria-selected={s.id === active.id}
-                            aria-controls={`story-panel-${s.id}`}
-                            onClick={() => setActiveId(s.id)}
+                            id={`story-tab-${t.key}`}
+                            aria-selected={t.key === activeTab.key}
+                            aria-controls={`story-panel-${t.key}`}
+                            onClick={() => setActiveKey(t.key)}
                             onKeyDown={(e) => onTabKeyDown(e, idx)}
                             className={cn(
                                 "px-4 py-2.5 rounded-t-lg text-body-sm font-semibold whitespace-nowrap border-b-2 transition-colors -mb-px",
-                                s.id === active.id
+                                t.key === activeTab.key
                                     ? "text-foreground border-success"
                                     : "text-muted-foreground border-transparent hover:text-foreground"
                             )}
                         >
-                            {s.label || `Screen ${idx + 1}`}
+                            {t.label}
+                            {t.images.length > 1 && (
+                                <span className="ml-1.5 text-caption text-success/80 font-bold tabular-nums">{t.images.length}</span>
+                            )}
                         </button>
                     ))}
                 </div>
 
                 <div
                     role="tabpanel"
-                    id={`story-panel-${active.id}`}
-                    aria-labelledby={`story-tab-${active.id}`}
+                    id={`story-panel-${activeTab.key}`}
+                    aria-labelledby={`story-tab-${activeTab.key}`}
                     className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
                 >
                     <div>
                         <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight mb-3">
-                            {active.title || (active.label || "SigilOS")}
+                            {activeTab.title || activeTab.label}
                         </h3>
-                        {active.description && (
+                        {activeTab.description && (
                             <p className="text-muted-foreground text-[15px] leading-relaxed mb-5">
-                                {active.description}
+                                {activeTab.description}
                             </p>
                         )}
                     </div>
-                    <div className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]">
-                        <button
-                            type="button"
-                            onClick={() => setZoomUrl(active.imageUrl)}
-                            className="absolute inset-0 z-10 cursor-zoom-in"
-                            aria-label="Agrandir la capture d'écran"
-                        />
-                        <Image
-                            src={active.imageUrl}
-                            alt={active.alt || active.label || "Capture d'écran SigilOS"}
-                            fill
-                            sizes="(max-width: 768px) 100vw, 520px"
-                            className="object-cover object-top"
-                        />
+
+                    <div className="space-y-3">
+                        {/* Image active (zoom plein écran au clic) */}
+                        <div className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]">
+                            <button
+                                type="button"
+                                onClick={() => setZoomUrl(activeImage.imageUrl)}
+                                className="absolute inset-0 z-10 cursor-zoom-in"
+                                aria-label="Agrandir la capture d'écran"
+                            />
+                            <Image
+                                src={activeImage.imageUrl}
+                                alt={activeImage.alt || activeImage.label || "Capture d'écran SigilOS"}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 520px"
+                                className="object-cover object-top"
+                            />
+                        </div>
+
+
+                        {/* Galerie : miniatures quand plusieurs images dans l'onglet */}
+                        {activeTab.images.length > 1 && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                {activeTab.images.map((img, idx) => (
+                                    <button
+                                        key={img.id}
+                                        type="button"
+                                        onClick={() => setImageIdx(idx)}
+                                        aria-label={`Voir la capture ${idx + 1}`}
+                                        className={cn(
+                                            "relative w-24 h-14 shrink-0 rounded-lg overflow-hidden border-2 transition-all cursor-pointer",
+                                            idx === imageIdx
+                                                ? "border-success"
+                                                : "border-transparent opacity-60 hover:opacity-100 hover:border-border"
+                                        )}
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={img.imageUrl}
+                                            alt={img.alt || img.label || ""}
+                                            className="w-full h-full object-cover object-top"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -129,3 +203,4 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
         </section>
     );
 }
+

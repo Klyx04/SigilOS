@@ -493,20 +493,20 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             Détails
                         </Button>
 
-                        {post.status === "OPEN" && !isOwner && !myParticipation && (
+                        {(post.status === "OPEN" || post.status === "FULL") && !isOwner && !myParticipation && (
                             <Button
                                 size="sm"
-                                onClick={handleQuickJoin}
+                                onClick={() => setIsDetailOpen(true)}
                                 disabled={isPending}
                                 className={cn(
-                                    "flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap text-foreground transition-colors",
-                                    isDonjon 
-                                        ? "bg-info hover:bg-info" 
-                                        : "bg-info hover:bg-info"
+                                    "flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-colors",
+                                    post.status === "FULL"
+                                        ? "bg-warning/15 text-warning border border-warning/30 hover:bg-warning hover:text-warning-foreground"
+                                        : "bg-info/15 text-info border border-info/30 hover:bg-info hover:text-info-foreground"
                                 )}
                             >
                                 <LogIn className="w-4 h-4 mr-2" />
-                                Rejoindre
+                                {post.status === "FULL" ? "File d'attente" : "Rejoindre"}
                             </Button>
                         )}
 
@@ -558,16 +558,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 >
                                     <CheckCircle2 className="w-4 h-4 mr-2" />
                                     Terminer
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleClose}
-                                    disabled={isPending}
-                                    title="Fermer sans donner de points"
-                                    className="h-10 px-3 border-danger/20 text-danger hover:text-danger-foreground hover:bg-danger transition-colors"
-                                >
-                                    <XCircle className="w-4 h-4" />
                                 </Button>
                             </div>
                         )}

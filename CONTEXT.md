@@ -23,13 +23,39 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 19/08 — #177 + #169 + #170
+
+> **dev** = `796df8c12` — **PR en attente** : branche `feat/chantier-2026-09-07` commit `d610b18d6`
+> → **CRÉER LA PR** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+> Mémo : `src/temp/memo-2026-08-19-chantier-global.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-09.md` (priorités : **#149** bypass God · **#175** WorldMap→DJ).
+>
+> ### ✅ FAIT (session 19/08)
+> 1. **#177 — DjCloseModal + Boutons DJ** :
+>    - `DjCloseModal.tsx` : étape 2 de clôture avec **icônes de succès** (`challenge.iconUrl`, vignette 8×8, fallback Trophy),
+>      fonctionne mono-donjon ET multi-donjons (`dungeonsJson`) ; **date d'inscription** sous chaque participant ; responsive.
+>    - `DjPostCard.tsx` : bouton **« Fermer sans donner de points » supprimé** ; bouton Rejoindre **teinté**
+>      (`bg-info/15 text-info border`) + label **« File d'attente »** (warning) si FULL ; quick-join → modale détail.
+>    - `DjPostDetailModal.tsx` : bouton rejoindre teinté + label dynamique.
+> 2. **#169 — File d'attente DJ** :
+>    - `joinDjPost` : crée en `PENDING` si complet (au lieu de rejeter) ; `leaveDjPost` **auto-promeut** le 1er PENDING
+>      en ACCEPTED + notif dashboard. Bouton visible même si FULL. Toast adapté (`waitlisted: true`).
+>    - Deux sections distinctes dans `DjPostDetailModal` : Inscrits (ACCEPTED) / File d'attente (PENDING, badges #1 #2…).
+> 3. **#170 — Dates d'inscription** : `DjPostDetailModal` (`createdAt` + "En attente depuis…"), `DjCloseModal` (`createdAt`),
+>    `RunCard.tsx` Songes (`joinedAt` sous le pseudo), `event-detail-modal.tsx` Raids (`createdAt` dans `ParticipantRow`).
+>    Aucune migration (champs existants en base).
+> 4. Vérifs : tsc 0 · lint 0 erreur · build OK · pre-commit vert.
+> - 🔜 **Suggestion prochaine session** : **#149 (bypass God : audit complet isolement guildId)** ·
+>   **#175 (WorldMap → création DJ directe)** · **#171 (DPNL/Dofensive dans Mes Succès)** ·
+>   **#178 (filtres encyclopédie)** · **#181 (refonte sigilos.fr)** · #179 (copier pseudos inscrits).
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 07/09 — #148 Modale quête God + rendu client (gros lot)
 
 > **dev** = `64fbcd1b3` — **PR #506 MERGÉE** (contenait #126 slugs membres 7/7 + #129 bouton Nouvel évent + docs).
 > ⚠️ La branche `feat/chantier-2026-09-07` = **8 commits** (#148 + suite feedback UI + zones/favicons + CodeQL
-> + docs) → **PR à créer** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+> + docs) → **PR créée et mergée le 19/08 en dev**.
 > Mémo : `src/temp/memo-2026-09-07-chantier-148.md`. Amorce suivante :
-> `src/temp/prompt-next-chantier-2026-09-08.md` (priorités : **#149** bypass God).
+> `src/temp/prompt-next-chantier-2026-09-08.md`.
 >
 > ### ✅ FAIT (session 07/09) — #148 (7 volets, gros lot God/Game-Data)
 > 1. **Modale quête God** (`DofusQuestGodManager.tsx`) : **Donjon/Finale/Optionnelle/PNJ/Sous-zone supprimés**
@@ -41,19 +67,11 @@
 >    (`DofusQuestBanner.tsx`) avec **Signaler / Options / Tutoriel** intégrés ; **bouton perso du haut supprimé** (doublon).
 > 3. **Rendu client** (`DofusTimelineQuest.tsx`) : **« TOUT RESET » rouge** par bloc, niveau recommandé, positions
 >    copiables, image quête, donjon **« non relié »/« étapes »** selon metamob.
-> 4. **Bug ordre God/client** : tie-break `id asc` sur `getDofusManagementData` + `getDofusDetailWithChains` (alignés
->    sur les flèches `reorder*`). **Bug prérequis décochée** : `toggleQuestStatus` **cascade de dévalidation** des quêtes
->    dépendantes (`getAllDownstreamQuests`). **JE SUIS ICI unique par bloc** : `IN_PROGRESS` reset les autres du bloc.
-> 5. Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK (69/69) · pre-commit vert. Aucune migration Prisma.
-> 6. **Suite feedback (commit `77c4149ed`)** : bandeau **aligné sur le guide** (classes `.guide-*`, modale
->    **Archis & Boss metamob** via `OcreProgressModal`), **zone God = zones locales + détectées DofusDB**
->    (`searchZonesDetected`, cache Redis), **icône réelle des donjons game-data**, **positions encadrées + Copier visible**.
-> 7. **Fixes suivants (commits `220e602ff` + `a6da66b1c`)** : selecteur zone **jamais vide** (zones DofusDB dès
->    l'ouverture), favicons DofusDB/Noobs **locaux** (`/assets/icons/dofusdb.png` + `BookOpen`), et **CodeQL High
->    corrigé** (« DOM text reinterpreted as HTML » sur `localImageUrl`) → **allowlist stricte d'URL d'image**
->    (`isSafeImageUrl`/`safeImageUrl` dans `src/lib/security.ts`), `EntrySchema` `.refine` fail-closed + guards client.
-> - 🔜 **Suggestion prochaine session** : **#149 (bypass God : le God gère les profils de n'importe quelle guilde —
->   audit d'autres bypass)** · #34 (reste) Télémetry · #41bis alerte dofusbook · #129 (reste) sweep · #140 reste screens.
+> 4. **Bug ordre God/client** : tie-break `id asc` + cascade dévalidation prérequis + JE SUIS ICI unique par bloc.
+> 5. Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK · pre-commit vert. Aucune migration Prisma.
+> 6. **Suite feedback** : bandeau aligné guide, zones DofusDB détectées, icône réelle donjons, positions encadrées.
+> 7. **Fix CodeQL High** : allowlist stricte URL image (`isSafeImageUrl`/`safeImageUrl`).
+
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 06/09 — Fix CodeQL PR #505 MERGÉE + #126 slugs membres + #129 sweep suite
 

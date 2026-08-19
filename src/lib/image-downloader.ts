@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from "fs/promises";
-import { dirname, resolve, basename, sep } from "path";
+import { realpathSync } from "fs";
+import { dirname, resolve, basename, join, sep } from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
 
@@ -157,28 +158,30 @@ export async function processAndSaveImage(
         const optimizedSize = optimizedBuffer.length;
         const reduction = ((1 - optimizedSize / originalSize) * 100).toFixed(0);
 
-        // 7. Write optimized file (force .webp extension)
-        const webpPath = destinationPath.replace(/\.(png|jpg|jpeg|gif)$/i, ".webp");
-
-        // 🔒 F-xx (CodeQL js/path-injection #75/#76/#77) : fail-closed — le chemin de destination
-        // est construit depuis des données utilisateur (slug/URL God). On le normalise avec resolve()
-        // (neutralise les "..") puis on vérifie qu'il reste DANS le répertoire de travail, et que le
-        // nom de fichier est simple (aucun séparateur résiduel). Le chemin utilisé pour mkdir/write
-        // est le chemin VALIDÉ (safePath) — jamais la valeur brute. Sinon → refus avant toute écriture.
-        const safePath = resolve(webpPath);
-        const cwd = process.cwd();
-        const cwdWithSep = cwd.endsWith(sep) ? cwd : cwd + sep;
-        if (safePath !== cwd && !safePath.startsWith(cwdWithSep)) {
-            return { success: false, error: "Chemin de destination invalide (hors racine)" };
-        }
-        const base = basename(safePath);
-        if (!base || base === "." || base === ".." || base.includes("/") || base.includes("\\")) {
+        // 🔒 F-xx (CodeQL js/path-injection #75→#79) : fail-closed.
+        // 1) Nom de fichier : `basename()` (assainisseur CodeQL reconnu) + allowlist stricte
+        //    [a-zA-Z0-9._-] → aucun séparateur ni ".." possible.
+        const name = basename(destinationPath).replace(/\.(png|jpg|jpeg|gif)$/i, ".webp");
+        if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) {
             return { success: false, error: "Nom de fichier invalide" };
         }
 
-        // 6. Ensure directory exists
-        const dir = dirname(safePath);
-        await mkdir(dir, { recursive: true });
+        // 2) Répertoire : normalisation + pré-confinement, création, puis CANONISATION via
+        //    fs.realpathSync (pattern « GOOD » de CodeQL) + re-vérification du confinement.
+        //    Le chemin réellement utilisé pour écrire est le chemin canonique validé.
+        const cwd = process.cwd();
+        const cwdWithSep = cwd.endsWith(sep) ? cwd : cwd + sep;
+        const parentDir = resolve(dirname(destinationPath));
+        if (parentDir !== cwd && !parentDir.startsWith(cwdWithSep)) {
+            return { success: false, error: "Chemin de destination invalide (hors racine)" };
+        }
+        await mkdir(parentDir, { recursive: true });
+        const canonicalDir = realpathSync(parentDir);
+        if (canonicalDir !== cwd && !canonicalDir.startsWith(cwdWithSep)) {
+            return { success: false, error: "Chemin de destination invalide (hors racine)" };
+        }
+
+        const safePath = join(canonicalDir, name);
         await writeFile(safePath, optimizedBuffer);
 
         // 8. Return relative path for DB

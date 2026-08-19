@@ -43,6 +43,24 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
 - `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
 
+## ✅ Checklist Déploiement — chantier session 05/09 (à faire au prochain deploy beta + prod)
+
+> Tout le code est sur `feat/chantier-2026-09-04` (PR #505) — merger sur `dev` puis déployer.
+
+1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20260905000000_add_landing_screen` (table `LandingScreen`).
+2. **Crontab VPS** : ajouter le cron `account-retention` (`0 6 * * *`) et **synchroniser `CRON_SECRET`** en haut du crontab avec la valeur des `.env` :
+   - `source` la valeur : `NEW=$(grep '^CRON_SECRET=' .env.beta | sed "s/^CRON_SECRET=//; s/^'//; s/'$//")`
+   - `(crontab -l | sed "s|^CRON_SECRET=.*|CRON_SECRET='${NEW}'|") | crontab -`
+3. **Secrets à vérifier/renseigner** :
+   - `CRON_SECRET` (beta : `.env.beta` · prod : `.env.prod`) — même valeur que le crontab.
+   - `REDIS_PASSWORD_BETA` (beta) et `REDIS_PASSWORD` (prod) : **⚠️ non définis → `sigilos-redis-beta` boucle de restart (NOAUTH)** → mettre le même mot de passe dans `.env.beta` que celui attendu par l'app/worker, puis `docker compose -f docker-compose.prod.yml up -d --force-recreate redis-beta app-beta worker-beta`.
+4. **Vérifications post-deploy (beta)** :
+   - `curl ... /api/cron/cleanup-logs` → **200** (le gate `isSuperAdmin` a été retiré — bug cron 500 « Unauthorized » corrigé).
+   - `curl ... /api/cron/daily-summary` → `{"success":true,...}` (ou `skipped:true` si déjà envoyé le jour même).
+   - `curl ... /api/cron/account-retention` → `{"success":true,"summary":{...}}`.
+   - `/god/landing` : upload d'un screen OK · `/uploads/landing/<fichier>.webp` → **200 `image/webp`** (segment public) · landing : onglets + galerie/carrousel OK.
+5. **Rappel règle d'écriture d'images** : `processAndSaveImage` refuse tout chemin hors `process.cwd()` (CodeQL js/path-injection #75/#76, fail-closed).
+
 ---
 
 ## 🔍 Monitoring

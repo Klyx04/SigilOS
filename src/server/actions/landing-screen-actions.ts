@@ -148,7 +148,10 @@ export async function uploadLandingScreen(input: {
 
     try {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const slug = (input.slug || `${Date.now()}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60);
+        // 🔑 Slug UNIQUE par upload : le slug du client est dérivé du libellé → deux uploads
+        // avec le même libellé écraseraient le même fichier (vignettes identiques dans la galerie).
+        const baseSlug = (input.slug || "screen").toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 50) || "screen";
+        const slug = `${baseSlug}-${Date.now()}`;
         // 📁 Le middleware proxy réécrit `/uploads/*` → `/api/storage/*` (qui sert depuis
         // `private_uploads/`). On écrit donc dans `private_uploads/landing/` et l'URL publique
         // reste `/uploads/landing/{slug}.webp` (segment "landing" = public côté storage).

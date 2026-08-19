@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * EventDetailModal V3 - 4 Types + Native ClassIcon
@@ -171,6 +171,7 @@ interface Participant {
     position: number;
     classe?: string | null;
     comment?: string | null;
+    createdAt?: Date | string | null;
     hasParticipatedThisWeek?: boolean;
     user: {
         id: string;
@@ -1365,6 +1366,11 @@ function ParticipantRow({
                             >
                                 <ClassIcon classId={participant.classe} size={16} showName />
                             </div>
+                        )}
+                        {participant.createdAt && (
+                            <span className="text-caption text-muted-foreground/60" title={new Date(participant.createdAt).toLocaleString("fr-FR")}>
+                                {format(new Date(participant.createdAt), "d MMM à HH:mm", { locale: fr })}
+                            </span>
                         )}
                         {participant.comment && (
                             <span className="text-caption text-muted-foreground italic truncate max-w-[100px]">

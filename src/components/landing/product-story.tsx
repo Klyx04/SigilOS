@@ -175,11 +175,11 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                 >
                     <div>
                         <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight mb-3">
-                            {activeTab.title || activeTab.label}
+                            {activeImage.title || activeImage.label || activeTab.label}
                         </h3>
-                        {activeTab.description && (
+                        {activeImage.description && (
                             <p className="text-muted-foreground text-[15px] leading-relaxed mb-5">
-                                {activeTab.description}
+                                {activeImage.description}
                             </p>
                         )}
                     </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
 
@@ -48,6 +48,9 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
     const [activeKey, setActiveKey] = useState<string | null>(null);
     const [imageIdx, setImageIdx] = useState(0);
     const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+    // Carrousel : lecture automatique (5s) + pause au survol / bouton lecture-pause.
+    const [autoplayOn, setAutoplayOn] = useState(true);
+    const [paused, setPaused] = useState(false);
 
     const activeTab = tabs[activeKey ? Math.max(0, tabs.findIndex((t) => t.key === activeKey)) : 0];
 
@@ -56,12 +59,27 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
         setImageIdx(0);
     }, [activeTab?.key]);
 
+    // Pause automatique au survol du carrousel (reprise au départ de la souris).
+    const pauseOnHover = () => setPaused(true);
+    const resumeOnLeave = () => setPaused(false);
+
     if (!activeTab) return null;
 
     const imageCount = activeTab.images.length;
     const safeIdx = Math.min(Math.max(0, imageIdx), Math.max(0, imageCount - 1));
     const activeImage = activeTab.images[safeIdx];
     const isCarousel = imageCount > 1;
+
+    // 🎠 Carrousel : lecture automatique (5s) — suspendue au survol, quand le zoom est ouvert
+    // ou quand la lecture est coupée via le bouton.
+    const isAutoRunning = isCarousel && autoplayOn && !paused && !zoomUrl;
+    useEffect(() => {
+        if (!isAutoRunning || imageCount <= 1) return;
+        const timer = setInterval(() => {
+            setImageIdx((prev) => (prev >= imageCount - 1 ? 0 : prev + 1));
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [isAutoRunning, imageCount]);
 
     const goPrev = (e?: React.MouseEvent | React.KeyboardEvent) => {
         e?.preventDefault();
@@ -171,6 +189,8 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                         <div
                             className="relative w-full overflow-hidden rounded-xl border border-border bg-surface aspect-[16/10]"
                             onKeyDown={onImageKeyDown}
+                            onMouseEnter={pauseOnHover}
+                            onMouseLeave={resumeOnLeave}
                             tabIndex={isCarousel ? 0 : undefined}
                             role={isCarousel ? "group" : undefined}
                             aria-roledescription={isCarousel ? "carrousel" : undefined}
@@ -213,6 +233,14 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
                                     <span className="absolute bottom-2 right-2 z-20 text-caption font-bold bg-black/60 text-white px-2 py-0.5 rounded-full tabular-nums">
                                         {safeIdx + 1} / {imageCount}
                                     </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAutoplayOn((v) => !v)}
+                                        aria-label={autoplayOn && !paused ? "Mettre en pause la lecture automatique" : "Activer la lecture automatique"}
+                                        className="absolute bottom-2 left-2 z-20 h-7 w-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition-colors"
+                                    >
+                                        {autoplayOn && !paused ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                                    </button>
                                 </>
                             )}
                         </div>

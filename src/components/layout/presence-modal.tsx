@@ -19,6 +19,7 @@ import { ClassIcon } from "@/components/shared/class-icon";
 
 interface ActiveUser {
     id: string;
+    slug?: string;
     name: string;
     image: string | null;
     lastActive: Date | null;
@@ -185,7 +186,7 @@ export function PresenceModal({ isOpen, onOpenChange, users, canSearch = false }
                                             }`} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <Link href={`/dashboard/${guildId}/members/${user.id}`} onClick={() => onOpenChange(false)}>
+                                            <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(user.slug || user.id)}`} onClick={() => onOpenChange(false)}>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-bold text-foreground group-hover:text-foreground transition-colors cursor-pointer hover:underline">{user.name}</span>
                                                     {isAfk && (

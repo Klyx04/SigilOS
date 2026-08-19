@@ -328,7 +328,8 @@ export async function refreshBuildMetadata(
 
         // 3. Revalidate
         revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
-        revalidatePath(`/dashboard/${guildId}/members/${profileId}`);
+        // 🔗 #126 : la page membre est servie sous /members/<slug> → on revalide le pattern
+        revalidatePath(`/dashboard/${guildId}/members/[slug]`);
 
         return { success: true };
     } catch (error) {

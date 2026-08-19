@@ -789,7 +789,7 @@ export default function MemberManagement({
                                                     <TableCell className="pr-8 text-right">
                                                          {member.hasDashboardProfile ? (
                                                              <Button variant="outline" size="sm" className="h-9 rounded-xl border-border bg-surface hover:bg-success hover:text-success-foreground hover:border-success transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
-                                                                 <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
+                                                                 <a href={`/dashboard/${guildId}/members/${encodeURIComponent(member.slug || member.profileId || "")}`} target="_blank">
                                                                      <ArrowUpRight className="w-4 h-4" />
                                                                  </a>
                                                              </Button>

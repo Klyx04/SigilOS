@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Smile, Heart, PartyPopper, Hand, Sparkles, MessageCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { buildProfileHref } from "@/lib/profile-slug";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Tooltip,
@@ -112,7 +113,7 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
 
                                 <div className="flex flex-col md:flex-row gap-6 relative z-10">
                                     <div className="shrink-0">
-                                        <Link href={`/dashboard/${guildId}/members/${post.profile.id}`}>
+                                        <Link href={buildProfileHref(guildId, post.profile)}>
                                             <div className="relative group/avatar">
                                                 <Avatar className="h-16 w-16 rounded-2xl ring-2 ring-white/5 group-hover/avatar:ring-warning/40 transition-all duration-300 shadow-2xl">
                                                     <AvatarImage src={post.profile.user.image || ""} className="object-cover" />
@@ -132,7 +133,7 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                             <div className="flex items-center justify-between flex-wrap gap-2">
                                                 <div className="flex items-center gap-2">
                                                     <Link
-                                                        href={`/dashboard/${guildId}/members/${post.profile.id}`}
+                                                        href={buildProfileHref(guildId, post.profile)}
                                                         className="text-xl font-black text-foreground hover:text-warning transition-colors tracking-tight"
                                                     >
                                                         {post.profile.id === currentProfileId ? "Toi 🎉" : (post.profile.pseudoDofus || post.profile.user.name)}
@@ -175,7 +176,7 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                                                             <MessageCircle className="w-3 h-3 text-warning/50" /> Quelques mots
                                                         </p>
                                                         <Link
-                                                            href={`/dashboard/${guildId}/members/${post.profile.id}`}
+                                                            href={buildProfileHref(guildId, post.profile)}
                                                             className="text-caption font-black text-muted-foreground hover:text-warning uppercase tracking-widest transition-colors flex items-center gap-1.5"
                                                         >
                                                             Profil complet <ArrowRight className="w-3 h-3" />

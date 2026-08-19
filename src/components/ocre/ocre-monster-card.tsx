@@ -351,7 +351,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                                 className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted hover:bg-accent transition-colors"
                                             >
                                                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                    <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                                    <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(partner.slug || partner.profileId)}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
                                                         <Avatar className="h-6 w-6 border border-border cursor-pointer hover:border-warning/50 transition-colors">
                                                             <AvatarImage src={partner.discordAvatar} />
                                                             <AvatarFallback className="text-caption bg-muted text-muted-foreground">
@@ -361,7 +361,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                                     </Link>
                                                     <div className="flex flex-col min-w-0 flex-1">
                                                         <Link
-                                                            href={`/dashboard/${guildId}/members/${partner.profileId}`}
+                                                            href={`/dashboard/${guildId}/members/${encodeURIComponent(partner.slug || partner.profileId)}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-xs font-medium text-warning truncate hover:underline cursor-pointer block"

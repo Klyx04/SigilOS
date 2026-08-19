@@ -25,22 +25,26 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 05/09 — 10 chantiers (responsivité · God/Game-Data · sécu · landing)
 
-> **Branche `feat/chantier-2026-09-04`** = **commits non mergés** : `6207a8d33` (refonte Succès 03/09) + `df221fc17`
-> (#153 UI 04/09) + `cb106a090` (docs 04/09) + **session 05/09** (10 chantiers). PR à ouvrir/continuer :
+> **Branche `feat/chantier-2026-09-04`** = **11 commits non mergés** sur `dev` (`1ab013221`) :
+> `6207a8d33` (Succès 03/09) + `df221fc17` (#153 UI 04/09) + `cb106a090` (docs 04/09) +
+> **8 commits session 05/09** (`47597eacd` → `1b66e0674`). **PR à ouvrir/continuer** :
 > https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-04
-> Mémo : `src/temp/memo-2026-09-05-chantier-multi.md`. Amorce : `src/temp/prompt-next-chantier-2026-09-05.md`.
+> Mémo : `src/temp/memo-2026-09-05-chantier-multi.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-06.md`.
 >
+> ### ✅ FAIT (session 05/09)
 > - **#145** missions anomalie : option « Élixir uchronique (sans niveau) » (`elixir:'uchronique'`) + « (tous niveaux) » retiré partout (`mission-payloads.ts`, `category-forms.tsx`, `mission-card.tsx`).
 > - **#146** modale quête God : zone = sélecteur game-data (AsyncCombobox `searchZones`, zones siphonnées en local) + **prérequis dispo dès la création** (liens préparés appliqués à la sauvegarde ; une quête ne peut pas être son propre prérequis). `DofusQuestGodManager.tsx`, `async-combobox.tsx` (prop `initialLabel`), `dofus-quest-admin-actions.ts`.
 > - **#154** God game-data : onglets `flex-nowrap overflow-x-auto` (plus d'écrasement), onglet « Archis & Boss », **bouton « Siphonner les quêtes DofusDB »** (`QuestSiphonPanel.tsx` + `siphonQuestsFromDofusDB` anti-doublon paginé).
 > - **#144** zones↔familles : `autoAssociateAllZoneFamilies` **matching strict sans faux positif** (nom exact) + bouton dans ZoneManager.
-> - **#147** rapport guilde embed en double : 2 planificateurs (route cron + job BullMQ) → **déduplication Redis quotidienne** (SET NX) sur les envois auto. `daily-report-actions.ts`.
+> - **#147** rapport guilde embed en double : 2 planificateurs (route cron + job BullMQ) → **déduplication Redis quotidienne** (SET NX) sur envois auto + **fix IDOR** (session connectée non-God refusée sur le chemin auto). `daily-report-actions.ts`.
 > - **#153** API metamob v2 : étude conclue → **matchScore en badge** + **lien profil Metamob** du partenaire (`ocre-exchange-modal.tsx`).
-> - **#168** rétention comptes orphelins : `purgeOrphanAccounts` (90j, fail-safe grace 12 mois, protections) + **route cron** `/api/cron/account-retention` (protégée `verifyCronSecret`).
+> - **#168** rétention comptes orphelins : `purgeOrphanAccountsCore` (`src/server/account-retention-core.ts`, **module interne NON exposé comme action** — le bypass `allowCron` contrôlable client a été supprimé) + route cron `/api/cron/account-retention` (protégée `verifyCronSecret`).
 > - **#129** responsivité : grille calendrier 7 colonnes scrollable mobile (`calendar-grid.tsx` min-w 840px) — ⚪ sweep composant par composant restant.
-> - **#140** landing screens pilotés par le God : modèle `LandingScreen` (**migration `20260905000000_add_landing_screen`**), `product-story.tsx` serveur-driven (fallback défauts), page God `/god/landing` (upload WebP 1920px via `image-downloader.ts` type `landing`).
-> - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build EXIT=0 (Compiled successfully).
-> - ⚠️ Déploiement : `prisma migrate deploy` (LandingScreen) + ajouter `api/cron/account-retention` au crontab VPS.
+> - **#140** landing screens pilotés par le God : modèle `LandingScreen` (**migration `20260905000000_add_landing_screen`**), page God `/god/landing` (sections « Onglets Produit » + « Image du hero »), upload WebP 1920px max 10 Mo. **Merge** : les 3 onglets par défaut restent ; même libellé = **galerie/carrousel multi-images** (miniatures, flèches, compteur, autoplay 5s + pause, zoom plein écran navigable, navigation clavier) ; titre+description rendus depuis l'**image active**. 🔴 **Stockage** : `private_uploads/landing/` (le middleware `/uploads/*`→`/api/storage/*` sert depuis `private_uploads` ; segment `landing` = **PUBLIC** dans `api/storage/[...path]/route.ts`). Slug de fichier **unique** par upload (`{libellé}-{timestamp}`), suppression du fichier au delete.
+> - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build EXIT=0.
+> - ⚠️ **Au déploiement (VPS)** : ① `prisma migrate deploy` (migration LandingScreen) ; ② ajouter au crontab : `curl -s -H "x-cron-secret: $CRON_SECRET" https://<app>/api/cron/account-retention` (quotidien, ex `0 6 * * *`) ; ③ vérifier `/god/landing` (upload) + `/uploads/landing/*` (public) + la landing.
+> - 🔜 **Suggestion prochaine session** : #148 (gros lot modale édition quête God) · #126 (slugs `members/<pseudo>`) · #129 (sweep responsivité) · compléter les screens de la landing via `/god/landing`.
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 04/09 — #153 Place de Marché metamob (UI)
 
 > **Branche `feat/chantier-2026-09-04`** = **2 commits non mergés** : `6207a8d33` (refonte Succès vue Guilde 03/09)

@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { DofusQuestStatus } from "@prisma/client";
 import { toast } from "sonner";
 import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
+import { isSafeImageUrl } from "@/lib/security";
 
 interface DofusTimelineQuestProps {
   guildId: string;
@@ -169,7 +170,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           {items.map((it: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold">{typeof it === "string" ? it : it.name || it}</span>)}
           {dungeons.map((d: any, i: number) => {
             const dungeonName = typeof d === "string" ? d : (d?.name || "");
-            const dImg = typeof d === "object" && d ? (d.imageUrl || "") : "";
+            const dImg = typeof d === "object" && d && isSafeImageUrl(d.imageUrl) ? d.imageUrl : "";
             return (
               <span key={i} className="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-caption font-bold flex items-center gap-1.5">
                 {dImg ? (
@@ -246,8 +247,8 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {isNext && !isCompleted && <span className="text-caption font-black text-success bg-success/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
               {isBlocked && <Lock className="w-2.5 h-2.5 text-muted-foreground" />}
-              {/* #148 — icône de quête : image réelle si dispo, sinon livre générique (grossi) */}
-              {quest.localImageUrl ? (
+              {/* #148 — icône de quête : image réelle si dispo (URL allowlistée), sinon livre générique (grossi) */}
+              {quest.localImageUrl && isSafeImageUrl(quest.localImageUrl) ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={quest.localImageUrl} alt="" className="w-6 h-6 shrink-0 object-contain rounded" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               ) : (

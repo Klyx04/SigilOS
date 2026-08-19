@@ -26,7 +26,7 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 07/09 — #148 Modale quête God + rendu client (gros lot)
 
 > **dev** = `64fbcd1b3` — **PR #506 MERGÉE** (contenait #126 slugs membres 7/7 + #129 bouton Nouvel évent + docs).
-> ⚠️ La branche `feat/chantier-2026-09-07` = **3 commits** (`23748644a` #148 + `77c4149ed` suite feedback UI
+> ⚠️ La branche `feat/chantier-2026-09-07` = **6 commits** (#148 + suite feedback UI + zones/favicons + CodeQL
 > + docs) → **PR à créer** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
 > Mémo : `src/temp/memo-2026-09-07-chantier-148.md`. Amorce suivante : à générer (priorités : **#149** bypass God).
 >
@@ -47,6 +47,10 @@
 > 6. **Suite feedback (commit `77c4149ed`)** : bandeau **aligné sur le guide** (classes `.guide-*`, modale
 >    **Archis & Boss metamob** via `OcreProgressModal`), **zone God = zones locales + détectées DofusDB**
 >    (`searchZonesDetected`, cache Redis), **icône réelle des donjons game-data**, **positions encadrées + Copier visible**.
+> 7. **Fixes suivants (commits `220e602ff` + `a6da66b1c`)** : selecteur zone **jamais vide** (zones DofusDB dès
+>    l'ouverture), favicons DofusDB/Noobs **locaux** (`/assets/icons/dofusdb.png` + `BookOpen`), et **CodeQL High
+>    corrigé** (« DOM text reinterpreted as HTML » sur `localImageUrl`) → **allowlist stricte d'URL d'image**
+>    (`isSafeImageUrl`/`safeImageUrl` dans `src/lib/security.ts`), `EntrySchema` `.refine` fail-closed + guards client.
 > - 🔜 **Suggestion prochaine session** : **#149 (bypass God : le God gère les profils de n'importe quelle guilde —
 >   audit d'autres bypass)** · #34 (reste) Télémetry · #41bis alerte dofusbook · #129 (reste) sweep · #140 reste screens.
 

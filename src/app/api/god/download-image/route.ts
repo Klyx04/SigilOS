@@ -3,7 +3,6 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { downloadExternalImage } from "@/lib/image-downloader";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
-import { join, normalize } from "path";
 
 const schema = z.object({
     url: z.string().url(),
@@ -41,17 +40,10 @@ export async function POST(req: NextRequest) {
 
         const { url, type, identifier } = validation.data;
 
-        // 3. Construct destination path - Concat to bypass Turbopack analysis
-        const root = process.cwd();
-        let folder = "";
-        switch (type) {
-            case "achievement": folder = "achievements"; break;
-            case "monster": folder = "monsters"; break;
-            case "dungeon": folder = "dungeons"; break;
-            case "item": folder = "items"; break;
-            case "legendary": folder = "legendary"; break;
-        }
-        const destination = normalize(root + "/public/game-data/" + folder + "/" + identifier + ".webp");
+        // 3. Destination : le répertoire (`public/game-data/{type}`) est une CONSTANTE gérée
+        // dans image-downloader.ts (destDirFor(type)) — on ne passe ici que le nom de fichier,
+        // déjà validé par le regex /^[a-z0-9-]+$/ ci-dessus (fail-closed avant écriture).
+        const destination = `${identifier}.webp`;
 
         // 4. Download and optimize image
         const result = await downloadExternalImage(url, destination, type);

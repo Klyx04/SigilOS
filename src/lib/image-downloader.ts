@@ -1,6 +1,5 @@
 import { writeFile, mkdir } from "fs/promises";
-import { realpathSync } from "fs";
-import { dirname, resolve, basename, join, sep } from "path";
+import { resolve, basename, join, sep } from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
 
@@ -89,11 +88,29 @@ const IMAGE_SIZES = {
     landing: 1920      // #140 — screens de la landing : 1920px max (captures plein écran)
 };
 
-type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "landing";
+export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "landing";
+
+/**
+ * 🔒 CodeQL js/path-injection (fix PR #505) : répertoires de destination FIXES
+ * (constantes du code), indexés par type. Aucune partie du répertoire ne peut être
+ * influencée par l'utilisateur — les sinks (mkdir/writeFile) ne reçoivent que ce
+ * répertoire + un nom de fichier assaini (basename + allowlist) dans processAndSaveImage.
+ * `landing` → private_uploads/landing (segment public servi via le middleware `/uploads/*`).
+ */
+function destDirFor(type: ImageType): string {
+    switch (type) {
+        case "monster": return "public/game-data/monsters";
+        case "achievement": return "public/game-data/achievements";
+        case "dungeon": return "public/game-data/dungeons";
+        case "item": return "public/game-data/items";
+        case "legendary": return "public/game-data/legendary";
+        case "landing": return "private_uploads/landing";
+    }
+}
 
 export async function downloadExternalImage(
     url: string,
-    destinationPath: string,
+    fileName: string,
     type: ImageType
 ): Promise<{ success: boolean; path?: string; error?: string; sizeReduction?: string }> {
     try {
@@ -131,7 +148,7 @@ export async function downloadExternalImage(
             return { success: false, error: `File too large (${(originalSize / 1024 / 1024).toFixed(2)} MB)` };
         }
 
-        return await processAndSaveImage(buffer, destinationPath, type, originalSize);
+        return await processAndSaveImage(buffer, fileName, type, originalSize);
     } catch (error: any) {
         logger.error("[ImageDownloader] Error:", { error: error?.message || String(error) });
         return { success: false, error: error.message || "Unknown error" };
@@ -140,7 +157,7 @@ export async function downloadExternalImage(
 
 export async function processAndSaveImage(
     buffer: Buffer,
-    destinationPath: string,
+    fileName: string,
     type: ImageType,
     originalSize: number
 ): Promise<{ success: boolean; path?: string; error?: string; sizeReduction?: string }> {
@@ -158,37 +175,33 @@ export async function processAndSaveImage(
         const optimizedSize = optimizedBuffer.length;
         const reduction = ((1 - optimizedSize / originalSize) * 100).toFixed(0);
 
-        // 🔒 F-xx (CodeQL js/path-injection #75→#79) : fail-closed.
-        // 1) Nom de fichier : `basename()` (assainisseur CodeQL reconnu) + allowlist stricte
-        //    [a-zA-Z0-9._-] → aucun séparateur ni ".." possible.
-        const name = basename(destinationPath).replace(/\.(png|jpg|jpeg|gif)$/i, ".webp");
+        // 🔒 CodeQL js/path-injection (fix PR #505) : le chemin d'écriture est construit
+        // UNIQUEMENT depuis ① un répertoire CONSTANT indexé par type (destDirFor) et ② un
+        // nom de fichier assaini via basename() + allowlist stricte [a-zA-Z0-9._-] (aucun
+        // séparateur de chemin ni ".." possible). L'input utilisateur ne peut donc JAMAIS
+        // influencer les sinks mkdir/writeFile.
+        const name = basename(fileName).replace(/\.(png|jpg|jpeg|gif)$/i, ".webp");
         if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) {
             return { success: false, error: "Nom de fichier invalide" };
         }
 
-        // 2) Répertoire : normalisation + pré-confinement, création, puis CANONISATION via
-        //    fs.realpathSync (pattern « GOOD » de CodeQL) + re-vérification du confinement.
-        //    Le chemin réellement utilisé pour écrire est le chemin canonique validé.
+        // Répertoire : constante du code, normalisée et re-vérifiée confinée sous
+        // process.cwd() (défense en profondeur — triviale ici, le répertoire est fixe).
         const cwd = process.cwd();
         const cwdWithSep = cwd.endsWith(sep) ? cwd : cwd + sep;
-        const parentDir = resolve(dirname(destinationPath));
-        if (parentDir !== cwd && !parentDir.startsWith(cwdWithSep)) {
-            return { success: false, error: "Chemin de destination invalide (hors racine)" };
-        }
-        await mkdir(parentDir, { recursive: true });
-        const canonicalDir = realpathSync(parentDir);
-        if (canonicalDir !== cwd && !canonicalDir.startsWith(cwdWithSep)) {
+        const dir = resolve(cwd, destDirFor(type));
+        if (dir !== cwd && !dir.startsWith(cwdWithSep)) {
             return { success: false, error: "Chemin de destination invalide (hors racine)" };
         }
 
-        const safePath = join(canonicalDir, name);
+        const safePath = join(dir, name);
+        await mkdir(dir, { recursive: true });
         await writeFile(safePath, optimizedBuffer);
 
-        // 8. Return relative path for DB
-        const pathParts = safePath.split("public");
-        const relativePath = pathParts.length > 1
-            ? pathParts[1].replace(/\\/g, "/")
-            : safePath.replace(/\\/g, "/");
+        // 8. Return relative path for DB (URL-style : on retire le préfixe "/public")
+        const urlPath = safePath.replace(/\\/g, "/");
+        const publicIdx = urlPath.indexOf("/public/");
+        const relativePath = publicIdx >= 0 ? urlPath.slice(publicIdx + "/public".length) : urlPath;
 
         return {
             success: true,

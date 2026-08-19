@@ -5,7 +5,6 @@ import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "./super-admin-actions";
 import { createGodAuditLog } from "./audit-actions";
 import { processAndSaveImage } from "@/lib/image-downloader";
-import { normalize } from "path";
 import { revalidatePath } from "next/cache";
 
 type ActionResponse<T = void> = {
@@ -152,12 +151,11 @@ export async function uploadLandingScreen(input: {
         // avec le même libellé écraseraient le même fichier (vignettes identiques dans la galerie).
         const baseSlug = (input.slug || "screen").toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 50) || "screen";
         const slug = `${baseSlug}-${Date.now()}`;
-        // 📁 Le middleware proxy réécrit `/uploads/*` → `/api/storage/*` (qui sert depuis
-        // `private_uploads/`). On écrit donc dans `private_uploads/landing/` et l'URL publique
-        // reste `/uploads/landing/{slug}.webp` (segment "landing" = public côté storage).
-        const destination = normalize(`${process.cwd()}/private_uploads/landing/${slug}.webp`);
-
-        const saved = await processAndSaveImage(buffer, destination, "landing", buffer.length);
+        // 📁 Le répertoire de destination (`private_uploads/landing/`) est une CONSTANTE gérée
+        // dans image-downloader.ts (destDirFor("landing")) — on ne passe ici que le nom de
+        // fichier. Le middleware proxy réécrit `/uploads/*` → `/api/storage/*` (qui sert depuis
+        // `private_uploads/`) : l'URL publique reste `/uploads/landing/{slug}.webp`.
+        const saved = await processAndSaveImage(buffer, `${slug}.webp`, "landing", buffer.length);
         if (!saved.success || !saved.path) {
             return { success: false, error: saved.error || "Échec du traitement de l'image" };
         }

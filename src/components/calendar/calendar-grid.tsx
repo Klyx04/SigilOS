@@ -213,9 +213,10 @@ export function CalendarGrid({
     return (
         <div className="space-y-6">
             {/* ============ CALENDAR GRID ============ */}
-            <div className="rounded-2xl border border-border bg-surface overflow-hidden relative">
+            {/* #129 : grille 7 colonnes scrollable horizontalement sur mobile (min-w) au lieu de s'écraser */}
+            <div className="rounded-2xl border border-border bg-surface overflow-x-auto overscroll-x-contain relative">
                 {/* Days Header - CONTRASTE ÉPURÉ (plus de glow ambre) */}
-                <div className="grid grid-cols-7 bg-muted border-b border-border">
+                <div className="grid grid-cols-7 min-w-[840px] md:min-w-full bg-muted border-b border-border">
                     {weekDays.map((day, i) => (
                         <div key={day} className={cn(
                             "py-3.5 text-center text-xs font-semibold tracking-wide uppercase",
@@ -227,7 +228,7 @@ export function CalendarGrid({
                 </div>
 
                 {/* Days Grid */}
-                <div className="grid grid-cols-7 bg-surface">
+                <div className="grid grid-cols-7 min-w-[840px] md:min-w-full bg-surface">
                     {calendarDays.map((day, index) => {
                         const dayKey = format(day, "yyyy-MM-dd");
                         const dayEvents = eventsByDay.get(dayKey) || [];

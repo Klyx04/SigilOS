@@ -30,7 +30,8 @@ export type AnomaliePayload = {
     type: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE' | 'FRAGMENTS' | 'STABILISATION';
     levelRange: AnomalieLevelRange;
     fragmentLevel?: 1 | 2 | 3; // Only for COLLECTE type (maj 3.5)
-    elixir?: 'aucun' | 'mineur' | 'ameliore' | 'majeur';
+    // 'uchronique' = Élixir uchronique sans niveau (ajout chantier #145)
+    elixir?: 'aucun' | 'uchronique' | 'mineur' | 'ameliore' | 'majeur';
 }
 
 // === SONGES ===

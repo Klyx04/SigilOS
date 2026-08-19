@@ -99,15 +99,15 @@ export default async function GameDataPage() {
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h2 className="text-2xl font-bold text-foreground">
-                            Archimonstres <span className="text-amber-500 text-lg font-bold">· 286 monstres</span>
+                            Archis & Boss <span className="text-amber-500 text-lg font-bold">· 286 monstres</span>
                         </h2>
                         <p className="text-muted-foreground text-xs sm:text-sm max-w-xl mt-1">
-                            Gérez la base locale des archimonstres de l'Éternelle Moisson.
+                            Gérez la base locale des archimonstres de l'Éternelle Moisson, des boss et des monstres DofusDB.
                             Synchronisez depuis Metamob pour enrichir la carte interactive avec zones et positions.
                         </p>
                     </div>
                     <a href="/god/game-data/archimonstres" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-600 dark:text-amber-300 font-bold text-xs transition-all">
-                        Gérer les archimonstres <ChevronRight size={16} />
+                        Gérer les archis & boss <ChevronRight size={16} />
                     </a>
                 </div>
             </div>

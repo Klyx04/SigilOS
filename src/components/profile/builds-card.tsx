@@ -388,7 +388,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                 onClick={() => handleForceBake(link)}
                                                 disabled={isSubmitting}
                                                 className="p-2 bg-surface/80 hover:bg-success text-muted-foreground hover:text-success-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all disabled:opacity-50"
-                                                title="Récupérer les données (Baking)"
+                                                title="Mettre à jour les données du build"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", isSubmitting && "animate-spin")} />
                                             </button>

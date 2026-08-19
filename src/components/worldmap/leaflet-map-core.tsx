@@ -817,13 +817,25 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
         if (points.length >= 2) {
             const bounds = L.latLngBounds(points);
-            prefetchTilesForBounds(map, world, bounds);
+            // #182 fix: centrer d'abord sur la cible pour pré-charger les tiles,
+            // puis ajuster la vue. Sans ça, un fitBounds sur grande distance
+            // dézoome trop → fond noir car tiles non chargées.
+            const targetLatLng = L.latLng(-(world.origineY + target.y * world.mapHeight + world.mapHeight / 2), world.origineX + target.x * world.mapWidth + world.mapWidth / 2);
+            map.setView(targetLatLng, -2, { animate: false });
             setTimeout(() => {
                 if (isMiniMap) {
-                    map.fitBounds(bounds, { padding: [60, 60], maxZoom: -1, animate: false });
+                    // minZoom=-4 : évite le dézoom excessif sur grande distance
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: -1, animate: false });
+                    const curZoom = map.getZoom();
+                    if (curZoom < -4) map.setZoom(-4);
                 } else {
                     map.flyToBounds(bounds, { padding: [100, 100], duration: 1.2, easeLinearity: 0.25, maxZoom: -1 });
                 }
+            }, 80);
+        } else if (points.length === 1) {
+            // Seul point (pas de guess) : centrer sur la cible avec zoom fixe
+            setTimeout(() => {
+                map.setView(points[0], -2, { animate: false });
             }, 50);
         }
     }, [guessResult, isMiniMap, map, activeWorld, participants]);

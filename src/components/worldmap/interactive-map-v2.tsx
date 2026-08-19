@@ -2225,10 +2225,24 @@ export default function InteractiveMapV2({
                                                                 const mId = bestGuess?.mapId;
 
                                                                 if (mId) {
+                                                                    // #182 fix: si la map cliquée est souterraine (outdoor=false),
+                                                                    // on cherche une map outdoor aux mêmes coordonnées pour l'image HD
+                                                                    const mObj = allMapsById.get(Number(mId));
+                                                                    let displayMapId = Number(mId);
+                                                                    if (mObj && !mObj.outdoor) {
+                                                                        // Cherche une map outdoor à la même position (x, y, worldMap)
+                                                                        for (const [id, m] of allMapsById) {
+                                                                            if (m.outdoor && m.x === mObj.x && m.y === mObj.y && m.worldMap === mObj.worldMap) {
+                                                                                displayMapId = id;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                    }
                                                                     return <img
-                                                                        src={`/game-data/hd_maps/${mId}.webp`}
+                                                                        src={`/game-data/hd_maps/${displayMapId}.webp`}
                                                                         className="w-full h-full object-cover transition-transform group- duration-300"
                                                                         alt="Ton choix"
+                                                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                                                                     />;
                                                                 } else if (bestGuess) {
                                                                     return (

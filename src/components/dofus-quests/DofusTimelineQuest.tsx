@@ -5,8 +5,8 @@ import {
   CheckCircle2, Circle, ChevronDown,
   ExternalLink, MapPin, Sword, Package,
   ArrowUp, BookOpen, Skull, X,
-  ChevronRight, Target, Info, Layers, Users,
-  Lock, Search, EyeOff, Eye, Crosshair, Flag, RotateCcw,
+  ChevronRight, Info, Layers, Users,
+  Lock, Search, EyeOff, Eye, Crosshair, Flag, RotateCcw, Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DofusQuestStatus } from "@prisma/client";
@@ -136,15 +136,21 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           {quest.zone && <span className="text-muted-foreground font-medium">{quest.zone}</span>}
           {Array.isArray(quest.positions) && quest.positions.length > 0 ? (
             quest.positions.map((p: any, i: number) => (
-              <span key={i} className="font-mono text-success font-bold flex items-center gap-1">
-                <MapPin className="w-3 h-3" />{p.x},{p.y}
-                <button onClick={() => { navigator.clipboard.writeText(`/travel ${p.x},${p.y}`); toast.success(`Copié : /travel ${p.x},${p.y}`); }} className="text-muted-foreground hover:text-white" title="Copier /travel X,Y"><Target className="w-3 h-3" /></button>
+              <span key={i} className="group/pos inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 font-mono text-success font-bold" title="Cliquer pour copier /travel X,Y">
+                <MapPin className="w-3 h-3 shrink-0" />{p.x},{p.y}
+                <button onClick={() => { navigator.clipboard.writeText(`/travel ${p.x},${p.y}`); toast.success(`Copié : /travel ${p.x},${p.y}`); }} className="flex items-center gap-0.5 text-success/70 hover:text-success transition-colors" title="Copier /travel X,Y">
+                  <Copy className="w-3 h-3" />
+                  <span className="hidden group-hover/pos:inline text-caption font-black uppercase tracking-wider">Copier</span>
+                </button>
               </span>
             ))
           ) : coords ? (
-            <span className="font-mono text-success font-bold flex items-center gap-1">
+            <span className="group/pos inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 font-mono text-success font-bold" title="Cliquer pour copier /travel X,Y">
               <MapPin className="w-3 h-3" />{coords.x},{coords.y}
-              <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} className="text-muted-foreground hover:text-white" title="Copier /travel X,Y"><Target className="w-3 h-3" /></button>
+              <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} className="flex items-center gap-0.5 text-success/70 hover:text-success transition-colors" title="Copier /travel X,Y">
+                <Copy className="w-3 h-3" />
+                <span className="hidden group-hover/pos:inline text-caption font-black uppercase tracking-wider">Copier</span>
+              </button>
             </span>
           ) : null}
           {quest.level ? <span className="text-muted-foreground font-semibold">Niveau recommandé : {quest.level}</span> : null}
@@ -297,9 +303,12 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             <div className="flex items-center gap-3 text-caption text-muted-foreground font-medium mt-1">
               {quest.zone && <span><MapPin className="w-2.5 h-2.5 inline mr-0.5" />{quest.zone}</span>}
               {Array.isArray(quest.positions) && quest.positions.length > 0 && (
-                <span className="font-mono text-success font-bold flex items-center gap-1">
-                  {quest.positions[0].x},{quest.positions[0].y}
-                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`/travel ${quest.positions[0].x},${quest.positions[0].y}`); toast.success(`Copié : /travel ${quest.positions[0].x},${quest.positions[0].y}`); }} className="text-muted-foreground hover:text-white" title="Copier /travel X,Y"><Target className="w-2.5 h-2.5" /></button>
+                <span className="group/pos inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-success/25 bg-success/10 font-mono text-success font-bold" title="Cliquer pour copier /travel X,Y">
+                  <MapPin className="w-2.5 h-2.5" />{quest.positions[0].x},{quest.positions[0].y}
+                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`/travel ${quest.positions[0].x},${quest.positions[0].y}`); toast.success(`Copié : /travel ${quest.positions[0].x},${quest.positions[0].y}`); }} className="text-success/70 hover:text-success flex items-center gap-0.5 transition-colors" title="Copier /travel X,Y">
+                    <Copy className="w-2.5 h-2.5" />
+                    <span className="hidden group-hover/pos:inline text-caption font-black uppercase tracking-wider">Copier</span>
+                  </button>
                 </span>
               )}
               {quest.level ? <span className="font-semibold">Niveau reco. {quest.level}</span> : null}

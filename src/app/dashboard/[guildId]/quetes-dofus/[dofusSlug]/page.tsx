@@ -14,14 +14,12 @@ import {
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
 import { DofusProgressRing } from "@/components/dofus-quests/DofusProgressRing";
 import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
-import { DofusPageOptions } from "@/components/dofus-quests/DofusPageOptions";
 import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
-import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
-import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+import { DofusQuestBanner } from "@/components/dofus-quests/DofusQuestBanner";
 
 type Props = {
     params: Promise<{ guildId: string; dofusSlug: string }>;
@@ -72,24 +70,21 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                     <ArrowLeft className="w-5 h-5 transition-transform group-hover/back:-translate-x-1" />
                     Retour à la liste des Dofus
                 </Link>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-shrink-0">
-                    <CharacterQuestSelector 
-                        mainCharacter={{ 
-                            pseudo: user.pseudoDofus || user.name || "Principal", 
-                            classe: user.classe 
-                        }}
-                        mules={user.altPseudos as any || []}
-                    />
-                    <QuestFeedbackButton
-                        guildId={guildId}
-                        sourcePage={`dofus:${dofusSlug}`}
-                        targetSlug={dofusSlug}
-                        compact
-                    />
-                    <DofusPageOptions guildId={guildId} dofusSlug={dofusSlug} baseColor={color} />
-                </div>
             </div>
+
+            {/* #148 — Bandeau mule/alignement/metamob façon Rush Sylvestre / Ganymède */}
+            <DofusQuestBanner
+                guildId={guildId}
+                dofusSlug={dofusSlug}
+                dofusColor={color}
+                mainCharacter={{ pseudo: user.pseudoDofus || user.name || "Principal", classe: user.classe }}
+                mules={(user.altPseudos as any) || []}
+                progress={{
+                    completedQuests: dofus.completedQuests ?? 0,
+                    totalQuests: dofus.totalQuests ?? 0,
+                    percent: dofus.progressPercent ?? 0,
+                }}
+            />
 
             {/* Dofus hero header */}
             <div
@@ -267,6 +262,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 selectedCharacter={character}
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
                 prereqsByQuestId={prereqsByQuestId}
+                metamobPseudo={user.metamobPseudo}
             />
         </div>
     );

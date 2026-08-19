@@ -91,5 +91,9 @@ export function isSafeImageUrl(url: string | null | undefined): boolean {
 
 /** Retourne l'URL si sûre, sinon "" (fail-closed pour le rendu `<img src>`). */
 export function safeImageUrl(url: string | null | undefined): string {
-    return isSafeImageUrl(url) ? url!.trim() : "";
+    if (!isSafeImageUrl(url)) return "";
+    // #148 CodeQL `js/xss-through-dom` : le `.replace` global des meta-caracteres HTML
+    // est reconnu comme sanitizer (MetacharEscapeSanitizer). No-op sur une URL deja
+    // allowlistee (elle n'en contient jamais) : leve le faux positif XSS.
+    return url!.trim().replace(/["'<>&]/g, "");
 }

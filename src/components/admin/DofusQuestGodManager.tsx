@@ -15,12 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { searchZones } from "@/server/actions/game-data-actions";
+import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
 import { 
-    Gem, Plus, Trash2, Edit2, ChevronRight, 
+    Gem, Plus, Trash2, Edit2, 
     MapPin, BookOpen, Castle, Trophy, Search,
     ArrowUp, ArrowDown,
-    ExternalLink, Info
+    ExternalLink, Info, Sword, Skull, Copy, ImageIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -183,8 +184,11 @@ export default function DofusQuestGodManager() {
                                                     chain.entries.map((entry: any) => (
                                                         <div key={entry.id} className="group p-4 bg-background/50 backdrop-blur-md border border-border rounded-2xl flex items-center justify-between hover:border-border-strong transition-all shadow-md">
                                                             <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 min-w-0">
-                                                                <div className={`w-10 h-10 rounded-xl bg-black/50 border border-border flex items-center justify-center shrink-0 ${entry.questType === "DUNGEON" ? "text-danger" : "text-sky-400"}`}>
-                                                                    {entry.questType === "DUNGEON" ? <Castle className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
+                                                                <div className={`w-12 h-12 rounded-xl bg-black/50 border border-border overflow-hidden flex items-center justify-center shrink-0 ${entry.questType === "DUNGEON" ? "text-danger" : "text-sky-400"}`}>
+                                                                    {entry.localImageUrl ? (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img src={entry.localImageUrl} alt="" className="w-full h-full object-contain p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                    ) : entry.questType === "DUNGEON" ? <Castle className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
                                                                 </div>
                                                                 <div className="space-y-1.5 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2">
@@ -192,7 +196,9 @@ export default function DofusQuestGodManager() {
                                                                         {entry.isLast && <Badge className="bg-success/20 text-success border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Final</Badge>}
                                                                         {entry.isOptional && <Badge className="bg-muted/20 text-muted-foreground border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Optionnel</Badge>}
                                                                         {entry.isDungeon && <Badge className="bg-danger/20 text-danger border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Donjon</Badge>}
-                                                                        {entry.level && <Badge className="bg-warning/20 text-warning border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">N{entry.level}</Badge>}
+                                                                        {entry.level && <Badge className="bg-warning/20 text-warning border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Reco. N{entry.level}</Badge>}
+                                                                        {Array.isArray(entry.dungeonsRequired) && entry.dungeonsRequired.length > 0 && <Badge className="bg-indigo-500/20 text-indigo-300 border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md flex items-center gap-1"><Sword className="w-2.5 h-2.5" /> {entry.dungeonsRequired.length} donjon{entry.dungeonsRequired.length > 1 ? "s" : ""}</Badge>}
+                                                                        {Array.isArray(entry.positions) && entry.positions.length > 0 && <Badge className="bg-success/20 text-success border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md flex items-center gap-1"><MapPin className="w-2.5 h-2.5" /> {entry.positions.length} pos.</Badge>}
                                                                         {entry.externalRef && <Badge className="bg-info/20 text-info border border-info/30 uppercase font-black text-caption px-1.5 py-0.5 rounded-md flex items-center gap-1"><BookOpen className="w-2.5 h-2.5" /> DPLN</Badge>}
                                                                     </div>
                                                                     <div className="flex flex-wrap items-center gap-3 text-caption text-muted-foreground font-bold uppercase tracking-widest">
@@ -297,28 +303,34 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
                 <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{chain?.id ? "Éditer la Section" : "Nouvelle Section"}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-2">
-                        <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nature</label>
-                        <select value={formData.sectionType} onChange={e => setFormData({...formData, sectionType: e.target.value})} className="w-full h-11 bg-black/40 border border-border rounded-xl text-sm px-4 focus:outline-none focus:ring-2 focus:ring-ring/50">
-                            <option value="PREREQUISITE">🔑 Prérequis</option>
-                            <option value="MAIN_CHAIN">📜 Quête Principale</option>
-                            <option value="RESOURCE_CHAIN">⚔️ Donjon / Drop</option>
-                            <option value="OPTIONAL">✨ Optionnel</option>
-                        </select>
+                        <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Type de section</label>
+                        {/* #148 — 3 choix lisibles : Prérequis / Série de Quête / Succès (sectionType + sectionIcon dérivés) */}
+                        {(() => {
+                            const nature = formData.sectionType === "PREREQUISITE" ? "pre" : formData.sectionType === "RESOURCE_CHAIN" ? "succes" : "serie";
+                            const setNature = (v: string) => {
+                                if (v === "pre") setFormData({ ...formData, sectionType: "PREREQUISITE", sectionIcon: "serie-de-quete" });
+                                else if (v === "succes") setFormData({ ...formData, sectionType: "RESOURCE_CHAIN", sectionIcon: "icone-succes" });
+                                else setFormData({ ...formData, sectionType: "MAIN_CHAIN", sectionIcon: "serie-de-quete" });
+                            };
+                            return (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { v: "pre", label: "Prérequis", icon: "/assets/icons/serie-de-quete.png", color: "text-warning" },
+                                        { v: "serie", label: "Série de Quête", icon: "/assets/icons/serie-de-quete.png", color: "text-info" },
+                                        { v: "succes", label: "Succès", icon: "/assets/icons/icone-succes.png", color: "text-success" },
+                                    ].map((opt) => (
+                                        <button key={opt.v} type="button" onClick={() => setNature(opt.v)}
+                                            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${nature === opt.v ? "border-info/60 bg-info/15" : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={opt.icon} alt={opt.label} className="w-8 h-8 object-contain" />
+                                            <span className={`text-caption font-black uppercase tracking-wider ${nature === opt.v ? "text-foreground" : "text-muted-foreground"}`}>{opt.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </div>
                     <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Titre</label><Input value={formData.sectionName} onChange={e => setFormData({...formData, sectionName: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                    <div className="space-y-2">
-                        <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Icône du bloc</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {[["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
-                                <button key={val} type="button" onClick={() => setFormData({ ...formData, sectionIcon: val })}
-                                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${formData.sectionIcon === val ? "border-info/60 bg-info/15" : "border-border bg-black/40 hover:border-border-strong"}`}>
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={`/assets/icons/${val}.png`} alt={label} className="w-8 h-8 object-contain" />
-                                    <span className="text-caption font-black uppercase tracking-wider text-foreground">{label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                     <div className="flex justify-between items-center pt-8 border-t border-border mt-8">
                         {chain?.id ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-danger hover:bg-danger/10 rounded-xl"><Trash2 className="w-4 h-4" /></Button> : <div />}
                         <div className="flex gap-3 ml-auto">
@@ -341,6 +353,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         notes: "", externalRef: "",
         positions: [] as { x: number; y: number; label?: string }[],
         dofusdbUrl: "", dofuspourlesnoobsUrl: "",
+        localImageUrl: "",
+        dungeons: [] as any[],
         weight: 1
     });
     const [prerequisites, setPrerequisites] = useState<any[]>([]);
@@ -356,6 +370,10 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
 
     // Position GPS input state
     const [positionsInput, setPositionsInput] = useState("");
+
+    // #148 — Sélecteur multi-donjons (même pattern que Rush Sylvestre admin)
+    const [dungeonQuery, setDungeonQuery] = useState("");
+    const [dungeonResults, setDungeonResults] = useState<any[]>([]);
 
     // #146 : prérequis dispo aussi en CRÉATION (une entrée avec chainId suffit).
     // En édition, on charge les liens existants ; en création, on charge les candidats du même Dofus.
@@ -403,6 +421,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 })) : [],
                 dofusdbUrl: entry.dofusdbUrl || "",
                 dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl || "",
+                localImageUrl: entry.localImageUrl || "",
+                dungeons: Array.isArray(entry.dungeonsRequired) ? entry.dungeonsRequired : [],
                 weight: entry.weight ?? 1
             });
             setZoneLabel(entry.zone || "");
@@ -413,6 +433,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 level: "", npcName: "", npcSubArea: "",
                 notes: "", externalRef: "",
                 positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
+                localImageUrl: "", dungeons: [],
                 weight: 1
             });
             setZoneLabel("");
@@ -436,6 +457,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             positions: formData.positions,
             dofusdbUrl: formData.dofusdbUrl,
             dofuspourlesnoobsUrl: formData.dofuspourlesnoobsUrl,
+            localImageUrl: formData.localImageUrl || null,
+            dungeonsRequired: formData.dungeons,
         } as any);
         if (res.success) {
             // #146 : en création, on lie les prérequis préparés une fois l'étape créée en base.
@@ -485,6 +508,33 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         setFormData((prev: any) => ({ ...prev, positions: (prev.positions || []).filter((_: any, i: number) => i !== idx) }));
     };
 
+    // #148 — Sélecteur multi-donjons (pattern Rush Sylvestre admin)
+    const handleDungeonSearch = async (q: string) => {
+        setDungeonQuery(q);
+        if (q.length < 2) { setDungeonResults([]); return; }
+        const res = await searchDungeonsLocal(q);
+        if (res.success) setDungeonResults(res.data as any[]);
+    };
+
+    const addDungeon = (d: any) => {
+        if (!formData.dungeons.some((sd: any) => sd.id === d.id)) {
+            setFormData((prev: any) => ({ ...prev, dungeons: [...prev.dungeons, d] }));
+        }
+        setDungeonQuery(""); setDungeonResults([]);
+    };
+
+    const removeDungeon = (id: string) => {
+        setFormData((prev: any) => ({ ...prev, dungeons: prev.dungeons.filter((d: any) => d.id !== id) }));
+    };
+
+    // #148 — Image de la quête : localImageUrl prioritaire, sinon tentative image DofusDB (id), sinon icône livre.
+    const questImageUrl = (formData.localImageUrl || "").trim()
+        || (formData.dofusdbId ? `https://static.ankama.com/dofus/www/game/quests/${formData.dofusdbId}.png` : "");
+
+    const copyPosition = (x: number, y: number) => {
+        navigator.clipboard?.writeText(`/travel ${x},${y}`).then(() => toast.success(`Copié : /travel ${x},${y}`)).catch(() => {});
+    };
+
     // #146 : zones siphonnées depuis dofusdb stockées en game-data local → pas d'écriture manuelle.
     const zoneFetcher = useCallback(async (query: string) => {
         const res = await searchZones(query);
@@ -515,7 +565,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl text-base font-bold" placeholder="La Vengeance du Bouftou" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Niveau</label>
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Niveau recommandé</label>
                                 <Input type="number" value={formData.level} onChange={e => setFormData({...formData, level: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl text-center font-mono" placeholder="120" />
                             </div>
                         </div>
@@ -535,29 +585,59 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                     className="bg-black/40 border-border h-11 rounded-xl"
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">PNJ</label>
-                                <Input value={formData.npcName || ""} onChange={e => setFormData({...formData, npcName: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" placeholder="Mage Xelor" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Sous-zone</label>
-                                <Input value={formData.npcSubArea || ""} onChange={e => setFormData({...formData, npcSubArea: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl" placeholder="Cité d'Astrub" />
+                            {/* #148 — Image de la quête grossie (rendu auto à la place de l'icône livre) */}
+                            <div className="space-y-1 md:col-span-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ImageIcon className="w-3 h-3 text-warning" /> Image de la quête</label>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-16 h-16 rounded-xl bg-black/40 border border-border overflow-hidden flex items-center justify-center shrink-0">
+                                        {questImageUrl ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src={questImageUrl} alt="Aperçu de la quête" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                        ) : (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src="/assets/icons/icone-quete.png" alt="Icône quête" className="w-8 h-8 object-contain opacity-70" />
+                                        )}
+                                    </div>
+                                    <Input value={formData.localImageUrl || ""} onChange={e => setFormData({...formData, localImageUrl: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl text-xs font-mono flex-1" placeholder="https://… (image du livre de la quête)" />
+                                </div>
                             </div>
                         </div>
-                        {/* Options toggles */}
-                        <div className="flex flex-wrap gap-3">
-                            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-surface/30 border border-border cursor-pointer hover:bg-surface transition-colors">
-                                <input type="checkbox" checked={formData.isDungeon} onChange={e => setFormData({...formData, isDungeon: e.target.checked})} className="w-4 h-4 accent-danger" />
-                                <span className="text-caption font-black uppercase tracking-widest text-danger">Donjon</span>
-                            </label>
-                            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-surface/30 border border-border cursor-pointer hover:bg-surface transition-colors">
-                                <input type="checkbox" checked={formData.isLast} onChange={e => setFormData({...formData, isLast: e.target.checked})} className="w-4 h-4 accent-success" />
-                                <span className="text-caption font-black uppercase tracking-widest text-foreground">Finale</span>
-                            </label>
-                            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-surface/30 border border-border cursor-pointer hover:bg-surface transition-colors">
-                                <input type="checkbox" checked={formData.isOptional} onChange={e => setFormData({...formData, isOptional: e.target.checked})} className="w-4 h-4 accent-zinc-500" />
-                                <span className="text-caption font-black uppercase tracking-widest text-foreground">Optionnelle</span>
-                            </label>
+                        {/* #148 — Donjons liés (sélecteur multi-donjons, pattern Rush Sylvestre) */}
+                        <div className="space-y-2">
+                            <label className="text-caption font-black uppercase tracking-widest text-indigo-400 flex items-center gap-2"><Sword className="w-3 h-3" /> Donjons liés <span className="text-muted-foreground font-normal normal-case tracking-normal">(liaison metamob affichée côté membres)</span></label>
+                            {formData.dungeons.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {formData.dungeons.map((d: any) => (
+                                        <span key={d.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-caption font-bold">
+                                            {d.imageUrl ? (
+                                                /* eslint-disable-next-line @next/next/no-img-element */
+                                                <img src={d.imageUrl} alt="" className="w-4 h-4 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                            ) : <Skull className="w-3 h-3" />}
+                                            {d.name}
+                                            <button type="button" onClick={() => removeDungeon(d.id)} className="text-indigo-300/50 hover:text-danger"><Trash2 className="w-2.5 h-2.5" /></button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="flex gap-2 flex-wrap">
+                                <Input value={dungeonQuery} onChange={e => handleDungeonSearch(e.target.value)} placeholder="Ajouter un donjon…" className="bg-black/40 border-indigo-500/20 h-9 rounded-xl text-xs flex-1 min-w-[180px]" />
+                                {dungeonResults.length > 0 && (
+                                    <div className="w-full space-y-0.5">
+                                        {dungeonResults.map((d: any) => (
+                                            <button key={d.id} type="button" onClick={() => addDungeon(d)}
+                                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10 text-left transition-all text-caption text-muted-foreground hover:text-indigo-300 font-medium">
+                                                {d.imageUrl ? (
+                                                    /* eslint-disable-next-line @next/next/no-img-element */
+                                                    <img src={d.imageUrl} alt="" className="w-4 h-4 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                ) : <Skull className="w-3 h-3 shrink-0" />}
+                                                <span className="truncate">{d.name}</span>
+                                                <span className="text-muted-foreground shrink-0 ml-auto">{d.level ? `Niv. ${d.level}` : ""}</span>
+                                                <Plus className="w-2.5 h-2.5 shrink-0" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         {/* Positions GPS (façon Rush Sylvestre) */}
                         <div className="space-y-2">
@@ -567,6 +647,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                     {formData.positions.map((p: any, idx: number) => (
                                         <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold font-mono">
                                             {p.x}, {p.y}
+                                            <button type="button" onClick={() => copyPosition(p.x, p.y)} className="text-success/50 hover:text-success" title="Copier /travel X,Y"><Copy className="w-2.5 h-2.5" /></button>
                                             <button type="button" onClick={() => removePosition(idx)} className="text-success/50 hover:text-danger"><Trash2 className="w-2.5 h-2.5" /></button>
                                         </span>
                                     ))}

@@ -23,6 +23,30 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Chantier global (src/temp/chantier) — SESSION 07/09 — #148 Modale quête God + rendu client (gros lot)
+
+> **dev** = `64fbcd1b3` — **PR #506 MERGÉE** (contenait #126 slugs membres 7/7 + #129 bouton Nouvel évent + docs).
+> ⚠️ La branche `feat/chantier-2026-09-07` = **1 commit** `23748644a` (**#148 complet**) → **PR à créer** :
+> https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+> Mémo : `src/temp/memo-2026-09-07-chantier-148.md`. Amorce suivante : à générer (priorités : **#149** bypass God).
+>
+> ### ✅ FAIT (session 07/09) — #148 (7 volets, gros lot God/Game-Data)
+> 1. **Modale quête God** (`DofusQuestGodManager.tsx`) : **Donjon/Finale/Optionnelle/PNJ/Sous-zone supprimés**
+>    (Zone conservée) ; « Niveau » → **« Niveau recommandé »** ; positions GPS parse « -2,3 » + **copie `/travel X,Y`** ;
+>    **sélecteur multi-donjons** (game-data → `dungeonsRequired`, liaison metamob côté membres) ; **image de la quête
+>    grossie** (champ `localImageUrl` + aperçu god + fallback dofusdb/livre). **Modale section** : « Nature » → **3 choix
+>    Prérequis / Série de Quête / Succès** (sectionType+sectionIcon dérivés, rétro-compatible).
+> 2. **Page par-Dofus** : nouveau **bandeau mule/alignement/metamob/progression façon Rush/Ganymède**
+>    (`DofusQuestBanner.tsx`) avec **Signaler / Options / Tutoriel** intégrés ; **bouton perso du haut supprimé** (doublon).
+> 3. **Rendu client** (`DofusTimelineQuest.tsx`) : **« TOUT RESET » rouge** par bloc, niveau recommandé, positions
+>    copiables, image quête, donjon **« non relié »/« étapes »** selon metamob.
+> 4. **Bug ordre God/client** : tie-break `id asc` sur `getDofusManagementData` + `getDofusDetailWithChains` (alignés
+>    sur les flèches `reorder*`). **Bug prérequis décochée** : `toggleQuestStatus` **cascade de dévalidation** des quêtes
+>    dépendantes (`getAllDownstreamQuests`). **JE SUIS ICI unique par bloc** : `IN_PROGRESS` reset les autres du bloc.
+> 5. Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK (69/69) · pre-commit vert. Aucune migration Prisma.
+> - 🔜 **Suggestion prochaine session** : **#149 (bypass God : le God gère les profils de n'importe quelle guilde —
+>   audit d'autres bypass)** · #34 (reste) Télémetry · #41bis alerte dofusbook · #129 (reste) sweep · #140 reste screens.
+
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 06/09 — Fix CodeQL PR #505 MERGÉE + #126 slugs membres + #129 sweep suite
 
 > **dev** = `8125a7cb2` — **PR #505 MERGÉE** (session 05/09 complète + fix CodeQL `0c9bfcaeb` dans dev)

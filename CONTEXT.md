@@ -25,10 +25,10 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 05/09 — 10 chantiers (responsivité · God/Game-Data · sécu · landing)
 
-> **Branche `feat/chantier-2026-09-04`** = **11 commits non mergés** sur `dev` (`1ab013221`) :
-> `6207a8d33` (Succès 03/09) + `df221fc17` (#153 UI 04/09) + `cb106a090` (docs 04/09) +
-> **8 commits session 05/09** (`47597eacd` → `1b66e0674`). **PR à ouvrir/continuer** :
-> https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-04
+> **dev** = `26ff44c5d` — PRs #502/#503/#504 mergées (Succès 03/09 + #153 UI 04/09 dans dev).
+> **Branche `feat/chantier-2026-09-04`** = **15 commits session 05/09 non mergés** (`47597eacd` → `5edfff72e`) :
+> 10 chantiers + docs + fix CodeQL path-injection + fix cron cleanup-logs. **PR #505 OUVERTE** :
+> https://github.com/Klyx04/SigilOS/pull/505
 > Mémo : `src/temp/memo-2026-09-05-chantier-multi.md`. Amorce suivante :
 > `src/temp/prompt-next-chantier-2026-09-06.md`.
 >

@@ -26,8 +26,8 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 07/09 — #148 Modale quête God + rendu client (gros lot)
 
 > **dev** = `64fbcd1b3` — **PR #506 MERGÉE** (contenait #126 slugs membres 7/7 + #129 bouton Nouvel évent + docs).
-> ⚠️ La branche `feat/chantier-2026-09-07` = **1 commit** `23748644a` (**#148 complet**) → **PR à créer** :
-> https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+> ⚠️ La branche `feat/chantier-2026-09-07` = **3 commits** (`23748644a` #148 + `77c4149ed` suite feedback UI
+> + docs) → **PR à créer** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
 > Mémo : `src/temp/memo-2026-09-07-chantier-148.md`. Amorce suivante : à générer (priorités : **#149** bypass God).
 >
 > ### ✅ FAIT (session 07/09) — #148 (7 volets, gros lot God/Game-Data)
@@ -44,6 +44,9 @@
 >    sur les flèches `reorder*`). **Bug prérequis décochée** : `toggleQuestStatus` **cascade de dévalidation** des quêtes
 >    dépendantes (`getAllDownstreamQuests`). **JE SUIS ICI unique par bloc** : `IN_PROGRESS` reset les autres du bloc.
 > 5. Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK (69/69) · pre-commit vert. Aucune migration Prisma.
+> 6. **Suite feedback (commit `77c4149ed`)** : bandeau **aligné sur le guide** (classes `.guide-*`, modale
+>    **Archis & Boss metamob** via `OcreProgressModal`), **zone God = zones locales + détectées DofusDB**
+>    (`searchZonesDetected`, cache Redis), **icône réelle des donjons game-data**, **positions encadrées + Copier visible**.
 > - 🔜 **Suggestion prochaine session** : **#149 (bypass God : le God gère les profils de n'importe quelle guilde —
 >   audit d'autres bypass)** · #34 (reste) Télémetry · #41bis alerte dofusbook · #129 (reste) sweep · #140 reste screens.
 

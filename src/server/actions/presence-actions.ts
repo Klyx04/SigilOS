@@ -91,6 +91,8 @@ export const getActivePresence = cache(async (guildId: string, limit: number = 2
 
                 return {
                     id: u.id,
+                    // 🔗 Chantier #126 : slug lisible pour /members/<slug> (fallback id cuid)
+                    slug: (u.pseudoDofus || u.discordNickname || u.id).trim(),
                     name: getDisplayName(u),
                     image: u.user.image,
                     lastActive: u.lastActivityAt,

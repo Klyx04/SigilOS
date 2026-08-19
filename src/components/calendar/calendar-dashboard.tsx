@@ -507,7 +507,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                 <Button
                                     data-tour="calendar-create"
                                     onClick={() => setIsCreateOpen(true)}
-                                    className="h-9 px-4 rounded-lg bg-warning hover:bg-warning text-warning-foreground font-bold text-xs transition-colors"
+                                    className="h-9 px-4 rounded-lg bg-warning/15 text-warning hover:bg-warning/25 border border-warning/30 font-bold text-xs transition-colors"
                                 >
                                     <Plus className="h-4 w-4 mr-1.5" />
                                     Nouvel évent

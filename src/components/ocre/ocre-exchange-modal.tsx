@@ -513,7 +513,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                 >
                                                     <div className="flex items-center justify-between mb-4">
                                                         <div className="flex items-center gap-3">
-                                                            <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
+                                                            <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(partner.slug || partner.profileId)}`} target="_blank" rel="noopener noreferrer">
                                                                 <Avatar className="h-10 w-10 border border-border cursor-pointer hover:border-warning/50 transition-colors">
                                                                     <AvatarImage src={partner.discordAvatar} />
                                                                     <AvatarFallback className="bg-success/50 text-success font-bold">
@@ -523,7 +523,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                             </Link>
                                                             <div>
                                                                 <Link
-                                                                    href={`/dashboard/${guildId}/members/${partner.profileId}`}
+                                                                    href={`/dashboard/${guildId}/members/${encodeURIComponent(partner.slug || partner.profileId)}`}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="font-bold text-sm text-foreground hover:text-warning hover:underline cursor-pointer transition-colors"

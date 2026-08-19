@@ -26,9 +26,10 @@
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 07/09 — #148 Modale quête God + rendu client (gros lot)
 
 > **dev** = `64fbcd1b3` — **PR #506 MERGÉE** (contenait #126 slugs membres 7/7 + #129 bouton Nouvel évent + docs).
-> ⚠️ La branche `feat/chantier-2026-09-07` = **6 commits** (#148 + suite feedback UI + zones/favicons + CodeQL
+> ⚠️ La branche `feat/chantier-2026-09-07` = **7 commits** (#148 + suite feedback UI + zones/favicons + CodeQL
 > + docs) → **PR à créer** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
-> Mémo : `src/temp/memo-2026-09-07-chantier-148.md`. Amorce suivante : à générer (priorités : **#149** bypass God).
+> Mémo : `src/temp/memo-2026-09-07-chantier-148.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-08.md` (priorités : **#149** bypass God).
 >
 > ### ✅ FAIT (session 07/09) — #148 (7 volets, gros lot God/Game-Data)
 > 1. **Modale quête God** (`DofusQuestGodManager.tsx`) : **Donjon/Finale/Optionnelle/PNJ/Sous-zone supprimés**

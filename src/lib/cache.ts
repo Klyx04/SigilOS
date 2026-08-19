@@ -46,7 +46,7 @@ export async function withCache<T>(
             try {
                 return JSON.parse(cachedValue) as T;
             } catch (parseError) {
-                console.error(`[Cache] Parse error for key ${key}:`, parseError);
+                console.error("[Cache] Parse error for key:", key, parseError);
                 // Fallback to fetcher if data is corrupted
             }
         }
@@ -57,12 +57,12 @@ export async function withCache<T>(
         // 4. Store in Cache (Background)
         // We don't await this to keep response time fast
         redis.set(key, safeStringify(data), "EX", ttlSeconds).catch((err) => {
-            console.error(`[Cache] Failed to set key ${key}:`, err);
+            console.error("[Cache] Failed to set key:", key, err);
         });
 
         return data;
     } catch (error) {
-        console.error(`[Cache] Redis error for key ${key}, falling back to source:`, error);
+        console.error("[Cache] Redis error for key, falling back to source:", key, error);
         return fetcher();
     }
 }
@@ -75,7 +75,7 @@ export async function invalidateCache(key: string): Promise<void> {
     try {
         await redis.del(key);
     } catch (error) {
-        console.error(`[Cache] Failed to invalidate key ${key}:`, error);
+        console.error("[Cache] Failed to invalidate key:", key, error);
     }
 }
 
@@ -95,6 +95,6 @@ export async function clearCachePattern(pattern: string): Promise<void> {
             }
         } while (cursor !== "0");
     } catch (error) {
-        console.error(`[Cache] Failed to clear pattern ${pattern}:`, error);
+        console.error("[Cache] Failed to clear pattern:", pattern, error);
     }
 }

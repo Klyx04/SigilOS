@@ -52,10 +52,8 @@ export function QuestActionsBlock({
     const [loadingMembers, setLoadingMembers] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Dynamic icon URL fetcher
-    const dofusDbFavicon = "https://dofusdb.fr/favicon.ico";
-    const noobsFavicon = "https://www.dofuspourlesnoobs.com/favicon.ico";
-    const dofusbookFavicon = "https://www.dofusbook.net/favicon.ico";
+    // Icône DofusDB locale (les favicons externes sont bloqués / cassés).
+    const dofusDbFavicon = "/assets/icons/dofusdb.png";
 
     useEffect(() => {
         if (initialMembers.length > 0) {
@@ -145,13 +143,7 @@ export function QuestActionsBlock({
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-start">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                            src={noobsFavicon} 
-                            alt="Noobs" 
-                            className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(245,158,11,0.5)] group- transition-transform" 
-                            onError={(e) => { e.currentTarget.style.display = "none"; }} 
-                        />
+                        <BookOpen className="w-5 h-5 text-warning" />
                         <span className="text-caption font-black uppercase tracking-wider text-warning/90 bg-warning/10 px-1.5 py-0.5 rounded border border-warning/20">
                             Tuto
                         </span>

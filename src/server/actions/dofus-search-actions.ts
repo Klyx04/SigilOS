@@ -22,7 +22,9 @@ export async function searchDungeonsLocal(query: string) {
             data: dungeons.map(d => ({
                 id: d.id.toString(),
                 name: d.name,
-                imageUrl: `https://static.ankama.com/dofus/www/game/monsters/${d.id}.png`, // Boss icon usually matches dungeon ID or needs specific mapping
+                bossName: d.bossName,
+                // #148 — icône RÉELLE du donjon game-data (webp local siphonné) si dispo
+                imageUrl: d.imageUrl ?? null,
                 level: d.level
             }))
         };

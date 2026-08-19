@@ -1,5 +1,5 @@
 import { writeFile, mkdir } from "fs/promises";
-import { dirname } from "path";
+import { dirname, resolve, basename, sep } from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
 
@@ -157,12 +157,27 @@ export async function processAndSaveImage(
         const optimizedSize = optimizedBuffer.length;
         const reduction = ((1 - optimizedSize / originalSize) * 100).toFixed(0);
 
-        // 6. Ensure directory exists
-        const dir = dirname(destinationPath);
-        await mkdir(dir, { recursive: true });
-
         // 7. Write optimized file (force .webp extension)
         const webpPath = destinationPath.replace(/\.(png|jpg|jpeg|gif)$/i, ".webp");
+
+        // 🔒 F-xx (CodeQL js/path-injection #75/#76) : fail-closed — le chemin de destination
+        // est construit depuis des données utilisateur (slug/URL God). On le résout (neutralise
+        // les "..") puis on vérifie qu'il reste DANS le répertoire de travail, et que le nom de
+        // fichier est simple (aucun séparateur résiduel). Sinon → refus avant tout mkdir/write.
+        const cwd = process.cwd();
+        const resolvedDest = resolve(webpPath);
+        const cwdWithSep = cwd.endsWith(sep) ? cwd : cwd + sep;
+        if (resolvedDest !== cwd && !resolvedDest.startsWith(cwdWithSep)) {
+            return { success: false, error: "Chemin de destination invalide (hors racine)" };
+        }
+        const base = basename(resolvedDest);
+        if (!base || base === "." || base === ".." || base.includes("/") || base.includes("\\")) {
+            return { success: false, error: "Nom de fichier invalide" };
+        }
+
+        // 6. Ensure directory exists
+        const dir = dirname(webpPath);
+        await mkdir(dir, { recursive: true });
         await writeFile(webpPath, optimizedBuffer);
 
         // 8. Return relative path for DB

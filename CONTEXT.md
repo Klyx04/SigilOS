@@ -31,23 +31,16 @@
 > `src/temp/prompt-next-chantier-2026-09-09.md` (priorités : **#149** bypass God · **#175** WorldMap→DJ).
 >
 > ### ✅ FAIT (session 19/08)
-> 1. **#177 — DjCloseModal + Boutons DJ** :
->    - `DjCloseModal.tsx` : étape 2 de clôture avec **icônes de succès** (`challenge.iconUrl`, vignette 8×8, fallback Trophy),
->      fonctionne mono-donjon ET multi-donjons (`dungeonsJson`) ; **date d'inscription** sous chaque participant ; responsive.
->    - `DjPostCard.tsx` : bouton **« Fermer sans donner de points » supprimé** ; bouton Rejoindre **teinté**
->      (`bg-info/15 text-info border`) + label **« File d'attente »** (warning) si FULL ; quick-join → modale détail.
->    - `DjPostDetailModal.tsx` : bouton rejoindre teinté + label dynamique.
-> 2. **#169 — File d'attente DJ** :
->    - `joinDjPost` : crée en `PENDING` si complet (au lieu de rejeter) ; `leaveDjPost` **auto-promeut** le 1er PENDING
->      en ACCEPTED + notif dashboard. Bouton visible même si FULL. Toast adapté (`waitlisted: true`).
->    - Deux sections distinctes dans `DjPostDetailModal` : Inscrits (ACCEPTED) / File d'attente (PENDING, badges #1 #2…).
-> 3. **#170 — Dates d'inscription** : `DjPostDetailModal` (`createdAt` + "En attente depuis…"), `DjCloseModal` (`createdAt`),
->    `RunCard.tsx` Songes (`joinedAt` sous le pseudo), `event-detail-modal.tsx` Raids (`createdAt` dans `ParticipantRow`).
->    Aucune migration (champs existants en base).
-> 4. Vérifs : tsc 0 · lint 0 erreur · build OK · pre-commit vert.
+> 1. **#177 — DjCloseModal + Boutons DJ** : icônes succès (iconUrl vignette 8×8) + date inscription + bouton Fermer-sans-points supprimé + Rejoindre teinté + FULL→File d'attente (warning).
+> 2. **#169 — File d'attente DJ** : `joinDjPost` PENDING si complet, `leaveDjPost` auto-promeut 1er PENDING + notif. 2 sections Inscrits/File dans `DjPostDetailModal`.
+> 3. **#170 — Dates inscription** : `DjPostDetailModal` + `DjCloseModal` (createdAt), `RunCard` Songes (joinedAt), `event-detail-modal` Raids (createdAt). Aucune migration.
+> 4. **#182 — SigilGuesser** : "Ton Choix" → fallback map outdoor si map cliquée souterraine ; fond noir Analyse Géographique → `setView` sur cible d'abord + guard zoom min -4 (ref morte `prefetchTilesForBounds` supprimée).
+> 5. **Baking renommé** (`builds-card.tsx`) : tooltip "Récupérer les données (Baking)" → **"Mettre à jour les données du build"**.
+> 6. **#185/#186** documentés : analyse freeze Brave (pas spécifique Brave) + nouveau chantier #186 Performance & Réactivité (Optimistic UI, PresenceProvider, virtualisation, prefetch).
+> 7. Vérifs : tsc 0 · lint 0 erreur · build OK · pre-commit vert.
 > - 🔜 **Suggestion prochaine session** : **#149 (bypass God : audit complet isolement guildId)** ·
 >   **#175 (WorldMap → création DJ directe)** · **#171 (DPNL/Dofensive dans Mes Succès)** ·
->   **#178 (filtres encyclopédie)** · **#181 (refonte sigilos.fr)** · #179 (copier pseudos inscrits).
+>   **#178 (filtres encyclopédie)** · **#181 (refonte sigilos.fr)** · #179 (copier pseudos inscrits) · #186 (perf/réactivité).
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 07/09 — #148 Modale quête God + rendu client (gros lot)
 

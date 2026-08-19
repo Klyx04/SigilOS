@@ -23,17 +23,18 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 06/09 — Fix CodeQL #505 + #126 slugs membres + #129 sweep suite
+## 🧭 Chantier global (src/temp/chantier) — SESSION 06/09 — Fix CodeQL PR #505 MERGÉE + #126 slugs membres + #129 sweep suite
 
-> **dev** = `26ff44c5d` — PRs #502/#503/#504 mergées (Succès 03/09 + #153 UI 04/09 dans dev).
-> **Branche `feat/chantier-2026-09-04`** = **18 commits non mergés** : 15 (session 05/09) +
-> `abed25d71` (docs) + `0c9bfcaeb` (fix CodeQL) + `6fe8d3d97` (#126 + #129). **PR #505 OUVERTE** :
-> https://github.com/Klyx04/SigilOS/pull/505 → **vérifier CodeQL au vert avant merge**.
+> **dev** = `8125a7cb2` — **PR #505 MERGÉE** (session 05/09 complète + fix CodeQL `0c9bfcaeb` dans dev)
+> + PRs #502/#503/#504 (Succès 03/09 + UI #153 04/09).
+> ⚠️ **Branche `feat/chantier-2026-09-04`** = **2 commits non mergés** (rebasés sur le nouveau dev) :
+> `d0afe6086` (**#126 slugs membres 7/7** + **#129 suite bouton Nouvel évent**) + `23416cc43` (docs context).
+> **→ CRÉER LA PR** : https://github.com/Klyx04/SigilOS/compare/dev...feat/chantier-2026-09-04
 > Mémo : `src/temp/memo-2026-09-06-chantier-multi.md`. Amorce suivante :
 > `src/temp/prompt-next-chantier-2026-09-07.md`.
 >
 > ### ✅ FAIT (session 06/09)
-> - **Fix CodeQL js/path-injection (PR #505 débloquée)** : les guards précédents (#75→#79) n'étaient
+> - **Fix CodeQL js/path-injection (PR #505 débloquée puis MERGÉE)** : les guards précédents (#75→#79) n'étaient
 >   pas reconnus par CodeQL → **le chemin d'écriture ne vient plus jamais de l'utilisateur** dans
 >   `image-downloader.ts` : répertoire CONSTANT (`destDirFor(type)` → littéraux) + nom `basename()`/allowlist
 >   `[a-zA-Z0-9._-]`. Signatures `destinationPath` → `fileName` (routes god, landing, legendary). `ImageType` exporté.
@@ -45,9 +46,9 @@
 > - **#129 (suite)** : bouton « Nouvel évent » du calendrier teinté `bg-warning/15 text-warning`
 >   (lisible en dark — item #132 clos) ; planning (déjà virtualisé) + ladder (recherche pseudo déjà là) re-vérifiés.
 > - Vérifs : tsc 0 · lint 0 erreur · **229/229 tests** · build OK · pre-commit vert.
-> - ⚠️ **Au déploiement (VPS, au merge #505)** : ① `prisma migrate deploy` (migration
->   `20260905000000_add_landing_screen`) ; ② crontab `/api/cron/account-retention` (quotidien) ;
->   ③ vérifier `/god/landing` + `/uploads/landing/*` (public) ; ④ prod : `REDIS_PASSWORD` à vérifier.
+> - ⚠️ **Au déploiement (VPS)** : dev contient la migration `20260905000000_add_landing_screen` →
+>   `prisma migrate deploy` + crontab `/api/cron/account-retention` (quotidien) + vérifier
+>   `/god/landing` + `/uploads/landing/*` (public) ; prod : `REDIS_PASSWORD` à vérifier.
 > - 🔜 **Suggestion prochaine session** : **#148 (gros lot God modale édition quête)** · #129 (reste sweep)
 >   · #151 (Dashboard nettoyage) · #149 (bypass God) · #140 reste (uploader de vrais screens `/god/landing`).
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 04/09 — #153 Place de Marché metamob (UI)

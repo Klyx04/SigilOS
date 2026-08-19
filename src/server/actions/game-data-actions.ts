@@ -159,20 +159,23 @@ export async function searchZonesDetected(query: string = ""): Promise<ActionRes
         const localZones = (localRes.success ? localRes.data : []) as any[];
 
         const detected: any[] = [];
-        if (q.length >= 2) {
-            try {
-                const cacheKey = `gd:zones:detected:${q.toLowerCase()}`;
-                const fetched = await withCache(cacheKey, 6 * 60 * 60, async () => {
-                    const [subRes, areaRes] = await Promise.all([
-                        fetch(`https://api.dofusdb.fr/subareas?name.fr=${encodeURIComponent(q)}&$limit=8&lang=fr`, {
-                            headers: { Accept: "application/json" },
-                            signal: AbortSignal.timeout(10000),
-                        }),
-                        fetch(`https://api.dofusdb.fr/areas?name.fr=${encodeURIComponent(q)}&$limit=8&lang=fr`, {
-                            headers: { Accept: "application/json" },
-                            signal: AbortSignal.timeout(10000),
-                        }),
-                    ]);
+        try {
+            // Requête vide → liste de départ DofusDB (zones jamais vides même si la table locale est vide).
+            const cacheKey = `gd:zones:detected:${q.length > 0 ? q.toLowerCase() : "all"}`;
+            const fetched = await withCache(cacheKey, 6 * 60 * 60, async () => {
+                const subLimit = q.length > 0 ? 8 : 20;
+                const areaLimit = q.length > 0 ? 8 : 60;
+                const nameFilter = q.length > 0 ? `&name.fr=${encodeURIComponent(q)}` : "";
+                const [subRes, areaRes] = await Promise.all([
+                    fetch(`https://api.dofusdb.fr/subareas?${nameFilter}&$limit=${subLimit}&lang=fr`, {
+                        headers: { Accept: "application/json" },
+                        signal: AbortSignal.timeout(10000),
+                    }),
+                    fetch(`https://api.dofusdb.fr/areas?${nameFilter}&$limit=${areaLimit}&lang=fr`, {
+                        headers: { Accept: "application/json" },
+                        signal: AbortSignal.timeout(10000),
+                    }),
+                ]);
                     const out: any[] = [];
                     const mapItem = (item: any) => {
                         const nameFr = typeof item.name === "string" ? item.name : (item.name?.fr || item.name?.en || "");
@@ -197,7 +200,6 @@ export async function searchZonesDetected(query: string = ""): Promise<ActionRes
             } catch {
                 // DofusDB indisponible → on garde le local
             }
-        }
 
         const seen = new Set<string>();
         const merged = [...localZones, ...detected].filter((z: any) => {

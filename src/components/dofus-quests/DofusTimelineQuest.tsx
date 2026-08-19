@@ -5,13 +5,14 @@ import {
   CheckCircle2, Circle, ChevronDown,
   ExternalLink, MapPin, Sword, Package,
   ArrowUp, BookOpen, Skull, X,
-  ChevronRight, Target, Info, Layers, Users,
-  Lock, Search, EyeOff, Eye, Crosshair, Flag,
+  ChevronRight, Info, Layers, Users,
+  Lock, Search, EyeOff, Eye, Crosshair, Flag, RotateCcw, Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DofusQuestStatus } from "@prisma/client";
 import { toast } from "sonner";
 import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
+import { isSafeImageUrl } from "@/lib/security";
 
 interface DofusTimelineQuestProps {
   guildId: string;
@@ -23,6 +24,8 @@ interface DofusTimelineQuestProps {
   selectedCharacter?: string;
   synergy?: Record<string, { profileId: string; pseudo: string; image: string | null; status: string }[]>;
   currentUser?: { pseudo: string; image: string | null };
+  /** #148 — pseudo Metamob du membre (liaison des donjons « non relié »). */
+  metamobPseudo?: string | null;
   prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
   /** #37 suite — présence live WS de la page (membres + quête qu'ils regardent). */
   presence?: DofusPresenceMember[];
@@ -52,10 +55,12 @@ function ScrollToTopButton() {
 }
 
 // ─── Inline quest detail ──────────────────────────────────────────────────
-function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQuest, liveViewers = [] }: {
+function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQuest, liveViewers = [], metamobPseudo = null, guildId = "" }: {
   quest: any; color: string; isCompleted: boolean; onToggle: (s: DofusQuestStatus) => void;
   synergyForQuest?: { profileId: string; pseudo: string; image: string | null; status: string }[];
   liveViewers?: DofusPresenceMember[];
+  metamobPseudo?: string | null;
+  guildId?: string;
 }) {
   const coords = quest.coords as any;
   const objectives = quest.objectives as any[] | any;
@@ -126,18 +131,30 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           </div>
         )}
 
-        {/* Position de lancement */}
+        {/* Position de lancement + positions GPS /travel + niveau recommandé (#148) */}
         <div className="flex flex-wrap items-center gap-2 text-caption">
           <span className="text-muted-foreground font-bold uppercase tracking-widest">Position de lancement</span>
           {quest.zone && <span className="text-muted-foreground font-medium">{quest.zone}</span>}
-          {coords && (
-            <span className="font-mono text-success font-bold flex items-center gap-1">
+          {Array.isArray(quest.positions) && quest.positions.length > 0 ? (
+            quest.positions.map((p: any, i: number) => (
+              <span key={i} className="group/pos inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 font-mono text-success font-bold" title="Cliquer pour copier /travel X,Y">
+                <MapPin className="w-3 h-3 shrink-0" />{p.x},{p.y}
+                <button onClick={() => { navigator.clipboard.writeText(`/travel ${p.x},${p.y}`); toast.success(`Copié : /travel ${p.x},${p.y}`); }} className="flex items-center gap-0.5 text-success/70 hover:text-success transition-colors" title="Copier /travel X,Y">
+                  <Copy className="w-3 h-3" />
+                  <span className="hidden group-hover/pos:inline text-caption font-black uppercase tracking-wider">Copier</span>
+                </button>
+              </span>
+            ))
+          ) : coords ? (
+            <span className="group/pos inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 font-mono text-success font-bold" title="Cliquer pour copier /travel X,Y">
               <MapPin className="w-3 h-3" />{coords.x},{coords.y}
-              <button onClick={() => { navigator.clipboard.writeText(`${coords.x}, ${coords.y}`); toast.success("Copié !"); }} className="text-muted-foreground hover:text-muted-foreground"><Target className="w-3 h-3" /></button>
+              <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} className="flex items-center gap-0.5 text-success/70 hover:text-success transition-colors" title="Copier /travel X,Y">
+                <Copy className="w-3 h-3" />
+                <span className="hidden group-hover/pos:inline text-caption font-black uppercase tracking-wider">Copier</span>
+              </button>
             </span>
-          )}
-          {quest.npcName && <span className="text-muted-foreground">PNJ: {quest.npcName}</span>}
-          {quest.level && <span className="text-muted-foreground">Niv. {quest.level}</span>}
+          ) : null}
+          {quest.level ? <span className="text-muted-foreground font-semibold">Niveau recommandé : {quest.level}</span> : null}
         </div>
 
         {/* Objectifs */}
@@ -151,15 +168,32 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
         {/* Items / Donjons */}
         <div className="flex flex-wrap gap-1.5">
           {items.map((it: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold">{typeof it === "string" ? it : it.name || it}</span>)}
-          {dungeons.map((d: any, i: number) => <span key={i} className="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-caption font-bold flex items-center gap-1"><Skull className="w-2 h-2" />{typeof d === "string" ? d : d.name}</span>)}
+          {dungeons.map((d: any, i: number) => {
+            const dungeonName = typeof d === "string" ? d : (d?.name || "");
+            const dImg = typeof d === "object" && d && isSafeImageUrl(d.imageUrl) ? d.imageUrl : "";
+            return (
+              <span key={i} className="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-caption font-bold flex items-center gap-1.5">
+                {dImg ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={dImg} alt="" className="w-4 h-4 object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : <Skull className="w-2 h-2" />}
+                {dungeonName}
+                {!metamobPseudo ? (
+                  <a href={`/dashboard/${guildId}/profile`} className="text-amber-400/90 hover:text-amber-300 font-black uppercase tracking-wider text-caption" title="Lier Metamob pour voir les étapes du donjon">non relié</a>
+                ) : (
+                  <a href={`/dashboard/${guildId}/quetes-dofus/ocre`} className="text-emerald-400/90 hover:text-emerald-300 font-black uppercase tracking-wider text-caption" title="Voir les étapes metamob du donjon">étapes</a>
+                )}
+              </span>
+            );
+          })}
         </div>
 
         {/* Liens externes */}
         <div className="flex gap-2 pt-1 border-t border-border items-center">
-          {quest.dofusdbId && <a href={`https://dofusdb.fr/fr/database/quest/${quest.dofusdbId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-info/10 border border-info/20 text-info text-caption font-bold hover:bg-info/20 transition-all"><img src="https://dofusdb.fr/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> DofusDB</a>}
-          {quest.externalRef && <a href={quest.externalRef} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><img src="https://www.dofuspourlesnoobs.com/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> Guide Noobs</a>}
+          {quest.dofusdbId && <a href={`https://dofusdb.fr/fr/database/quest/${quest.dofusdbId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-info/10 border border-info/20 text-info text-caption font-bold hover:bg-info/20 transition-all"><img src="/assets/icons/dofusdb.png" alt="" className="w-3 h-3 rounded" /> DofusDB</a>}
+          {quest.externalRef && <a href={quest.externalRef} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><BookOpen className="w-3 h-3" /> Guide Noobs</a>}
           {quest.isDungeon && !quest.externalRef && (
-            <button onClick={() => { const slug = (quest.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); window.open(`https://www.dofuspourlesnoobs.com/donjon-${slug}.html`, "_blank"); }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><img src="https://www.dofuspourlesnoobs.com/favicon.ico" alt="" className="w-3 h-3 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> Guide Noobs</button>
+            <button onClick={() => { const slug = (quest.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); window.open(`https://www.dofuspourlesnoobs.com/donjon-${slug}.html`, "_blank"); }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><BookOpen className="w-3 h-3" /> Guide Noobs</button>
           )}
           {/* Badge Prérequis si présent */}
           {quest.requirements && typeof quest.requirements === 'object' && (quest.requirements as any).npc && (
@@ -213,9 +247,14 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {isNext && !isCompleted && <span className="text-caption font-black text-success bg-success/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
               {isBlocked && <Lock className="w-2.5 h-2.5 text-muted-foreground" />}
-              {/* Chantier #68 — icône de quête dans chaque quête */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/icons/icone-quete.png" alt="" className="w-3.5 h-3.5 shrink-0 object-contain opacity-80" loading="lazy" />
+              {/* #148 — icône de quête : image réelle si dispo (URL allowlistée), sinon livre générique (grossi) */}
+              {quest.localImageUrl && isSafeImageUrl(quest.localImageUrl) ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={quest.localImageUrl} alt="" className="w-6 h-6 shrink-0 object-contain rounded" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src="/assets/icons/icone-quete.png" alt="" className="w-5 h-5 shrink-0 object-contain opacity-80" loading="lazy" />
+              )}
               <span className={`text-xs font-bold leading-tight ${isCompleted ? "text-success" : isBlocked ? "text-muted-foreground" : "text-foreground"}`}>{quest.name}</span>
               {liveViewers.length > 0 && (
                 <span className="flex items-center gap-1 text-caption font-black text-success bg-success/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider" title={`${liveViewers.map((v) => v.userName).join(", ")} regarde(nt) cette quête`}>
@@ -264,6 +303,16 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             </div>
             <div className="flex items-center gap-3 text-caption text-muted-foreground font-medium mt-1">
               {quest.zone && <span><MapPin className="w-2.5 h-2.5 inline mr-0.5" />{quest.zone}</span>}
+              {Array.isArray(quest.positions) && quest.positions.length > 0 && (
+                <span className="group/pos inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-success/25 bg-success/10 font-mono text-success font-bold" title="Cliquer pour copier /travel X,Y">
+                  <MapPin className="w-2.5 h-2.5" />{quest.positions[0].x},{quest.positions[0].y}
+                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`/travel ${quest.positions[0].x},${quest.positions[0].y}`); toast.success(`Copié : /travel ${quest.positions[0].x},${quest.positions[0].y}`); }} className="text-success/70 hover:text-success flex items-center gap-0.5 transition-colors" title="Copier /travel X,Y">
+                    <Copy className="w-2.5 h-2.5" />
+                    <span className="hidden group-hover/pos:inline text-caption font-black uppercase tracking-wider">Copier</span>
+                  </button>
+                </span>
+              )}
+              {quest.level ? <span className="font-semibold">Niveau reco. {quest.level}</span> : null}
               {quest.npcName && <span>{quest.npcName}</span>}
             </div>
             {renduMembers.length > 0 && (
@@ -314,7 +363,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
 }
 
 // ─── Chain Section ────────────────────────────────────────────────────────
-function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser, collapsed, onToggleCollapse, prereqsByQuestId, onFocusPrereq, presence }: {
+function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser, collapsed, onToggleCollapse, prereqsByQuestId, onFocusPrereq, presence, metamobPseudo = null }: {
   chain: any; color: string; completedIds: Set<string>; onToggleStatus: (q: string, s: DofusQuestStatus) => void;
   onQuestClick: (q: any) => void; expandedQuest: string | null; setExpandedQuest: (id: string | null) => void; guildId: string;
   synergy: Record<string, any[]>;
@@ -323,6 +372,7 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
   prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
   onFocusPrereq?: (questId: string) => void;
   presence?: DofusPresenceMember[];
+  metamobPseudo?: string | null;
 }) {
   const entries = chain.entries || [];
   const completedCount = entries.filter((e: any) => completedIds.has(e.id)).length;
@@ -337,6 +387,15 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
       onToggleStatus(e.id, "COMPLETED" as DofusQuestStatus);
     }
     if (missing.length > 0) toast.success(`${missing.length} quête${missing.length > 1 ? "s" : ""} validée${missing.length > 1 ? "s" : ""}`);
+  };
+
+  // #148 — « TOUT RESET » rouge à côté de « Tout valider »
+  const handleResetAll = async () => {
+    const done = entries.filter((e: any) => completedIds.has(e.id));
+    for (const e of done) {
+      onToggleStatus(e.id, "NOT_STARTED" as DofusQuestStatus);
+    }
+    if (done.length > 0) toast.success(`${done.length} quête${done.length > 1 ? "s" : ""} réinitialisée${done.length > 1 ? "s" : ""}`);
   };
 
   return (
@@ -361,6 +420,12 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
             <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleValidateAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleValidateAll(); } }}
               className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-black uppercase tracking-wider hover:bg-success/20 transition-all cursor-pointer">
               <CheckCircle2 className="w-3 h-3" /> Tout valider
+            </span>
+          )}
+          {completedCount > 0 && (
+            <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleResetAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleResetAll(); } }}
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger/10 border border-danger/20 text-danger text-caption font-black uppercase tracking-wider hover:bg-danger/20 transition-all cursor-pointer">
+              <RotateCcw className="w-3 h-3" /> Tout reset
             </span>
           )}
           <div className="hidden sm:block w-20 h-1.5 rounded-full bg-elevated overflow-hidden">
@@ -391,7 +456,7 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
                       onClick={() => { setExpandedQuest(isSelected ? null : entry.id); onQuestClick(entry); }}
                       onToggle={(s) => onToggleStatus(entry.id, s)} />
                     <AnimatePresence>
-                      {isSelected && <QuestDetailInline quest={entry} color={color} isCompleted={completedIds.has(entry.id)} onToggle={(s) => onToggleStatus(entry.id, s)} liveViewers={liveViewers} />}
+                      {isSelected && <QuestDetailInline quest={entry} color={color} isCompleted={completedIds.has(entry.id)} onToggle={(s) => onToggleStatus(entry.id, s)} liveViewers={liveViewers} metamobPseudo={metamobPseudo} guildId={guildId} />}
                     </AnimatePresence>
                   </div>
                 );
@@ -477,7 +542,7 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────
-export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, prereqsByQuestId = {}, presence = [], presenceConnected = false, onFocusedQuestChange }: DofusTimelineQuestProps) {
+export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, metamobPseudo = null, prereqsByQuestId = {}, presence = [], presenceConnected = false, onFocusedQuestChange }: DofusTimelineQuestProps) {
   const [expandedQuest, setExpandedQuest] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -602,7 +667,7 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
               onToggleStatus={handleQuestToggle} onQuestClick={handleQuestClick}
               expandedQuest={expandedQuest} setExpandedQuest={setExpandedQuest} guildId={guildId} synergy={synergyMap} currentUser={currentUser}
               collapsed={collapsedChains.has(chain.id)} onToggleCollapse={toggleChainCollapse}
-              prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} presence={presence} />
+              prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} presence={presence} metamobPseudo={metamobPseudo} />
           ))}
         </div>
 

@@ -1,5 +1,6 @@
 "use server";
 import { logger } from "@/lib/logger";
+import { isSafeImageUrl } from "@/lib/security";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -105,6 +106,11 @@ const EntrySchema = z.object({
     })).optional().default([]),
     dofusdbUrl: z.string().optional().nullable(),
     dofuspourlesnoobsUrl: z.string().optional().nullable(),
+    // #148 CodeQL High — URL d'image strictement allowlistée (http(s) ou chemin relatif) : fail-closed.
+    localImageUrl: z.string().optional().nullable().refine(
+        (v) => v === null || v === undefined || v === "" || isSafeImageUrl(v),
+        { message: "URL d'image invalide (http(s) ou chemin relatif requis)" }
+    ),
 });
 
 // --- Actions ---
@@ -118,10 +124,12 @@ export async function getDofusManagementData(): Promise<ActionResponse<any[]>> {
             orderBy: { displayOrder: "asc" },
             include: {
                 questChains: {
-                    orderBy: { chainOrder: "asc" },
+                    // #148 — tie-break id asc : l'ordre des flèches (reorder = [field, id]) doit
+                    // correspondre EXACTEMENT à l'ordre affiché (évite le décalage God/client).
+                    orderBy: [{ chainOrder: "asc" }, { id: "asc" }],
                     include: {
                         entries: {
-                            orderBy: { stepOrder: "asc" }
+                            orderBy: [{ stepOrder: "asc" }, { id: "asc" }]
                         }
                     }
                 }
@@ -285,6 +293,10 @@ async function syncEntryToLocalJson(
         externalRef?: string | null; 
         coords?: { x: number | null; y: number | null } | null; 
         dofusdbId?: number | null 
+        localImageUrl?: string | null;
+        dungeonsRequired?: any[] | null;
+        positions?: any[] | null;
+        level?: number | null;
     }
 ) {
     const filePath = path.join(process.cwd(), "prisma", "seed-data", "dofus-quests", `${dofusSlug}-compiled.json`);
@@ -307,6 +319,18 @@ async function syncEntryToLocalJson(
                         }
                         if (updatedFields.dofusdbId !== undefined) {
                             entry.dofusdbId = updatedFields.dofusdbId;
+                        }
+                        if (updatedFields.localImageUrl !== undefined) {
+                            entry.localImageUrl = updatedFields.localImageUrl;
+                        }
+                        if (updatedFields.dungeonsRequired !== undefined) {
+                            entry.dungeonsRequired = updatedFields.dungeonsRequired;
+                        }
+                        if (updatedFields.positions !== undefined) {
+                            entry.positions = updatedFields.positions;
+                        }
+                        if (updatedFields.level !== undefined) {
+                            entry.level = updatedFields.level;
                         }
                         modified = true;
                     }
@@ -339,7 +363,11 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
             await syncEntryToLocalJson(chain.dofus.slug, validated.name, {
                 externalRef: validated.externalRef,
                 coords: validated.coords,
-                dofusdbId: validated.dofusdbId
+                dofusdbId: validated.dofusdbId,
+                localImageUrl: validated.localImageUrl,
+                dungeonsRequired: (validated as any).dungeonsRequired,
+                positions: (validated as any).positions,
+                level: validated.level
             });
         }
         await logQuestWrite(id ? "update-quest-entry" : "create-quest-entry", id ?? (record as any)?.id, { name: validated.name });

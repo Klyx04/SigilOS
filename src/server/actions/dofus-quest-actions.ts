@@ -334,10 +334,11 @@ export async function getDofusDetailWithChains(
             where: { slug: dofusSlug },
             include: {
                 questChains: {
-                    orderBy: { chainOrder: "asc" },
+                    // #148 — tie-break id asc : ordre exactement identique au reorder admin.
+                    orderBy: [{ chainOrder: "asc" }, { id: "asc" }],
                     include: {
                         entries: {
-                            orderBy: { stepOrder: "asc" },
+                            orderBy: [{ stepOrder: "asc" }, { id: "asc" }],
                         },
                     },
                 },
@@ -413,6 +414,7 @@ export async function getDofusDetailWithChains(
                     positions: entry.positions ?? [],
                     dofusdbUrl: entry.dofusdbUrl ?? null,
                     dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl ?? null,
+                    localImageUrl: entry.localImageUrl ?? null,
                     status: prog?.status ?? "NOT_STARTED",
                     completedAt: prog?.completedAt ?? null,
                 };
@@ -949,6 +951,37 @@ async function getAllUpstreamPrerequisites(questId: string): Promise<string[]> {
 }
 
 /**
+ * #148 — Récupère récursivement tous les IDs des quêtes qui dépendent de `questId`
+ * (prérequis en aval : toQuest où fromQuestId = questId). Protégé contre les cycles
+ * avec un Set visité et une profondeur max. Utilisé pour la cascade de dévalidation :
+ * si une quête prérequis passe à NOT_STARTED, toutes ses descendantes se dévalident.
+ */
+async function getAllDownstreamQuests(questId: string): Promise<string[]> {
+    const downstreamIds = new Set<string>();
+    let currentLevel = [questId];
+    let depth = 0;
+
+    while (currentLevel.length > 0 && depth < 20) {
+        depth++;
+        const dependants = await (db as any).dofusQuestPrerequisite.findMany({
+            where: { fromQuestId: { in: currentLevel } },
+            select: { toQuestId: true },
+        });
+
+        const nextLevel: string[] = [];
+        for (const p of dependants) {
+            if (p.toQuestId && !downstreamIds.has(p.toQuestId)) {
+                downstreamIds.add(p.toQuestId);
+                nextLevel.push(p.toQuestId);
+            }
+        }
+        currentLevel = nextLevel;
+    }
+
+    return Array.from(downstreamIds);
+}
+
+/**
  * #112 — Recalcule et persiste le pourcentage d'avancement pour un Dofus donné.
  */
 async function refreshDofusCompletionPercent(
@@ -1034,8 +1067,75 @@ export async function toggleQuestStatus(
             },
         });
 
-        // #112 — Complétion en cascade des prérequis en amont
+        // Dofus impactés à rafraîchir (upstream / downstream / bloc)
         const affectedDofusIds = new Set<string>();
+
+        // #148 — « JE SUIS ICI » : un SEUL repère IN_PROGRESS par bloc (section).
+        // Poser un repère sur une quête retire automatiquement le repère posé sur les
+        // autres quêtes du même bloc, pour ce personnage.
+        if (newStatus === "IN_PROGRESS" && ctx.profileId) {
+            try {
+                const questEntry = await (db as any).dofusQuestEntry.findUnique({
+                    where: { id: questEntryId },
+                    select: { chainId: true },
+                });
+                if (questEntry?.chainId) {
+                    const sameBlockInProgress = await (db as any).playerDofusQuestProgress.findMany({
+                        where: {
+                            profileId: ctx.profileId,
+                            characterName,
+                            status: "IN_PROGRESS",
+                            quest: { chainId: questEntry.chainId },
+                        },
+                        select: { questId: true },
+                    });
+                    const others = sameBlockInProgress
+                        .map((p: any) => p.questId)
+                        .filter((id: string) => id !== questEntryId);
+                    if (others.length > 0) {
+                        await (db as any).playerDofusQuestProgress.updateMany({
+                            where: {
+                                profileId: ctx.profileId,
+                                characterName,
+                                questId: { in: others },
+                            },
+                            data: { status: "NOT_STARTED", completedAt: null },
+                        });
+                    }
+                }
+            } catch (err) {
+                logger.error("[toggleQuestStatus] single IN_PROGRESS per block failed:", { error: err });
+            }
+        }
+
+        // #148 — Cascade de DÉVALIDATION : retirer la coche d'une quête prérequis
+        // dévalide toutes les quêtes qui en dépendent (bug « quête prérequis décochée »).
+        if (newStatus === "NOT_STARTED" && ctx.profileId) {
+            try {
+                const downstreamIds = await getAllDownstreamQuests(questEntryId);
+                if (downstreamIds.length > 0) {
+                    await (db as any).playerDofusQuestProgress.updateMany({
+                        where: {
+                            profileId: ctx.profileId,
+                            characterName,
+                            questId: { in: downstreamIds },
+                        },
+                        data: { status: "NOT_STARTED", completedAt: null },
+                    });
+                    const depQuests = await (db as any).dofusQuestEntry.findMany({
+                        where: { id: { in: downstreamIds } },
+                        select: { chain: { select: { dofusId: true } } },
+                    });
+                    for (const dq of depQuests) {
+                        if (dq?.chain?.dofusId) affectedDofusIds.add(dq.chain.dofusId);
+                    }
+                }
+            } catch (err) {
+                logger.error("[toggleQuestStatus] downstream cascade failed:", { error: err });
+            }
+        }
+
+        // #112 — Complétion en cascade des prérequis en amont
         if (newStatus === "COMPLETED" && ctx.profileId) {
             try {
                 const upstreamPrereqIds = await getAllUpstreamPrerequisites(questEntryId);

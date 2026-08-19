@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
-import { searchZones } from "@/server/actions/game-data-actions";
+import { searchZonesDetected } from "@/server/actions/game-data-actions";
 import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
 import { 
@@ -535,14 +535,15 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         navigator.clipboard?.writeText(`/travel ${x},${y}`).then(() => toast.success(`Copié : /travel ${x},${y}`)).catch(() => {});
     };
 
-    // #146 : zones siphonnées depuis dofusdb stockées en game-data local → pas d'écriture manuelle.
+    // #146 — zones siphonnées depuis dofusdb stockées en game-data local → pas d'écriture manuelle.
+    // #148 — + zones détectées à la volée depuis l'API DofusDB (sous-zones + régions).
     const zoneFetcher = useCallback(async (query: string) => {
-        const res = await searchZones(query);
+        const res = await searchZonesDetected(query);
         if (res.success && res.data) {
             return res.data.map((z: any) => ({
                 value: z.name,
                 label: z.name,
-                subLabel: z.level ? `Niv. ${z.level}` : undefined,
+                subLabel: z.level ? `Niv. ${z.level}` : (z.source === "dofusdb" ? "DofusDB" : undefined),
             }));
         }
         return [];

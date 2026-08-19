@@ -146,6 +146,74 @@ export async function searchZones(query: string = "", eventOnly: boolean = false
     }
 }
 
+/**
+ * #148 — Recherche de zones pour l'édition de quêtes God.
+ * Fusionne les zones game-data LOCALES (déclarées à la main OU siphonnées DofusDB)
+ * avec les zones DÉTECTÉES à la volée depuis l'API DofusDB (sous-zones + régions),
+ * mises en cache Redis (TTL 6 h) pour ne pas marteler l'API.
+ */
+export async function searchZonesDetected(query: string = ""): Promise<ActionResponse<any[]>> {
+    try {
+        const q = query.trim();
+        const localRes = await searchZones(q);
+        const localZones = (localRes.success ? localRes.data : []) as any[];
+
+        const detected: any[] = [];
+        if (q.length >= 2) {
+            try {
+                const cacheKey = `gd:zones:detected:${q.toLowerCase()}`;
+                const fetched = await withCache(cacheKey, 6 * 60 * 60, async () => {
+                    const [subRes, areaRes] = await Promise.all([
+                        fetch(`https://api.dofusdb.fr/subareas?name.fr=${encodeURIComponent(q)}&$limit=8&lang=fr`, {
+                            headers: { Accept: "application/json" },
+                            signal: AbortSignal.timeout(10000),
+                        }),
+                        fetch(`https://api.dofusdb.fr/areas?name.fr=${encodeURIComponent(q)}&$limit=8&lang=fr`, {
+                            headers: { Accept: "application/json" },
+                            signal: AbortSignal.timeout(10000),
+                        }),
+                    ]);
+                    const out: any[] = [];
+                    const mapItem = (item: any) => {
+                        const nameFr = typeof item.name === "string" ? item.name : (item.name?.fr || item.name?.en || "");
+                        if (!nameFr || !nameFr.trim()) return null;
+                        return {
+                            name: nameFr.trim(),
+                            level: typeof item.level === "number" && item.level > 0 ? item.level : 200,
+                            source: "dofusdb",
+                        };
+                    };
+                    if (subRes.ok) {
+                        const sj = await subRes.json();
+                        (sj?.data || []).forEach((it: any) => { const m = mapItem(it); if (m) out.push(m); });
+                    }
+                    if (areaRes.ok) {
+                        const aj = await areaRes.json();
+                        (aj?.data || []).forEach((it: any) => { const m = mapItem(it); if (m) out.push(m); });
+                    }
+                    return out;
+                });
+                detected.push(...(fetched || []));
+            } catch {
+                // DofusDB indisponible → on garde le local
+            }
+        }
+
+        const seen = new Set<string>();
+        const merged = [...localZones, ...detected].filter((z: any) => {
+            if (!z?.name) return false;
+            const key = String(z.name).trim().toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        return { success: true, data: merged.slice(0, 25) };
+    } catch (error) {
+        logger.error('[searchZonesDetected] Error:', { error });
+        return { success: false, error: 'Erreur recherche zones' };
+    }
+}
+
 export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[]>> {
     try {
         const dungeons = await db.dungeon.findMany({

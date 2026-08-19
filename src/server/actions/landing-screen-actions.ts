@@ -74,18 +74,23 @@ export async function getPublicLandingScreens(section = "product-story"): Promis
             return { success: true, data: screens.map(s => ({ ...s })) };
         }
 
-        // Merge : les onglets du God s'ajoutent aux défauts ; un libellé identique remplace l'image par défaut.
+        // Merge : les onglets du God s'ajoutent aux défauts ; un libellé identique remplace
+        // l'image par défaut (toutes les images portant ce libellé forment la galerie de l'onglet).
         const defaultLabels = new Set(DEFAULT_PRODUCT_STORY.map(d => (d.label || "").toLowerCase().trim()));
         const overrides = screens.filter(s => s.label && defaultLabels.has(s.label.toLowerCase().trim()));
         const extras = screens.filter(s => !s.label || !defaultLabels.has(s.label.toLowerCase().trim()));
 
-        const merged: PublicLandingScreen[] = DEFAULT_PRODUCT_STORY.map((def) => {
-            const override = overrides.find(o => (o.label || "").toLowerCase().trim() === (def.label || "").toLowerCase().trim());
-            if (override) {
-                return { ...override, sortOrder: def.sortOrder };
+        const merged: PublicLandingScreen[] = [];
+        for (const def of DEFAULT_PRODUCT_STORY) {
+            const key = (def.label || "").toLowerCase().trim();
+            const matching = overrides.filter(o => (o.label || "").toLowerCase().trim() === key);
+            if (matching.length > 0) {
+                merged.push(...matching.map((o, i) => ({ ...o, sortOrder: def.sortOrder + i / 100 })));
+            } else {
+                merged.push({ id: `default-${def.sortOrder}`, ...def });
             }
-            return { id: `default-${def.sortOrder}`, ...def };
-        }).concat(extras.map(s => ({ ...s })));
+        }
+        merged.push(...extras.map(s => ({ ...s })));
 
         return { success: true, data: merged };
     } catch (error) {
@@ -144,7 +149,10 @@ export async function uploadLandingScreen(input: {
     try {
         const buffer = Buffer.from(await file.arrayBuffer());
         const slug = (input.slug || `${Date.now()}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60);
-        const destination = normalize(`${process.cwd()}/public/uploads/landing/${slug}.webp`);
+        // 📁 Le middleware proxy réécrit `/uploads/*` → `/api/storage/*` (qui sert depuis
+        // `private_uploads/`). On écrit donc dans `private_uploads/landing/` et l'URL publique
+        // reste `/uploads/landing/{slug}.webp` (segment "landing" = public côté storage).
+        const destination = normalize(`${process.cwd()}/private_uploads/landing/${slug}.webp`);
 
         const saved = await processAndSaveImage(buffer, destination, "landing", buffer.length);
         if (!saved.success || !saved.path) {
@@ -215,13 +223,24 @@ export async function updateLandingScreen(id: string, data: {
     }
 }
 
-/** 🖼️ #140 — Suppression d'un screen (God). */
+/** 🖼️ #140 — Suppression d'un screen (God) + suppression du fichier associé (anti-orphelins). */
 export async function deleteLandingScreen(id: string): Promise<ActionResponse> {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: "Accès refusé" };
 
     try {
+        const existing = await db.landingScreen.findUnique({ where: { id }, select: { imageUrl: true } });
+
         await db.landingScreen.delete({ where: { id } });
+
+        // Supprime aussi le fichier local si l'image vit dans nos uploads (best-effort, non bloquant).
+        if (existing?.imageUrl?.startsWith("/uploads/landing/")) {
+            const { unlink } = await import("fs/promises");
+            const { join } = await import("path");
+            const filePath = join(process.cwd(), "private_uploads", "landing", existing.imageUrl.replace("/uploads/landing/", ""));
+            await unlink(filePath).catch(() => null);
+        }
+
         await createGodAuditLog({
             action: "GOD_GAME_DATA_UPDATE",
             targetType: "DATA_SYNC",

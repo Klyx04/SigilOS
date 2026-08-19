@@ -144,11 +144,11 @@ export function LandingScreensClient() {
                     </p>
                 ) : (
                     <p className="text-xs text-amber-400/90 leading-relaxed">
-                        Chaque screen = un onglet de la section « Produit ». <strong className="text-foreground">Le libellé devient le nom de l'onglet</strong>.
-                        Les 3 onglets par défaut (Guides / Sorties &amp; groupes / Progression) <strong className="text-foreground">restent affichés</strong> :
-                        vos screens s'ajoutent à la fin. Pour <em>remplacer</em> l'image d'un onglet par défaut, uploadez un screen
-                        avec <strong className="text-foreground">exactement le même libellé</strong> (« Guides », « Sorties &amp; groupes », « Progression »).
-                        Le titre et la description s'affichent à côté de l'image. Beaucoup d'onglets = scroll horizontal propre (responsive).
+                        Chaque screen = une image de la section « Produit ». <strong className="text-foreground">Le libellé devient le nom de l'onglet</strong>.
+                        Les 3 onglets par défaut (Guides / Sorties &amp; groupes / Progression) <strong className="text-foreground">restent affichés</strong>.
+                        Pour <em>remplacer</em> l'image d'un onglet par défaut : libellé identique (« Guides », « Sorties &amp; groupes », « Progression »).
+                        <strong className="text-foreground">Même libellé = plusieurs images dans le même onglet (galerie cliquable)</strong>.
+                        Beaucoup d'onglets = scroll horizontal propre (responsive).
                     </p>
                 )}
 

@@ -160,31 +160,32 @@ export async function processAndSaveImage(
         // 7. Write optimized file (force .webp extension)
         const webpPath = destinationPath.replace(/\.(png|jpg|jpeg|gif)$/i, ".webp");
 
-        // 🔒 F-xx (CodeQL js/path-injection #75/#76) : fail-closed — le chemin de destination
-        // est construit depuis des données utilisateur (slug/URL God). On le résout (neutralise
-        // les "..") puis on vérifie qu'il reste DANS le répertoire de travail, et que le nom de
-        // fichier est simple (aucun séparateur résiduel). Sinon → refus avant tout mkdir/write.
+        // 🔒 F-xx (CodeQL js/path-injection #75/#76/#77) : fail-closed — le chemin de destination
+        // est construit depuis des données utilisateur (slug/URL God). On le normalise avec resolve()
+        // (neutralise les "..") puis on vérifie qu'il reste DANS le répertoire de travail, et que le
+        // nom de fichier est simple (aucun séparateur résiduel). Le chemin utilisé pour mkdir/write
+        // est le chemin VALIDÉ (safePath) — jamais la valeur brute. Sinon → refus avant toute écriture.
+        const safePath = resolve(webpPath);
         const cwd = process.cwd();
-        const resolvedDest = resolve(webpPath);
         const cwdWithSep = cwd.endsWith(sep) ? cwd : cwd + sep;
-        if (resolvedDest !== cwd && !resolvedDest.startsWith(cwdWithSep)) {
+        if (safePath !== cwd && !safePath.startsWith(cwdWithSep)) {
             return { success: false, error: "Chemin de destination invalide (hors racine)" };
         }
-        const base = basename(resolvedDest);
+        const base = basename(safePath);
         if (!base || base === "." || base === ".." || base.includes("/") || base.includes("\\")) {
             return { success: false, error: "Nom de fichier invalide" };
         }
 
         // 6. Ensure directory exists
-        const dir = dirname(webpPath);
+        const dir = dirname(safePath);
         await mkdir(dir, { recursive: true });
-        await writeFile(webpPath, optimizedBuffer);
+        await writeFile(safePath, optimizedBuffer);
 
         // 8. Return relative path for DB
-        const pathParts = webpPath.split("public");
+        const pathParts = safePath.split("public");
         const relativePath = pathParts.length > 1
             ? pathParts[1].replace(/\\/g, "/")
-            : webpPath.replace(/\\/g, "/");
+            : safePath.replace(/\\/g, "/");
 
         return {
             success: true,

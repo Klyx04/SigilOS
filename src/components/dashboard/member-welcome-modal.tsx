@@ -87,12 +87,8 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-border overflow-hidden "
+                        className="relative w-full max-w-xl bg-surface rounded-3xl border border-border overflow-hidden "
                     >
-                        {/* Decorative background glows */}
-                        <div className="absolute -top-24 -left-24 w-64 h-64 bg-teal-500/10 rounded-full blur-[100px]" />
-                        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-info/8 rounded-full blur-[100px]" />
-
                         <div className="relative z-10 p-8 md:p-12 flex flex-col items-center text-center space-y-8">
                             {/* Close Button */}
                             <button
@@ -103,17 +99,14 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                             </button>
 
                             {/* Icon Header */}
-                            <div className="relative">
-                                <div className="absolute inset-0 bg-teal-500 blur-2xl opacity-20 animate-pulse" />
-                                <div className="relative w-20 h-20 rounded-[2rem] bg-gradient-to-br from-teal-500 to-success flex items-center justify-center shadow-2xl">
-                                    <Compass className="w-10 h-10 text-foreground" />
-                                </div>
+                            <div className="relative w-20 h-20 rounded-[2rem] bg-success flex items-center justify-center">
+                                <Compass className="w-10 h-10 text-foreground" />
                             </div>
 
                             {/* Text Content */}
                             <div className="space-y-4">
                                 <h2 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">
-                                    Bienvenue, <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-success">{userName}</span> !
+                                    Bienvenue, <span className="text-success">{userName}</span> !
                                 </h2>
                                 <p className="text-muted-foreground font-medium max-w-md mx-auto text-base md:text-lg leading-relaxed">
                                     Tu viens de rejoindre <strong className="text-foreground">{guildName}</strong> sur SigilOS.
@@ -166,7 +159,7 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                         </div>
 
                         {/* Bottom decorative bar */}
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-success to-info" />
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-success" />
                     </motion.div>
                 </div>
             )}

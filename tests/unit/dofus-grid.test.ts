@@ -3,7 +3,9 @@ import {
     CellState,
     cellIdToXY,
     cellToScreen,
+    classifyGrid,
     distance,
+    elevationOf,
     isWalkable,
     positionToCellId,
     stateFromValue,
@@ -66,5 +68,26 @@ describe("dofus-grid — états de case (VOID/HOLE/GROUND/OBSTACLE/SPECIAL)", ()
         expect(isWalkable(CellState.OBSTACLE)).toBe(false);
         expect(isWalkable(CellState.VOID)).toBe(false);
         expect(isWalkable(CellState.HOLE)).toBe(false);
+    });
+
+    it("classifyGrid : les « 1 » sans voisin sol deviennent VOID, les murs d'arène OBSTACLE", () => {
+        // Cadre de murs autour d'une case sol au centre — les coins (jamais concernés)
+        // deviennent VOID, les murs adjacents au sol deviennent OBSTACLE 3D.
+        const grid = [
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [1, 1, 0, 1, 1],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+        ];
+        const s = classifyGrid(grid);
+        expect(s[2][2]).toBe(CellState.GROUND); // le sol
+        expect(s[0][0]).toBe(CellState.VOID); // coin loin du sol
+        expect(s[0][2]).toBe(CellState.VOID); // bord haut loin du sol
+        expect(s[2][4]).toBe(CellState.VOID); // bord droit loin du sol
+        expect(s[1][2]).toBe(CellState.OBSTACLE); // mur adjacent au sol
+        expect(s[2][1]).toBe(CellState.OBSTACLE);
+        expect(elevationOf(CellState.OBSTACLE)).toBe(1);
+        expect(elevationOf(CellState.GROUND)).toBe(0);
     });
 });

@@ -76,3 +76,46 @@ export function isWalkable(state: CellState): boolean {
 export function blocksLineOfSight(state: CellState): boolean {
     return state === CellState.OBSTACLE || state === CellState.VOID || state === CellState.HOLE;
 }
+
+/**
+ * Classe la grille brute Dofensive (0/1/2) en états de case (CellState).
+ *
+ * Distinction clé VOID vs OBSTACLE : une cellule « 1 » est un OBSTACLE (bloc 3D)
+ * si elle a au moins un voisin sol (GROUND/SPECIAL) — c'est un mur d'arène ;
+ * sinon c'est un VOID (cadre hors-carte « jamais concerné », rendu en noir).
+ */
+export function classifyGrid(cells: number[][]): CellState[][] {
+    const rows = cells.length;
+    const cols = cells[0]?.length ?? 0;
+    const isGround = (v: number | undefined) => v === 0 || v === 2;
+    const states: CellState[][] = [];
+
+    for (let r = 0; r < rows; r++) {
+        const rowStates: CellState[] = [];
+        for (let c = 0; c < cols; c++) {
+            const v = cells[r]?.[c] ?? 1;
+            if (v === 1) {
+                let nearGround = false;
+                for (let dr = -1; dr <= 1 && !nearGround; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const nr = r + dr;
+                        const nc = c + dc;
+                        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+                        if (isGround(cells[nr]?.[nc])) { nearGround = true; break; }
+                    }
+                }
+                rowStates.push(nearGround ? CellState.OBSTACLE : CellState.VOID);
+            } else {
+                rowStates.push(stateFromValue(v));
+            }
+        }
+        states.push(rowStates);
+    }
+    return states;
+}
+
+/** Hauteur visuelle d'un état (blocs 3D : 1 unité pour OBSTACLE, 0 sinon). */
+export function elevationOf(state: CellState): number {
+    return state === CellState.OBSTACLE ? 1 : 0;
+}

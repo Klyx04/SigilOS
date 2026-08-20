@@ -1889,3 +1889,112 @@ export async function getDofusQuestHeaderIcon(): Promise<"serie-de-quete" | "ico
     }
 }
 
+/**
+ * getLinkedQuests — Quêtes liées à un donjon (module Dofus + Rush Sylvestre) + statut par membre de la guilde.
+ * Scopé par guilde (multi-tenant, `guildId` interne) — compatible inter-guilde (#46bis).
+ */
+export async function getLinkedQuests(
+    guildId: string,
+    dungeonName: string,
+    bossName: string,
+    dungeonDofusdbId?: number | null
+): Promise<ActionResponse<{
+    quests: {
+        id: string;
+        name: string;
+        isDungeon: boolean;
+        stepOrder: number;
+        zone: string | null;
+        chainName: string | null;
+        isRush: boolean;
+        myStatus: string;
+        guildCompleted: number;
+        guildInProgress: number;
+        memberCount: number;
+    }[];
+    rushActive: { pseudoDofus: string; dofusClass: string | null; milestoneId: string | null }[];
+}>> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Accès refusé" };
+
+    try {
+        const guildConfig = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true },
+        });
+        const internalGuildId = guildConfig?.id;
+        if (!internalGuildId) return { success: false, error: "Guilde introuvable" };
+
+        const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+        const dn = norm(dungeonName || "");
+        const bn = norm(bossName || "");
+
+        const all = await db.dofusQuestEntry.findMany({
+            include: { chain: { select: { sectionName: true, sectionType: true } } },
+        });
+
+        const linked = all.filter((e: any) => {
+            if (dungeonDofusdbId && e.dofusdbId && e.dofusdbId === dungeonDofusdbId) return true;
+            if (e.isDungeon) {
+                const en = norm(e.name || "");
+                if (en && dn && (en === dn || en.includes(dn) || dn.includes(en))) return true;
+                if (en && bn && (en === bn || en.includes(bn) || bn.includes(en))) return true;
+            }
+            if (Array.isArray(e.dungeonsRequired) && e.dungeonsRequired.length > 0) {
+                return e.dungeonsRequired.some((dr: any) =>
+                    (dungeonDofusdbId && dr.id === dungeonDofusdbId) ||
+                    (dn && norm(dr.name || "") === dn)
+                );
+            }
+            return false;
+        });
+
+        if (linked.length === 0) {
+            return { success: true, data: { quests: [], rushActive: [] } };
+        }
+
+        const questIds = linked.map((q) => q.id);
+
+        const progress = await db.playerDofusQuestProgress.findMany({
+            where: { guildId: internalGuildId, questId: { in: questIds } },
+            select: { questId: true, status: true, profileId: true },
+        });
+
+        const memberCount = await db.userProfile.count({
+            where: { guildId: internalGuildId, status: "ACTIVE" },
+        });
+
+        const quests = linked.map((q: any) => {
+            const mine = progress.find((p: any) => p.profileId === ctx.profileId && p.questId === q.id);
+            const guildCompleted = progress.filter((p: any) => p.questId === q.id && p.status === "COMPLETED").length;
+            const guildInProgress = progress.filter((p: any) => p.questId === q.id && p.status === "IN_PROGRESS").length;
+            return {
+                id: q.id,
+                name: q.name,
+                isDungeon: !!q.isDungeon,
+                stepOrder: q.stepOrder,
+                zone: q.zone ?? null,
+                chainName: q.chain?.sectionName ?? null,
+                isRush: !!q.isSynergyCandidate || ((q.chain?.sectionType || "").toLowerCase().includes("rush")),
+                myStatus: mine?.status ?? "NOT_STARTED",
+                guildCompleted,
+                guildInProgress,
+                memberCount,
+            };
+        });
+
+        const rushActive = await db.rushPresence.findMany({
+            where: { guildId: internalGuildId, status: { in: ["ACTIVE", "AFK"] } },
+            select: { pseudoDofus: true, dofusClass: true, milestoneId: true },
+            orderBy: { lastActivity: "desc" },
+        });
+
+        return {
+            success: true,
+            data: { quests, rushActive: rushActive.map((r) => ({ pseudoDofus: r.pseudoDofus, dofusClass: r.dofusClass, milestoneId: r.milestoneId })) },
+        };
+    } catch (error) {
+        logger.error("[getLinkedQuests] Error:", error);
+        return { success: false, error: "Erreur lors du chargement des quêtes liées" };
+    }
+}

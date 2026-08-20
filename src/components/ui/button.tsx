@@ -19,9 +19,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
-        sigil: "group relative bg-gradient-to-br from-warning to-warning text-warning-foreground font-bold overflow-hidden   border-t border-border-strong active:scale-95 transition-all duration-300 uppercase tracking-wide",
-        "sigil-emerald": "group relative bg-gradient-to-br from-success to-success text-success-foreground font-bold overflow-hidden   border-t border-border-strong active:scale-95 transition-all duration-300 uppercase tracking-wide",
-        "sigil-destructive": "group relative bg-gradient-to-br from-danger to-danger text-danger-foreground font-bold overflow-hidden   border-t border-border-strong active:scale-95 transition-all duration-300 uppercase tracking-wide",
+        sigil: "group relative bg-warning text-warning-foreground font-bold overflow-hidden border-t border-border-strong active:scale-95 transition-colors duration-200 uppercase tracking-wide",
+        "sigil-emerald": "group relative bg-success text-success-foreground font-bold overflow-hidden border-t border-border-strong active:scale-95 transition-colors duration-200 uppercase tracking-wide",
+        "sigil-destructive": "group relative bg-danger text-danger-foreground font-bold overflow-hidden border-t border-border-strong active:scale-95 transition-colors duration-200 uppercase tracking-wide",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -54,40 +54,6 @@ function Button({
     asChild?: boolean
   }) {
   const Comp = asChild ? Slot : "button"
-  const isSigil = variant && (variant as string).startsWith("sigil")
-
-  const shimmer = isSigil ? (
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-300 ease-in-out pointer-events-none" />
-  ) : null
-  const pulse = isSigil ? (
-    <div className="w-1.5 h-1.5 rounded-full bg-background animate-pulse  shrink-0" />
-  ) : null
-
-  if (asChild) {
-    const child = React.isValidElement(children) ? children : null;
-    
-    if (!child) return null;
-
-    return (
-      <Slot
-        data-slot="button"
-        data-variant={variant}
-        data-size={size}
-        className={cn(buttonVariants({ variant, size, className }))}
-        {...props}
-      >
-        {isSigil ? React.cloneElement(child as any, {
-          children: (
-            <>
-              {shimmer}
-              {(child as any).props.children}
-              {pulse}
-            </>
-          )
-        }) : child}
-      </Slot>
-    )
-  }
 
   return (
     <Comp
@@ -97,9 +63,7 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     >
-      {shimmer}
       {children}
-      {pulse}
     </Comp>
   )
 }

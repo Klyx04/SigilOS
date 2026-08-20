@@ -7,37 +7,35 @@ interface GlassPanelProps extends React.HTMLAttributes<HTMLDivElement> {
     children: React.ReactNode;
 }
 
+/**
+ * Panneau de surface plat — anti « AI slop ».
+ * Plus de verre dépoli (backdrop-blur), de reflet glossy, ni d'ombre colorée :
+ * la profondeur passe par la luminosité des surfaces + les bordures (charte zéro glow).
+ * Les props `intensity` et `hover-glow` sont conservées pour la compatibilité des appels
+ * mais ne produisent plus d'effet néon.
+ */
 export function GlassPanel({
     className,
     variant = "default",
-    intensity = "low",
+    intensity: _intensity,
     children,
     ...props
 }: GlassPanelProps) {
     const variants = {
-        default: "bg-glass border-border",
-        "hover-glow": "bg-glass border-border hover:border-neon-green/30  transition-all duration-300",
-        interactive: "bg-glass border-border hover:bg-surface active:scale-[0.99] transition-all duration-200 cursor-pointer",
-    };
-
-    const intensities = {
-        low: "backdrop-blur-md",
-        high: "backdrop-blur-xl bg-void-surface/50",
+        default: "bg-surface border-border",
+        "hover-glow": "bg-surface border-border hover:border-border-strong",
+        interactive: "bg-surface border-border hover:bg-elevated cursor-pointer",
     };
 
     return (
         <div
             className={cn(
-                "rounded-xl border shadow-lg relative overflow-hidden",
+                "rounded-xl border relative overflow-hidden transition-colors duration-200",
                 variants[variant],
-                intensities[intensity],
                 className
             )}
             {...props}
         >
-            {/* Glossy sheen overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-
             {/* Content */}
             <div className="relative z-10">
                 {children}

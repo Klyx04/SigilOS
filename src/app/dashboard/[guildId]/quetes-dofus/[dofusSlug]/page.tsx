@@ -33,6 +33,12 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const { guildId, dofusSlug } = await params;
     const character = (await searchParams)?.character as string || "PRINCIPAL";
 
+    // #165 — Le Dofus Ocre est géré par le module dédié /quete-ocre
+    // La page /quetes-dofus/ocre est un doublon avec des images dofusdb cassées
+    if (dofusSlug === "ocre") {
+        redirect(`/dashboard/${guildId}/quete-ocre`);
+    }
+
     const user = await getUserContext(guildId);
     if (!user.canViewQuests) return <AccessDenied />;
 

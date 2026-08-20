@@ -55,7 +55,6 @@ export async function GET(request: Request) {
 
         // Handle Cloudflare/WAF HTML instead of JSON
         if (stdout.trim().startsWith("<!DOCTYPE html>")) {
-            console.error("[Dofusbook Search Proxy] Blocked by Cloudflare (HTML received)");
             return NextResponse.json({ error: "Access denied by provider" }, { status: 403 });
         }
 
@@ -68,8 +67,7 @@ export async function GET(request: Request) {
             headers: { "X-Cache": "MISS" }
         });
 
-    } catch (error: any) {
-        console.error("[Dofusbook Search Proxy] Error:", error.message);
+    } catch {
         return NextResponse.json({ error: "Request processing failed" }, { status: 500 });
     }
 }

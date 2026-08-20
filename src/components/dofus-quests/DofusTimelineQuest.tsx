@@ -181,7 +181,7 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
                 {!metamobPseudo ? (
                   <a href={`/dashboard/${guildId}/profile`} className="text-amber-400/90 hover:text-amber-300 font-black uppercase tracking-wider text-caption" title="Lier Metamob pour voir les étapes du donjon">non relié</a>
                 ) : (
-                  <a href={`/dashboard/${guildId}/quetes-dofus/ocre`} className="text-emerald-400/90 hover:text-emerald-300 font-black uppercase tracking-wider text-caption" title="Voir les étapes metamob du donjon">étapes</a>
+                  <a href={`/dashboard/${guildId}/quete-ocre`} className="text-emerald-400/90 hover:text-emerald-300 font-black uppercase tracking-wider text-caption" title="Voir les étapes metamob du donjon">étapes</a>
                 )}
               </span>
             );

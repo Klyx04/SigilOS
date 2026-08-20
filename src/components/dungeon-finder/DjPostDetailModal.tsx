@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock
+    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
+    Copy, Check
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -60,6 +61,8 @@ export function DjPostDetailModal({
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
+    // #179 — copier les pseudos des joueurs inscrits / file d'attente
+    const [copiedPseudos, setCopiedPseudos] = useState(false);
 
     const isOwner = post.profileId === currentProfileId;
     const myParticipation = currentProfileId
@@ -71,6 +74,24 @@ export function DjPostDetailModal({
     const pendingParticipants = post.participants.filter((p) => p.status === "PENDING");
     const acceptedCount = acceptedParticipants.length + 1; // +1 for creator
     const spotsLeft = post.maxMembers - acceptedCount;
+
+    // #179 — liste `/w Pseudo` (créateur + inscrits + file d'attente)
+    const buildWhisperList = () => {
+        const names = [displayName(post.profile)];
+        acceptedParticipants.forEach((p) => names.push(displayName(p.profile)));
+        pendingParticipants.forEach((p) => names.push(displayName(p.profile)));
+        return names.map((n) => `/w ${n}`).join("\n");
+    };
+
+    const handleCopyPseudos = () => {
+        const text = buildWhisperList();
+        if (!text.trim()) return;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedPseudos(true);
+            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
+            setTimeout(() => setCopiedPseudos(false), 2000);
+        }).catch(() => toast.error("Impossible de copier"));
+    };
 
     function handleJoin() {
         startTransition(async () => {
@@ -312,9 +333,23 @@ export function DjPostDetailModal({
 
                         {/* Participants list */}
                         <div>
-                            <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
-                                <Users className="w-3 h-3" /> Participants ({acceptedCount}/{post.maxMembers})
-                            </p>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-2">
+                                    <Users className="w-3 h-3" /> Participants ({acceptedCount}/{post.maxMembers})
+                                </p>
+                                {/* #179 — copier les pseudos des inscrits + file d'attente (format /w Pseudo) */}
+                                {(acceptedCount > 1 || pendingParticipants.length > 0) && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyPseudos}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface text-caption text-muted-foreground font-bold hover:text-foreground hover:bg-elevated transition-colors"
+                                        title="Copier les pseudos des joueurs (format /w Pseudo)"
+                                    >
+                                        {copiedPseudos ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+                                        {copiedPseudos ? "Copié" : "Pseudos"}
+                                    </button>
+                                )}
+                            </div>
                             <div className="space-y-1.5">
                                 {/* Creator row */}
                                 <div className="flex items-center gap-4 bg-warning/5 rounded-xl p-3 border border-warning/10 shadow-sm relative overflow-hidden">

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
     Search, ExternalLink, Loader2, X, PackageOpen, BookMarked, Sword, Shield, Sparkles, Scroll, Coins,
     Zap, Heart, Brain, Droplet, Wind, Target, Eye, Footprints, Flame, Star, ShieldCheck, Plus,
-    Crown, Circle, Layers, Award, Library
+    Crown, Circle, Layers, Award, Library, Copy, Check
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -280,6 +280,9 @@ export function ItemSearchPanel() {
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [recipe, setRecipe] = useState<DofusRecipe | null>(null);
     const [source, setSource] = useState<"dofusdb" | "dofusbook">("dofusdb");
+    // #178 — copier les ressources de craft (nom tel quel)
+    const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+    const [copiedRecipe, setCopiedRecipe] = useState(false);
 
     // Search DofusDB — via proxy serveur pour éviter CORS
     const searchDB = useCallback(async (q: string) => {
@@ -307,14 +310,28 @@ export function ItemSearchPanel() {
         }
         setBookLoading(true);
         try {
-            const catParam = bookCategory ? `&category=${bookCategory}` : "";
-            const res = await fetch(`/api/dofusbook/search?q=${encodeURIComponent(q)}${catParam}`);
+            // #178 — le filtre de catégorie est appliqué CÔTÉ CLIENT (les IDs numériques
+            // ne sont pas fiables comme `include` côté API Dofusbook) : on récupère les
+            // résultats bruts puis on filtre par `category_id` / `category_name`.
+            const res = await fetch(`/api/dofusbook/search?q=${encodeURIComponent(q)}`);
             const data = await res.json();
 
             // Dofusbook returns either { results: [] }, { data: [] } or [] directly
             const results = Array.isArray(data) ? data : (data.data || data.results || []);
             if (data.error) throw new Error(data.error);
-            setBookResults(results);
+
+            let filtered = results;
+            if (bookCategory) {
+                const cat = DOFUSBOOK_CATEGORIES.find((c) => c.id === bookCategory);
+                filtered = results.filter((item: any) => {
+                    const rawCatId = item.category_id ?? item.categoryId;
+                    if (typeof rawCatId === "number") return rawCatId === bookCategory;
+                    if (typeof rawCatId === "string" && cat) return String(rawCatId) === String(cat.id);
+                    const catName = String(item.category_name ?? item.categoryName ?? "").trim().toLowerCase();
+                    return !!cat && catName === cat.name.toLowerCase();
+                });
+            }
+            setBookResults(filtered);
         } catch {
             // Echec gracieux Dofusbook : pas de log console en prod.
             setBookResults([]);
@@ -407,6 +424,23 @@ export function ItemSearchPanel() {
         } else {
             setRecipe(null);
         }
+    };
+
+    // #178 — copier les ressources de craft (nom tel quel, dofusbook + dofusdb)
+    const handleCopyIngredient = (name: string, qty: number, idx: number) => {
+        const text = `${name} x${qty}`;
+        navigator.clipboard.writeText(text)
+            .then(() => { setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); })
+            .catch(() => {});
+    };
+    const handleCopyRecipe = () => {
+        if (!recipe) return;
+        const text = recipe.ingredients
+            .map((ing, i) => `${ing.name.fr} x${recipe.quantities[i]}`)
+            .join("\n");
+        navigator.clipboard.writeText(text)
+            .then(() => { setCopiedRecipe(true); setTimeout(() => setCopiedRecipe(false), 2000); })
+            .catch(() => {});
     };
 
     return (
@@ -732,9 +766,23 @@ export function ItemSearchPanel() {
                                     {/* Recipe Card */}
                                     <div className="space-y-6">
                                         <div className="p-8 rounded-2xl bg-surface border border-border shadow-inner">
-                                            <div className="flex items-center gap-3 mb-8">
-                                                <Scroll className="h-5 w-5 text-muted-foreground" />
-                                                <h4 className="text-caption font-semibold text-muted-foreground">Fabrication</h4>
+                                            <div className="flex items-center justify-between gap-3 mb-8">
+                                                <div className="flex items-center gap-3">
+                                                    <Scroll className="h-5 w-5 text-muted-foreground" />
+                                                    <h4 className="text-caption font-semibold text-muted-foreground">Fabrication</h4>
+                                                </div>
+                                                {/* #178 — copier toutes les ressources du craft (nom tel quel) */}
+                                                {recipe && recipe.ingredients.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCopyRecipe}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-caption font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
+                                                        title="Copier la liste des ressources"
+                                                    >
+                                                        {copiedRecipe ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+                                                        {copiedRecipe ? "Copié !" : "Copier la liste"}
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {recipe ? (
@@ -749,6 +797,15 @@ export function ItemSearchPanel() {
                                                                     <div className="text-label font-bold text-foreground truncate group-hover/ing:text-foreground transition-colors">{ing.name.fr}</div>
                                                                     <div className="text-caption font-semibold text-success">x {recipe.quantities[i]}</div>
                                                                 </div>
+                                                                {/* #178 — copier le nom de la ressource tel quel */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleCopyIngredient(ing.name.fr, recipe.quantities[i], i)}
+                                                                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background transition-colors shrink-0"
+                                                                    title={`Copier « ${ing.name.fr} »`}
+                                                                >
+                                                                    {copiedIdx === i ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                                                                </button>
                                                             </div>
                                                         ))}
                                                     </div>

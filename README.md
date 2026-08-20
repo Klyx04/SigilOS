@@ -360,6 +360,18 @@ cd /opt/sigilos/production
 ./scripts/deploy.sh prod
 ```
 
+### Déploiement CD (2026) — images GHCR
+Depuis 2026-08, le pipeline est **réindustrialisé** : le build se fait sur GitHub, l'image est poussée vers **GHCR**, et le VPS ne fait que `pull + up` (aucun build local, ~30s). Voir [MAINTENANCE.md](./MAINTENANCE.md).
+
+```bash
+# Sur le VPS (environnement concerné : beta | prod)
+./scripts/deploy-cd.sh            # pull image GHCR + docker compose up (standard)
+./scripts/deploy.sh beta|prod     # Fallback historique (build local)
+./scripts/rollback.sh             # Rollback en 1 commande (image précédente)
+```
+
+**Procédures de référence :** [MAINTENANCE.md](./MAINTENANCE.md) — maintenance quotidienne, migrations (`prisma migrate deploy`), healthchecks, rotation des secrets et expiration du `GHCR_TOKEN`.
+
 ---
 
 ## 📦 Backup & Restore

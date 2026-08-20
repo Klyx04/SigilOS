@@ -193,8 +193,9 @@ export default async function AlmanaxPublicPage() {
                                 });
 
                                 return (
-                                    <div
+                                    <Link
                                         key={item.date || idx}
+                                        href={`/almanax/${item.date.slice(0, 10)}`}
                                         className="rounded-2xl border border-border bg-surface/40 hover:bg-surface/70 hover:border-success/30 p-5 space-y-3 transition-all flex flex-col justify-between"
                                     >
                                         <div className="space-y-3">
@@ -232,7 +233,7 @@ export default async function AlmanaxPublicPage() {
                                                 {item.bonus?.description}
                                             </p>
                                         </div>
-                                    </div>
+                                    </Link>
                                 );
                             })}
                         </div>

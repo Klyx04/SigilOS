@@ -280,6 +280,37 @@ export async function getBlacklistEntries(guildId: string, search?: string): Pro
 /**
  * DISCORD -> DASHBOARD SYNC HANDLERS
  */
+
+/**
+ * #85 — Extrait le texte utile d'un message Discord : le contenu texte, sinon le
+ * contenu des embeds (title + description). Un signalement posté par SigilOS
+ * (ou par un autre bot) porte son texte dans l'embed, pas dans `content` — sans
+ * cette extraction, la « recherche Discord » de la blacklist ne trouvait rien.
+ */
+function extractBlacklistText(message: any): string {
+    const rawContent = typeof message?.content === "string" ? message.content.trim() : "";
+    if (rawContent) return rawContent;
+
+    const embeds = Array.isArray(message?.embeds) ? message.embeds : [];
+    if (embeds.length > 0) {
+        const parts: string[] = [];
+        for (const e of embeds) {
+            if (typeof e?.title === "string" && e.title.trim()) parts.push(e.title.trim());
+            if (typeof e?.description === "string" && e.description.trim()) parts.push(e.description.trim());
+            if (Array.isArray(e?.fields)) {
+                for (const f of e.fields) {
+                    if (typeof f?.name === "string" && f.name.trim()) parts.push(`${f.name}: ${typeof f.value === "string" ? f.value.trim() : ""}`.trim());
+                    else if (typeof f?.value === "string" && f.value.trim()) parts.push(f.value.trim());
+                }
+            }
+        }
+        const joined = parts.join(" — ");
+        if (joined) return joined;
+    }
+
+    return "Contenu Discord";
+}
+
 export async function handleDiscordBlacklistCreate(discordGuildId: string, message: any) {
     try {
         const guild = await db.guildConfig.findUnique({
@@ -298,9 +329,9 @@ export async function handleDiscordBlacklistCreate(discordGuildId: string, messa
         await db.blacklistEntry.create({
             data: {
                 guildId: guild.id,
-                content: message.content || "Contenu Discord",
-                addedById: message.author.id,
-                addedByName: message.author.global_name || message.author.username,
+                content: extractBlacklistText(message),
+                addedById: message.author?.id ?? "UNKNOWN",
+                addedByName: message.author?.global_name || message.author?.username || "Inconnu",
                 discordMessageId: message.id
             }
         });
@@ -320,7 +351,7 @@ export async function handleDiscordBlacklistUpdate(discordGuildId: string, messa
 
         await db.blacklistEntry.update({
             where: { id: entry.id },
-            data: { content: message.content || entry.content }
+            data: { content: extractBlacklistText(message) }
         });
         revalidatePath(`/dashboard/${discordGuildId}/admin/members`);
     } catch (err) {

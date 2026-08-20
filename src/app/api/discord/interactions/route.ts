@@ -246,6 +246,50 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
+                if (action === "apply") {
+                    // #169 — bouton « S'inscrire » : ouvre une modal Discord avec choix de classe.
+                    // Le submit reviendra en type 5 avec custom_id dj:join:{postId}[:{idx}].
+                    const modalCustomId = `dj:join:${entityId}${dungeonIndex !== undefined ? `:${dungeonIndex}` : ""}`;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: modalCustomId,
+                            title: "⚔️ Inscription au groupe",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4, // Text Input
+                                            custom_id: "classe",
+                                            label: "Ta classe Dofus",
+                                            style: 1, // Short
+                                            placeholder: "Ex: Cra, Iop, Eniripsa...",
+                                            required: true,
+                                            min_length: 2,
+                                            max_length: 30,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "message",
+                                            label: "Message (optionnel)",
+                                            style: 2, // Paragraph
+                                            placeholder: "Ex: Cra opti dispo ce soir",
+                                            required: false,
+                                            max_length: 200,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                }
+
                 if (action === "join" || action === "leave") {
                     // Récupérer le post pour obtenir le guildId Prisma interne (≠ Discord guild_id snowflake)
                     const post = await (db as any).djSearchPost.findUnique({
@@ -811,7 +855,7 @@ export async function POST(request: NextRequest) {
             const { custom_id, components } = payload.data;
             const { member, guild_id } = payload;
 
-            const [prefix, action, entityId] = custom_id.split(":");
+            const [prefix, action, entityId, extra] = custom_id.split(":");
 
             // Rate limit: 5 modal submits per 5min per discord user
             if (!checkRateLimit(`modal:${member.user.id}`, 5, 5 * 60_000)) {
@@ -889,6 +933,78 @@ export async function POST(request: NextRequest) {
                         data: { content: `❌ ${result?.error || "Erreur inconnue"}`, flags: 64 },
                     });
                 }
+            } else if (prefix === "dj" && action === "join") {
+                // #169 — Submit de la modal d'inscription DJ (choix de classe + message optionnel).
+                // custom_id: dj:join:{postId}[:{idx}]
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                // RBAC check identique au bouton (GAME_OPERATIONS pour DJ)
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const canJoinDj = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS);
+                if (!canJoinDj) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "🚫 Tes rôles Discord ne t'autorisent pas à rejoindre ces groupes. Contacte un admin de ta guilde.", flags: 64 },
+                    });
+                }
+
+                // Extraire les champs de la modal
+                let classe = "";
+                let message = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "classe") classe = comp.value?.trim() || "";
+                        if (comp.custom_id === "message") message = comp.value?.trim() || "";
+                    }
+                }
+
+                // Valider la classe (case-insensitive)
+                const matchedClass = VALID_CLASSES.find((c) => c.toLowerCase() === classe.toLowerCase());
+                if (!matchedClass) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ Classe « ${classe} » non reconnue.\n\n**Classes disponibles :** ${VALID_CLASSES.join(", ")}`, flags: 64 },
+                    });
+                }
+
+                const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
+
+                // Résoudre le post → guildId Prisma interne (≠ guild_id Discord snowflake)
+                const post = await (db as any).djSearchPost.findUnique({
+                    where: { id: entityId },
+                    select: { id: true, status: true, guildId: true },
+                });
+                if (!post) {
+                    return NextResponse.json({ type: 4, data: { content: "❌ Ce groupe n'existe plus ou a expiré.", flags: 64 } });
+                }
+                if (post.status !== "OPEN" && post.status !== "FULL") {
+                    return NextResponse.json({ type: 4, data: { content: "❌ Ce groupe est fermé.", flags: 64 } });
+                }
+
+                const profile = await db.userProfile.findFirst({
+                    where: { userId: account.userId, guildId: post.guildId },
+                });
+                if (!profile) {
+                    return NextResponse.json({ type: 4, data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 } });
+                }
+
+                const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                const res = await internalJoinDjPost(entityId, profile.id, account.userId, dungeonIndex, matchedClass, message);
+
+                if (res.success) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `✅ Tu as rejoint le groupe ! Classe: **${matchedClass}**${message ? `\nMessage: *${message}*` : ""}`, flags: 64 },
+                    });
+                }
+                return NextResponse.json({ type: 4, data: { content: `❌ ${res.error || "Impossible de rejoindre le groupe."}`, flags: 64 } });
             } else if (prefix === "svc" && action === "submit_reply") {
                 const account = await findUserByDiscordId(member.user.id);
                 if (!account) {

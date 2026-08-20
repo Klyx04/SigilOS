@@ -194,7 +194,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 variant="outline"
                                 className={cn(
                                     "h-11 border-info/10 bg-info/5 hover:bg-info/10 hover:border-info/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedClass && "border-info/40 bg-info/20 text-info shadow-indigo-500/10"
+                                    selectedClass && "border-info/40 bg-info/20 text-info"
                                 )}
                             >
                                 <Swords className={cn(
@@ -220,7 +220,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-border shadow-xl" align="end">
+                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 bg-surface border-border" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher une classe..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -242,7 +242,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                             : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface aria-selected:text-foreground!"
                                                     )}
                                                 >
-                                                    <ClassIcon classId={c.id} size={36} className="filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
+                                                    <ClassIcon classId={c.id} size={36} className="filter" />
                                                     <span className="text-caption font-black truncate w-full text-center uppercase tracking-tighter opacity-80">{c.name}</span>
                                                 </CommandItem>
                                             ))}
@@ -260,7 +260,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 variant="outline"
                                 className={cn(
                                     "h-11 border-warning/10 bg-warning/5 hover:bg-warning/10 hover:border-warning/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedJob && "border-warning/40 bg-warning/20 text-warning shadow-amber-500/10"
+                                    selectedJob && "border-warning/40 bg-warning/20 text-warning"
                                 )}
                             >
                                 <Briefcase className={cn(
@@ -286,7 +286,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-border shadow-xl" align="end">
+                        <PopoverContent className="w-[340px] max-w-[calc(100vw-2rem)] p-0 bg-surface border-border" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un métier..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[400px]">
@@ -313,7 +313,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                                     : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground hover:text-foreground aria-selected:bg-surface aria-selected:text-foreground!"
                                                             )}
                                                         >
-                                                            <div className="relative w-9 h-9 flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
+                                                            <div className="relative w-9 h-9 flex items-center justify-center filter">
                                                                 {job.icon.startsWith("/") ? (
                                                                     <Image
                                                                         src={job.icon}
@@ -345,7 +345,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 variant="outline"
                                 className={cn(
                                     "h-11 border-info/10 bg-info/5 hover:bg-info/10 hover:border-info/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedAlignment && "border-info/40 bg-info/20 text-info shadow-indigo-500/10"
+                                    selectedAlignment && "border-info/40 bg-info/20 text-info"
                                 )}
                             >
                                 <Shield className={cn(
@@ -374,7 +374,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-border shadow-xl" align="end">
+                        <PopoverContent className="w-[320px] max-w-[calc(100vw-2rem)] p-4 bg-surface border-border" align="end">
                             <div className="space-y-3">
                                 <h4 className="text-caption font-black uppercase text-muted-foreground tracking-[0.2em] mb-2 flex items-center gap-2">
                                     <Shield className="w-3 h-3" /> Factions
@@ -455,7 +455,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     )}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[360px] max-w-[calc(100vw-2rem)] p-4 glass-premium border-border shadow-xl" align="end">
+                            <PopoverContent className="w-[360px] max-w-[calc(100vw-2rem)] p-4 bg-surface border-border" align="end">
                                 <div className="space-y-3">
                                     <h4 className="text-caption font-black uppercase text-muted-foreground tracking-[0.2em] mb-2 flex items-center gap-2">
                                         <Sparkles className="w-3 h-3" /> Ordres ({selectedAlignment})
@@ -509,7 +509,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 variant="outline"
                                 className={cn(
                                     "h-11 border-info/10 bg-info/5 hover:bg-info/10 hover:border-info/20 text-muted-foreground gap-2.5 px-4 font-semibold text-caption rounded-xl transition-colors duration-200 group/btn",
-                                    selectedLegendary && "border-info/40 bg-info/20 text-info shadow-purple-500/10"
+                                    selectedLegendary && "border-info/40 bg-info/20 text-info"
                                 )}
                             >
                                 <Sparkles className={cn(
@@ -535,7 +535,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] max-w-[calc(100vw-2rem)] p-0 glass-premium border-border shadow-xl" align="end">
+                        <PopoverContent className="w-[300px] max-w-[calc(100vw-2rem)] p-0 bg-surface border-border" align="end">
                             <Command className="bg-transparent">
                                 <CommandInput placeholder="Chercher un objet..." className="h-11 border-none bg-transparent" />
                                 <CommandList className="max-h-[300px]">
@@ -557,7 +557,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                             : "bg-surface border-border hover:bg-surface hover:border-border text-muted-foreground"
                                                     )}
                                                 >
-                                                    <div className="relative w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-border overflow-hidden shadow-inner shrink-0">
+                                                    <div className="relative w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-border overflow-hidden shrink-0">
                                                         {item.imageUrl ? (
                                                             <img src={item.imageUrl.startsWith("/") ? item.imageUrl : `/api/proxy-image?url=${encodeURIComponent(item.imageUrl)}`} alt={item.name} width={32} height={32} className="object-contain" />
                                                         ) : (

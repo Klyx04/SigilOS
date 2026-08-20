@@ -128,12 +128,12 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
     return (
         <Card className={cn(
-            "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface shadow-2xl",
+            "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface",
             "hover:border-border "
         )}>
             {/* ----------------- HEADER BAR (Full Width) ----------------- */}
             <div className={cn(
-                "relative z-20 flex flex-wrap items-center gap-3 sm:gap-4 px-4 py-2.5 shadow-inner border-b border-border",
+                "relative z-20 flex flex-wrap items-center gap-3 sm:gap-4 px-4 py-2.5 border-b border-border",
                 "overflow-hidden transition-all duration-300"
             )}>
                 {/* AI BACKGROUND BANNER */}
@@ -154,18 +154,14 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 {/* Noise texture overlay */}
                 <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url(/noise.svg)] bg-repeat z-10" />
 
-                {/* Visual indicator (Lueur) */}
-                <div className="absolute inset-x-0 bottom-0 h-[1px] bg-elevated blur-[1px] z-10" />
-
                 <div className="relative shrink-0 z-10">
-                    <div className="absolute inset-0 bg-elevated blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-border shadow-lg relative transition-transform group-">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-surface border border-border relative">
                         <Icon className={cn("w-4 h-4 text-foreground")} />
                     </div>
                 </div>
 
                 <div className="min-w-0 flex-1 relative z-10 break-words pr-2">
-                    <h3 className="font-black text-xs sm:text-base text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase leading-tight">
+                    <h3 className="font-black text-xs sm:text-base text-foreground tracking-tight uppercase leading-tight">
                         {submission.mission.title || "Mission Sans Titre"}
                     </h3>
                 </div>
@@ -210,7 +206,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <ShieldCheck className="w-3 h-3 text-info drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                        <ShieldCheck className="w-3 h-3 text-info shrink-0" />
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="bg-surface border-info/30 text-info text-caption font-bold uppercase tracking-wider">
                                         Administration
@@ -236,12 +232,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
             </div>
 
             {/* ----------------- CONTENT BODY ----------------- */}
-            <CardContent className="p-4 space-y-3 flex-1 relative bg-gradient-to-b from-elevated to-surface">
-                {/* Sub-Atmosphere Glow */}
-                <div className={cn(
-                    "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-300 group-hover:scale-150",
-                    config.bgColor
-                )} />
+            <CardContent className="p-4 space-y-3 flex-1 relative bg-surface">
 
                 {/* Mission Rewards */}
                 <div className="flex items-center gap-3 text-xs">

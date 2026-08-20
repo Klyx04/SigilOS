@@ -8,6 +8,25 @@ import { sanitizeHtml } from "@/lib/security";
 import { auth } from "@/auth";
 import { getUserContext } from "./user-actions";
 
+// ─── Guards ────────────────────────────────────────────────────────────────────
+
+/**
+ * #127 — Délégation God → officiers : autorise la gestion des liens/catégories/
+ * créateurs de la page Ressources pour les admins de guilde disposant de la
+ * permission `resources:manage` (RBAC). Le God reste toujours autorisé.
+ * L'isolation guilde est garantie par getUserContext(guildId).
+ */
+async function requireResourcesManage(guildId: string): Promise<void> {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Non authentifié");
+    const superAdmin = await isSuperAdmin();
+    if (superAdmin) return;
+    const userCtx = await getUserContext(guildId);
+    if (!userCtx.canManageResources) {
+        throw new Error("Accès refusé : permission « Gérer les Ressources » requise");
+    }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AlmanaxItem {
@@ -157,7 +176,7 @@ export async function getResourceCategories(guildId: string) {
 }
 
 export async function upsertResourceCategory(guildId: string, data: any) {
-    if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    await requireResourcesManage(guildId);
     const targetId = await getDbGuildId(guildId);
     const res = await db.resourceCategory.upsert({
         where: { id: data.id || "new-cat" },
@@ -169,14 +188,14 @@ export async function upsertResourceCategory(guildId: string, data: any) {
 }
 
 export async function deleteResourceCategory(id: string, guildId: string) {
-    if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    await requireResourcesManage(guildId);
     await db.resourceCategory.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);
     return { success: true };
 }
 
 export async function upsertResourceLink(guildId: string, data: any) {
-    if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    await requireResourcesManage(guildId);
     // SECURITY (F-11): sanitize free-text HTML fields (description) and bound/validate URL
     const description = sanitizeHtml(data.description ?? null, 2000) || null;
     const url = typeof data.url === "string" ? data.url.slice(0, 2048) : "";
@@ -191,7 +210,7 @@ export async function upsertResourceLink(guildId: string, data: any) {
 }
 
 export async function deleteResourceLink(id: string, guildId: string) {
-    if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    await requireResourcesManage(guildId);
     await db.resourceLink.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);
     return { success: true };
@@ -244,15 +263,7 @@ export async function getContentCreators(guildId: string) {
 }
 
 export async function upsertContentCreator(guildId: string, data: any) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Non authentifié");
-
-    const superAdmin = await isSuperAdmin();
-    const userCtx = await getUserContext(guildId);
-
-    if (!superAdmin && !userCtx.isAdmin) {
-        throw new Error("Accès refusé : Droits administrateur requis");
-    }
+    await requireResourcesManage(guildId);
 
     const targetId = await getDbGuildId(guildId);
 
@@ -295,15 +306,7 @@ export async function upsertContentCreator(guildId: string, data: any) {
 }
 
 export async function deleteContentCreator(id: string, guildId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Non authentifié");
-
-    const superAdmin = await isSuperAdmin();
-    const userCtx = await getUserContext(guildId);
-
-    if (!superAdmin && !userCtx.isAdmin) {
-        throw new Error("Accès refusé : Droits administrateur requis");
-    }
+    await requireResourcesManage(guildId);
 
     await db.contentCreator.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);

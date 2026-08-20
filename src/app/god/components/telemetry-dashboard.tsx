@@ -250,6 +250,32 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                 </div>
             </div>
 
+            {/* #34 — Volet Data/Product : DAU/WAU, guildes actives, engagement */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">DAU / WAU</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">
+                        {stats.summary.uniqueUsers24h} / {stats.summary.uniqueUsers7d}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Utilisateurs actifs 24h / 7j (rétention)</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Guildes actives (7j)</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.guildsActive7d}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Guildes avec de l'activité cette semaine</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Engagement (24h)</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.engagementRatio}%</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Interactions / pages vues</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Événements totaux</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.totalEvents.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Depuis le début de la télémétrie</p>
+                </div>
+            </div>
+
             {/* TAB CONTENT: LIVE FEED */}
             {telemetryTab === "live" && (
                 <div className="p-6 rounded-3xl border border-white/5 bg-zinc-950/60 backdrop-blur-md flex flex-col h-[750px] relative overflow-hidden">

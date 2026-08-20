@@ -12,15 +12,12 @@ import {
     Loader2,
     Swords,
     Info,
-    Copy,
-    Map as MapIcon,
     RotateCcw,
     X,
 } from "lucide-react";
 import { getDungeonDirectory } from "@/server/actions/dungeon-finder-actions";
-import { getDungeonsWithAchievements, getMonsterStats } from "@/server/actions/game-data-actions";
+import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
-import { MapViewer } from "@/components/worldmap/map-viewer";
 import { cn } from "@/lib/utils";
 
 interface Dungeon {
@@ -153,9 +150,6 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
     const [search, setSearch] = useState("");
     const [directory, setDirectory] = useState<DirectoryAchievement[]>([]);
     const [loadingDir, setLoadingDir] = useState(false);
-    const [bossStats, setBossStats] = useState<any>(null);
-    const [selectedDrop, setSelectedDrop] = useState<any>(null);
-    const [showBossSheet, setShowBossSheet] = useState(false);
     const autoSelectedRef = useRef(false);
     // Refonte Succès Commun — accordéon par succès + filtres pseudo / classe / état.
     const [expandedAchievementId, setExpandedAchievementId] = useState<string | null>(null);
@@ -206,25 +200,16 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
         };
     }, []);
 
-    // Chargement du directory (qui a quoi) + stats du boss à la sélection.
+    // Chargement du directory (qui a / qui cherche) à la sélection.
     useEffect(() => {
         if (!selectedDungeon) return;
         let cancelled = false;
         setLoadingDir(true);
         setDirectory([]);
-        setBossStats(null);
-        setShowBossSheet(false);
-        // 1. Le social (qui a / qui cherche) vient de NOTRE BDD (local, instantané) → affiché sans attendre.
         getDungeonDirectory(guildId, selectedDungeon.id).then((dirRes) => {
             if (cancelled) return;
             if (dirRes.success && dirRes.data) setDirectory(dirRes.data);
             setLoadingDir(false);
-        });
-        // 2. La fiche donjon (drops/sorts/carte) vient de dofusdb → charge en ARRIÈRE-PLAN,
-        // sans jamais bloquer le « qui a quoi ». (Cache 1h côté serveur + cache state client.)
-        getMonsterStats(selectedDungeon.bossName).then((statsRes) => {
-            if (cancelled) return;
-            if (statsRes.success && statsRes.data) setBossStats(statsRes.data);
         });
         return () => {
             cancelled = true;
@@ -347,20 +332,6 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
         if (!term) return dungeons;
         return dungeons.filter((d) => d.name.toLowerCase().includes(term) || d.bossName.toLowerCase().includes(term));
     }, [dungeons, search]);
-
-    const copyTravel = useCallback(() => {
-        if (!bossStats?.coordinates) return;
-        const { x, y } = bossStats.coordinates;
-        const text = `/travel ${x},${y}`;
-        navigator.clipboard?.writeText(text).then(
-            () => {
-                /* copié */
-            },
-            () => {
-                /* clipboard refusé */
-            }
-        );
-    }, [bossStats]);
 
     if (loadingDb) {
         return (
@@ -771,114 +742,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                     </div>
                                 )}
 
-                                {/* Fiche donjon : contenu (tiroir) */}
-                                {showBossSheet && bossStats && !loadingDir && (
-                                    <div className="border-t border-border p-5 space-y-5">
-                                        {bossStats.drops?.length > 0 && (
-                                            <div>
-                                                <h4 className="text-caption font-bold uppercase tracking-widest text-info mb-2">Butins notables</h4>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {bossStats.drops.map((drop: any, idx: number) => (
-                                                        <button
-                                                            key={idx}
-                                                            onClick={() => setSelectedDrop(drop)}
-                                                            title={`${drop.name} — ${drop.percent}%`}
-                                                            className="w-9 h-9 rounded-md bg-surface border border-border p-1 hover:bg-elevated transition-colors"
-                                                        >
-                                                            <img src={drop.imageUrl} alt={drop.name} className="w-full h-full object-contain" loading="lazy" />
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {bossStats.spells?.length > 0 && (
-                                            <div>
-                                                <h4 className="text-caption font-bold uppercase tracking-widest text-danger mb-2">Capacités du boss</h4>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {bossStats.spells.map((spell: any, idx: number) => (
-                                                        <div key={idx} className="flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-1.5" title={spell.description}>
-                                                            {spell.imageUrl ? (
-                                                                <img src={spell.imageUrl} alt="" className="w-4 h-4 object-contain" />
-                                                            ) : (
-                                                                <Swords className="w-4 h-4 text-muted-foreground" />
-                                                            )}
-                                                            <span className="text-xs font-bold">{spell.name}</span>
-                                                            {spell.apCost ? <span className="text-caption text-warning font-bold">{spell.apCost} PA</span> : null}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {bossStats.coordinates && (
-                                            <div>
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <h4 className="text-caption font-bold uppercase tracking-widest text-foreground flex items-center gap-1.5">
-                                                        <MapIcon className="w-4 h-4" /> Position ({bossStats.coordinates.x}, {bossStats.coordinates.y})
-                                                    </h4>
-                                                    <button onClick={copyTravel} className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground min-h-11 px-2">
-                                                        <Copy className="w-3.5 h-3.5" /> /travel
-                                                    </button>
-                                                </div>
-                                                <div className="rounded-2xl overflow-hidden border border-border h-[260px]">
-                                                    <MapViewer
-                                                        initialTab="map"
-                                                        initialX={bossStats.coordinates.x}
-                                                        initialY={bossStats.coordinates.y}
-                                                        initialWorldId={bossStats.coordinates.worldMapId}
-                                                        initialZoom={1}
-                                                        hideUI
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Bouton bascule fiche donjon */}
-                                {bossStats && !loadingDir && (
-                                    <div className="mt-5 border-t border-border pt-5">
-                                        <button
-                                            onClick={() => setShowBossSheet((v) => !v)}
-                                            className="inline-flex items-center gap-2 text-sm font-bold text-foreground hover:text-warning transition-colors min-h-11"
-                                        >
-                                            <Info className="w-4 h-4 text-warning" />
-                                            {showBossSheet ? "Masquer la fiche donjon" : "Voir la fiche donjon (drops, sorts, carte)"}
-                                        </button>
-                                    </div>
-                                )}
                             </div>
-
-                            {/* Drop modal */}
-                            {selectedDrop && (
-                                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-                                    <div className="absolute inset-0 bg-black/70" onClick={() => setSelectedDrop(null)} />
-                                    <div className="relative bg-surface border border-border rounded-2xl p-5 w-full max-w-xs text-center">
-                                        <div className="w-16 h-16 rounded-xl bg-background border border-border p-2 mx-auto mb-3">
-                                            <img src={selectedDrop.imageUrl} alt={selectedDrop.name} className="w-full h-full object-contain" />
-                                        </div>
-                                        <h3 className="text-sm font-black text-foreground">{selectedDrop.name}</h3>
-                                        <p className="text-xs text-info font-bold mt-1">Taux de drop : {selectedDrop.percent}%</p>
-                                        <div className="flex gap-2 mt-4">
-                                            <button
-                                                onClick={() => setSelectedDrop(null)}
-                                                className="flex-1 px-4 py-2 rounded-xl border border-border bg-surface text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                            >
-                                                Fermer
-                                            </button>
-                                            <a
-                                                href={`https://dofusdb.fr/fr/database/item/${selectedDrop.objectId}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex-1 px-4 py-2 rounded-xl bg-info text-xs font-black text-foreground hover:bg-info/80 transition-colors"
-                                            >
-                                                DofusDB
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     ) : (
                         <div className="hidden lg:flex flex-col items-center justify-center py-24 text-muted-foreground border border-dashed border-border rounded-2xl bg-background/40">

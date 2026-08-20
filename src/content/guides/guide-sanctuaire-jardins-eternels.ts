@@ -110,5 +110,10 @@ export const guide = {
         <p>
             Terminer le Sanctuaire des Jardins Éternels débloque des <strong>récompenses de guilde</strong> : ressources de construction, kamas et équipements liés au raid. C'est l'un des raids les plus rentables de Dofus pour le développement de votre hall de guilde.
         </p>
+
+        <div class="callout callout-info">
+            <strong>Poursuivre la lecture</strong>
+            <p>Préparez aussi le <a href="/guides/raid-gigalodon-dofus-guide">raid du Gigalodon</a>, consultez <a href="/guides">tous les guides SigilOS</a>, les <a href="/guilds">guildes Dofus partenaires</a> ou l'<a href="/almanax">Almanax du jour</a>.</p>
+        </div>
     `,
 };

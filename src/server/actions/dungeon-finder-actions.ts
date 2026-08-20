@@ -30,6 +30,32 @@ async function getDiscordId(userId: string): Promise<string | null> {
     return account?.providerAccountId || null;
 }
 
+/**
+ * #149 — Isolement tenant STRICT pour les ressources DJ.
+ * Le `guildId` passé à une action correspond au serveur de l'appelant (context RBAC),
+ * mais la ressource (`djSearchPost`) porte son propre `guildId` (clé interne GuildConfig).
+ * Sans ce contrôle, un admin — voire un God — de la guilde A pouvait fermer/supprimer/
+ * modifier un post de la guilde B en passant `guildId=A` + `postId` d'un post B
+ * (bypass multi-tenant). Fail-closed : toute ressource hors tenant → « Post introuvable ».
+ */
+async function assertPostGuildTenant(
+    guildId: string,
+    postGuildId?: string | null
+): Promise<{ ok: boolean; error?: string }> {
+    if (!postGuildId) return { ok: false, error: "Post introuvable" };
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return { ok: false, error: "Guilde introuvable" };
+    if (guildConfig.id !== postGuildId) {
+        // Traçage du bypass tenté (#149) — jamais d'info sur la guilde cible.
+        logger.warn(`[DJ #149] Accès cross-tenant bloqué (post guildId=${postGuildId})`);
+        return { ok: false, error: "Post introuvable" };
+    }
+    return { ok: true };
+}
+
 // ---------------------------------------------------------------------------
 // TYPES
 // ---------------------------------------------------------------------------
@@ -225,10 +251,16 @@ async function sendDiscordNotification(
 
         if (isForumChannel) {
             const isDungeon = embed.title?.includes("⚔️");
-            // Extraire le nom depuis la description: "**Donjon :** Nom" ou "**Quete :** Nom"
+            // #167 — nom du thread Forum depuis les DONNÉES RÉELLES du post
+            // (fini le « Donjon - Groupe » figé quand l'embed ne matche pas le regex).
+            const dungeonName = post?.dungeon?.name || post?.dungeonsJson?.[0]?.name;
+            const questName = post?.questName;
+            // Fallback : extraire le nom depuis la description "**Donjon :** Nom" / "**Quete :** Nom"
             const nameMatch = embed.description?.match(/[*][*](?:Donjon|Qu.te)\s*:[*][*]\s*(.+?)(?:\n|$)/i);
-            const contentName = (nameMatch && nameMatch[1] ? nameMatch[1] : "Groupe").trim().substring(0, 65);
-            const typeLabel = isDungeon ? "Donjon" : "Quete";
+            const contentName = String(
+                (isDungeon ? dungeonName : questName) || (nameMatch && nameMatch[1]) || (isDungeon ? "Donjon" : "Quête")
+            ).trim().substring(0, 65);
+            const typeLabel = isDungeon ? "Donjon" : "Quête";
             const emojiChar = embed.title ? embed.title.slice(0, 2) : "";
             const placesField = embed.fields && embed.fields.find((f: { name: string; value: string }) => f.name.includes("Places"));
             const placesTag = placesField ? " [" + placesField.value + "]" : "";
@@ -348,7 +380,11 @@ async function sendMultiDiscordNotification(
         const entryCount = (post.dungeonsJson ?? []).length;
 
         if (isForumChannel) {
-            const threadTitle = `⚔️ Multi-donjon - ${entryCount} donjons`.substring(0, 100);
+            // #167 — nom du thread multi-donjon avec le nom réel du 1er donjon
+            // (fini le libellé générique « Multi-donjon - N donjons »).
+            const firstName = post?.dungeonsJson?.[0]?.name || "Multi-donjon";
+            const extra = entryCount > 1 ? ` +${entryCount - 1}` : "";
+            const threadTitle = `⚔️ ${firstName}${extra}`.substring(0, 100);
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
             const firstUsableTag = availableTags.find((t: { moderated?: boolean }) => !t.moderated);
             const forumBody: Record<string, unknown> = {
@@ -1206,6 +1242,9 @@ export async function closeDjPostWithContributions(
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict : le post doit appartenir à la guilde de l'appelant.
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
         // Only creator can close with contributions (admins use closeDjPost)
         if (post.profileId !== user.profileId) {
             return { success: false, error: "Seul le créateur peut valider la clôture" };
@@ -1225,12 +1264,18 @@ export async function closeDjPostWithContributions(
         });
 
         // Distribution des points de contribution
+        // #149 — les profils récompensés doivent appartenir à la guilde du post
+        // (sinon un client malveillant peut injecter des points sur des profils d'autres guildes).
         const toReward = validatedProfileIds.filter((pid) => pid !== post.profileId);
         if (toReward.length > 0) {
-            await db.userProfile.updateMany({
-                where: { id: { in: toReward } },
+            const rewardGuildId = post.guildId;
+            const { count } = await db.userProfile.updateMany({
+                where: { id: { in: toReward }, guildId: rewardGuildId },
                 data: { contributionPoints: { increment: pts } },
             });
+            if (count < toReward.length) {
+                logger.warn(`[DJ #149] ${toReward.length - count} profil(s) récompensé(s) hors tenant ignoré(s)`);
+            }
         }
 
         // #138 — Validation des succès pour TOUS les présents (participants validés + créateur).
@@ -1312,6 +1357,9 @@ export async function closeDjPost(
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict : un admin de la guilde A ne peut PAS fermer un post de la guilde B.
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
         if (post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Tu ne peux fermer que tes propres posts" };
         }
@@ -1351,10 +1399,13 @@ export async function deleteDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, discordMessageId: true, discordChannelId: true },
+            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict (suppression cross-guild bloquée).
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
 
         if (post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Non autorisé" };
@@ -1398,6 +1449,9 @@ export async function joinDjPost(
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict : on ne peut rejoindre un post que sur SA guilde.
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
         if (post.status !== "OPEN" && post.status !== "FULL") return { success: false, error: "Ce post n'est plus ouvert" };
 
         // Creator can't join their own post
@@ -1491,6 +1545,9 @@ export async function leaveDjPost(
             select: { profileId: true, status: true, maxMembers: true, guildId: true },
         });
         if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict.
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
 
         // Can't leave own post (must close instead)
         if (post.profileId === user.profileId) {
@@ -1871,10 +1928,13 @@ export async function acceptDjParticipant(
     try {
         const participant = await (db as any).djSearchParticipant.findUnique({
             where: { id: participantId },
-            include: { post: { select: { profileId: true } } },
+            include: { post: { select: { profileId: true, guildId: true } } },
         });
 
         if (!participant) return { success: false, error: "Participant introuvable" };
+        // #149 — Isolement tenant strict (accepter un participant d'un post d'une autre guilde → bloqué).
+        const djTenant = await assertPostGuildTenant(guildId, participant.post?.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
         if (participant.post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Seul l'auteur peut accepter" };
         }
@@ -1906,10 +1966,13 @@ export async function rejectDjParticipant(
     try {
         const participant = await (db as any).djSearchParticipant.findUnique({
             where: { id: participantId },
-            include: { post: { select: { profileId: true } } },
+            include: { post: { select: { profileId: true, guildId: true } } },
         });
 
         if (!participant) return { success: false, error: "Participant introuvable" };
+        // #149 — Isolement tenant strict.
+        const djTenant = await assertPostGuildTenant(guildId, participant.post?.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
         if (participant.post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Seul l'auteur peut refuser" };
         }

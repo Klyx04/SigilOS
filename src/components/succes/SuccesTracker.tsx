@@ -37,6 +37,10 @@ interface Dungeon {
     level: number;
     imageUrl?: string | null;
     isOcreQuest?: boolean;
+    // #171 — liens guides externes (rendus avec favicon dans le détail donjon)
+    dpnlUrl?: string | null;
+    dofuspourlesnoobsUrl?: string | null;
+    dofensiveUrl?: string | null;
     achievements: Achievement[];
 }
 
@@ -475,12 +479,49 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                             Boss : {selectedDungeon.bossName} · LVL {selectedDungeon.level}
                                         </p>
                                     </div>
-                                    <Link
-                                        href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}`}
-                                        className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-info/30 bg-info/10 text-info text-xs font-bold uppercase tracking-wide hover:bg-info/20 transition-colors"
-                                    >
-                                        <Swords className="w-4 h-4" /> Chercher un groupe
-                                    </Link>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {/* #171 — Liens guides (favicon) dans « Mes Succès », comme dans Succès Commun */}
+                                        {(selectedDungeon.dofuspourlesnoobsUrl || selectedDungeon.dpnlUrl) && (
+                                            <a
+                                                href={selectedDungeon.dofuspourlesnoobsUrl || selectedDungeon.dpnlUrl || "#"}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-3.5 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"
+                                                title="Guide DofusPourLesNoobs (DPNL)"
+                                            >
+                                                <img
+                                                    src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32"
+                                                    alt=""
+                                                    className="w-4 h-4 rounded-sm"
+                                                    loading="lazy"
+                                                />
+                                                Guide DPNL
+                                            </a>
+                                        )}
+                                        {selectedDungeon.dofensiveUrl && (
+                                            <a
+                                                href={selectedDungeon.dofensiveUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-3.5 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"
+                                                title="Guide Dofensive"
+                                            >
+                                                <img
+                                                    src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32"
+                                                    alt=""
+                                                    className="w-4 h-4 rounded-sm"
+                                                    loading="lazy"
+                                                />
+                                                Dofensive
+                                            </a>
+                                        )}
+                                        <Link
+                                            href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}`}
+                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-info/30 bg-info/10 text-info text-xs font-bold uppercase tracking-wide hover:bg-info/20 transition-colors"
+                                        >
+                                            <Swords className="w-4 h-4" /> Chercher un groupe
+                                        </Link>
+                                    </div>
                                 </div>
 
                                 <div>

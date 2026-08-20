@@ -1,0 +1,85 @@
+/**
+ * Types + fusion des sorts Dofensive — module client-safe (PAS un server action).
+ *
+ * Les données de combat Dofensive (`/spells/{id}`, par grade) sont la source de
+ * vérité pour la simulation : AP, portée, LdV, ligne/diagonale, cooldown, max cast
+ * et zone AoE. Ce module est importé par les composants clients pour fusionner ces
+ * données avec les sorts DofusDB (images/descriptions) sans passer par un server action.
+ */
+
+export type DofensiveZoneShape =
+    | "Cercle"
+    | "Croix"
+    | "Ligne"
+    | "Cône"
+    | "Perpend"
+    | "Rectangle"
+    | "Point"
+    | "Inconnue";
+
+export interface DofensiveSpellZone {
+    shape: DofensiveZoneShape;
+    size: number;
+    range: number;
+}
+
+export interface DofensiveSpellCombat {
+    id: number;
+    name: string;
+    /** Icône officielle Dofensive (CDN) — distincte par sort, contrairement à DofusDB. */
+    imageUrl?: string;
+    apCost: number;
+    minRange: number;
+    range: number;
+    castTestLos: boolean;
+    castInLine: boolean;
+    castInDiagonal: boolean;
+    maxCastPerTurn: number;
+    minCastInterval: number;
+    zone: DofensiveSpellZone | null;
+}
+
+export interface DofensiveMergedSpell extends Omit<DofensiveSpellCombat, "zone"> {
+    zone?: DofensiveSpellZone;
+    imageUrl?: string;
+    description?: string;
+}
+
+/**
+ * Fusionne les sorts DofusDB (images/descriptions) avec les données de combat
+ * Dofensive (AP/portée/LoS/ligne/diagonale/cooldown/zone). Les champs de combat
+ * Dofensive PRIMENT (source de vérité combat) ; les sorts présents uniquement chez
+ * l'une des deux sources sont conservés. Jamais d'écrasement destructif.
+ */
+export function mergeDofensiveSpells(
+    dbSpells: Array<{ id: number; name?: string; imageUrl?: string; description?: string }> = [],
+    dofensiveSpells: DofensiveSpellCombat[] = []
+): DofensiveMergedSpell[] {
+    const dbMap = new Map<number, { name?: string; imageUrl?: string; description?: string }>();
+    for (const s of dbSpells) {
+        const sid = Number(s?.id);
+        if (Number.isFinite(sid) && sid > 0) dbMap.set(sid, s);
+    }
+
+    const merged: DofensiveMergedSpell[] = [];
+    const seen = new Set<number>();
+    for (const ds of dofensiveSpells) {
+        const db = dbMap.get(ds.id);
+        merged.push({
+            ...ds,
+            name: db?.name || ds.name,
+            imageUrl: ds.imageUrl || db?.imageUrl, // icône Dofensive préférée (distincte par sort)
+            description: db?.description,
+            zone: ds.zone ?? undefined,
+        });
+        seen.add(ds.id);
+    }
+    // Sorts DofusDB non couverts par Dofensive (ex. sorts invoqués/déclenchés) : on les garde tels quels.
+    for (const db of dbSpells) {
+        const sid = Number(db?.id);
+        if (Number.isFinite(sid) && sid > 0 && !seen.has(sid)) {
+            merged.push(db as unknown as DofensiveMergedSpell);
+        }
+    }
+    return merged;
+}

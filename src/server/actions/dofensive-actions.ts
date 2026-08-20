@@ -17,6 +17,11 @@
  */
 
 import { logger } from "@/lib/logger";
+import type {
+    DofensiveSpellCombat,
+    DofensiveSpellZone,
+    DofensiveZoneShape,
+} from "@/lib/dofensive-spells";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -33,6 +38,20 @@ const DOFENSIVE_HEADERS = {
 const dofensiveCache = new Map<string, { data: unknown; expiresAt: number }>();
 const DOFENSIVE_TTL = 24 * 60 * 60 * 1000; // 24 h — data de jeu statique
 
+// ── Garde anti-SSRF ─────────────────────────────────────────────────────────
+// Les IDs (map/monstre/sort) peuvent provenir du client (query params ?boss=&dungeon=,
+// sélecteur de salle, liste de sorts). On ne construit JAMAIS d'URL avec une valeur
+// non validée : allowlist stricte des chemins Dofensive + ID entier strictement positif.
+const DOFENSIVE_PATH_RE =
+    /^\/(?:dungeons\/preview\?lang=fr|maps\/\d+\?lang=fr|monsters\/\d+\?lang=fr|spells\/\d+\?lang=fr)$/;
+
+/** Convertit un ID Dofensive en entier strictement positif, ou `null` si invalide (anti-SSRF). */
+function toSafeId(value: number | string | null | undefined): number | null {
+    const n = typeof value === "number" ? value : Number(String(value ?? "").trim());
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
+    return n;
+}
+
 function norm(s: string): string {
     return String(s ?? "")
         .toLowerCase()
@@ -42,6 +61,11 @@ function norm(s: string): string {
 }
 
 async function dofensiveFetch<T>(path: string, key: string): Promise<T | null> {
+    // Garde SSRF : seul un chemin de l'allowlist (IDs entiers) peut atteindre fetch().
+    if (!DOFENSIVE_PATH_RE.test(path)) {
+        logger.error(`[dofensive] Chemin refusé (garde SSRF): ${path}`);
+        return null;
+    }
     const cached = dofensiveCache.get(key);
     if (cached && cached.expiresAt > Date.now()) return cached.data as T;
 
@@ -158,8 +182,9 @@ export async function getDofensiveDungeonForBoss(
     // Marque les maps de combat du boss (PreferredMaps du monstre) pour les
     // mettre en avant dans le sélecteur de map.
     let bossMapIds: number[] = [];
-    if (boss?.Id) {
-        const monRaw = await dofensiveFetch<any>(`/monsters/${boss.Id}?lang=fr`, `dofensive-monster-${boss.Id}`);
+    const bossId = toSafeId(boss?.Id);
+    if (bossId) {
+        const monRaw = await dofensiveFetch<any>(`/monsters/${bossId}?lang=fr`, `dofensive-monster-${bossId}`);
         const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
         if (mon && Array.isArray(mon.PreferredMaps)) {
             bossMapIds = mon.PreferredMaps.map((m: any) => Number(m.Id));
@@ -175,14 +200,17 @@ export async function getDofensiveDungeonForBoss(
             monsters: Array.isArray(hit.Monsters)
                 ? hit.Monsters.map((m: any) => ({ id: m.Id as number, name: String(m.Name ?? "") }))
                 : [],
-            bossMonsterId: boss?.Id ?? null,
+            bossMonsterId: bossId,
         },
     };
 }
 
 /** Charge une map réelle Dofensive (grille d'obstacles + cases de départ). */
 export async function getDofensiveMap(mapId: number | string): Promise<ActionResponse<DofensiveMapData>> {
-    const raw = await dofensiveFetch<any>(`/maps/${mapId}?lang=fr`, `dofensive-map-${mapId}`);
+    const id = toSafeId(mapId);
+    if (!id) return { success: false, error: "ID de map invalide" };
+
+    const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `dofensive-map-${id}`);
     // /maps/{id} → Data: [{ ...map }] (tableau à un élément), comme les autres endpoints.
     const item = Array.isArray(raw) ? raw[0] : raw;
     if (!item) return { success: false, error: "Map introuvable chez Dofensive" };
@@ -209,7 +237,10 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
 
 /** Charge un monstre Dofensive (maps préférées + donjons + sorts). */
 export async function getDofensiveMonster(monsterId: number): Promise<ActionResponse<DofensiveMonsterData>> {
-    const raw = await dofensiveFetch<any>(`/monsters/${monsterId}?lang=fr`, `dofensive-monster-${monsterId}`);
+    const id = toSafeId(monsterId);
+    if (!id) return { success: false, error: "ID de monstre invalide" };
+
+    const raw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
     const item = Array.isArray(raw) ? raw[0] : raw;
     if (!item) return { success: false, error: "Monstre introuvable chez Dofensive" };
 
@@ -229,5 +260,104 @@ export async function getDofensiveMonster(monsterId: number): Promise<ActionResp
                 : [],
         },
     };
+}
+
+// ─── Sorts Dofensive (données de combat riches) ─────────────────────────────
+// Dofensive expose /spells/{id} avec les données de combat PAR GRADE (ActionPoints,
+// MinRange/Range, CastInLine/CastInDiagonal/CastLineOfSight, MaxCastPerTurn,
+// MinCastInterval, StateCriteria, zone AoE des effets). Source de vérité pour la
+// simulation (bien plus fiable que les spell-levels DofusDB incomplets).
+// Types partagés (client-safe) : src/lib/dofensive-spells.ts.
+
+/** Normalise la zone AoE d'un effet Dofensive (shape déduite du nom FR + taille/portée). */
+function normalizeZone(zone: any): DofensiveSpellZone | null {
+    if (!zone || typeof zone !== "object") return null;
+    const size = Math.max(0, Number(zone.Size) || 0);
+    const range = Math.max(0, Number(zone.Range) || 0);
+    const lower = String(zone.Name ?? "").toLowerCase();
+    let shape: DofensiveZoneShape = "Inconnue";
+    if (lower.includes("cercle")) shape = "Cercle";
+    else if (lower.includes("ligne")) shape = "Ligne";
+    else if (lower.includes("croix")) shape = "Croix";
+    else if (lower.includes("cône") || lower.includes("cone")) shape = "Cône";
+    else if (lower.includes("perpend")) shape = "Perpend";
+    else if (lower.includes("rect")) shape = "Rectangle";
+    else if (lower.includes("cellule") || lower.includes("proximité") || lower.includes("point")) shape = "Point";
+    if (shape === "Inconnue" && size <= 0) shape = "Point";
+    return { shape, size, range };
+}
+
+/**
+ * Charge les sorts de combat d'un monstre Dofensive (AP, portée, LdV, ligne/diagonale,
+ * cooldown, max cast, zone AoE). Grade = dernier niveau (le plus haut), cohérent avec
+ * la fiche boss. Anti-SSRF : l'ID est validé avant toute construction d'URL.
+ */
+export async function getDofensiveSpells(monsterId: number): Promise<ActionResponse<DofensiveSpellCombat[]>> {
+    const id = toSafeId(monsterId);
+    if (!id) return { success: false, error: "ID de monstre invalide" };
+
+    const monRaw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
+    const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
+
+    // Ordre affiché par Dofensive : sort de démarrage (StartingSpell du Grade) EN PREMIER,
+    // puis la liste Spells. Ex. Fuji Givrefoux : Instinct maternel (2676) + ses 3 sorts.
+    const spellIds: number[] = [];
+    const pushId = (v: any) => {
+        const n = toSafeId(v);
+        if (n && !spellIds.includes(n)) spellIds.push(n);
+    };
+    if (Array.isArray(mon?.Grades)) {
+        for (const g of mon.Grades) pushId(g?.StartingSpell?.Id);
+    }
+    if (Array.isArray(mon?.Spells)) {
+        for (const s of mon.Spells) pushId(s?.Id);
+    }
+    if (spellIds.length === 0) return { success: false, error: "Aucun sort Dofensive" };
+
+    const results: (DofensiveSpellCombat | null)[] = await Promise.all(
+        spellIds.map(async (sid): Promise<DofensiveSpellCombat | null> => {
+            const raw = await dofensiveFetch<any>(`/spells/${sid}?lang=fr`, `dofensive-spell-${sid}`);
+            const spell = Array.isArray(raw) ? raw[0] : raw;
+            if (!spell) return null;
+            const levels: any[] = Array.isArray(spell.Levels) ? spell.Levels : [];
+            const level = levels[levels.length - 1] ?? levels[0];
+            if (!level) return null;
+            const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
+            return {
+                id: Number(spell.Id ?? sid),
+                name: String(spell.Name ?? ""),
+                // Icône officielle Dofensive (CDN, image/webp) — distincte par sort.
+                imageUrl: `https://cdn.static.dofensive.com/dofensive/spells/${sid}`,
+                apCost: Number(level.ActionPoints) || 0,
+                minRange: Number(level.MinRange) || 0,
+                range: Number(level.Range) || 0,
+                castTestLos: level.CastLineOfSight ?? true,
+                castInLine: level.CastInLine ?? false,
+                castInDiagonal: level.CastInDiagonal ?? false,
+                // 0 = pas de restriction (ne PAS forcer à 1 : afficherait un mauvais « 1×/tour »).
+                maxCastPerTurn: Number(level.MaxCastPerTurn) || 0,
+                minCastInterval: Number(level.MinCastInterval) || 0,
+                zone: normalizeZone(firstEffect?.Zone),
+            };
+        })
+    );
+
+    const spells = results.filter((s): s is DofensiveSpellCombat => s !== null);
+    if (spells.length === 0) return { success: false, error: "Sorts Dofensive vides" };
+    return { success: true, data: spells };
+}
+
+/**
+ * Résout l'ID Dofensive d'un monstre (via son donjon, cache 24 h) puis charge ses
+ * sorts de combat. Utilitaire pour la fiche boss quand on ne connaît que le nom.
+ */
+export async function getBossDofensiveSpells(
+    monsterName: string,
+    dungeonName?: string
+): Promise<ActionResponse<DofensiveSpellCombat[]>> {
+    const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
+    const monsterId = dungeon.success ? toSafeId(dungeon.data?.bossMonsterId) : null;
+    if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
+    return getDofensiveSpells(monsterId);
 }
 

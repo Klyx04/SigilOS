@@ -25,6 +25,24 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
+> ### SESSION 05/10 — Sélecteur de map Dofensive + simulation (2 commits)
+> `d1b20c20e` · `c94319206` — **maps réelles des boss via l'API publique Dofensive**
+> (dofensive.com/api/dofus2/bestiary) : couche serveur `dofensive-actions.ts`
+> (dungeons/maps/monsters, cache 24h, matching multi-donjons via `?dungeon=` +
+> heuristique boss en tête, maps de boss marquées ⚔) · géométrie **Dofus 3 exacte**
+> dans `dofus-grid.ts` (rendu **quinconce**, cellId→(col,row) validé empiriquement
+> 24/24, repère losange pour la distance, `CellState` VOID/HOLE/GROUND/OBSTACLE/
+> SPECIAL/START + `classifyGrid`) + 8 tests · `SpellRangeGrid` : vraies maps (fini
+> les « grands rectangles »), **VOID noir** (hors-carte), **obstacles 3D** en
+> extrusion, LoS avec murs, placements de départ (toggle), SVG **pleine largeur**,
+> flèches boss supprimées, grille libre 17×17 conservée · démo `/demo/boss-sim?boss=&dungeon=`
+> (Comte Harebourg + Servitude/Fers de la Tyrannie) · intégration fiche boss.
+> Vérifs : tsc 0 · lint 0 erreur · **237/237** · build OK. **Commits LOCAUX — À POUSSER**.
+> Mémo : `src/temp/memo-2026-10-05-chantier-dofensive-maps.md`. Amorce :
+> `src/temp/prompt-next-chantier-2026-10-05.md`.
+> — PR : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+>
+
 > ### SESSION 04/10 — Anti-AI-slop UI global (6 commits)
 > `fd21ef403` · `ccb184836` · `5231681f2` · `bda48d4fc` · `322246a34` · `7c7f5af42` — phases 0-3 :
 > primitives plates (AuroraBackground neutralisé, border-beam supprimé, GlassPanel/Button/Card

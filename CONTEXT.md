@@ -25,6 +25,17 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
+> ### SESSION 04/10 — Anti-AI-slop UI global (6 commits)
+> `fd21ef403` · `ccb184836` · `5231681f2` · `bda48d4fc` · `322246a34` · `7c7f5af42` — phases 0-3 :
+> primitives plates (AuroraBackground neutralisé, border-beam supprimé, GlassPanel/Button/Card
+> dé-sloppés), home + ~13 modules + auth/docs (zéro glow/gradient/blur décoratif, motion ≤200ms).
+> Worldmap/Songes/Guides (immersifs dark-locked) conservés. Vérifs : tsc 0 · lint 0 erreur ·
+> **229/229** · build OK. Mémo : `src/temp/memo-2026-10-04-chantier.md`. Amorce :
+> `src/temp/prompt-next-chantier-2026-10-04.md`. *(Sessions antérieures : 02/10 fiches boss
+> `f24542d8f` · 03/10 RBAC/guides `4c91ad59e`+`caf276ac2` · 02/10 retours user `0b032ae2d`.)*
+> — PR : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+>
+
 > **Branche `feat/chantier-2026-09-07`** — commits poussés : `9174a8c33` (one-shot) · `dbe645c67` (2ᵉ passe) ·
 > `d034a02f8` (isolation + fiche boss) · `1dbe964fd` (propagation God) — **CRÉER LA PR** :
 > https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07 (la branche porte aussi les 8 commits 09/09)

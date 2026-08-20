@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Move, RotateCcw, Sparkles, Target, Users, Zap } from "lucide-react";
+import { Eye, EyeOff, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
+import {
+    CellState,
+    cellIdToXY,
+    cellToScreen,
+    stateFromValue,
+    toLos,
+} from "@/lib/dofus-grid";
 
 export interface SpellData {
     id: number;
@@ -23,11 +31,37 @@ interface SpellRangeGridProps {
     onSelectSpell?: (spell: SpellData) => void;
     bossName?: string;
     bossImageUrl?: string;
+    /** Salles du donjon du boss (Dofensive) — alimentent le sélecteur de map. */
+    dungeonMaps?: DofensiveMapLite[];
+    /** Nom du donjon (label du sélecteur). */
+    dungeonName?: string;
+}
+
+// Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
+function lineCells(x0: number, y0: number, x1: number, y1: number): { x: number; y: number }[] {
+    const pts: { x: number; y: number }[] = [];
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    let x = x0;
+    let y = y0;
+    while (true) {
+        pts.push({ x, y });
+        if (x === x1 && y === y1) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 < dx) { err += dx; y += sy; }
+    }
+    return pts;
 }
 
 /**
- * 🎮 SIMULATION TACTIQUE ISOMÉTRIQUE STYLE DOFUS / DOFENSIVE
- * Véritable damier en losanges isométriques avec coloration de portée temps réel.
+ * 🎮 SIMULATION TACTIQUE STYLE DOFUS / DOFENSIVE
+ * Grille en quinconce authentique (40×14) sur les maps réelles Dofensive :
+ * obstacles réels, placements de départ (toggle), ligne de vue, portée temps réel.
+ * « Map vide » conserve la grille libre 17×17.
  */
 export function SpellRangeGrid({
     spells,
@@ -35,6 +69,8 @@ export function SpellRangeGrid({
     onSelectSpell,
     bossName = "Boss",
     bossImageUrl,
+    dungeonMaps,
+    dungeonName,
 }: SpellRangeGridProps) {
     // Sort actif
     const currentSpell = useMemo(() => {
@@ -45,22 +81,138 @@ export function SpellRangeGrid({
         return spells[0];
     }, [spells, activeSpellId]);
 
-    // Dimensions du damier isométrique (17 x 17 pour un champ de vision large)
+    // Grille libre par défaut (17×17) ; dimensionnée par la map réelle sinon.
     const GRID_SIZE = 17;
-    const CENTER = Math.floor(GRID_SIZE / 2); // 8
+    const CENTER = Math.floor(GRID_SIZE / 2);
 
-    // Position du lanceur (par défaut au centre 8, 8)
+    // Position du lanceur
     const [casterPos, setCasterPos] = useState<{ x: number; y: number }>({ x: CENTER, y: CENTER });
     const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
 
-    // Composition simulée : jusqu'à 4 alliés posés pour vérifier qui est touché par le sort actif.
+    // Composition simulée : jusqu'à 4 alliés.
     const [allies, setAllies] = useState<{ x: number; y: number; facing: number }[]>([]);
     const [bossFacing, setBossFacing] = useState(0);
     const [selectedAlly, setSelectedAlly] = useState<number | null>(null);
     const [placingAlly, setPlacingAlly] = useState(false);
+    const [showStartCells, setShowStartCells] = useState(false);
     const MAX_ALLIES = 4;
 
+    // ── Sélecteur de map (salles du donjon, source Dofensive) ──
+    const [selectedMapId, setSelectedMapId] = useState<number | "empty">("empty");
+    const [mapData, setMapData] = useState<DofensiveMapData | null>(null);
+    const [mapLoading, setMapLoading] = useState(false);
+    const [mapError, setMapError] = useState<string | null>(null);
+
+    const gridRows = mapData ? mapData.cells.length : GRID_SIZE;
+    const gridCols = mapData && mapData.cells[0] ? mapData.cells[0].length : GRID_SIZE;
+
+    const cellState = (x: number, y: number): CellState => {
+        if (!mapData) return CellState.GROUND;
+        const row = mapData.cells[y];
+        if (!row) return CellState.OBSTACLE;
+        return stateFromValue(row[x] ?? 1);
+    };
+    const isObstacle = (x: number, y: number): boolean => cellState(x, y) === CellState.OBSTACLE;
+
+    // Cases de départ (alliés/ennemis) rendues quand le toggle est actif.
+    const startCells = useMemo(() => {
+        if (!mapData || !showStartCells) return null;
+        const ally = new Set<string>();
+        const enemy = new Set<string>();
+        for (const id of mapData.allyCells) { const p = cellIdToXY(id); ally.add(`${p.x},${p.y}`); }
+        for (const id of mapData.enemyCells) { const p = cellIdToXY(id); enemy.add(`${p.x},${p.y}`); }
+        return { ally, enemy };
+    }, [mapData, showStartCells]);
+
+    // Placements de départ : le boss va toujours sur sa case réelle (enemyCells[0],
+    // toujours libre) ; les alliés (fecas) ne sont posés que si le toggle est actif.
+    const applyStartCells = (data: DofensiveMapData, enabled: boolean) => {
+        const enemy = data.enemyCells.length ? data.enemyCells[0] : null;
+        if (enemy !== null) {
+            const p = cellIdToXY(enemy);
+            setCasterPos({ x: p.x, y: p.y });
+        } else {
+            setCasterPos({ x: Math.floor(gridCols / 2), y: Math.floor(gridRows / 2) });
+        }
+        if (enabled) {
+            setAllies(
+                data.allyCells.slice(0, MAX_ALLIES).map((id) => {
+                    const q = cellIdToXY(id);
+                    return { x: q.x, y: q.y, facing: 0 };
+                })
+            );
+        } else {
+            setAllies([]);
+        }
+    };
+
+    // Reset / garde de cohérence quand le boss (et donc ses maps) change.
+    // Sélection automatique de la première map de combat du boss (si présente).
+    useEffect(() => {
+        if (!dungeonMaps?.length) {
+            setSelectedMapId("empty");
+            setMapData(null);
+            return;
+        }
+        if (selectedMapId === "empty") {
+            const bossMap = dungeonMaps.find((m) => m.isBoss);
+            if (bossMap) setSelectedMapId(bossMap.id);
+            return;
+        }
+        if (!dungeonMaps.some((m) => m.id === selectedMapId)) {
+            setSelectedMapId("empty");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dungeonMaps]);
+
+    // Chargement de la map sélectionnée : grille + placements de départ réels.
+    useEffect(() => {
+        if (selectedMapId === "empty") {
+            setMapData(null);
+            setMapError(null);
+            setMapLoading(false);
+            setAllies([]);
+            setCasterPos({ x: CENTER, y: CENTER });
+            return;
+        }
+        let cancelled = false;
+        setMapLoading(true);
+        setMapError(null);
+        getDofensiveMap(selectedMapId)
+            .then((res) => {
+                if (cancelled) return;
+                setMapLoading(false);
+                if (res.success && res.data) {
+                    setMapData(res.data);
+                    applyStartCells(res.data, showStartCells);
+                    setSelectedAlly(null);
+                    setPlacingAlly(false);
+                } else {
+                    setMapError(res.error ?? "Erreur de chargement de la map");
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setMapLoading(false);
+                    setMapError("Erreur réseau Dofensive");
+                }
+            });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedMapId]);
+
+    // Toggle « placements de départ » : pose/retire boss + alliés sur les cases réelles.
+    const toggleStartCells = () => {
+        const next = !showStartCells;
+        setShowStartCells(next);
+        if (mapData) {
+            applyStartCells(mapData, next);
+        }
+    };
+
     const handleCellClick = (x: number, y: number) => {
+        if (isObstacle(x, y)) return;
+
         if (placingAlly) {
             if (x === casterPos.x && y === casterPos.y) return;
             setAllies((prev) => {
@@ -102,13 +254,15 @@ export function SpellRangeGrid({
 
     // Zoom de la carte (boutons + molette).
     const [zoom, setZoom] = useState(1);
+    const ZOOM_MIN = 0.5;
+    const ZOOM_MAX = 3.5;
     const zoomRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
         const el = zoomRef.current;
         if (!el) return;
         const onWheel = (e: WheelEvent) => {
             e.preventDefault();
-            setZoom((z) => Math.min(2.5, Math.max(0.5, z - e.deltaY * 0.002)));
+            setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z - e.deltaY * 0.002)));
         };
         el.addEventListener("wheel", onWheel, { passive: false });
         return () => el.removeEventListener("wheel", onWheel);
@@ -120,11 +274,14 @@ export function SpellRangeGrid({
     const castInDiagonal = currentSpell?.castInDiagonal ?? false;
     const castTestLos = currentSpell?.castTestLos ?? true;
 
-    // Calcul de portée Dofus (distance de Manhattan sur grille orthogonale pivotée)
+    // Calcul de portée Dofus — Manhattan dans le repère losange (maps) ou grille libre.
     const isCellInRange = (x: number, y: number): boolean => {
         if (!currentSpell) return false;
-        const dx = x - casterPos.x;
-        const dy = y - casterPos.y;
+        if (isObstacle(x, y)) return false;
+        const a = toLos(casterPos.x, casterPos.y);
+        const b = toLos(x, y);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
         const distance = Math.abs(dx) + Math.abs(dy);
 
         // Mêlée (PO 0)
@@ -133,19 +290,27 @@ export function SpellRangeGrid({
         // Hors des bornes de portée
         if (distance < minRange || distance > maxRange) return false;
 
-        // Lancer en ligne uniquement (croix cardinale : dx === 0 ou dy === 0)
+        // Lancer en ligne uniquement (même axe losange)
         if (castInLine && !castInDiagonal) {
             return dx === 0 || dy === 0;
         }
 
-        // Lancer en diagonale uniquement (|dx| === |dy|)
+        // Lancer en diagonale uniquement
         if (castInDiagonal && !castInLine) {
             return Math.abs(dx) === Math.abs(dy);
         }
 
-        // Si à la fois ligne et diagonale (étoile à 8 branches)
+        // Ligne et diagonale (étoile à 8 branches)
         if (castInLine && castInDiagonal) {
             return dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+        }
+
+        // Ligne de vue : un mur (obstacle réel de la map) intercepte le tir.
+        if (castTestLos && distance > 0) {
+            const path = lineCells(casterPos.x, casterPos.y, x, y).slice(1);
+            const last = path[path.length - 1];
+            if (last && last.x === x && last.y === y) path.pop();
+            if (path.some((c) => isObstacle(c.x, c.y))) return false;
         }
 
         // Portée libre (cercle de Manhattan)
@@ -155,29 +320,68 @@ export function SpellRangeGrid({
     // Nombre de cases couvertes
     const reachableCount = useMemo(() => {
         let count = 0;
-        for (let x = 0; x < GRID_SIZE; x++) {
-            for (let y = 0; y < GRID_SIZE; y++) {
+        for (let y = 0; y < gridRows; y++) {
+            for (let x = 0; x < gridCols; x++) {
                 if (isCellInRange(x, y)) count++;
             }
         }
         return count;
-    }, [casterPos, currentSpell]);
+    }, [casterPos, currentSpell, gridRows, gridCols, mapData]);
 
-    // Dimensions des tuiles SVG isométriques
-    const tileWidth = 40;
-    const tileHeight = 20;
-    const DEPTH = 6; // Épaisseur 3D isométrique des tuiles (style Dofensive)
-    const svgWidth = (GRID_SIZE + 1) * tileWidth;
-    const svgHeight = (GRID_SIZE + 1) * tileHeight + 20 + DEPTH;
-    const originX = svgWidth / 2;
-    const originY = 20;
+    // Recentre sur la case de départ du boss (map) ou le centre (grille libre).
+    const recenter = () => {
+        if (mapData && mapData.enemyCells.length) {
+            const p = cellIdToXY(mapData.enemyCells[0]);
+            setCasterPos({ x: p.x, y: p.y });
+            return;
+        }
+        setCasterPos({ x: Math.floor(gridCols / 2), y: Math.floor(gridRows / 2) });
+    };
+
+    // ── Dimensions de rendu ──
+    // Maps réelles : grille brick Dofus (losanges 64×32, quinconce). Grille libre : 17×17 isométrique.
+    const tileW = mapData ? 64 : 40;
+    const tileH = mapData ? 32 : 20;
+    const tileHalfW = tileW / 2;
+    const tileHalfH = tileH / 2;
+    const DEPTH = mapData ? 0 : 6; // extrusion 3D réservée à la grille libre
+
+    let viewX = 0;
+    let viewY = 0;
+    let viewW = 1;
+    let viewH = 1;
+    if (mapData) {
+        const pad = 24;
+        const xMax = gridCols * tileW + tileHalfW;
+        const yMax = (gridRows - 1) * tileHalfH + tileH;
+        viewX = -pad;
+        viewY = -pad;
+        viewW = xMax + pad;
+        viewH = yMax + pad;
+    } else {
+        const originX = ((gridCols + gridRows) / 2) * tileHalfW;
+        const originY = 20;
+        const xMin = originX - gridRows * tileHalfW;
+        const xMax = originX + gridCols * tileHalfW;
+        const yMin = originY;
+        const yMax = originY + (gridRows + gridCols) * tileHalfH + DEPTH;
+        const padX = tileHalfW;
+        const padY = tileHalfH;
+        viewX = Math.floor(xMin - padX);
+        viewY = Math.floor(yMin - padY);
+        viewW = Math.ceil(xMax - xMin + 2 * padX);
+        viewH = Math.ceil(yMax - yMin + 2 * padY);
+    }
+
+    const freeOriginX = ((gridCols + gridRows) / 2) * tileHalfW;
+    const freeOriginY = 20;
 
     return (
         <div className="space-y-4 rounded-3xl bg-zinc-950/90 border border-white/10 p-5 sm:p-6 shadow-2xl backdrop-blur-xl">
             {/* 1. Sélecteur de Sorts (Style Dofensive) */}
             <div>
                 <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 mb-2.5 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" /> Sorts du Boss
+                    <Zap className="w-3.5 h-3.5 text-amber-400" /> Sorts du Boss{dungeonName ? ` — ${dungeonName}` : ""}
                 </p>
                 <div className="flex flex-wrap gap-2">
                     {spells.map((spell) => {
@@ -255,7 +459,7 @@ export function SpellRangeGrid({
 
                         <button
                             type="button"
-                            onClick={() => setCasterPos({ x: CENTER, y: CENTER })}
+                            onClick={recenter}
                             className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1 rounded-lg transition-all ml-auto"
                         >
                             <RotateCcw className="w-3 h-3" /> Recentrer
@@ -264,22 +468,49 @@ export function SpellRangeGrid({
                 </div>
             )}
 
-            {/* 3. SIMULATION ISOMÉTRIQUE INTERACTIVE (Style Dofensive / Dofus) */}
+            {/* 3. SIMULATION TACTIQUE (style Dofensive / Dofus) */}
             <div className="relative rounded-2xl bg-[#161614] border border-white/10 p-2 sm:p-4 overflow-x-auto flex flex-col items-center justify-center select-none shadow-inner">
                 <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
                     <span className="font-bold text-zinc-300">
                         Entité : <strong className="text-amber-400">{bossName}</strong>
                     </span>
                     <span className="text-zinc-500">
-                        Carte : <strong className="text-zinc-400">Map Tactique Isométrique</strong> · {reachableCount} cases couvertes
+                        Carte : <strong className="text-zinc-400">{mapData ? mapData.name : "Map Tactique Isométrique"}</strong>
+                        {mapData?.coordinates ? ` · ${mapData.coordinates.x}, ${mapData.coordinates.y}` : ""} · {reachableCount} cases couvertes
                     </span>
                 </div>
 
+                {/* Sélecteur de map (salles du donjon) */}
+                {dungeonMaps && dungeonMaps.length > 0 && (
+                    <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
+                            <MapIcon className="w-3.5 h-3.5 text-amber-400" /> Salle :
+                        </span>
+                        <select
+                            value={selectedMapId === "empty" ? "" : String(selectedMapId)}
+                            onChange={(e) => setSelectedMapId(e.target.value ? Number(e.target.value) : "empty")}
+                            className="bg-zinc-900 border border-white/10 text-zinc-200 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400/40 max-w-[320px]"
+                        >
+                            <option value="">Map vide</option>
+                            {dungeonMaps.map((m) => (
+                                <option key={m.id} value={m.id}>{m.isBoss ? "⚔ " : ""}{m.name}</option>
+                            ))}
+                        </select>
+                        {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />}
+                        {mapData && (
+                            <span className="text-[11px] text-zinc-400">
+                                Obstacles &amp; salle chargés
+                            </span>
+                        )}
+                        {mapError && <span className="text-[11px] text-red-400">{mapError}</span>}
+                    </div>
+                )}
+
                 <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
                     <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
-                        <button type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all" title="Zoom arrière (Ctrl+molette)">−</button>
+                        <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all" title="Zoom arrière (Ctrl+molette)">−</button>
                         <span className="text-[10px] font-bold text-zinc-400 px-1 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
-                        <button type="button" onClick={() => setZoom((z) => Math.min(2.5, z + 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all" title="Zoom avant">+</button>
+                        <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all" title="Zoom avant">+</button>
                         <button type="button" onClick={() => setZoom(1)} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all" title="Réinitialiser le zoom">1:1</button>
                     </div>
                     <button
@@ -295,6 +526,21 @@ export function SpellRangeGrid({
                         <Users className="w-3.5 h-3.5" />
                         {placingAlly ? "Clique sur une case pour poser/retirer un allié" : `Alliés ${allies.length}/${MAX_ALLIES}`}
                     </button>
+                    {mapData && (
+                        <button
+                            type="button"
+                            onClick={toggleStartCells}
+                            className={cn(
+                                "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
+                                showStartCells
+                                    ? "bg-amber-500/20 border-amber-400 text-amber-300"
+                                    : "bg-zinc-800 border-white/10 text-zinc-400 hover:text-white"
+                            )}
+                            title="Placer le boss et les alliés sur leurs cases de départ réelles"
+                        >
+                            <MapIcon className="w-3.5 h-3.5" /> Placements de départ
+                        </button>
+                    )}
                     {allies.length > 0 && (
                         <button
                             type="button"
@@ -306,146 +552,225 @@ export function SpellRangeGrid({
                     )}
                 </div>
 
-                <div ref={zoomRef} className="flex justify-center relative z-0" style={{ zoom, transformOrigin: "top center" }}>
+                <div ref={zoomRef} className="flex justify-center relative z-0 w-full" style={{ zoom, transformOrigin: "top center" }}>
                 <svg
-                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                    className="max-w-full h-auto drop-shadow-2xl"
-                    style={{ minWidth: "380px", maxWidth: "680px" }}
+                    viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
+                    className="w-full h-auto drop-shadow-2xl"
+                    style={{ minWidth: "380px" }}
                 >
-                    {/* Damier Isométrique Dofus */}
-                    {Array.from({ length: GRID_SIZE }).map((_, rIdx) => {
-                        return Array.from({ length: GRID_SIZE }).map((_, cIdx) => {
-                            const x = cIdx;
-                            const y = rIdx;
+                    {mapData ? (
+                        /* ── MAP RÉELLE : grille en quinconce Dofus (40×14) ── */
+                        Array.from({ length: gridRows }).map((_, r) =>
+                            Array.from({ length: gridCols }).map((_, c) => {
+                                const state = cellState(c, r);
+                                const obs = state === CellState.OBSTACLE;
+                                const spawn = !obs && state === CellState.SPECIAL;
+                                const key = `${c},${r}`;
+                                const isStartAlly = !!startCells?.ally.has(key);
+                                const isStartEnemy = !!startCells?.enemy.has(key);
+                                const { sx, sy } = cellToScreen(c, r, tileW, tileH);
+                                const isCaster = !obs && c === casterPos.x && r === casterPos.y;
+                                const isAllyCell = !obs && allies.some((a) => a.x === c && a.y === r);
+                                const inRange = !obs && isCellInRange(c, r);
+                                const isHovered = hoveredCell?.x === c && hoveredCell?.y === r;
 
-                            // Conversion grille orthogonale (x, y) vers coordonnées écran isométriques
-                            const screenX = originX + (x - y) * (tileWidth / 2);
-                            const screenY = originY + (x + y) * (tileHeight / 2);
+                                const points = `
+                                    ${sx},${sy}
+                                    ${sx + tileHalfW},${sy + tileHalfH}
+                                    ${sx},${sy + tileH}
+                                    ${sx - tileHalfW},${sy + tileHalfH}
+                                `;
 
-                            const isCaster = x === casterPos.x && y === casterPos.y;
-                            const isAllyCell = allies.some((a) => a.x === x && a.y === y);
-                            const inRange = isCellInRange(x, y);
-                            const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
-                            const isEven = (x + y) % 2 === 0;
+                                let fillColor = r % 2 === 0 ? "#8a867a" : "#7c786c";
+                                let strokeColor = "#5a574d";
+                                let strokeWidth = 0.6;
 
-                            // Définition du polygone losange
-                            const points = `
-                                ${screenX},${screenY}
-                                ${screenX + tileWidth / 2},${screenY + tileHeight / 2}
-                                ${screenX},${screenY + tileHeight}
-                                ${screenX - tileWidth / 2},${screenY + tileHeight / 2}
-                            `;
+                                if (obs) {
+                                    fillColor = "#3a372e";
+                                    strokeColor = "#26241e";
+                                    strokeWidth = 1;
+                                } else if (spawn) {
+                                    fillColor = r % 2 === 0 ? "#b99a4e" : "#a88b44";
+                                    strokeColor = "#8a7234";
+                                    strokeWidth = 0.8;
+                                } else if (isStartAlly) {
+                                    fillColor = "#2e5a8a";
+                                    strokeColor = "#4a86c4";
+                                    strokeWidth = 1.2;
+                                } else if (isStartEnemy) {
+                                    fillColor = "#8a3a30";
+                                    strokeColor = "#c65a4a";
+                                    strokeWidth = 1.2;
+                                }
 
-                            // Couleurs exactes Dofus / Dofensive
-                            let fillColor = isEven ? "#635f52" : "#565246"; // Damier terre/roche
-                            let strokeColor = "#3d3930";
-                            let strokeWidth = 0.5;
+                                if (inRange && !obs) {
+                                    fillColor = r % 2 === 0 ? "#79b638" : "#6ea830";
+                                    strokeColor = "#8fd443";
+                                    strokeWidth = 0.8;
+                                }
 
-                            if (inRange) {
-                                fillColor = isEven ? "#79b638" : "#6ea830"; // Vert vif herbe de portée
-                                strokeColor = "#8fd443";
-                                strokeWidth = 0.8;
-                            }
+                                if (isCaster) {
+                                    fillColor = "#6b1d1d";
+                                    strokeColor = "#c53030";
+                                    strokeWidth = 1.5;
+                                } else if (isAllyCell) {
+                                    fillColor = inRange ? "#a11c1c" : "#1e3a5f";
+                                    strokeColor = inRange ? "#ef4444" : "#3b82f6";
+                                    strokeWidth = 1.5;
+                                }
 
-                            if (isCaster) {
-                                fillColor = "#6b1d1d"; // Bordeaux lanceur
-                                strokeColor = "#c53030";
-                                strokeWidth = 1.5;
-                            } else if (isAllyCell) {
-                                // Case d'un joueur (Féca) : bleu équipe, rouge si touché par le sort actif.
-                                fillColor = inRange ? "#a11c1c" : "#1e3a5f";
-                                strokeColor = inRange ? "#ef4444" : "#3b82f6";
-                                strokeWidth = 1.5;
-                            }
+                                if (isHovered && !isCaster && !isAllyCell && !obs) {
+                                    fillColor = inRange ? "#9ae44c" : "#a39e90";
+                                }
 
-                            if (isHovered && !isCaster && !isAllyCell) {
-                                fillColor = inRange ? "#9ae44c" : "#7c7767";
-                            }
-
-                            // Face latérale de l'extrusion isométrique (plus sombre pour la profondeur)
-                            let sideColor = inRange ? "#4c7a1f" : isCaster ? "#4a1212" : isAllyCell ? (inRange ? "#6f1010" : "#122a4a") : "#3a372e";
-
-                            return (
-                                <g key={`${x}-${y}`} className="cursor-pointer">
-                                    {/* Extrusion 3D : face latérale sous la tuile */}
-                                    <polygon
-                                        points={`
-                                            ${screenX - tileWidth / 2},${screenY + tileHeight / 2}
-                                            ${screenX + tileWidth / 2},${screenY + tileHeight / 2}
-                                            ${screenX + tileWidth / 2},${screenY + tileHeight / 2 + DEPTH}
-                                            ${screenX - tileWidth / 2},${screenY + tileHeight / 2 + DEPTH}
-                                        `}
-                                        fill={sideColor}
-                                        stroke={sideColor}
-                                        strokeWidth={0.4}
-                                        onClick={() => handleCellClick(x, y)}
-                                        onMouseEnter={() => setHoveredCell({ x, y })}
-                                        onMouseLeave={() => setHoveredCell(null)}
-                                        className="transition-colors duration-150"
-                                    />
-                                    <polygon
-                                        points={points}
-                                        fill={fillColor}
-                                        stroke={strokeColor}
-                                        strokeWidth={strokeWidth}
-                                        onClick={() => handleCellClick(x, y)}
-                                        onMouseEnter={() => setHoveredCell({ x, y })}
-                                        onMouseLeave={() => setHoveredCell(null)}
-                                        className="transition-colors duration-150"
-                                    />
-                                    {/* Sprite ou Icône du Boss sur la case du lanceur */}
-                                    {isCaster && (
-                                        <g transform={`translate(${screenX - 20}, ${screenY - 22})`} pointerEvents="none">
-                                            {bossImageUrl ? (
-                                                <image
-                                                    href={bossImageUrl}
-                                                    x="0"
-                                                    y="0"
-                                                    width="40"
-                                                    height="40"
-                                                    className="drop-shadow-2xl"
-                                                />
-                                            ) : (
-                                                <text
-                                                    x="20"
-                                                    y="26"
-                                                    textAnchor="middle"
-                                                    fontSize="22"
-                                                    className="select-none"
-                                                >
-                                                    👑
-                                                </text>
-                                            )}
-                                        </g>
-                                    )}
-                                    {/* Flèche d'orientation du boss */}
-                                    {isCaster && (
-                                        <g transform={`translate(${screenX}, ${screenY + 22}) rotate(${bossFacing})`} pointerEvents="none">
-                                            <polygon points="0,-9 -5,5 5,5" fill="#fbbf24" opacity="0.95" />
-                                        </g>
-                                    )}
-
-                                    {/* Alliés posés : sprite de classe posé comme le boss, case ciblée */}
-                                    {allies.map((ally, ai) => {
-                                        if (ally.x !== x || ally.y !== y) return null;
-                                        const isSel = selectedAlly === ai;
-                                        return (
-                                            <g key={`ally-${ai}`} pointerEvents="none">
-                                                {isSel && (<circle cx={screenX} cy={screenY + 10} r="20" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
-                                                <g transform={`translate(${screenX - 18}, ${screenY - 20})`}>
-                                                    <image href="/assets/module-succes/feca.webp" x="0" y="0" width="36" height="36" className="drop-shadow-2xl" />
-                                                </g>
-                                                {/* Flèche d'orientation (comme le boss) */}
-                                                <g transform={`translate(${screenX}, ${screenY + 20}) rotate(${ally.facing})`}>
-                                                    <polygon points="0,-8 -4,4 4,4" fill="#ffffff" opacity="0.9" />
-                                                </g>
+                                return (
+                                    <g key={`${c}-${r}`} className={obs ? "" : "cursor-pointer"}>
+                                        <polygon
+                                            points={points}
+                                            fill={fillColor}
+                                            stroke={strokeColor}
+                                            strokeWidth={strokeWidth}
+                                            onClick={() => handleCellClick(c, r)}
+                                            onMouseEnter={() => setHoveredCell({ x: c, y: r })}
+                                            onMouseLeave={() => setHoveredCell(null)}
+                                            className="transition-colors duration-150"
+                                        />
+                                        {isCaster && (
+                                            <g transform={`translate(${sx - 20}, ${sy - 12})`} pointerEvents="none">
+                                                {bossImageUrl ? (
+                                                    <image href={bossImageUrl} x="0" y="0" width="40" height="40" className="drop-shadow-2xl" />
+                                                ) : (
+                                                    <text x="20" y="26" textAnchor="middle" fontSize="22" className="select-none">👑</text>
+                                                )}
                                             </g>
-                                        );
-                                    })}
-                                </g>
-                            );
-                        });
-                    })}
+                                        )}
+                                        {isCaster && (
+                                            <g transform={`translate(${sx}, ${sy + 18}) rotate(${bossFacing})`} pointerEvents="none">
+                                                <polygon points="0,-8 -4,4 4,4" fill="#fbbf24" opacity="0.95" />
+                                            </g>
+                                        )}
+                                        {allies.map((ally, ai) => {
+                                            if (ally.x !== c || ally.y !== r) return null;
+                                            const isSel = selectedAlly === ai;
+                                            return (
+                                                <g key={`ally-${ai}`} pointerEvents="none">
+                                                    {isSel && (<circle cx={sx} cy={sy + 10} r="18" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                                    <g transform={`translate(${sx - 16}, ${sy - 18})`}>
+                                                        <image href="/assets/module-succes/feca.webp" x="0" y="0" width="32" height="32" className="drop-shadow-2xl" />
+                                                    </g>
+                                                    <g transform={`translate(${sx}, ${sy + 16}) rotate(${ally.facing})`}>
+                                                        <polygon points="0,-7 -3,3 3,3" fill="#ffffff" opacity="0.9" />
+                                                    </g>
+                                                </g>
+                                            );
+                                        })}
+                                    </g>
+                                );
+                            })
+                        )
+                    ) : (
+                        /* ── GRILLE LIBRE : damier isométrique 17×17 ── */
+                        Array.from({ length: gridRows }).map((_, rIdx) =>
+                            Array.from({ length: gridCols }).map((_, cIdx) => {
+                                const x = cIdx;
+                                const y = rIdx;
+                                const sx = freeOriginX + (x - y) * tileHalfW;
+                                const sy = freeOriginY + (x + y) * tileHalfH;
+                                const isCaster = x === casterPos.x && y === casterPos.y;
+                                const isAllyCell = allies.some((a) => a.x === x && a.y === y);
+                                const inRange = isCellInRange(x, y);
+                                const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
+                                const isEven = (x + y) % 2 === 0;
+
+                                const points = `
+                                    ${sx},${sy}
+                                    ${sx + tileHalfW},${sy + tileHalfH}
+                                    ${sx},${sy + tileH}
+                                    ${sx - tileHalfW},${sy + tileHalfH}
+                                `;
+
+                                let fillColor = isEven ? "#635f52" : "#565246";
+                                let strokeColor = "#3d3930";
+                                let strokeWidth = 0.5;
+
+                                if (inRange) {
+                                    fillColor = isEven ? "#79b638" : "#6ea830";
+                                    strokeColor = "#8fd443";
+                                    strokeWidth = 0.8;
+                                }
+
+                                if (isCaster) {
+                                    fillColor = "#6b1d1d";
+                                    strokeColor = "#c53030";
+                                    strokeWidth = 1.5;
+                                } else if (isAllyCell) {
+                                    fillColor = inRange ? "#a11c1c" : "#1e3a5f";
+                                    strokeColor = inRange ? "#ef4444" : "#3b82f6";
+                                    strokeWidth = 1.5;
+                                }
+
+                                if (isHovered && !isCaster && !isAllyCell) {
+                                    fillColor = inRange ? "#9ae44c" : "#7c7767";
+                                }
+
+                                const sideColor = inRange ? "#4c7a1f" : isCaster ? "#4a1212" : isAllyCell ? (inRange ? "#6f1010" : "#122a4a") : "#3a372e";
+
+                                return (
+                                    <g key={`${x}-${y}`} className="cursor-pointer">
+                                        <polygon
+                                            points={`${sx - tileHalfW},${sy + tileHalfH} ${sx + tileHalfW},${sy + tileHalfH} ${sx + tileHalfW},${sy + tileHalfH + DEPTH} ${sx - tileHalfW},${sy + tileHalfH + DEPTH}`}
+                                            fill={sideColor}
+                                            stroke={sideColor}
+                                            strokeWidth={0.4}
+                                            onClick={() => handleCellClick(x, y)}
+                                            onMouseEnter={() => setHoveredCell({ x, y })}
+                                            onMouseLeave={() => setHoveredCell(null)}
+                                            className="transition-colors duration-150"
+                                        />
+                                        <polygon
+                                            points={points}
+                                            fill={fillColor}
+                                            stroke={strokeColor}
+                                            strokeWidth={strokeWidth}
+                                            onClick={() => handleCellClick(x, y)}
+                                            onMouseEnter={() => setHoveredCell({ x, y })}
+                                            onMouseLeave={() => setHoveredCell(null)}
+                                            className="transition-colors duration-150"
+                                        />
+                                        {isCaster && (
+                                            <g transform={`translate(${sx - 20}, ${sy - 22})`} pointerEvents="none">
+                                                {bossImageUrl ? (
+                                                    <image href={bossImageUrl} x="0" y="0" width="40" height="40" className="drop-shadow-2xl" />
+                                                ) : (
+                                                    <text x="20" y="26" textAnchor="middle" fontSize="22" className="select-none">👑</text>
+                                                )}
+                                            </g>
+                                        )}
+                                        {isCaster && (
+                                            <g transform={`translate(${sx}, ${sy + 22}) rotate(${bossFacing})`} pointerEvents="none">
+                                                <polygon points="0,-9 -5,5 5,5" fill="#fbbf24" opacity="0.95" />
+                                            </g>
+                                        )}
+                                        {allies.map((ally, ai) => {
+                                            if (ally.x !== x || ally.y !== y) return null;
+                                            const isSel = selectedAlly === ai;
+                                            return (
+                                                <g key={`ally-${ai}`} pointerEvents="none">
+                                                    {isSel && (<circle cx={sx} cy={sy + 10} r="20" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                                    <g transform={`translate(${sx - 18}, ${sy - 20})`}>
+                                                        <image href="/assets/module-succes/feca.webp" x="0" y="0" width="36" height="36" className="drop-shadow-2xl" />
+                                                    </g>
+                                                    <g transform={`translate(${sx}, ${sy + 20}) rotate(${ally.facing})`}>
+                                                        <polygon points="0,-8 -4,4 4,4" fill="#ffffff" opacity="0.9" />
+                                                    </g>
+                                                </g>
+                                            );
+                                        })}
+                                    </g>
+                                );
+                            })
+                        )
+                    )}
                 </svg>
                 </div>
 
@@ -456,10 +781,16 @@ export function SpellRangeGrid({
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> Dans la portée du sort</span>
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Allié hors de portée</span>
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par le sort</span>
+                    {mapData && (
+                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#3a372e", border: "1px solid #26241e" }} /> Obstacle (mur)</span>
+                    )}
+                    {mapData && (
+                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#b99a4e" }} /> Case spéciale</span>
+                    )}
                 </div>
 
                 <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                    💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez sur lui pour le faire pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Alliés » : pose/retire des joueurs.
+                    💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez sur lui pour le faire pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
                 </p>
             </div>
         </div>

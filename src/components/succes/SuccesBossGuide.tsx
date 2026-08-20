@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Brain, Compass, ExternalLink, Flame, Loader2, MapPin, ScrollText, Search, Shield, Swords, Target, Users, X, Zap } from "lucide-react";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
+import { getDofensiveDungeonForBoss, type DofensiveDungeonInfo } from "@/server/actions/dofensive-actions";
 import { cn } from "@/lib/utils";
 import { SpellData, SpellRangeGrid } from "./SpellRangeGrid";
 
@@ -86,6 +87,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
     const [detailTab, setDetailTab] = useState<"overview" | "sim" | "loot" | "goals">("overview");
     const [linkedQuestsByDungeon, setLinkedQuestsByDungeon] = useState<Record<string, LinkedQuestsData>>({});
+    // Maps du donjon (salles réelles) récupérées chez Dofensive pour le boss courant.
+    const [dungeonMapsByBoss, setDungeonMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>({});
 
     // Charger les donjons → pour chacun, charger la fiche monstre en arrière-plan
     useEffect(() => {
@@ -157,6 +160,27 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selected?.id]);
+
+    // Salles du donjon (maps Dofensive) pour le boss courant — lazy, une seule fois par boss.
+    useEffect(() => {
+        const d = selected;
+        if (!d) return;
+        const boss = activeMonsterName ?? d.bossName;
+        if (!boss || dungeonMapsByBoss[boss] !== undefined) return;
+        let cancelled = false;
+        getDofensiveDungeonForBoss(boss)
+            .then((res) => {
+                if (cancelled) return;
+                setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: res.success && res.data ? res.data : null }));
+            })
+            .catch(() => {
+                if (!cancelled) setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: null }));
+            });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selected?.id, activeMonsterName]);
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -520,6 +544,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 onSelectSpell={(spell) => setSelectedSpellId(spell.id)}
                                 bossName={activeMonsterName ?? selected.bossName}
                                 bossImageUrl={statsOf(selected)?.imageUrl}
+                                dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.maps}
+                                dungeonName={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.dungeonName}
                             />
                         </div>
                     )}

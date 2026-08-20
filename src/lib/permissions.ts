@@ -19,6 +19,7 @@ export const PERMISSIONS = {
     COMMUNITY_ACCESS: "community:access",
     COMMUNITY_MOD: "community:mod",
     AVAILABILITY_VIEW: "availability:view",
+    RESOURCES_MANAGE: "resources:manage",
 
     // Missions
     MISSIONS_PLAY: "missions:play",
@@ -124,6 +125,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Consulter les disponibilités et absences des membres dans l'annuaire et remplir son planning perso (module Disponibilités).",
         module: "community",
         modules: ["Annuaire (Disponibilités)", "Profil (Planning)"]
+    },
+    [PERMISSIONS.RESOURCES_MANAGE]: {
+        label: "Gérer les Ressources",
+        description: "#127 — Créer, modifier et supprimer les liens, catégories et créateurs de contenu de la page Ressources Dofus (délégation aux officiers, sans passer par le God).",
+        module: "community",
+        modules: ["Ressources Dofus (édition)"]
     },
 
 

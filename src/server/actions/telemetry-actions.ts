@@ -69,6 +69,8 @@ export async function getTelemetryStats(filterGuildId?: string) {
             pageViews24h,
             interactions24h,
             uniqueUsers24h,
+            uniqueUsers7d,
+            guildsActive7d,
             liveEvents,
             topPathsRaw,
             topInteractionsRaw,
@@ -95,6 +97,18 @@ export async function getTelemetryStats(filterGuildId?: string) {
             dbAny.telemetryEvent.groupBy({
                 by: ["userId"],
                 where: withGuild({ createdAt: { gte: oneDayAgo } }),
+                _count: true
+            }),
+            // #34 — 7d unique users (WAU, pour le ratio DAU/WAU)
+            dbAny.telemetryEvent.groupBy({
+                by: ["userId"],
+                where: withGuild({ createdAt: { gte: sevenDaysAgo } }),
+                _count: true
+            }),
+            // #34 — guildes actives sur 7j (rétention produit, scope global uniquement)
+            guildWhere ? Promise.resolve([]) : dbAny.telemetryEvent.groupBy({
+                by: ["guildId"],
+                where: { guildId: { not: null }, createdAt: { gte: sevenDaysAgo } },
                 _count: true
             }),
             // Live activity (last 100 events)
@@ -353,6 +367,12 @@ export async function getTelemetryStats(filterGuildId?: string) {
                 pageViews24h,
                 interactions24h,
                 uniqueUsers24h: uniqueUsers24h.length,
+                // #34 — volet Data/Product : WAU, guildes actives 7j, ratio d'engagement.
+                uniqueUsers7d: uniqueUsers7d.length,
+                guildsActive7d: Array.isArray(guildsActive7d) ? guildsActive7d.length : 0,
+                engagementRatio: pageViews24h > 0
+                    ? Number(((interactions24h / pageViews24h) * 100).toFixed(1))
+                    : 0,
                 averageActionsPerUser: uniqueUsers24h.length > 0
                     ? Number(((pageViews24h + interactions24h) / uniqueUsers24h.length).toFixed(1))
                     : 0

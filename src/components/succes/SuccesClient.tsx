@@ -2,10 +2,12 @@
 
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { User, Users } from "lucide-react";
+import { Swords, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SuccesTracker } from "./SuccesTracker";
 import { SuccesDirectory } from "./SuccesDirectory";
+import { SuccesBossGuide } from "./SuccesBossGuide";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 interface SuccesClientProps {
     guildId: string;
@@ -28,10 +30,11 @@ export function SuccesClient({
 }: SuccesClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const view: "moi" | "guilde" = searchParams.get("view") === "guilde" ? "guilde" : "moi";
+    const view: "moi" | "guilde" | "boss" =
+        searchParams.get("view") === "guilde" ? "guilde" : searchParams.get("view") === "boss" ? "boss" : "moi";
 
     const setView = useCallback(
-        (next: "moi" | "guilde") => {
+        (next: "moi" | "guilde" | "boss") => {
             const params = new URLSearchParams(searchParams.toString());
             params.set("view", next);
             if (next === "guilde") params.delete("dungeon");
@@ -44,6 +47,7 @@ export function SuccesClient({
         () => [
             { id: "moi" as const, label: "Mes Succès", sub: "Ma progression", icon: User, disabled: !canEditOwnSucces },
             { id: "guilde" as const, label: "Succès Commun", sub: "Qui a quoi", icon: Users, disabled: !canViewGuildSucces },
+            { id: "boss" as const, label: "Fiches Boss", sub: "Sorts & guides", icon: Swords, disabled: false },
         ],
         [canEditOwnSucces, canViewGuildSucces]
     );
@@ -52,6 +56,7 @@ export function SuccesClient({
         <div className="space-y-6">
             {/* Sélecteur de vue (2 vues, pas 3 — les Points ladder restent sur le profil/Ladder) */}
             <div className="flex flex-wrap items-center gap-3" data-tour="succes-views">
+                <ModuleTourReplayButton phase="succes" />
                 {views.map((v) => {
                     const Icon = v.icon;
                     const active = view === v.id;
@@ -91,6 +96,8 @@ export function SuccesClient({
 
             {view === "moi" ? (
                 <SuccesTracker guildId={guildId} canEdit={canEditOwnSucces} />
+            ) : view === "boss" ? (
+                <SuccesBossGuide guildId={guildId} />
             ) : (
                 <SuccesDirectory guildId={guildId} />
             )}

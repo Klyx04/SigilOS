@@ -100,27 +100,27 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             {/* Header / Control Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 pb-6 border-b border-white/5">
                 <div className="space-y-1">
-                    <h2 className="text-2xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
-                        <Cpu className="w-6 h-6 text-violet-400 animate-pulse" />
+                    <h2 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+                        <Cpu className="w-6 h-6 text-accent" />
                         Télémétrie & Analyse d'usage
                     </h2>
-                    <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                         Activité, fréquentation des modules et comportements par guilde
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
                     {/* Guild Filter Dropdown */}
-                    <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/10 px-3 py-1.5 rounded-xl">
-                        <Globe className="w-4 h-4 text-violet-400 shrink-0" />
+                    <div className="flex items-center gap-2 bg-surface border border-border px-3 py-1.5 rounded-xl">
+                        <Globe className="w-4 h-4 text-accent shrink-0" />
                         <select
                             value={selectedGuildId}
                             onChange={(e) => handleGuildChange(e.target.value)}
-                            className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer pr-2"
+                            className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-2"
                         >
-                            <option value="all" className="bg-zinc-900 text-white">Toutes les Guildes (Global)</option>
+                            <option value="all">Toutes les Guildes (Global)</option>
                             {stats.availableGuilds?.map((g: any) => (
-                                <option key={g.id} value={g.id} className="bg-zinc-900 text-white">
+                                <option key={g.id} value={g.id}>
                                     Guilde: {g.name}
                                 </option>
                             ))}
@@ -131,15 +131,15 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <button
                         onClick={() => setIsAutoRefresh(!isAutoRefresh)}
                         className={cn(
-                            "flex items-center gap-2.5 px-4 py-2 rounded-xl text-caption font-black uppercase tracking-wider transition-all border",
-                            isAutoRefresh 
-                                ? "bg-violet-500/10 text-violet-400 border-violet-500/20" 
-                                : "bg-zinc-900/50 text-zinc-500 border-white/5 hover:text-zinc-300"
+                            "flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border",
+                            isAutoRefresh
+                                ? "bg-accent-soft text-accent border-accent/30"
+                                : "bg-surface text-muted-foreground border-border hover:text-foreground"
                         )}
                     >
                         <span className={cn(
                             "w-2.5 h-2.5 rounded-full",
-                            isAutoRefresh ? "bg-violet-400 animate-ping" : "bg-zinc-600"
+                            isAutoRefresh ? "bg-accent" : "bg-muted-foreground/50"
                         )} />
                         {isAutoRefresh ? `Auto : ${countdown}s` : "Auto-Refresh Off"}
                     </button>
@@ -148,7 +148,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                     <button
                         onClick={() => refreshData()}
                         disabled={isPending}
-                        className="p-2.5 rounded-xl bg-zinc-900 border border-white/5 hover:border-white/10 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="p-2.5 rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
                     >
                         <RefreshCw className={cn("w-4 h-4 group-hover:rotate-180 transition-all duration-300", isPending && "animate-spin")} />
                     </button>
@@ -188,69 +188,91 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             </div>
 
             {/* KPI Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Pages Views Card */}
-                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 hover:bg-zinc-900/20 transition-all group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full" />
+                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Pages Vues (24h)</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Pages Vues (24h)</span>
+                            <span className="text-3xl font-black text-foreground tracking-tight block">
                                 {stats.summary.pageViews24h.toLocaleString()}
                             </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-400 shrink-0">
+                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
                             <Globe className="w-5 h-5" />
                         </div>
                     </div>
                 </div>
 
                 {/* Clicks/Interactions Card */}
-                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 hover:bg-zinc-900/20 transition-all group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full" />
+                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Interactions (24h)</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Interactions (24h)</span>
+                            <span className="text-3xl font-black text-foreground tracking-tight block">
                                 {stats.summary.interactions24h.toLocaleString()}
                             </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
                             <MousePointer className="w-5 h-5" />
                         </div>
                     </div>
                 </div>
 
                 {/* Unique Active Users Card */}
-                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 hover:bg-zinc-900/20 transition-all group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
+                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Users Actifs (24h)</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Users Actifs (24h)</span>
+                            <span className="text-3xl font-black text-foreground tracking-tight block">
                                 {stats.summary.uniqueUsers24h.toLocaleString()}
                             </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
                             <Users className="w-5 h-5" />
                         </div>
                     </div>
                 </div>
 
                 {/* Intensity Indicator Card */}
-                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 hover:bg-zinc-900/20 transition-all group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full" />
+                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest block">Actions Moy. / User</span>
-                            <span className="text-4xl font-black text-white tracking-tighter block group- transition-all duration-300">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Actions Moy. / User</span>
+                            <span className="text-3xl font-black text-foreground tracking-tight block">
                                 {stats.summary.averageActionsPerUser}
                             </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
+                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
                             <Flame className="w-5 h-5" />
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* #34 — Volet Data/Product : DAU/WAU, guildes actives, engagement */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">DAU / WAU</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">
+                        {stats.summary.uniqueUsers24h} / {stats.summary.uniqueUsers7d}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Utilisateurs actifs 24h / 7j (rétention)</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Guildes actives (7j)</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.guildsActive7d}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Guildes avec de l'activité cette semaine</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Engagement (24h)</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.engagementRatio}%</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Interactions / pages vues</p>
+                </div>
+                <div className="p-4 rounded-2xl border border-border bg-surface/40">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Événements totaux</p>
+                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.totalEvents.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Depuis le début de la télémétrie</p>
                 </div>
             </div>
 

@@ -20,7 +20,8 @@ import { redis } from "@/lib/redis";
 // In-memory cache for configs and user context
 const configCache = new Map<string, { data: any, expiresAt: number }>();
 const profileCache = new Map<string, { data: any, expiresAt: number }>();
-const CACHE_TTL = 60; // 60 seconds — must stay short so role revocations propagate quickly
+const MEMORY_CACHE_TTL_MS = 60 * 1000; // 60 seconds in milliseconds
+const REDIS_CACHE_TTL_SEC = 60; // 60 seconds for Redis EX
 // I-02: Bound the in-memory caches to prevent unbounded growth (OOM risk in prod).
 // Simple manual LRU (Map preserves insertion order) — no external dependency needed.
 const MAX_CACHE_ENTRIES = 500;
@@ -432,10 +433,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         });
-        if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + CACHE_TTL });
+        if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
     }
 
-    const actualDiscordGuildId = guildConfig?.discordGuildId || effectiveGuildId;
+    if (!guildConfig) {
+        logger.warn(`[UserContext] GuildConfig not found in database for guild ${effectiveGuildId}`);
+        return { ...baseContext, isAuthenticated: false };
+    }
+
+    const actualDiscordGuildId = guildConfig.discordGuildId || effectiveGuildId;
 
     // --- SECURITY: DEEP WHITELIST CHECK ---
     const allowed = await isGuildAllowed(actualDiscordGuildId);
@@ -508,7 +514,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         });
-        if (profile) setBoundedCache(profileCache, profileCacheKey, { data: profile, expiresAt: Date.now() + CACHE_TTL });
+        if (profile) setBoundedCache(profileCache, profileCacheKey, { data: profile, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
     }
 
     let memberFetchFailed = false;
@@ -708,11 +714,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         : {};
 
     const isRbacConfigured = Object.values(rolesMapping).some(perms =>
-        Array.isArray(perms) && (
-            perms.includes("dashboard:login" as PermissionId) ||
-            perms.includes("dashboard:access" as PermissionId) ||
-            perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
-        )
+        Array.isArray(perms) && perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
     );
     // Onboarding complet = serveur de jeu configuré (dofusServerId) ET rôles & permissions (RBAC).
     // Cohérent avec onboarding-actions.ts (2 étapes obligatoires).
@@ -752,12 +754,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     }
 
     // 2. Authorization Check (The Gatekeeper) — STRICT DENY-BY-DEFAULT
-    // A role MUST have DASHBOARD_LOGIN explicitly to pass. No legacy fallback.
+    // DASHBOARD_LOGIN is the ONLY permission that grants dashboard access.
+    // COMMUNITY_ACCESS is a feature permission (Annuaire/Calendrier), NOT a login permission.
+    // The onboarding flow enforces this: admins MUST assign dashboard:login to at least one role.
     const hasAuthorizedRole = memberRoles.some(rId => {
         const perms = rolesMapping[rId];
         if (!perms || perms.length === 0) return false;
-        return perms.includes(PERMISSIONS.DASHBOARD_LOGIN) || perms.includes(PERMISSIONS.COMMUNITY_ACCESS);
-    }) || individualMapping[discordUserId]?.some(p => p === PERMISSIONS.DASHBOARD_LOGIN || p === PERMISSIONS.COMMUNITY_ACCESS);
+        return perms.includes(PERMISSIONS.DASHBOARD_LOGIN);
+    }) || individualMapping[discordUserId]?.some(p => p === PERMISSIONS.DASHBOARD_LOGIN);
 
     // SECURITY FIX (fail-open RBAC):
     // Previously, `memberFetchFailed` alone granted access to ANY authenticated user
@@ -1127,9 +1131,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // SECURITY/UX: ne JAMAIS mettre en cache un contexte "refusé" (guilde non
     // autorisée OU rôle insuffisant) : sinon un rôle octroyé resterait ignoré
     // jusqu'à expiration du TTL (latence "il faut attendre" après l'octroi).
-    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard;
+    // Ne JAMAIS mettre en cache un contexte incomplet (onboarding non terminé) :
+    // sinon un "isOnboardingComplete: false" transitoire resterait actif 60s
+    // même après que l'admin ait fini la configuration de la guilde.
+    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard || !finalContext.isOnboardingComplete;
     if (!isDeniedContext) {
-        await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => { });
+        await redis.set(redisKey, JSON.stringify(finalContext), "EX", REDIS_CACHE_TTL_SEC).catch(() => { });
     }
 
     return finalContext;
@@ -1422,7 +1429,7 @@ export async function internalCheckPermission(
                 where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
                 select: { id: true, discordGuildId: true, rolesMapping: true, usersMapping: true }
             });
-            if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + CACHE_TTL });
+            if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
         }
         if (!guildConfig) return false;
 

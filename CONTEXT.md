@@ -25,21 +25,23 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
-> ### SESSION 05/10 — Sélecteur de map Dofensive + simulation (6 commits POUSSÉS)
-> `d1b20c20e` · `c94319206` · `2e6b4f5aa` · `b9b59f2d1` · `a12d4f95c` · `f1c6119ae` —
-> **maps réelles des boss via l'API publique Dofensive** (dofensive.com/api/dofus2/bestiary) :
-> couche serveur `dofensive-actions.ts` (dungeons/maps/monsters, cache 24h, matching
-> multi-donjons via `?dungeon=` + heuristique boss en tête, maps de boss marquées ⚔) ·
-> géométrie **Dofus 3 exacte** dans `dofus-grid.ts` (rendu **quinconce**, cellId→(col,row)
-> validé empiriquement 24/24, repère losange pour la distance, `CellState`
-> VOID/HOLE/GROUND/OBSTACLE + `classifyGrid` : case impossible=`1`→noir, case obstacle=`2`→3D,
-> trou ne bloque pas la LdV) + 10 tests · `SpellRangeGrid` : vraies maps, **cases impossibles
-> noires**, **obstacles 3D prismatiques** (3 faces, masquage des faces accolées, tri par
-> profondeur row+col), palette **kaki/beige désaturé** (debug.md), LoS avec murs, placements
-> de départ (toggle), SVG **pleine largeur**, **sprites boss/alliés agrandis**, grille libre
-> 17×17 · démo `/demo/boss-sim?boss=&dungeon=` (Comte Harebourg + Servitude/Fers de la
-> Tyrannie). Vérifs : tsc 0 · lint 0 erreur · **239/239** · build OK. **6 commits POUSSÉS**
-> (classification corrigée en dernier `f1c6119ae` — case impossible vs case obstacle).
+> ### SESSION 05/10 — Sélecteur de map Dofensive + simulation (9 commits POUSSÉS)
+> `d1b20c20e` · `c94319206` · `2e6b4f5aa` · `b9b59f2d1` · `a12d4f95c` · `f1c6119ae` ·
+> `97bef55d2` · `db538137f` · `6ef9200ac` — **maps réelles des boss via l'API publique
+> Dofensive** (dofensive.com/api/dofus2/bestiary) : couche serveur `dofensive-actions.ts`
+> (dungeons/maps/monsters/spells, cache 24h, matching multi-donjons `?dungeon=`, maps de
+> boss ⚔ via PreferredMaps, **garde anti-SSRF** = allowlist de chemins + IDs entiers) ·
+> géométrie **Dofus 3 exacte** dans `dofus-grid.ts` (quinconce, cellId→(col,row) validé,
+> `CellState` VOID/HOLE/GROUND/OBSTACLE + `classifyGrid` : case impossible=`1`→noir,
+> case obstacle=`2`→3D, trou ne bloque pas la LdV, `castRangeDistance` PO dans l'axe pour
+> sorts contraints) + tests · `SpellRangeGrid` : vraies maps, **cases impossibles noires**,
+> **obstacles 3D prismatiques**, palette kaki/beige désaturé (debug.md), LoS avec murs,
+> placements de départ (toggle), SVG pleine largeur, sprites boss/alliés agrandis · **repasse
+> sorts Dofensive** : `getDofensiveSpells` (StartingSpell du Grade inclus, icônes CDN
+> distinctes, cooldown/maxCast/CC/×cible/effets FR, zones AoE), fusion Dofensive/DofusDB,
+> **permutation ligne/diagonale** (diagonale = axes X, ligne = axes droits), prévisu de zone
+> au survol (Cercle/Croix) · démo `/demo/boss-sim?boss=&dungeon=` + fiche boss. Vérifs :
+> tsc 0 · lint 0 erreur · **251/251** · build OK. **9 commits POUSSÉS**.
 > Mémo : `src/temp/memo-2026-10-05-chantier-dofensive-maps.md`. Amorce :
 > `src/temp/prompt-next-chantier-2026-10-05.md`.
 > — PR : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07

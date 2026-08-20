@@ -25,19 +25,20 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
-> ### SESSION 05/10 — Sélecteur de map Dofensive + simulation (2 commits)
-> `d1b20c20e` · `c94319206` — **maps réelles des boss via l'API publique Dofensive**
+> ### SESSION 05/10 — Sélecteur de map Dofensive + simulation (4 commits)
+> `d1b20c20e` · `c94319206` · `b9b59f2d1` — **maps réelles des boss via l'API publique Dofensive**
 > (dofensive.com/api/dofus2/bestiary) : couche serveur `dofensive-actions.ts`
 > (dungeons/maps/monsters, cache 24h, matching multi-donjons via `?dungeon=` +
 > heuristique boss en tête, maps de boss marquées ⚔) · géométrie **Dofus 3 exacte**
 > dans `dofus-grid.ts` (rendu **quinconce**, cellId→(col,row) validé empiriquement
-> 24/24, repère losange pour la distance, `CellState` VOID/HOLE/GROUND/OBSTACLE/
-> SPECIAL/START + `classifyGrid`) + 8 tests · `SpellRangeGrid` : vraies maps (fini
-> les « grands rectangles »), **VOID noir** (hors-carte), **obstacles 3D** en
-> extrusion, LoS avec murs, placements de départ (toggle), SVG **pleine largeur**,
-> flèches boss supprimées, grille libre 17×17 conservée · démo `/demo/boss-sim?boss=&dungeon=`
-> (Comte Harebourg + Servitude/Fers de la Tyrannie) · intégration fiche boss.
-> Vérifs : tsc 0 · lint 0 erreur · **237/237** · build OK. **Commits LOCAUX — À POUSSER**.
+> 24/24, repère losange pour la distance, `CellState` VOID/HOLE/GROUND/OBSTACLE +
+> `classifyGrid` : trous=`2`→noir, obstacles=`1`→3D si entourés de sol ≥4) + 8 tests ·
+> `SpellRangeGrid` : vraies maps, **VOID noir + trous noirs**, **obstacles 3D
+> prismatiques** (3 faces, masquage des faces accolées, tri par profondeur row+col),
+> palette **kaki/beige désaturé** (debug.md), LoS avec murs, placements de départ
+> (toggle), SVG **pleine largeur**, **sprites boss/alliés agrandis**, grille libre 17×17 ·
+> démo `/demo/boss-sim?boss=&dungeon=` (Comte Harebourg + Servitude/Fers de la Tyrannie).
+> Vérifs : tsc 0 · lint 0 erreur · **237/237** · build OK. **4 commits LOCAUX — À POUSSER**.
 > Mémo : `src/temp/memo-2026-10-05-chantier-dofensive-maps.md`. Amorce :
 > `src/temp/prompt-next-chantier-2026-10-05.md`.
 > — PR : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07

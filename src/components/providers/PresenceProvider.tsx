@@ -5,19 +5,37 @@ type ChatMessage = any;
 
 type OnlineUser = { id: string; name: string; image?: string };
 
+// #186 — Deux contexts séparés pour éviter le re-render cascade :
+// - PresenceContext (stable) : onlineUsers + isConnected → mise à jour rare
+// - ChatMessageContext (volatile) : lastMessage → mise à jour à chaque message SSE
+//   Seuls les composants qui consomment le chat re-rendent à chaque message.
+
 interface PresenceContextType {
     onlineUsers: OnlineUser[];
     isConnected: boolean;
+}
+
+interface ChatMessageContextType {
     lastMessage: ChatMessage | null;
 }
 
 const PresenceContext = createContext<PresenceContextType>({
     onlineUsers: [],
     isConnected: false,
+});
+
+const ChatMessageContext = createContext<ChatMessageContextType>({
     lastMessage: null,
 });
 
 export const usePresence = () => useContext(PresenceContext);
+export const useChatMessage = () => useContext(ChatMessageContext);
+
+/** @deprecated — utiliser usePresence() + useChatMessage() séparément */
+export const usePresenceLegacy = () => ({
+    ...useContext(PresenceContext),
+    ...useContext(ChatMessageContext),
+});
 
 export function PresenceProvider({
     children,
@@ -34,7 +52,6 @@ export function PresenceProvider({
 
     const esRef = useRef<EventSource | null>(null);
     const connectionIdRef = useRef<string>(Math.random().toString(36).slice(2));
-    // Track whether we've sent the join message this session
     const hasJoinedRef = useRef(false);
 
     // Main SSE connection — reconnects only when guildId changes
@@ -49,7 +66,6 @@ export function PresenceProvider({
             connectionIdRef.current = Math.random().toString(36).slice(2);
         }
 
-        // Pass current isActive at connection time
         const es = new EventSource(
             `/api/chat/guild/${guildId}/stream?connectionId=${connectionIdRef.current}&active=${isActive}`
         );
@@ -63,13 +79,15 @@ export function PresenceProvider({
         es.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data) as ChatMessage;
+                // lastMessage volatile → ChatMessageContext (re-render isolé)
                 setLastMessage({ ...msg, _ts: Date.now() });
 
                 if (msg.type === "presence" && msg.onlineUsers) {
+                    // onlineUsers stable → PresenceContext (re-render rare)
                     setOnlineUsers(msg.onlineUsers);
                 }
-            } catch (e) {
-                console.error("[PresenceProvider] SSE parse error", e);
+            } catch {
+                // SSE parse error — non-critique, silencieux en prod
             }
         };
 
@@ -97,11 +115,9 @@ export function PresenceProvider({
         };
     }, [guildId, connect]);
 
-    // When isActive toggles (minimize/maximize/close), PATCH the presence status
-    // This keeps Redis in sync without a full reconnect
+    // When isActive toggles, PATCH the presence status (keeps Redis in sync without full reconnect)
     useEffect(() => {
         if (!guildId || !hasJoinedRef.current) return;
-        // Fire-and-forget PATCH to update our presence status in Redis
         fetch(`/api/chat/guild/${guildId}/presence`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -113,8 +129,12 @@ export function PresenceProvider({
     }, [isActive, guildId]);
 
     return (
-        <PresenceContext.Provider value={{ onlineUsers, isConnected, lastMessage }}>
-            {children}
+        // PresenceContext (stable) → wrap externe, re-render seulement si onlineUsers/isConnected change
+        <PresenceContext.Provider value={{ onlineUsers, isConnected }}>
+            {/* ChatMessageContext (volatile) → wrap interne, re-render à chaque message SSE */}
+            <ChatMessageContext.Provider value={{ lastMessage }}>
+                {children}
+            </ChatMessageContext.Provider>
         </PresenceContext.Provider>
     );
 }

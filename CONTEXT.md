@@ -23,7 +23,44 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 19/08 — #177 + #169 + #170
+## 🧭 Chantier global (src/temp/chantier) — SESSION 09/09 — ONE-SHOT 8 chantiers (#149/#175/#171/#178/#179/#183/#167/#180)
+
+> **Branche `feat/chantier-2026-09-07`** = `727a4ef50` (8 chantiers) + `a745faa94` (correction #183) — **poussés** →
+> **CRÉER LA PR** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+> (la branche portait déjà `d610b18d6` session 19/08 + docs `e5f345a05`).
+> **dev** inchangé = `796df8c12` (rien de nouveau mergé).
+> Mémo : `src/temp/memo-2026-09-09-chantier-global.md`. Amorce suivante :
+> `src/temp/prompt-next-chantier-2026-09-09.md` (priorités : **#127/#85** audits · **#169 reste** · **#172**).
+>
+> ### ✅ FAIT (session 09/09 — mode one shot)
+> 1. **#149 SECU — audit bypass God** : helper `assertPostGuildTenant` → isolement tenant strict `guildId`
+>    sur `closeDjPost`, `closeDjPostWithContributions`, `deleteDjPost`, `joinDjPost`, `leaveDjPost`,
+>    `acceptDjParticipant`, `rejectDjParticipant` (fail-closed « Post introuvable » + warn #149) ;
+>    **injection de points bloquée** (`updateMany` scopé guilde du post). Profils cross-guild = God seul.
+> 2. **#175 WorldMap → DJ** : « Créer un groupe » ouvre la modale de création **pré-remplie** (`?dungeonId=`)
+>    sinon **popup de blocage** « donjon non répertorié » (style Ganymède).
+> 3. **#171 DPNL/Dofensive** avec **favicon** dans le détail donjon « Mes Succès ».
+> 4. **#178 Encyclopédie** : filtres de type **côté client** + **copier-coller craft** (liste + par ingrédient, dofusbook+dofusdb).
+> 5. **#179 Copier pseudos** `/w Pseudo` dans DJ (inscrits+file), Songes (leader+membres), Raids (orga+inscrits+réserve).
+> 6. **#183 Pop-up semaine dispo** : bridé à la **1ʳᵉ arrivée d'un NOUVEAU membre** (`!!profile.hasSeenWelcome`),
+>    le rappel hebdo est **conservé** pour les membres accueillis.
+> 7. **#167 Thread Forum DJ** : nom réel du donjon/quête (plus « Donjon - Groupe » figé) + multi-donjon `⚔️ {1er}+{n-1}`.
+> 8. **#180 Trade Metamob** : **1 archi = +1/−1 exactement** (lecture `getQuestDetails` sur la quête exacte du membre,
+>    plus `getUserMonsters` auto-pick destructeur) + PATCH trade **toujours complet** borné 0-30 + **réciprocité** offer/want.
+> 9. Vérifs : tsc 0 · lint 0 erreur · build OK · pre-commit vert · push `727a4ef50` + `a745faa94`.
+>
+> ### 🔜 Reste (priorités suggérées prochaine session)
+> - **Sécurité** : **#127** (audit RBAC ressources : créateurs / liens & outils) · **#85** (blacklist sync bidirectionnelle).
+> - **Features** : **#169 reste** (embed Discord : bouton inscription avec choix de classe + basculement auto file→inscrit)
+>   · **#172** (tour guide Succès) · **#176** (fiches boss Succès).
+> - **UI/UX** : **#129 reste** (responsivité : sweep composant par composant).
+> - **SEO / Prod** : **#181** (refonte sigilos.fr + CGU/mentions/privacy) · **Guides raids SEO** (Gigalodon + Sanctuaire) ·
+>   **#101** (almanax + sitemap) · **#57 + Ouverture Dashboard** (beta→prod) · **#96** (README / déploiement).
+> - **God / Game-Data** : **#34 reste** (Télémetry Data/Product/UX/DevOps) · **#41bis** (alerte God si API dofusbook casse).
+> - **De côté** : **#46bis Inter-Guilde** (lots 2-5 : calendrier `openToExternals`, galerie/mini-jeux GLOBAL,
+>   ladder/ocre/songes/donjons/services/quetes, God canaux + tours) · **#186 Performance & Réactivité**
+>   (Optimistic UI, PresenceProvider, virtualisation, prefetch).
+
 
 > **dev** = `796df8c12` — **PR en attente** : branche `feat/chantier-2026-09-07` commit `d610b18d6`
 > → **CRÉER LA PR** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07

@@ -5,7 +5,6 @@ import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCi
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { BorderBeam } from "@/components/ui/border-beam";
 import { useEffect, useState } from "react";
 
 interface OnboardingStep {
@@ -82,50 +81,33 @@ export function OnboardingBanner({
 
     return (
         <div className="relative group/onboarding w-full">
-            {/* Animated Glow when incomplete */}
-            {!isFinished && (
-                <div className={cn(
-                    "absolute -inset-[2px] rounded-2xl blur-md opacity-30 animate-pulse-slow",
-                    variant === "user" ? "bg-gradient-to-r from-info/40 via-info/40 to-info/40" : "bg-gradient-to-r from-success/40 via-teal-500/40 to-success/40"
-                )} />
-            )}
-
             <div className={cn(
-                "relative glass-premium p-6 md:p-8 rounded-2xl border border-border overflow-hidden transition-all duration-300 group-hover/onboarding:border-border-strong",
+                "relative bg-surface p-6 md:p-8 rounded-2xl border border-border overflow-hidden transition-colors duration-200 group-hover/onboarding:border-border-strong",
                 variant === "user" ? "ring-1 ring-info/20 " : "ring-1 ring-success/20 ",
                 !isFinished ? "opacity-100" : "opacity-90"
             )}>
                 {dismissible && (
                     <button
                         onClick={handleDismiss}
-                        className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface text-muted-foreground hover:text-foreground transition-all z-20 group/close"
+                        className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface text-muted-foreground hover:text-foreground transition-colors z-20 group/close"
                     >
                         <X className="w-4 h-4 group-hover/close:rotate-90 transition-transform" />
                     </button>
                 )}
                 
-                {!isFinished && (
-                    <BorderBeam
-                        size={200}
-                        duration={6}
-                        colorFrom={variant === "user" ? "#3b82f6" : "#10b981"}
-                        colorTo={variant === "user" ? "#60a5fa" : "#34d399"}
-                    />
-                )}
-
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-6 flex-1 max-w-2xl">
                         <div className="flex items-start gap-4">
                             <div className={cn(
-                                "p-3 rounded-2xl border transition-colors",
+                                "p-3 rounded-2xl border transition-colors duration-200",
                                 !isFinished
-                                    ? (variant === "user" ? "bg-info/20 border-info/30 text-info group-hover/onboarding:scale-110 duration-300" : "bg-success/20 border-success/30 text-success group-hover/onboarding:scale-110 duration-300")
+                                    ? (variant === "user" ? "bg-info/20 border-info/30 text-info" : "bg-success/20 border-success/30 text-success")
                                     : "bg-muted/10 border-border text-muted-foreground"
                             )}>
                                 {isFinished ? (
                                     <CheckCircle2 className="w-6 h-6" />
                                 ) : (
-                                    variant === "user" ? <Sparkles className="w-6 h-6 animate-pulse" /> : <Rocket className="w-6 h-6 animate-bounce-subtle" />
+                                    variant === "user" ? <Sparkles className="w-6 h-6" /> : <Rocket className="w-6 h-6" />
                                 )}
                             </div>
                             <div className="space-y-1">
@@ -142,7 +124,7 @@ export function OnboardingBanner({
                                             variant === "user" ? "bg-info/10 border-info/20" : "bg-success/10 border-success/20"
                                         )}>
                                             <span className={cn(
-                                                "w-1 h-1 rounded-full animate-ping",
+                                                "w-1 h-1 rounded-full",
                                                 variant === "user" ? "bg-info" : "bg-success"
                                             )} />
                                             <span className={cn(
@@ -190,8 +172,8 @@ export function OnboardingBanner({
                                         animate={{ width: `${progress}%` }}
                                         transition={{ duration: 1, ease: "easeOut" }}
                                         className={cn(
-                                            "h-full transition-all duration-300",
-                                            variant === "user" ? "bg-gradient-to-r from-info to-info " : "bg-gradient-to-r from-success to-success "
+                                            "h-full transition-colors duration-200",
+                                            variant === "user" ? "bg-info" : "bg-success"
                                         )}
                                     />
                                 </div>
@@ -220,7 +202,7 @@ export function OnboardingBanner({
 
                                         {step.completed && (
                                             <div className={cn(
-                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-border shadow-lg",
+                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-border",
                                                 variant === "user" ? "bg-info" : "bg-success"
                                             )}>
                                                 <Check className="w-2.5 h-2.5 text-foreground" />
@@ -235,10 +217,6 @@ export function OnboardingBanner({
                             );
                         })}
                     </div>
-                </div>
-
-                <div className="absolute -bottom-10 -right-10 p-8 opacity-[0.03] pointer-events-none group-hover/onboarding:opacity-[0.07] transition-opacity duration-300 group-hover/onboarding:rotate-0 rotate-12">
-                    {variant === "user" ? <Sparkles className="w-64 h-64 text-foreground" /> : <Shield className="w-64 h-64 text-foreground" />}
                 </div>
             </div>
         </div>

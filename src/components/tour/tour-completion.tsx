@@ -70,23 +70,19 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="relative w-full max-w-md glass-premium rounded-3xl border border-border overflow-hidden  bg-background/90 backdrop-blur-2xl p-6 sm:p-10 flex flex-col items-center text-center space-y-6"
+                    className="relative w-full max-w-md bg-surface rounded-3xl border border-border overflow-hidden p-6 sm:p-10 flex flex-col items-center text-center space-y-6"
                 >
-                    {/* Glowing effect */}
-                    <div className="absolute -top-24 -left-24 w-64 h-64 bg-violet-600/25 rounded-full blur-[80px]" />
-                    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-success/15 rounded-full blur-[80px]" />
-
                     {/* Celebration Trophy Icon */}
-                    <div className="relative w-20 h-20 bg-gradient-to-br from-violet-500 to-info rounded-3xl flex items-center justify-center shadow-2xl relative">
+                    <div className="relative w-20 h-20 bg-info rounded-3xl flex items-center justify-center">
                         <ShieldCheck className="w-10 h-10 text-foreground" />
-                        <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-warning animate-pulse" />
+                        <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-warning" />
                     </div>
 
                     <div className="space-y-2 relative z-10">
                         <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic leading-none">
                             Tu es prêt ! 🎉
                         </h2>
-                        <h3 className="text-sm font-bold text-violet-400 uppercase tracking-widest">
+                        <h3 className="text-sm font-bold text-primary uppercase tracking-widest">
                             Exploration terminée
                         </h3>
                         <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-xs mx-auto pt-2">
@@ -102,7 +98,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                             <>
                                 <Button
                                     onClick={() => setCelebrationActive(false)}
-                                    className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-foreground gap-2"
+                                    className="w-full h-12 bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs rounded-xl transition-colors active:scale-95 text-primary-foreground gap-2"
                                 >
                                     <LayoutDashboard className="w-4 h-4" />
                                     Fermer
@@ -115,7 +111,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                                         setCelebrationActive(false);
                                         router.push(`/dashboard/${guildId}/admin`);
                                     }}
-                                    className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-foreground gap-2"
+                                    className="w-full h-12 bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs rounded-xl transition-colors active:scale-95 text-primary-foreground gap-2"
                                 >
                                     <ShieldCheck className="w-4 h-4" />
                                     Ouvrir le Centre Admin
@@ -136,7 +132,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                         ) : (
                             <Button
                                 onClick={() => setCelebrationActive(false)}
-                                className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-foreground gap-2"
+                                className="w-full h-12 bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs rounded-xl transition-colors active:scale-95 text-primary-foreground gap-2"
                             >
                                 <LayoutDashboard className="w-4 h-4" />
                                 Fermer

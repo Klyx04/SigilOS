@@ -89,23 +89,22 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     return (
         <div
             className={cn(
-               "group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-2xl border transition-all duration-300 overflow-hidden",
-               "backdrop-blur-md shadow-lg",
+               "group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-2xl border transition-colors duration-200 overflow-hidden",
                colors.border,
-               isTop3 ? "bg-surface border-border-strong shadow-white/5" : "bg-surface/40 border-border",
+               isTop3 ? "bg-surface border-border-strong" : "bg-surface border-border",
                isTourist && "border-danger/10 grayscale-[0.8] opacity-60 hover:opacity-100 hover:grayscale-0",
-               entry.isCurrentUser && "ring-1 ring-white/20 bg-surface"
+               entry.isCurrentUser && "ring-1 ring-border bg-surface"
             )}
         >
             {/* 1. Rank & Portrait */}
             <div className="flex items-center gap-3 shrink-0">
                 <div className="w-8 flex justify-center shrink-0">
                     {entry.rank === 1 ? (
-                        <Trophy className="h-5 w-5 text-warning drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
+                        <Trophy className="h-5 w-5 text-warning" />
                     ) : entry.rank === 2 ? (
-                        <Medal className="h-5 w-5 text-foreground drop-shadow-[0_0_10px_rgba(203,213,225,0.4)]" />
+                        <Medal className="h-5 w-5 text-foreground" />
                     ) : entry.rank === 3 ? (
-                        <Medal className="h-5 w-5 text-warning drop-shadow-[0_0_10px_rgba(180,83,9,0.4)]" />
+                        <Medal className="h-5 w-5 text-warning" />
                     ) : (
                         <span className="text-caption font-black italic text-muted-foreground group-hover:text-muted-foreground transition-colors">
                             #{entry.rank.toString().padStart(2, '0')}
@@ -114,7 +113,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                 </div>
 
                 <div className={cn(
-                    "w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 shadow-md bg-elevated relative group/avatar",
+                    "w-11 h-11 rounded-xl overflow-hidden border border-border shrink-0 bg-elevated relative group/avatar",
                     isTop3 && "ring-2 ring-primary/20"
                 )}>
                     {entry.discordImage && !avatarFailed ? (
@@ -135,7 +134,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         <div className="w-full h-full flex items-center justify-center bg-elevated"><User className="w-5 h-5 text-muted-foreground" /></div>
                     )}
                     {dofusClass && (
-                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-md border border-border-strong bg-surface p-0.5 shadow-md z-20">
+                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-md border border-border-strong bg-surface p-0.5 z-20">
                             <img src={dofusClass.icon} alt={dofusClass.name} className="w-full h-full object-contain" />
                         </div>
                     )}
@@ -165,16 +164,15 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                     <div className="flex flex-col items-center">
                         <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-1.5">Niveau</span>
                         <div className="relative group/lv">
-                            <div className="absolute inset-0 bg-info/20 blur-md rounded-full opacity-0 group-hover/lv:opacity-100 transition-opacity" />
-                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface border border-border shadow-md backdrop-blur-xl group-hover/lv:border-info/50 transition-all duration-300">
-                                <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-warning drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "text-foreground")}>
+                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface border border-border group-hover/lv:border-info/50 transition-colors duration-200">
+                                <span className={cn("text-sm font-black tracking-tighter tabular-nums", entry.dofusLevel >= 200 ? "text-warning" : "text-foreground")}>
                                     {entry.dofusLevel}
                                 </span>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/5 to-transparent invisible" />
+                    <div className="w-px h-10 bg-border invisible" />
                 )}
             </div>
 
@@ -198,7 +196,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         </div>
                         {isTourist ? (
                             <div className={cn(
-                                "flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border animate-pulse",
+                                "flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border",
                                 entry.isInVacation 
                                     ? "bg-info/10 border-info/20 text-info" 
                                     : "bg-danger/10 border-danger/20 text-danger"
@@ -219,8 +217,6 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                 )}
             </div>
 
-            {/* Top Shine Effect */}
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
     );
 }

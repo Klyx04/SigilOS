@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import {
     CellState,
+    castRangeDistance,
     cellIdToXY,
     cellToScreen,
     classifyGrid,
@@ -30,9 +31,16 @@ export interface SpellData {
     castTestLos?: boolean;
     castInLine?: boolean;
     castInDiagonal?: boolean;
-    /** Limites de cast (source Dofensive — spells/{id}). */
+    /** Probabilité de coup critique (%). */
+    criticalChance?: number;
+    /** Nombre de lancers par tour. */
     maxCastPerTurn?: number;
+    /** Nombre de lancers par cible. */
+    maxCastPerTarget?: number;
+    /** Cooldown (tours d'intervalle minimum). */
     minCastInterval?: number;
+    /** Effets résumés (texte FR formaté, source Dofensive). */
+    effects?: string[];
     /** Zone d'effet AoE normalisée (source Dofensive) — prévisu sur la grille. */
     zone?: SpellZone;
 }
@@ -84,14 +92,22 @@ export function SpellRangeGrid({
     dungeonMaps,
     dungeonName,
 }: SpellRangeGridProps) {
-    // Sort actif
+    // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
+    // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
+    const [internalSpellId, setInternalSpellId] = useState<number | undefined>(activeSpellId);
+    const effectiveSpellId = activeSpellId ?? internalSpellId;
     const currentSpell = useMemo(() => {
         if (!spells || spells.length === 0) return null;
-        if (activeSpellId) {
-            return spells.find((s) => s.id === activeSpellId) || spells[0];
+        if (effectiveSpellId !== undefined) {
+            return spells.find((s) => s.id === effectiveSpellId) || spells[0];
         }
         return spells[0];
-    }, [spells, activeSpellId]);
+    }, [spells, effectiveSpellId]);
+
+    const selectSpell = (spell: SpellData) => {
+        setInternalSpellId(spell.id);
+        onSelectSpell?.(spell);
+    };
 
     // Grille libre par défaut (17×17) ; dimensionnée par la map réelle sinon.
     const GRID_SIZE = 17;
@@ -284,7 +300,8 @@ export function SpellRangeGrid({
     const castInDiagonal = currentSpell?.castInDiagonal ?? false;
     const castTestLos = currentSpell?.castTestLos ?? true;
 
-    // Calcul de portée Dofus — Manhattan dans le repère losange (maps) ou grille libre.
+    // Calcul de portée Dofus — PO dans l'axe de lancer pour les sorts contraints
+    // (ligne/diagonale), distance de déplacement (Manhattan) pour les sorts libres.
     const isCellInRange = (x: number, y: number): boolean => {
         if (!currentSpell) return false;
         if (isObstacle(x, y)) return false;
@@ -292,7 +309,9 @@ export function SpellRangeGrid({
         const b = toLos(x, y);
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        const distance = Math.abs(dx) + Math.abs(dy);
+        const hasDirection = castInLine || castInDiagonal;
+        const distance = castRangeDistance(casterPos, { x, y }, hasDirection);
+        const manhattan = Math.abs(dx) + Math.abs(dy);
 
         // Mêlée (PO 0)
         if (distance === 0) return minRange === 0;
@@ -300,14 +319,15 @@ export function SpellRangeGrid({
         // Hors des bornes de portée
         if (distance < minRange || distance > maxRange) return false;
 
-        // Lancer en ligne uniquement (même axe losange)
+        // Lancer en ligne : les 4 axes droits (haut/bas/gauche/droite) — dans le
+        // repère losange ce sont les diagonales |du| == |dv|.
         if (castInLine && !castInDiagonal) {
-            return dx === 0 || dy === 0;
+            return Math.abs(dx) === Math.abs(dy);
         }
 
-        // Lancer en diagonale uniquement
+        // Lancer en diagonale : les 4 axes en X de la map — même axe losange (du==0 || dv==0).
         if (castInDiagonal && !castInLine) {
-            return Math.abs(dx) === Math.abs(dy);
+            return dx === 0 || dy === 0;
         }
 
         // Ligne et diagonale (étoile à 8 branches)
@@ -316,7 +336,7 @@ export function SpellRangeGrid({
         }
 
         // Ligne de vue : un mur (obstacle réel de la map) intercepte le tir.
-        if (castTestLos && distance > 0) {
+        if (castTestLos && manhattan > 0) {
             const path = lineCells(casterPos.x, casterPos.y, x, y).slice(1);
             const last = path[path.length - 1];
             if (last && last.x === x && last.y === y) path.pop();
@@ -340,11 +360,13 @@ export function SpellRangeGrid({
 
     // Prévisu de zone d'effet (AoE) : quand on survole une case en portée, on
     // affiche les cases touchées si le sort y était lancé (données Dofensive).
-    // Limité aux zones « réelles » (taille 1-12) — les auras à l'échelle de la map
-    // (ex. « Instinct maternel », Cercle 63) ne sont pas prévisualisées.
+    // Limité aux zones « réelles » non directionnelles (Cercle/Croix, taille 1-12) —
+    // les auras à l'échelle de la map et les zones directionnelles (Ligne/Cône) ne
+    // sont pas prévisualisées (ambigües sans direction de lancer).
     const zonePreview = useMemo(() => {
         if (!hoveredCell || !currentSpell?.zone || !isCellInRange(hoveredCell.x, hoveredCell.y)) return null;
-        const { size } = currentSpell.zone;
+        const { shape, size } = currentSpell.zone;
+        if (shape !== "Cercle" && shape !== "Croix") return null;
         if (size < 1 || size > 12) return null;
         const cells = spellZoneCells({
             zone: currentSpell.zone,
@@ -419,7 +441,7 @@ export function SpellRangeGrid({
                             <button
                                 key={spell.id}
                                 type="button"
-                                onClick={() => onSelectSpell?.(spell)}
+                                onClick={() => selectSpell(spell)}
                                 className={cn(
                                     "flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs font-black transition-all shadow-sm",
                                     isSelected
@@ -461,6 +483,18 @@ export function SpellRangeGrid({
                                 {currentSpell.description}
                             </p>
                         )}
+                        {Array.isArray(currentSpell.effects) && currentSpell.effects.length > 0 && (
+                            <ul className="flex flex-wrap gap-1.5 pt-1">
+                                {currentSpell.effects.slice(0, 6).map((eff, i) => (
+                                    <li
+                                        key={i}
+                                        className="text-[11px] font-semibold text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md"
+                                    >
+                                        {eff}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -473,6 +507,12 @@ export function SpellRangeGrid({
                             {castTestLos ? <Eye className="w-3 h-3 text-zinc-400" /> : <EyeOff className="w-3 h-3 text-emerald-400" />}
                             {castTestLos ? "Ligne de vue requise" : "Sans ligne de vue"}
                         </span>
+
+                        {(currentSpell.criticalChance ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/30">
+                                <Sparkles className="w-3 h-3" /> {currentSpell.criticalChance}% CC
+                            </span>
+                        )}
 
                         {castInLine && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
@@ -490,6 +530,13 @@ export function SpellRangeGrid({
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-800/80 text-zinc-300 border border-white/10">
                                 <Zap className="w-3 h-3 text-amber-400" />
                                 {currentSpell.maxCastPerTurn}×/tour
+                            </span>
+                        )}
+
+                        {(currentSpell.maxCastPerTarget ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-800/80 text-zinc-300 border border-white/10">
+                                <Users className="w-3 h-3 text-amber-400" />
+                                {currentSpell.maxCastPerTarget}×/cible
                             </span>
                         )}
 

@@ -288,6 +288,21 @@ function normalizeZone(zone: any): DofensiveSpellZone | null {
 }
 
 /**
+ * Formate un nom d'effet Dofensive (template FR) : remplace `#N` par la valeur du
+ * paramètre N et résout les conditionnels `{A|B}` (A si présent, sinon B sans `~`).
+ * Ex. "#1{ à #2|~2} dommages Eau" + [101, 110] → "101 à 110 dommages Eau".
+ */
+function renderEffectName(name: any, params: any[] | undefined): string {
+    let s = String(name ?? "");
+    s = s.replace(/\{([^}|]*)\|([^}]*)\}/g, (_m, a: string, b: string) => (a.trim() ? a : b.replace(/^~/, "")));
+    s = s.replace(/#(\d+)/g, (_m, n: string) => {
+        const p = Array.isArray(params) ? params[Number(n) - 1] : undefined;
+        return p && p.Name !== undefined && p.Name !== null ? String(p.Name) : "";
+    });
+    return s.replace(/\s+/g, " ").trim();
+}
+
+/**
  * Charge les sorts de combat d'un monstre Dofensive (AP, portée, LdV, ligne/diagonale,
  * cooldown, max cast, zone AoE). Grade = dernier niveau (le plus haut), cohérent avec
  * la fiche boss. Anti-SSRF : l'ID est validé avant toute construction d'URL.
@@ -322,7 +337,13 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
             const levels: any[] = Array.isArray(spell.Levels) ? spell.Levels : [];
             const level = levels[levels.length - 1] ?? levels[0];
             if (!level) return null;
-            const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
+            const firstGroup = level.GroupEffects?.[0];
+            const firstEffect = firstGroup?.Effects?.[0];
+            const effects: string[] = Array.isArray(firstGroup?.Effects)
+                ? firstGroup.Effects.slice(0, 6)
+                      .map((e: any) => renderEffectName(e?.Name, Array.isArray(e?.Parameters) ? e.Parameters : undefined))
+                      .filter(Boolean)
+                : [];
             return {
                 id: Number(spell.Id ?? sid),
                 name: String(spell.Name ?? ""),
@@ -334,9 +355,12 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
                 castTestLos: level.CastLineOfSight ?? true,
                 castInLine: level.CastInLine ?? false,
                 castInDiagonal: level.CastInDiagonal ?? false,
+                criticalChance: Number(level.CriticalProbability) || 0,
                 // 0 = pas de restriction (ne PAS forcer à 1 : afficherait un mauvais « 1×/tour »).
                 maxCastPerTurn: Number(level.MaxCastPerTurn) || 0,
+                maxCastPerTarget: Number(level.MaxCastPerTarget) || 0,
                 minCastInterval: Number(level.MinCastInterval) || 0,
+                effects,
                 zone: normalizeZone(firstEffect?.Zone),
             };
         })

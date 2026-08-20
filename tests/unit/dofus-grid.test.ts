@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     CellState,
     blocksLineOfSight,
+    castRangeDistance,
     cellIdToXY,
     cellToScreen,
     classifyGrid,
@@ -134,6 +135,20 @@ describe("dofus-grid — repère losange inverse + zones d'effet (AoE)", () => {
             expect(back.x).toBe(x);
             expect(back.y).toBe(y);
         }
+    });
+
+    it("castRangeDistance : un sort contraint mesure sa PO dans l'axe (1 pas diagonal = 1 PO)", () => {
+        const caster = { x: 7, y: 20 };
+        // Voisin orthogonal (7,21) : distance 1 quel que soit le mode.
+        expect(castRangeDistance(caster, { x: 7, y: 21 }, true)).toBe(1);
+        expect(castRangeDistance(caster, { x: 7, y: 21 }, false)).toBe(1);
+        // Voisin diagonal (7,22) : 1 PO en contraint (max), 2 en libre (Manhattan).
+        expect(castRangeDistance(caster, { x: 7, y: 22 }, true)).toBe(1);
+        expect(castRangeDistance(caster, { x: 7, y: 22 }, false)).toBe(2);
+        // 3 pas diagonaux (ex. Foufoux portée 3-4) : 3 PO en contraint, 6 en libre.
+        const diag3 = losToXY(17 + 3, 3 + 3); // (20,6)
+        expect(castRangeDistance(caster, diag3, true)).toBe(3);
+        expect(castRangeDistance(caster, diag3, false)).toBe(6);
     });
 
     it("spellZoneCells — Cercle taille 1 : cible + voisins à distance ≤1, pas plus", () => {

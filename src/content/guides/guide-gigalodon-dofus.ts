@@ -115,5 +115,10 @@ export const guide = {
         <p>
             Vaincre le Gigalodon offre des <strong>récompenses de guilde</strong> : ressources de hall de guilde, kamas et des objets uniques liés au raid. C'est aussi une excellente source de cohésion pour votre guilde et un passage obligé pour les guildes qui visent les classements de raid.
         </p>
+
+        <div class="callout callout-info">
+            <strong>Poursuivre la lecture</strong>
+            <p>Organisez le raid dans votre guilde avec <a href="/guides">tous les guides SigilOS</a>, découvrez le <a href="/guides/raid-sanctuaire-jardins-eternels-dofus-guide">Sanctuaire des Jardins Éternels</a>, les <a href="/guilds">guildes Dofus partenaires</a> ou l'<a href="/almanax">Almanax du jour</a>.</p>
+        </div>
     `,
 };

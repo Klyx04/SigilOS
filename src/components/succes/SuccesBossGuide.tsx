@@ -92,6 +92,9 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
     const bossUrl = (d: BossDungeon) =>
         `https://www.dofusdb.fr/fr/database/monsters?search=${encodeURIComponent(d.bossName)}`;
 
+    // #176 — l'ID du boss sélectionné hors du narrowing `!selected` (TS) pour la grille.
+    const activeBossId = selected ? selected.id : null;
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
@@ -127,7 +130,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                 </p>
             </div>
 
-            {filtered.length === 0 ? (
+            {!selected && (filtered.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-background/40">
                     <Swords className="w-10 h-10 mx-auto mb-3 opacity-20" />
                     <p className="font-medium">Aucun boss trouvé.</p>
@@ -140,10 +143,17 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                             <button
                                 key={d.id}
                                 type="button"
-                                onClick={() => setSelected(selected?.id === d.id ? null : d)}
+                                onClick={() => {
+                                    if (activeBossId === d.id) {
+                                        setSelected(null);
+                                        return;
+                                    }
+                                    setSelected(d);
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                }}
                                 className={cn(
                                     "flex flex-col rounded-2xl border overflow-hidden transition-colors text-left",
-                                    selected?.id === d.id
+                                    activeBossId === d.id
                                         ? "border-warning/50 bg-elevated/90"
                                         : "border-border bg-surface/70 hover:bg-elevated/70"
                                 )}
@@ -169,11 +179,21 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         );
                     })}
                 </div>
-            )}
+            ))}
 
             {selected && (
                 <div className="bg-surface/70 border border-border rounded-2xl p-5 space-y-5" data-tour="succes-tracker-detail">
                     <div className="flex flex-wrap items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSelected(null);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="lg:hidden inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground min-h-11 px-1"
+                        >
+                            <X className="w-4 h-4" /> Retour à la liste
+                        </button>
                         <div className="flex items-center gap-4">
                             <div className="w-16 h-16 rounded-xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0">
                                 {statsOf(selected)?.imageUrl ? (

@@ -178,6 +178,16 @@ export async function getResourceCategories(guildId: string) {
 export async function upsertResourceCategory(guildId: string, data: any) {
     await requireResourcesManage(guildId);
     const targetId = await getDbGuildId(guildId);
+
+    // #127 — isolation : un officier ne peut modifier/supprimer que SA guilde.
+    if (data?.id) {
+        const existing = await db.resourceCategory.findFirst({
+            where: { id: data.id, guildId: targetId },
+            select: { id: true },
+        });
+        if (!existing) throw new Error("Accès refusé : cette catégorie n'appartient pas à votre guilde");
+    }
+
     const res = await db.resourceCategory.upsert({
         where: { id: data.id || "new-cat" },
         update: { label: data.label, color: data.color, order: data.order },
@@ -189,6 +199,15 @@ export async function upsertResourceCategory(guildId: string, data: any) {
 
 export async function deleteResourceCategory(id: string, guildId: string) {
     await requireResourcesManage(guildId);
+    const targetId = await getDbGuildId(guildId);
+
+    // #127 — isolation : fail-closed si la catégorie n'appartient pas à la guilde.
+    const existing = await db.resourceCategory.findFirst({
+        where: { id, guildId: targetId },
+        select: { id: true },
+    });
+    if (!existing) throw new Error("Accès refusé : cette catégorie n'appartient pas à votre guilde");
+
     await db.resourceCategory.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);
     return { success: true };
@@ -196,6 +215,25 @@ export async function deleteResourceCategory(id: string, guildId: string) {
 
 export async function upsertResourceLink(guildId: string, data: any) {
     await requireResourcesManage(guildId);
+    const targetId = await getDbGuildId(guildId);
+
+    // #127 — la catégorie cible doit appartenir à la guilde (pas de cross-guild via categoryId).
+    if (!data?.categoryId) throw new Error("Catégorie manquante");
+    const category = await db.resourceCategory.findFirst({
+        where: { id: data.categoryId, guildId: targetId },
+        select: { id: true },
+    });
+    if (!category) throw new Error("Accès refusé : cette catégorie n'appartient pas à votre guilde");
+
+    // #127 — si édition d'un lien existant, il doit appartenir à la guilde.
+    if (data?.id) {
+        const existingLink = await db.resourceLink.findFirst({
+            where: { id: data.id, category: { guildId: targetId } },
+            select: { id: true },
+        });
+        if (!existingLink) throw new Error("Accès refusé : ce lien n'appartient pas à votre guilde");
+    }
+
     // SECURITY (F-11): sanitize free-text HTML fields (description) and bound/validate URL
     const description = sanitizeHtml(data.description ?? null, 2000) || null;
     const url = typeof data.url === "string" ? data.url.slice(0, 2048) : "";
@@ -211,6 +249,15 @@ export async function upsertResourceLink(guildId: string, data: any) {
 
 export async function deleteResourceLink(id: string, guildId: string) {
     await requireResourcesManage(guildId);
+    const targetId = await getDbGuildId(guildId);
+
+    // #127 — isolation : fail-closed si le lien n'appartient pas à la guilde.
+    const existing = await db.resourceLink.findFirst({
+        where: { id, category: { guildId: targetId } },
+        select: { id: true },
+    });
+    if (!existing) throw new Error("Accès refusé : ce lien n'appartient pas à votre guilde");
+
     await db.resourceLink.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);
     return { success: true };
@@ -267,6 +314,15 @@ export async function upsertContentCreator(guildId: string, data: any) {
 
     const targetId = await getDbGuildId(guildId);
 
+    // #127 — isolation : un officier ne modifie que les créateurs de SA guilde.
+    if (data?.id) {
+        const existing = await db.contentCreator.findFirst({
+            where: { id: data.id, guildId: targetId },
+            select: { id: true },
+        });
+        if (!existing) throw new Error("Accès refusé : ce créateur n'appartient pas à votre guilde");
+    }
+
     // Limit guild creators to 50 max (#82)
     const existingCount = await db.contentCreator.count({
         where: { guildId: targetId }
@@ -307,6 +363,14 @@ export async function upsertContentCreator(guildId: string, data: any) {
 
 export async function deleteContentCreator(id: string, guildId: string) {
     await requireResourcesManage(guildId);
+    const targetId = await getDbGuildId(guildId);
+
+    // #127 — isolation : fail-closed si le créateur n'appartient pas à la guilde.
+    const existing = await db.contentCreator.findFirst({
+        where: { id, guildId: targetId },
+        select: { id: true },
+    });
+    if (!existing) throw new Error("Accès refusé : ce créateur n'appartient pas à votre guilde");
 
     await db.contentCreator.delete({ where: { id } });
     revalidatePath(`/dashboard/${guildId}/ressources`);

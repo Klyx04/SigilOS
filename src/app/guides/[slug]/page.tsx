@@ -126,13 +126,20 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900/90 via-zinc-950/80 to-zinc-900/90 border border-white/10 p-8 sm:p-10 mb-10 shadow-2xl backdrop-blur-xl">
                             <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-amber-500/10 pointer-events-none" />
                             <div className="relative z-10">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest mb-4">
-                                    Guide
+                                <div className="flex flex-wrap items-center gap-2 mb-4">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest">
+                                        {meta.category ?? "Guide"}
+                                    </span>
+                                    {meta.readingTime && (
+                                        <span className="text-xs font-medium text-zinc-400 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+                                            ⏱️ {meta.readingTime} de lecture
+                                        </span>
+                                    )}
                                 </div>
                                 <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
                                     {meta.title}
                                 </h1>
-                                <div className="flex items-center gap-2 mt-4 text-xs font-medium text-zinc-500">
+                                <div className="flex items-center gap-2 mt-4 text-xs font-medium text-zinc-400">
                                     Mis à jour le {new Date(meta.updatedAt).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" })}
                                 </div>
                             </div>

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
     CellState,
+    blocksLineOfSight,
     cellIdToXY,
     cellToScreen,
     classifyGrid,
@@ -54,38 +55,71 @@ describe("dofus-grid — géométrie des maps Dofus 3 (TacticalMapRenderer/Dofen
     });
 });
 
-describe("dofus-grid — états de case (VOID/HOLE/GROUND/OBSTACLE/SPECIAL)", () => {
-    it("stateFromValue : 0 = sol, 1 = obstacle, 2 = trou (HOLE), sinon void", () => {
+describe("dofus-grid — états de case (VOID/HOLE/GROUND/OBSTACLE)", () => {
+    it("stateFromValue : 0 = sol, 1 = case impossible/trou (HOLE), 2 = obstacle (OBSTACLE), sinon void", () => {
         expect(stateFromValue(0)).toBe(CellState.GROUND);
-        expect(stateFromValue(1)).toBe(CellState.OBSTACLE);
-        expect(stateFromValue(2)).toBe(CellState.HOLE);
+        expect(stateFromValue(1)).toBe(CellState.HOLE); // case impossible / trou → noir
+        expect(stateFromValue(2)).toBe(CellState.OBSTACLE); // case obstacle → bloc 3D
         expect(stateFromValue(5)).toBe(CellState.VOID);
     });
 
-    it("isWalkable : sol et spécial walkables, obstacle non", () => {
+    it("isWalkable : sol et zones de départ walkables, obstacle/trou/void non", () => {
         expect(isWalkable(CellState.GROUND)).toBe(true);
-        expect(isWalkable(CellState.SPECIAL)).toBe(true);
+        expect(isWalkable(CellState.START_ALLY)).toBe(true);
+        expect(isWalkable(CellState.START_ENEMY)).toBe(true);
         expect(isWalkable(CellState.OBSTACLE)).toBe(false);
         expect(isWalkable(CellState.VOID)).toBe(false);
         expect(isWalkable(CellState.HOLE)).toBe(false);
     });
 
-    it("classifyGrid : le cadre (case impossible) devient VOID noir, un bloc entouré de sol devient OBSTACLE 3D", () => {
-        // Sol au centre + un obstacle isolé en (2,2) ; le cadre de 1 reste VOID.
+    it("blocksLineOfSight : obstacle (2) et void bloquent, un trou / case impossible (1) non (debug.md)", () => {
+        expect(blocksLineOfSight(CellState.OBSTACLE)).toBe(true); // « bloque la LdV et les déplacements »
+        expect(blocksLineOfSight(CellState.VOID)).toBe(true);
+        expect(blocksLineOfSight(CellState.HOLE)).toBe(false); // « bloque le passage » uniquement
+        expect(blocksLineOfSight(CellState.GROUND)).toBe(false);
+    });
+
+    it("classifyGrid : 0 = sol, 1 = case impossible/trou (noir), 2 = case obstacle (3D)", () => {
         const grid = [
-            [1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 1],
-            [1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 2, 0, 1],
+            [1, 0, 1, 0, 0, 1],
+            [1, 0, 0, 2, 0, 1],
+            [1, 1, 1, 1, 1, 1],
         ];
         const s = classifyGrid(grid);
         expect(s[1][1]).toBe(CellState.GROUND); // sol
-        expect(s[2][2]).toBe(CellState.OBSTACLE); // bloc isolé, entouré de sol → 3D
-        expect(s[0][0]).toBe(CellState.VOID); // coin du cadre → noir
-        expect(s[0][2]).toBe(CellState.VOID); // bord haut du cadre → noir
-        expect(s[1][0]).toBe(CellState.VOID); // bord gauche du cadre (touche 2 sols) → noir
+        expect(s[1][3]).toBe(CellState.OBSTACLE); // 2 → case obstacle (bloc 3D)
+        expect(s[3][3]).toBe(CellState.OBSTACLE);
+        expect(s[2][2]).toBe(CellState.HOLE); // 1 intérieur → case impossible (noir)
+        expect(s[0][0]).toBe(CellState.HOLE); // cadre 1 → case impossible (noir)
+        expect(s[0][3]).toBe(CellState.HOLE);
+        expect(s[4][5]).toBe(CellState.HOLE);
         expect(elevationOf(CellState.OBSTACLE)).toBe(1);
         expect(elevationOf(CellState.GROUND)).toBe(0);
+    });
+
+    it("classifyGrid : l'anneau central de la salle du boss Servitude (2 = obstacles 3D, 1 internes = noir)", () => {
+        // Motif réel observé dans la salle du boss (Fers de la Tyrannie, debug.md) : l'anneau
+        // de « 2 » devient des obstacles 3D homogènes, les « 1 » internes restent du noir.
+        const grid = [
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 2, 1, 2, 0],
+            [0, 2, 1, 1, 2, 0],
+            [0, 2, 1, 1, 2, 0],
+            [0, 0, 2, 1, 2, 0],
+            [0, 0, 0, 0, 0, 0],
+        ];
+        const s = classifyGrid(grid);
+        expect(s[1][2]).toBe(CellState.OBSTACLE); // l'anneau = obstacles 3D
+        expect(s[1][4]).toBe(CellState.OBSTACLE);
+        expect(s[2][1]).toBe(CellState.OBSTACLE);
+        expect(s[2][4]).toBe(CellState.OBSTACLE);
+        expect(s[3][1]).toBe(CellState.OBSTACLE);
+        expect(s[4][2]).toBe(CellState.OBSTACLE);
+        expect(s[1][3]).toBe(CellState.HOLE); // les « 1 » internes = noir
+        expect(s[2][2]).toBe(CellState.HOLE);
+        expect(s[2][3]).toBe(CellState.HOLE);
+        expect(s[1][0]).toBe(CellState.GROUND);
     });
 });

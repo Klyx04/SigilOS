@@ -32,13 +32,14 @@
 > heuristique boss en tête, maps de boss marquées ⚔) · géométrie **Dofus 3 exacte**
 > dans `dofus-grid.ts` (rendu **quinconce**, cellId→(col,row) validé empiriquement
 > 24/24, repère losange pour la distance, `CellState` VOID/HOLE/GROUND/OBSTACLE +
-> `classifyGrid` : trous=`2`→noir, obstacles=`1`→3D si entourés de sol ≥4) + 8 tests ·
-> `SpellRangeGrid` : vraies maps, **VOID noir + trous noirs**, **obstacles 3D
+> `classifyGrid` : case impossible=`1`→noir, case obstacle=`2`→3D, trou ne bloque
+> pas la LdV) + 10 tests ·
+> `SpellRangeGrid` : vraies maps, **cases impossibles noires**, **obstacles 3D
 > prismatiques** (3 faces, masquage des faces accolées, tri par profondeur row+col),
 > palette **kaki/beige désaturé** (debug.md), LoS avec murs, placements de départ
 > (toggle), SVG **pleine largeur**, **sprites boss/alliés agrandis**, grille libre 17×17 ·
 > démo `/demo/boss-sim?boss=&dungeon=` (Comte Harebourg + Servitude/Fers de la Tyrannie).
-> Vérifs : tsc 0 · lint 0 erreur · **237/237** · build OK. **4 commits LOCAUX — À POUSSER**.
+> Vérifs : tsc 0 · lint 0 erreur · **239/239** · build OK. **5 commits LOCAUX — À POUSSER**.
 > Mémo : `src/temp/memo-2026-10-05-chantier-dofensive-maps.md`. Amorce :
 > `src/temp/prompt-next-chantier-2026-10-05.md`.
 > — PR : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07

@@ -48,68 +48,58 @@ export function distance(a: DofusPos, b: DofusPos): number {
 }
 
 // ── États de case (cf. src/temp/debug.md) ───────────────────────────────────
-// Dans les données Dofensive `Cells[row][col]` : 0 = sol, 1 = obstacle, 2 = trou
-// (case impossible, noir). Les cases de départ (alliés/ennemis) sont fournies
-// séparément (AllyCells/EnemyCells) et ne tombent que sur des 0.
+// Dans les données Dofensive `Cells[row][col]` :
+//   0 = sol (marchable) · 1 = case impossible / trou (noir, non marchable) ·
+//   2 = case obstacle (bloc 3D, non marchable).
+// Les cases de départ (AllyCells/EnemyCells) ne tombent que sur des 0.
 
 export enum CellState {
-    VOID = "VOID", // hors carte / noir — jamais utilisable
-    HOLE = "HOLE", // trou dans le terrain — non franchissable
+    VOID = "VOID", // hors carte / valeur inconnue — noir, jamais utilisable
+    HOLE = "HOLE", // case impossible / trou — noir, non marchable, ne bloque pas la LdV
     GROUND = "GROUND", // sol de combat — walkable
-    OBSTACLE = "OBSTACLE", // bloc 3D — non walkable, bloque la LoS
-    SPECIAL = "SPECIAL", // case spéciale (marchable, marquée visuellement)
+    OBSTACLE = "OBSTACLE", // case obstacle — bloc 3D, non marchable, bloque la LdV
     START_ALLY = "START_ALLY", // zone de placement allié
     START_ENEMY = "START_ENEMY", // zone de placement ennemi
 }
 
 export function stateFromValue(v: number): CellState {
-    if (v === 1) return CellState.OBSTACLE;
-    if (v === 2) return CellState.HOLE; // trou dans le terrain — case impossible (noir)
     if (v === 0) return CellState.GROUND;
+    if (v === 1) return CellState.HOLE; // case impossible / trou — noir
+    if (v === 2) return CellState.OBSTACLE; // case obstacle — bloc 3D
     return CellState.VOID;
 }
 
 export function isWalkable(state: CellState): boolean {
-    return state === CellState.GROUND || state === CellState.SPECIAL || state === CellState.START_ALLY || state === CellState.START_ENEMY;
+    return state === CellState.GROUND || state === CellState.START_ALLY || state === CellState.START_ENEMY;
 }
 
 export function blocksLineOfSight(state: CellState): boolean {
-    return state === CellState.OBSTACLE || state === CellState.VOID || state === CellState.HOLE;
+    // Les obstacles (2) bloquent la LdV ET les déplacements ; les trous / cases
+    // impossibles (1) bloquent seulement le passage (debug.md).
+    return state === CellState.OBSTACLE || state === CellState.VOID;
 }
 
 /**
  * Classe la grille brute Dofensive (0/1/2) en états de case (CellState).
  *
- * Distinction VOID vs OBSTACLE : un « 1 » est un **OBSTACLE** (bloc 3D) s'il est
- * réellement *entouré* de sol (≥ 4 voisins GROUND/SPECIAL sur 8) — c'est-à-dire un
- * mur/bloc isolé à l'intérieur de l'arène. Sinon c'est un **VOID** (case impossible :
- * cadre hors-carte, jamais concernée → rendue en noir, sans tuile ni grille).
+ *   - 0 → GROUND (sol beige/ocre, marchable)
+ *   - 1 → HOLE (case impossible / trou, rendue en noir, non marchable)
+ *   - 2 → OBSTACLE (case obstacle, bloc 3D, non marchable, bloque la LdV)
+ *
+ * Les valeurs hors 0/1/2 (inconnues) deviennent VOID (noir). Pas d'heuristique de
+ * voisinage : la sémantique vient directement des données Dofensive (les cases
+ * impossibles = 1, les cases obstacles = 2 — cf. debug.md + retour user).
  */
 export function classifyGrid(cells: number[][]): CellState[][] {
     const rows = cells.length;
     const cols = cells[0]?.length ?? 0;
-    const isGround = (v: number | undefined) => v === 0 || v === 2;
     const states: CellState[][] = [];
 
     for (let r = 0; r < rows; r++) {
         const rowStates: CellState[] = [];
         for (let c = 0; c < cols; c++) {
             const v = cells[r]?.[c] ?? 1;
-            if (v === 1) {
-                let groundNeighbors = 0;
-                for (let dr = -1; dr <= 1; dr++) {
-                    for (let dc = -1; dc <= 1; dc++) {
-                        if (dr === 0 && dc === 0) continue;
-                        const nr = r + dr;
-                        const nc = c + dc;
-                        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-                        if (isGround(cells[nr]?.[nc])) groundNeighbors++;
-                    }
-                }
-                rowStates.push(groundNeighbors >= 4 ? CellState.OBSTACLE : CellState.VOID);
-            } else {
-                rowStates.push(stateFromValue(v));
-            }
+            rowStates.push(stateFromValue(v));
         }
         states.push(rowStates);
     }

@@ -204,6 +204,11 @@ export function DocContent({ content, className }: DocContentProps) {
                 "[&_span[style*='color']]:![color:inherit]", // Preserve TipTap color styles
                 "[&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain", // Fix image overflow
 
+                // Guide Images & Captions
+                "[&_.guide-image-container]:my-8 [&_.guide-image-container]:flex [&_.guide-image-container]:flex-col [&_.guide-image-container]:items-center [&_.guide-image-container]:gap-2",
+                "[&_.guide-image]:rounded-2xl [&_.guide-image]:border [&_.guide-image]:border-white/10 [&_.guide-image]:bg-zinc-950/80 [&_.guide-image]:max-h-[420px] [&_.guide-image]:w-auto [&_.guide-image]:shadow-2xl",
+                "[&_.guide-caption]:text-xs [&_.guide-caption]:text-zinc-400 [&_.guide-caption]:font-medium [&_.guide-caption]:text-center [&_.guide-caption]:italic [&_.guide-caption]:mt-1",
+
                 className
             )}
             ref={contentRef}

@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Brain, Compass, ExternalLink, Flame, Loader2, MapPin, ScrollText, Search, Shield, Swords, Target, Users, X, Zap } from "lucide-react";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
+import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import {
+    getBossDofensiveSpells,
+    getDofensiveDungeonForBoss,
+    type DofensiveDungeonInfo,
+} from "@/server/actions/dofensive-actions";
 import { cn } from "@/lib/utils";
 import { SpellData, SpellRangeGrid } from "./SpellRangeGrid";
 
@@ -86,6 +92,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
     const [detailTab, setDetailTab] = useState<"overview" | "sim" | "loot" | "goals">("overview");
     const [linkedQuestsByDungeon, setLinkedQuestsByDungeon] = useState<Record<string, LinkedQuestsData>>({});
+    // Maps du donjon (salles réelles) récupérées chez Dofensive pour le boss courant.
+    const [dungeonMapsByBoss, setDungeonMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>({});
 
     // Charger les donjons → pour chacun, charger la fiche monstre en arrière-plan
     useEffect(() => {
@@ -111,10 +119,15 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     setDungeons(withBoss);
                     withBoss.forEach((d: BossDungeon) => {
                         getMonsterStats(d.bossName, d.name)
-                            .then((statsRes) => {
+                            .then(async (statsRes) => {
                                 if (cancelled) return;
                                 if (statsRes.success && statsRes.data) {
-                                    setStatsByBoss((prev) => ({ ...prev, [d.id]: statsRes.data }));
+                                    let data = statsRes.data;
+                                    const dRes = await getBossDofensiveSpells(d.bossName, d.name);
+                                    if (!cancelled && dRes.success && dRes.data) {
+                                        data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
+                                    }
+                                    if (!cancelled) setStatsByBoss((prev) => ({ ...prev, [d.id]: data }));
                                 }
                             })
                             .catch(() => {});
@@ -158,6 +171,27 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selected?.id]);
 
+    // Salles du donjon (maps Dofensive) pour le boss courant — lazy, une seule fois par boss.
+    useEffect(() => {
+        const d = selected;
+        if (!d) return;
+        const boss = activeMonsterName ?? d.bossName;
+        if (!boss || dungeonMapsByBoss[boss] !== undefined) return;
+        let cancelled = false;
+        getDofensiveDungeonForBoss(boss)
+            .then((res) => {
+                if (cancelled) return;
+                setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: res.success && res.data ? res.data : null }));
+            })
+            .catch(() => {
+                if (!cancelled) setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: null }));
+            });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selected?.id, activeMonsterName]);
+
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
         if (!q) return dungeons;
@@ -183,9 +217,14 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         setSelectedSpellId(undefined);
         const key = `${d.id}::${m.name}`;
         if (!statsByBoss[key]) {
-            getMonsterStats(m.name, d.name).then((res) => {
+            getMonsterStats(m.name, d.name).then(async (res) => {
                 if (res.success && res.data) {
-                    setStatsByBoss((prev) => ({ ...prev, [key]: res.data }));
+                    let data = res.data;
+                    const dRes = await getBossDofensiveSpells(m.name, d.name);
+                    if (dRes.success && dRes.data) {
+                        data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
+                    }
+                    setStatsByBoss((prev) => ({ ...prev, [key]: data }));
                 }
             });
         }
@@ -520,6 +559,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 onSelectSpell={(spell) => setSelectedSpellId(spell.id)}
                                 bossName={activeMonsterName ?? selected.bossName}
                                 bossImageUrl={statsOf(selected)?.imageUrl}
+                                dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.maps}
+                                dungeonName={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.dungeonName}
                             />
                         </div>
                     )}

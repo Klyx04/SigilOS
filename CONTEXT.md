@@ -25,6 +25,28 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
+> ### SESSION 05/10 — Sélecteur de map Dofensive + simulation (9 commits POUSSÉS)
+> `d1b20c20e` · `c94319206` · `2e6b4f5aa` · `b9b59f2d1` · `a12d4f95c` · `f1c6119ae` ·
+> `97bef55d2` · `db538137f` · `6ef9200ac` — **maps réelles des boss via l'API publique
+> Dofensive** (dofensive.com/api/dofus2/bestiary) : couche serveur `dofensive-actions.ts`
+> (dungeons/maps/monsters/spells, cache 24h, matching multi-donjons `?dungeon=`, maps de
+> boss ⚔ via PreferredMaps, **garde anti-SSRF** = allowlist de chemins + IDs entiers) ·
+> géométrie **Dofus 3 exacte** dans `dofus-grid.ts` (quinconce, cellId→(col,row) validé,
+> `CellState` VOID/HOLE/GROUND/OBSTACLE + `classifyGrid` : case impossible=`1`→noir,
+> case obstacle=`2`→3D, trou ne bloque pas la LdV, `castRangeDistance` PO dans l'axe pour
+> sorts contraints) + tests · `SpellRangeGrid` : vraies maps, **cases impossibles noires**,
+> **obstacles 3D prismatiques**, palette kaki/beige désaturé (debug.md), LoS avec murs,
+> placements de départ (toggle), SVG pleine largeur, sprites boss/alliés agrandis · **repasse
+> sorts Dofensive** : `getDofensiveSpells` (StartingSpell du Grade inclus, icônes CDN
+> distinctes, cooldown/maxCast/CC/×cible/effets FR, zones AoE), fusion Dofensive/DofusDB,
+> **permutation ligne/diagonale** (diagonale = axes X, ligne = axes droits), prévisu de zone
+> au survol (Cercle/Croix) · démo `/demo/boss-sim?boss=&dungeon=` + fiche boss. Vérifs :
+> tsc 0 · lint 0 erreur · **251/251** · build OK. **9 commits POUSSÉS**.
+> Mémo : `src/temp/memo-2026-10-05-chantier-dofensive-maps.md`. Amorce :
+> `src/temp/prompt-next-chantier-2026-10-05.md`.
+> — PR : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
+>
+
 > ### SESSION 04/10 — Anti-AI-slop UI global (6 commits)
 > `fd21ef403` · `ccb184836` · `5231681f2` · `bda48d4fc` · `322246a34` · `7c7f5af42` — phases 0-3 :
 > primitives plates (AuroraBackground neutralisé, border-beam supprimé, GlassPanel/Button/Card

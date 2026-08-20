@@ -52,24 +52,17 @@ export function RaidHeroBanner({
     const pad = (n: number) => String(n).padStart(2, "0");
 
     return (
-        <div className="relative group overflow-hidden rounded-3xl border border-danger/20 bg-background/80 animate-in fade-in slide-in-from-top-4 duration-300">
-            {/* Ambient glow */}
-            <div className="absolute -inset-4 bg-danger/10 blur-3xl pointer-events-none opacity-60 group-hover:opacity-90 transition-opacity duration-300" />
-            {/* Scanline overlay */}
-            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(239,68,68,0.02)_2px,rgba(239,68,68,0.02)_4px)] pointer-events-none" />
-            {/* Animated border glow */}
-            <div className="absolute inset-0 rounded-3xl ring-1 ring-danger/30 group-hover:ring-danger/50 transition-all duration-300" />
+        <div className="relative overflow-hidden rounded-3xl border border-danger/20 bg-surface animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="absolute inset-0 rounded-3xl ring-1 ring-danger/30 pointer-events-none" />
 
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6 p-6 md:p-8">
                 {/* Icon + Status */}
                 <div className="flex items-center gap-4 shrink-0">
                     <div className="relative">
-                        <div className="h-16 w-16 rounded-2xl bg-danger/10 border border-danger/30 flex items-center justify-center   transition-shadow duration-300">
+                        <div className="h-16 w-16 rounded-2xl bg-danger/10 border border-danger/30 flex items-center justify-center">
                             <Swords className="w-8 h-8 text-danger" />
                         </div>
-                        {/* Pulse ring */}
                         <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-50" />
                             <span className="relative inline-flex rounded-full h-4 w-4 bg-danger items-center justify-center">
                                 <Zap className="w-2 h-2 text-foreground" />
                             </span>
@@ -108,7 +101,7 @@ export function RaidHeroBanner({
                         <div className="w-full max-w-xs space-y-1">
                             <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-danger to-danger rounded-full transition-all duration-300"
+                                    className="h-full bg-danger rounded-full transition-colors duration-200"
                                     style={{ width: `${fillPct}%` }}
                                 />
                             </div>
@@ -136,7 +129,7 @@ export function RaidHeroBanner({
                                 )}
                                 <span className="text-2xl font-black text-danger tabular-nums">{pad(countdown.m)}</span>
                                 <span className="text-sm text-muted-foreground font-black">m</span>
-                                <span className="text-2xl font-black text-danger tabular-nums animate-pulse">{pad(countdown.s)}</span>
+                                <span className="text-2xl font-black text-danger tabular-nums">{pad(countdown.s)}</span>
                                 <span className="text-sm text-muted-foreground font-black">s</span>
                             </div>
                         </div>
@@ -146,7 +139,7 @@ export function RaidHeroBanner({
 
                     <Button
                         asChild
-                        className="h-11 bg-danger hover:bg-danger text-danger-foreground font-black px-6 rounded-2xl group/btn transition-all  active:scale-95 shadow-[0_8px_24px_rgba(239,68,68,0.35)]"
+                        className="h-11 bg-danger hover:bg-danger text-danger-foreground font-black px-6 rounded-2xl group/btn transition-colors active:scale-95"
                     >
                         <Link href={`/dashboard/${guildId}/calendar?event=${raid.id}`}>
                             <span className="flex items-center gap-2">

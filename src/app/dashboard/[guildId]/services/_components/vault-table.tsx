@@ -90,7 +90,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                                 src={item.iconUrl}
                                                 alt={item.itemName}
                                                 fill
-                                                className="object-contain drop-shadow-sm"
+                                                className="object-contain"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                             />
                                         </div>
@@ -177,16 +177,16 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             return (
                                 <div
                                     key={entry.id}
-                                    className="group flex items-start gap-5 rounded-2xl border border-border bg-surface/40 px-5 py-4 hover:bg-surface/60 hover:border-border-strong transition-all duration-300 shadow-sm hover:shadow-lg"
+                                    className="group flex items-start gap-5 rounded-2xl border border-border bg-surface px-5 py-4 hover:bg-elevated hover:border-border-strong transition-colors duration-200 hover:shadow-lg"
                                 >
                                     {/* Indicateur action */}
-                                    <div className={`shrink-0 p-2.5 rounded-xl border shadow-inner ${isDeposit
+                                    <div className={`shrink-0 p-2.5 rounded-xl border ${isDeposit
                                         ? "border-success/30 bg-success/20 text-success"
                                         : "border-warning/30 bg-warning/20 text-warning"
                                         }`}>
                                         {isDeposit
-                                            ? <ArrowDownCircle className="h-5 w-5 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                                            : <ArrowUpCircle className="h-5 w-5 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                                            ? <ArrowDownCircle className="h-5 w-5" />
+                                            : <ArrowUpCircle className="h-5 w-5" />
                                         }
                                     </div>
 
@@ -253,7 +253,7 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             title="Voir la preuve"
-                                            className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-border-strong hover:border-border-strong  transition-all shadow-lg opacity-90 hover:opacity-100"
+                                            className="shrink-0 relative h-20 w-28 rounded-lg overflow-hidden border border-border-strong hover:border-border-strong  transition-all opacity-90 hover:opacity-100"
                                         >
                                             <img src={entry.proofUrl} alt="Preuve" className="absolute inset-0 w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-end justify-center pb-1">

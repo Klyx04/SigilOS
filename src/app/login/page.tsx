@@ -4,7 +4,6 @@ import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Shield, LogIn } from "lucide-react";
 import { Metadata } from "next";
 
@@ -44,9 +43,6 @@ export default async function LoginPage({
     return (
         <div className="min-h-screen bg-background text-foreground selection:bg-violet-500/30 font-sans flex flex-col relative overflow-hidden landing-theme">
             {/* Ambient Background */}
-            <div className="fixed inset-0 z-0">
-                <AuroraBackground className="h-full w-full pointer-events-none opacity-20" />
-            </div>
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-violet-500/5 rounded-full blur-[120px] animate-pulse-slow" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-info/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />

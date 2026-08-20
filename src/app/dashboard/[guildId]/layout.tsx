@@ -202,7 +202,7 @@ export default async function DashboardLayout({
                         userGuilds={userGuilds}
                         modules={modules}
                         roadmapEnabled={roadmapEnabled}
-                        className="h-full border-r border-border bg-muted/40 backdrop-blur-3xl shadow-[5px_0_30px_rgba(0,0,0,0.02)] dark:shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
+                        className="h-full border-r border-border bg-surface"
                     />
                 </div>
 
@@ -212,7 +212,7 @@ export default async function DashboardLayout({
                 {/* 2. MAIN CONTENT AREA */}
                 <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
-                    <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
+                    <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
@@ -243,9 +243,6 @@ export default async function DashboardLayout({
                                 </div>
                             </div>
                         </div>
-
-                        {/* subtle background decoration */}
-                        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10 animate-pulse-slow" />
                     </main>
                 </div>
 

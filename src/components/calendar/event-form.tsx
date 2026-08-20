@@ -650,26 +650,26 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                     />
                                                     {/* Color Overlay for contrast */}
                                                     <div className={cn(
-                                                        "absolute inset-0 bg-gradient-to-br from-background via-background/60 to-transparent transition-opacity",
+                                                        "absolute inset-0 bg-background/40",
                                                         raidType === rt.id ? "opacity-40" : "opacity-80"
                                                     )} />
                                                     
-                                                    {/* Selection Glow */}
+                                                    {/* Selection state */}
                                                     {raidType === rt.id && (
-                                                        <div className="absolute inset-0 bg-danger/10 animate-pulse" />
+                                                        <div className="absolute inset-0 bg-danger/10" />
                                                     )}
                                                 </div>
                                             )}
 
                                             <div className="relative z-10">
-                                                <span className="text-2xl block mb-1 drop-shadow-md">{rt.icon}</span>
+                                                <span className="text-2xl block mb-1">{rt.icon}</span>
                                                 <div className="flex flex-col">
                                                     <span className={cn(
-                                                        "text-label font-black leading-tight uppercase tracking-tight drop-shadow-lg",
+                                                        "text-label font-black leading-tight uppercase tracking-tight",
                                                         raidType === rt.id ? "text-foreground" : "text-foreground"
                                                     )}>{rt.short}</span>
                                                     <span className={cn(
-                                                        "text-caption font-bold uppercase tracking-widest mt-0.5 drop-shadow-md",
+                                                        "text-caption font-bold uppercase tracking-widest mt-0.5",
                                                         raidType === rt.id ? "text-danger" : "text-muted-foreground"
                                                     )}>{rt.min}–{rt.max} joueurs</span>
                                                 </div>
@@ -690,7 +690,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     placeholder="Pseudo Dofus du capitaine..."
                                     value={raidCaptain}
                                     onChange={e => setRaidCaptain(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-danger/50 shadow-inner"
+                                    className="w-full h-10 px-3 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-danger/50"
                                 />
                             </div>
 
@@ -777,7 +777,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                         className={cn(
                                                             "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5",
                                                             isSelected
-                                                                ? "bg-danger/20 text-danger border-danger/40 shadow-sm"
+                                                                ? "bg-danger/20 text-danger border-danger/40"
                                                                 : "bg-surface text-muted-foreground border-border hover:border-border hover:text-foreground"
                                                         )}
                                                     >
@@ -821,7 +821,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     </div>
                                     <Link
                                         href={`/dashboard/${guildId}/missions#don-kamas`}
-                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-danger hover:bg-danger text-danger-foreground text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-red-600/30 w-full sm:w-fit"
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-danger hover:bg-danger text-danger-foreground text-xs font-black uppercase tracking-wide transition-all w-full sm:w-fit"
                                     >
                                         <Coins className="h-4 w-4" />
                                         Faire mon don de kamas
@@ -844,7 +844,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     <Input
                                         placeholder="Ex: Raid Bethel - Farm clés"
                                         {...field}
-                                        className="h-11 bg-background border border-border text-foreground focus:border-warning/50 shadow-inner"
+                                        className="h-11 bg-background border border-border text-foreground focus:border-warning/50"
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -868,7 +868,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 <Button
                                                     variant="outline"
                                                     className={cn(
-                                                        "h-11 w-full justify-start text-left font-normal bg-background border border-border text-foreground hover:bg-surface shadow-inner",
+                                                        "h-11 w-full justify-start text-left font-normal bg-background border border-border text-foreground hover:bg-surface",
                                                         !field.value && "text-muted-foreground"
                                                     )}
                                                 >
@@ -904,7 +904,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             <Input
                                                 type="time"
                                                 {...field}
-                                                className="h-11 pl-10 bg-background border border-border text-foreground shadow-inner"
+                                                className="h-11 pl-10 bg-background border border-border text-foreground"
                                             />
                                         </div>
                                     </FormControl>
@@ -924,7 +924,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             <Input
                                                 type="time"
                                                 {...field}
-                                                className="h-11 pl-10 bg-background border border-border text-foreground shadow-inner"
+                                                className="h-11 pl-10 bg-background border border-border text-foreground"
                                             />
                                         </div>
                                     </FormControl>
@@ -965,7 +965,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 const numValue = value ? parseInt(value) : undefined;
                                                 field.onChange(numValue);
                                             }}
-                                            className="h-11 pl-10 bg-background border border-border text-foreground shadow-inner"
+                                            className="h-11 pl-10 bg-background border border-border text-foreground"
                                         />
                                     </div>
                                 )}
@@ -986,7 +986,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 <FormControl>
                                     <Textarea
                                         placeholder="Détails, objectifs, pré-requis..."
-                                        className="min-h-[70px] bg-background border border-border text-foreground resize-none shadow-inner"
+                                        className="min-h-[70px] bg-background border border-border text-foreground resize-none"
                                         {...field}
                                         value={field.value || ""}
                                     />
@@ -1016,8 +1016,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     className={cn(
                         "w-full h-12 font-bold text-base transition-all mt-4",
                         isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
-                            ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed shadow-inner"
-                            : "bg-gradient-to-r from-warning to-warning hover:from-warning hover:to-warning shadow-lg shadow-amber-500/20 text-foreground"
+                            ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
+                            : "bg-warning hover:bg-warning text-foreground"
                     )}
                 >
                     {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
@@ -1035,8 +1035,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
         {step === 2 && (
             <div className="space-y-6">
                 {/* Header Recap */}
-                <div className="flex items-center gap-4 bg-surface/60 rounded-3xl p-5 border border-border shadow-xl relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
+                <div className="flex items-center gap-4 bg-surface rounded-3xl p-5 border border-border relative overflow-hidden">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 bg-background border-border">
                         {currentConfig && <currentConfig.icon className="w-6 h-6 text-muted-foreground" />}
                     </div>
@@ -1177,7 +1176,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border border-border rounded-2xl overflow-hidden" align="center" sideOffset={8}>
                                         <Command className="bg-transparent text-foreground">
                                             <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
                                             <CommandList className="max-h-[320px] premium-scrollbar p-2">
@@ -1207,7 +1206,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 <div 
-                                                                    className="w-3 h-3 rounded-full shrink-0 shadow-sm" 
+                                                                    className="w-3 h-3 rounded-full shrink-0" 
                                                                     style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : (role.color || "#9ca3af") }} 
                                                                 />
                                                                 <span className="font-bold text-foreground group-hover:text-foreground transition-colors uppercase tracking-tight">{role.name}</span>
@@ -1235,8 +1234,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         className={cn(
                             "w-full h-12 font-bold text-base transition-all",
                             isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
-                                ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed shadow-inner"
-                                : "bg-gradient-to-r from-warning to-warning hover:from-warning hover:to-warning shadow-lg shadow-amber-500/20 text-foreground"
+                                ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
+                                : "bg-warning hover:bg-warning text-foreground"
                         )}
                     >
                         {submitting ? (

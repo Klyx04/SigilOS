@@ -26,14 +26,14 @@ export function RecentDjPosts({
     const displayGroups = (groups || []).slice(0, 5);
 
     return (
-        <Card className="glass-premium border-border h-full flex flex-col overflow-hidden group">
+        <Card className="border-border h-full flex flex-col overflow-hidden">
             <CardHeader className="pb-4 pt-6 px-6">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
                         <Sword className="w-3 h-3" />
                         Groupes & Activités
                     </CardTitle>
-                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-all">
+                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-colors">
                         Voir tout
                     </Link>
                 </div>
@@ -50,7 +50,7 @@ export function RecentDjPosts({
 
                         return (
                             <Link key={group.id} href={href}>
-                                <div className={`p-3 rounded-xl bg-surface border border-border hover:bg-surface transition-all flex items-center gap-4 group/item ${isDream ? 'hover:border-success/20' : 'hover:border-success/20'}`}>
+                                <div className="p-3 rounded-xl bg-surface border border-border hover:bg-elevated transition-colors flex items-center gap-4 group/item hover:border-success/20">
                                     <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-border relative bg-surface flex items-center justify-center">
                                         {group.imageUrl ? (
                                             <NextImage 
@@ -65,7 +65,7 @@ export function RecentDjPosts({
                                             </div>
                                         )}
                                         {isDream && (
-                                            <div className="absolute inset-0 bg-success/20 flex items-center justify-center backdrop-blur-[1px]">
+                                            <div className="absolute inset-0 bg-success/20 flex items-center justify-center">
                                                 <InfinityIcon className="w-5 h-5 text-success drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
                                             </div>
                                         )}
@@ -92,8 +92,8 @@ export function RecentDjPosts({
                                             <Users className="w-3 h-3" />
                                             {group.participantsCount}/{group.maxMembers}
                                         </div>
-                                        <div className={`text-caption font-black uppercase tracking-tighter transition-colors ${isDream ? 'text-success hover:text-success' : 'text-muted-foreground hover:text-info'}`}>
-                                            {isDream ? 'REJOINDRE' : 'REJOINDRE'}
+                                        <div className={`text-caption font-black uppercase tracking-tighter transition-colors ${isDream ? 'text-success' : 'text-muted-foreground hover:text-info'}`}>
+                                            REJOINDRE
                                         </div>
                                     </div>
                                 </div>
@@ -109,7 +109,7 @@ export function RecentDjPosts({
                 )}
                 
                 {displayGroups.length > 0 && (
-                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="flex items-center justify-center gap-2 text-caption font-black text-muted-foreground hover:text-foreground uppercase tracking-widest pt-2 group-hover:text-info transition-colors">
+                    <Link href={`/dashboard/${guildId}/donjons-et-quetes`} className="flex items-center justify-center gap-2 text-caption font-black text-muted-foreground hover:text-info uppercase tracking-widest pt-2 transition-colors">
                         Rejoindre un groupe <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 )}

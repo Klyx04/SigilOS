@@ -84,7 +84,7 @@ export function JobsGrid({
     const activeJobsData = allJobs.filter(j => jobs.includes(j.id));
 
     return (
-        <div className="p-6 bg-background/80 backdrop-blur-md rounded-3xl border border-border transition-all hover:border-warning/30 shadow-2xl group h-full flex flex-col">
+        <div className="p-6 bg-surface rounded-3xl border border-border transition-colors hover:border-warning/30 group h-full flex flex-col">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-warning/15 border border-warning/30 flex items-center justify-center">
@@ -167,7 +167,7 @@ export function JobsGrid({
                                                                             alt={job.name}
                                                                             width={48}
                                                                             height={48}
-                                                                            className="w-12 h-12 object-contain drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                                                                            className="w-12 h-12 object-contain"
                                                                         />
                                                                     ) : (
                                                                         <span className="text-3xl">{job.icon}</span>
@@ -202,11 +202,10 @@ export function JobsGrid({
             </div>
 
             {jobs.length > 0 ? (
-                <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface to-elevated p-6 mb-6 group-hover:border-border transition-colors shadow-sm">
-                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] bg-warning/10 pointer-events-none" />
+                <div className="relative overflow-hidden rounded-xl border border-border bg-surface p-6 mb-6 transition-colors">
                     <div className="relative flex items-center gap-5">
-                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-elevated border border-border shadow-md shrink-0">
-                            <Hammer className="w-10 h-10 text-warning drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+                        <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-elevated border border-border shrink-0">
+                            <Hammer className="w-10 h-10 text-warning" />
                             <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5" />
                         </div>
                         <div>
@@ -229,25 +228,25 @@ export function JobsGrid({
                         <TabsList className="grid w-full grid-cols-4 bg-background/40 border border-border p-1 h-11 rounded-xl mb-6">
                             <TabsTrigger 
                                 value="Récolte"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Récolte
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Artisanat"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Artisanat
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Forgemagie"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Forgemagie
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Élevage"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-warning/15 data-[state=active]:to-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-muted-foreground hover:text-foreground hover:bg-elevated/10 data-[state=active]:bg-warning/15 data-[state=active]:text-warning data-[state=active]:border data-[state=active]:border-warning/30 data-[state=active]:"
                             >
                                 Élevage
                             </TabsTrigger>
@@ -265,7 +264,7 @@ export function JobsGrid({
                                             {activeCategoryJobs.map(job => (
                                                 <div
                                                     key={job.id}
-                                                    className="group relative flex flex-col items-center justify-center p-5 rounded-2xl border border-border bg-background/30 hover:border-border hover:bg-surface/10 shadow-lg aspect-square overflow-hidden transition-all duration-300"
+                                                    className="group relative flex flex-col items-center justify-center p-5 rounded-2xl border border-border bg-surface hover:border-border hover:bg-elevated aspect-square overflow-hidden transition-colors duration-200"
                                                 >
                                                     <div className="mb-3 transform transition-transform duration-300 group-">
                                                         {job.icon.startsWith("/") ? (
@@ -274,7 +273,7 @@ export function JobsGrid({
                                                                 alt={job.name}
                                                                 width={56}
                                                                 height={56}
-                                                                className="w-14 h-14 object-contain drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]"
+                                                                className="w-14 h-14 object-contain"
                                                             />
                                                         ) : (
                                                             <span className="text-4xl">{job.icon}</span>

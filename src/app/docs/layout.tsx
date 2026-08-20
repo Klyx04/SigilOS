@@ -7,7 +7,6 @@ import { redirect } from "next/navigation";
 import { ResizableSidebar } from "./_components/resizable-sidebar";
 import { DocsSearch } from "@/components/doc/docs-search";
 import { cn } from "@/lib/utils";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Button } from "@/components/ui/button";
 
 export default async function DocsLayout({
@@ -47,15 +46,12 @@ export default async function DocsLayout({
                 />
 
                 <main className="flex-1 flex flex-col items-center justify-center p-6 text-center relative">
-                    <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.1),transparent_50%)] pointer-events-none" />
-
                     <div className="relative z-10 max-w-2xl">
-                        <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-danger/20 to-danger/10 border border-danger/30 flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-red-500/20 group">
-                            <ShieldCheck className="w-12 h-12 text-danger drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] group- transition-transform duration-300" />
+                        <div className="w-24 h-24 rounded-[2.5rem] bg-danger/10 border border-danger/30 flex items-center justify-center mb-10 mx-auto">
+                            <ShieldCheck className="w-12 h-12 text-danger" />
                         </div>
                         <h1 className="text-4xl md:text-6xl font-black text-foreground mb-6 tracking-tight uppercase font-heading">
-                            Accès <span className="text-transparent bg-clip-text bg-gradient-to-r from-danger to-danger italic">Réservé</span>
+                            Accès <span className="text-danger italic">Réservé</span>
                         </h1>
                         <p className="text-muted-foreground max-w-lg mx-auto text-lg leading-relaxed mb-12 font-medium">
                             Le centre de documentation est exclusivement réservé aux membres des guildes partenaires du projet SigilOS.
@@ -63,7 +59,7 @@ export default async function DocsLayout({
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                             <Link
                                 href="/"
-                                className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-background text-foreground font-black uppercase text-caption tracking-[0.2em]  transition-all shadow-2xl shadow-white/10 active:scale-95 group"
+                                className="inline-flex items-center gap-3 px-10 py-4 rounded-xl bg-background text-foreground font-black uppercase text-caption tracking-[0.2em] transition-colors active:scale-95"
                             >
                                 Retour à l'accueil
                                 <Home className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
@@ -122,7 +118,7 @@ export default async function DocsLayout({
             </div>
 
             {/* 2. MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-background/40 backdrop-blur-3xl">
+            <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-background">
                 
                 {/* Top Navigation */}
                 <div className="flex-shrink-0 z-50">
@@ -189,7 +185,7 @@ export default async function DocsLayout({
                             </div>
                         </aside>
 
-                        <div className="flex-1 min-w-0 bg-surface/20 border border-border rounded-[2.5rem] p-8 sm:p-12 shadow-2xl backdrop-blur-xl min-h-[600px]">
+                        <div className="flex-1 min-w-0 bg-surface border border-border rounded-[2.5rem] p-8 sm:p-12 min-h-[600px]">
                             {children}
                         </div>
                     </div>

@@ -18,19 +18,14 @@ export function IntelligenceCenter({ data }: { data: FocusCardData }) {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
         >
-            <Card className="relative overflow-hidden group border-none bg-background/40 backdrop-blur-2xl ">
-                {/* Liquid Glass Effects */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-50" />
-                <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
-
+            <Card className="relative overflow-hidden border-border bg-surface">
                 <CardContent className="p-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
                     {/* Visual Indicator */}
-                    <div className="relative h-16 w-16 shrink-0 flex items-center justify-center rounded-2xl bg-surface border border-border shadow-inner">
-                        <div className="absolute inset-0 blur-xl bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative h-16 w-16 shrink-0 flex items-center justify-center rounded-2xl bg-elevated border border-border">
                         {icons[data.type]}
                     </div>
 
@@ -52,7 +47,7 @@ export function IntelligenceCenter({ data }: { data: FocusCardData }) {
                     {/* Action */}
                     <div className="shrink-0">
                         <Link href={data.actionHref}>
-                            <Button size="lg" className="rounded-full px-8 font-black group/btn bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl shadow-primary/20 transition-all  active:scale-95">
+                            <Button size="lg" className="rounded-xl px-8 font-black group/btn bg-primary hover:bg-primary/90 text-primary-foreground transition-colors active:scale-95">
                                 {data.actionLabel}
                                 <ArrowRight className="ml-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                             </Button>
@@ -66,7 +61,7 @@ export function IntelligenceCenter({ data }: { data: FocusCardData }) {
                         className="absolute inset-y-0 left-0 bg-primary"
                         initial={{ width: 0 }}
                         animate={{ width: `${data.priority}%` }}
-                        transition={{ duration: 1.5, delay: 0.5, ease: "circOut" }}
+                        transition={{ duration: 0.6, ease: "circOut" }}
                     />
                 </div>
             </Card>

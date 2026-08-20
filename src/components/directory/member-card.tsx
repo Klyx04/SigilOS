@@ -95,20 +95,16 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}>
             <Card
                 className={cn(
-                    "group relative overflow-hidden cursor-pointer border shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl bg-background/80 backdrop-blur-md",
+                    "group relative overflow-hidden cursor-pointer border transition-colors duration-200 bg-surface",
                     roleColor ? "" : "border-border hover:border-border",
                     isOnVacation && "bg-info/20 border-info/20 hover:border-info/40"
                 )}
-                style={roleColor ? { borderColor: `${roleColor}30`, boxShadow: `0 10px 40px -10px ${roleColor}15` } : undefined}
+                style={roleColor ? { borderColor: `${roleColor}30` } : undefined}
             >
-                {/* Dynamic Background Glow & Top Banner */}
-                <div 
-                    className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-300 pointer-events-none"
-                    style={roleColor ? { background: `radial-gradient(circle at 50% 0%, ${roleColor}, transparent 70%)` } : { background: `radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)` }}
-                />
+                {/* Top accent banner */}
                 <div 
                     className="absolute top-0 left-0 w-full h-1"
-                    style={roleColor ? { backgroundColor: roleColor } : { background: "linear-gradient(90deg, #3f3f46, #71717a)" }}
+                    style={roleColor ? { backgroundColor: roleColor } : { backgroundColor: "var(--muted)" }}
                 />
 
                 <CardContent className="p-6 flex flex-col items-center gap-4 relative z-10">
@@ -123,7 +119,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                             <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">En vacances</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="glass-premium border-info/30 text-info text-info">
+                                    <TooltipContent side="bottom" className="bg-surface border-info/30 text-info">
                                         <p className="font-bold">{vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -140,7 +136,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                             <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">Bientôt</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="glass-premium border-warning/30 text-warning dark:text-warning">
+                                    <TooltipContent side="bottom" className="bg-surface border-warning/30 text-warning dark:text-warning">
                                         <p className="font-bold">⏳ {vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -150,11 +146,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Avatar Container */}
                     <div className="relative group/avatar mt-2">
-                        <div className="absolute inset-0 rounded-full blur-md opacity-0 group-hover/avatar:opacity-50 transition-opacity duration-300"
-                             style={roleColor ? { backgroundColor: roleColor } : { backgroundColor: "rgba(255,255,255,0.2)" }} />
-                        
                         <Avatar
-                            className="w-24 h-24 transition-all duration-300 ring-2 ring-offset-4 ring-offset-zinc-950 group-hover/avatar:scale-105"
+                            className="w-24 h-24 transition-colors duration-200 ring-2 ring-offset-4 ring-offset-background"
                             style={{ "--ringColor": roleColor || "rgba(255,255,255,0.1)" } as React.CSSProperties}
                         >
                             <AvatarImage src={profile.user.image || ""} className="object-cover" />
@@ -172,7 +165,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                         isOnline ? "bg-success " : "bg-muted"
                                     )} />
                                 </TooltipTrigger>
-                                <TooltipContent side="right" className="glass-premium border-border text-xs font-bold uppercase tracking-widest">
+                                <TooltipContent side="right" className="bg-surface border-border text-xs font-bold uppercase tracking-widest">
                                     {isOnline ? "En ligne récemment" : "Hors ligne"}
                                 </TooltipContent>
                             </Tooltip>
@@ -185,7 +178,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <div className={cn(
-                                                "w-11 h-11 rounded-xl border-2 bg-background/90 shadow-2xl flex items-center justify-center overflow-hidden",
+                                                "w-11 h-11 rounded-xl border-2 bg-surface flex items-center justify-center overflow-hidden",
                                                 profile.alignment === "bontarien" ? "border-info/40" : 
                                                 profile.alignment === "brakmarien" ? "border-danger/40" : 
                                                 "border-border-strong"
@@ -265,7 +258,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     </div>
 
                     {/* Divider */}
-                    <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
+                    <div className="w-full h-px bg-border my-1" />
 
                     {/* Jobs */}
                     <div className={cn(
@@ -305,7 +298,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     {/* Aligned Mules */}
                     {alignedMules.length > 0 && (
                         <>
-                            <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
+                            <div className="w-full h-px bg-border my-1" />
                             <div className="flex flex-col items-center gap-1.5 w-full">
                                 <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Mules alignées</span>
                                 <div className="flex flex-wrap justify-center gap-1.5">

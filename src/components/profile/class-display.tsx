@@ -99,7 +99,7 @@ export function ClassDisplay({
     };
 
     return (
-        <div className="p-6 bg-background/80 backdrop-blur-md rounded-3xl border border-border transition-all hover:border-warning/30 shadow-2xl group space-y-4">
+        <div className="p-6 bg-background/80 rounded-3xl border border-border transition-all hover:border-warning/30 group space-y-4">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <div className="flex items-center justify-between border-b border-border pb-4">
                     <div className="flex items-center gap-3">
@@ -130,26 +130,21 @@ export function ClassDisplay({
 
                 {/* Main Class Display - Premium Card COMPACT */}
                 {mainClassData ? (
-                    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface/80 p-5 group-hover:border-warning/40 transition-colors shadow-sm">
-                        {/* Background Glow */}
-                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[40px] opacity-20 pointer-events-none"
-                            style={{ backgroundColor: mainClassData.color }}
-                        />
-
+                    <div className="relative rounded-2xl border border-border bg-surface p-5 group-hover:border-warning/40 transition-colors">
                         <div className="relative flex items-center gap-4">
-                            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-elevated border border-border shadow-md shrink-0" style={{ borderColor: `${mainClassData.color}50` }}>
-                                <ClassIcon classId={mainClassData.id} size={38} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.3)]" />
+                            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-elevated border border-border shrink-0" style={{ borderColor: `${mainClassData.color}50` }}>
+                                <ClassIcon classId={mainClassData.id} size={38} />
                             </div>
 
                             <div className="flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className="text-caption font-black text-muted-foreground uppercase tracking-widest shrink-0">Pseudo Dofus :</span>
                                     {pseudoDofus ? (
-                                        <span className="text-lg font-black text-warning tracking-wide drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                        <span className="text-lg font-black text-warning tracking-wide">
                                             {pseudoDofus}
                                         </span>
                                     ) : (
-                                        <span className="text-xs font-black text-warning/80 animate-pulse uppercase tracking-widest">
+                                        <span className="text-xs font-black text-warning/80 uppercase tracking-widest">
                                             Non renseigné
                                         </span>
                                     )}
@@ -170,9 +165,8 @@ export function ClassDisplay({
                             <DialogTrigger asChild>
                                 <button
                                     onClick={handleOpen}
-                                    className="w-full p-6 text-center border-2 border-dashed border-border hover:border-warning/50 hover:bg-warning/5 rounded-xl mb-4 transition-all group/cta relative overflow-hidden"
+                                    className="w-full p-6 text-center border-2 border-dashed border-border hover:border-warning/50 hover:bg-warning/5 rounded-xl mb-4 transition-colors group/cta relative overflow-hidden"
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-warning/0 via-warning/0 to-warning/5 opacity-0 group-hover/cta:opacity-100 transition-opacity" />
                                     <div className="relative z-10 flex flex-col items-center gap-2">
                                         <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center group-hover/cta:scale-110 transition-transform">
                                             <Plus className="w-5 h-5 text-warning" />
@@ -190,7 +184,7 @@ export function ClassDisplay({
                     </div>
                 )}
 
-                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-background border-border rounded-3xl overflow-hidden shadow-2xl">
+                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-background border-border rounded-3xl overflow-hidden">
                     <DialogHeader className="p-8 pb-4 border-b border-border shrink-0">
                         <DialogTitle className="text-2xl font-black">Modifier votre profil</DialogTitle>
                         <DialogDescription className="text-base text-muted-foreground">Définissez votre identité en jeu.</DialogDescription>
@@ -277,15 +271,14 @@ export function ClassDisplay({
                                             )}
                                             style={isSelected ? {
                                                 borderColor: c.color,
-                                                backgroundColor: `${c.color}25`,
-                                                boxShadow: `0 0 20px -5px ${c.color}60`
+                                                backgroundColor: `${c.color}25`
                                             } : undefined}
                                         >
-                                            <div className={cn("mb-2 transform transition-transform group- duration-300", isSelected ? "scale-110" : "")}>
+                                            <div className={cn("mb-2 transform transition-transform duration-200", isSelected ? "scale-110" : "")}>
                                                 <ClassIcon classId={c.id} size={36} />
                                             </div>
                                             <span className={cn("w-full px-1 text-caption sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-foreground" : "text-muted-foreground")}
-                                                style={isSelected ? { color: 'white', textShadow: `0 0 10px ${c.color}` } : undefined}
+                                                style={isSelected ? { color: c.color } : undefined}
                                             >
                                                 {c.name}
                                             </span>

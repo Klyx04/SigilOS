@@ -105,7 +105,7 @@ export function SpellRangeGrid({
     const gridRows = mapData ? mapData.cells.length : GRID_SIZE;
     const gridCols = mapData && mapData.cells[0] ? mapData.cells[0].length : GRID_SIZE;
 
-    // États classés (VOID/HOLE/GROUND/OBSTACLE/SPECIAL) à partir de la grille brute 0/1/2.
+    // États classés (VOID/HOLE/GROUND/OBSTACLE) à partir de la grille brute 0/1/2.
     const mapStates = useMemo(() => (mapData ? classifyGrid(mapData.cells) : null), [mapData]);
 
     const cellState = (x: number, y: number): CellState => {
@@ -565,7 +565,6 @@ export function SpellRangeGrid({
                             const C = {
                                 floor: "#8D8A66",
                                 floorMuted: "#777457",
-                                special: "#A69A58",
                                 grid: "rgba(215, 208, 164, 0.20)",
                                 obsTop: "#777358",
                                 obsLeft: "#5C5945",

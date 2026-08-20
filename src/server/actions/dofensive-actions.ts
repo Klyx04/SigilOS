@@ -6,7 +6,8 @@
  * Dofensive expose (publiquement, JSON sans clé) exactement ce qu'il faut pour la
  * simulation de fiche boss façon « DoMaGE » :
  *   - /dungeons/preview  → donjons + leurs maps (nommées) + leurs monstres (lien boss→maps)
- *   - /maps/{id}         → map réelle : grille `cells` (0=libre, 1=obstacle), cases de
+ *   - /maps/{id}         → map réelle : grille `cells` (0=sol marchable,
+ *                          1=case impossible/trou, 2=case obstacle 3D), cases de
  *                          départ `allyCells` / `enemyCells` (cellIds Dofus)
  *   - /monsters/{id}     → monstre : PreferredMaps, Dungeons, Spells
  *
@@ -87,7 +88,7 @@ export interface DofensiveMapData {
     dungeon: { id: number; name: string } | null;
     isBossMap: boolean;
     coordinates: { x: number; y: number } | null;
-    /** Grille 2D : cells[row][col] — 0 = libre, 1 = obstacle, 2 = case spéciale (marchable). */
+    /** Grille 2D : cells[row][col] — 0 = sol (marchable), 1 = case impossible/trou, 2 = case obstacle (3D). */
     cells: number[][];
     /** cellIds Dofus des cases de départ alliés (convention : col = id / rows, row = id % rows). */
     allyCells: number[];

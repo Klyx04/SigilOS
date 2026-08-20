@@ -42,6 +42,8 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
     const [resolvedDj, setResolvedDj] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [expandedAchv, setExpandedAchv] = useState<string | null>(null);
+    // #175 — popup de blocage quand le DJ n'est pas répertorié dans le module Donjons & Quêtes.
+    const [djNotListedOpen, setDjNotListedOpen] = useState(false);
 
     const dungeon = dungeons[selectedDungeonIndex];
     const isOcreQuest = !!(dungeon as any).__isOcreQuest;
@@ -77,6 +79,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
     if (!isOpen || !dungeon) return null;
 
     return (
+        <>
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent 
                 showCloseButton={false} 
@@ -285,15 +288,55 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                             Consultez les membres de guilde<br/>pour organiser vos groupes
                         </p>
                     </div>
-                    <a 
-                        href={`/dashboard/${guildId}/donjons-et-quetes`}
-                        className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                    >
-                        Créer un groupe <ChevronRight size={14} />
-                    </a>
+                    {/* #175 — création DJ directe depuis la WorldMap : donjon pré-rempli si répertorié,
+                        sinon popup de blocage demandant l'ajout du donjon. */}
+                    {resolvedDj ? (
+                        <a
+                            href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${encodeURIComponent(resolvedDj.id)}`}
+                            className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        >
+                            Créer un groupe <ChevronRight size={14} />
+                        </a>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setDjNotListedOpen(true)}
+                            className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        >
+                            Créer un groupe <ChevronRight size={14} />
+                        </button>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
+
+            {/* #175 — Popup de blocage : donjon non répertorié dans le module Donjons & Quêtes. */}
+            <Dialog open={djNotListedOpen} onOpenChange={setDjNotListedOpen}>
+                <DialogContent
+                    showCloseButton={false}
+                    className="w-[95vw] max-w-md bg-[#0a0f18] border border-border shadow-[0_50px_100px_rgba(0,0,0,0.8)] rounded-3xl text-foreground overflow-hidden p-0 gap-0"
+                >
+                    <div className="p-8 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto mb-4">
+                            <Info size={26} className="text-amber-500" />
+                        </div>
+                        <h3 className="text-lg font-black text-foreground mb-2">Ce donjon n'est pas répertorié</h3>
+                        <p className="text-caption text-foreground/40 font-semibold leading-relaxed mb-6">
+                            Impossible de créer un groupe pour «&nbsp;{typeof dungeon.name === 'string' ? dungeon.name : dungeon.name?.fr || "ce donjon"}&nbsp;»
+                            car il n'existe pas encore dans le module <strong>Donjons &amp; Quêtes</strong>.<br />
+                            Signale-le à un officier ou au God pour qu'il soit ajouté.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setDjNotListedOpen(false)}
+                            className="w-full px-6 py-3 rounded-2xl bg-surface border border-border text-foreground font-black text-caption uppercase italic hover:bg-elevated transition-all"
+                        >
+                            Compris
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 

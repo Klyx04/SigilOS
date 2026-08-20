@@ -901,11 +901,26 @@ export async function updateMonsterTradeParams(
         "Authorization": `Bearer ${options.guildApiKey}`
     };
 
+    // #180 — Toujours envoyer le couple (trade_offer + trade_want) COMPLET et borné :
+    // un body partiel pouvait être interprété côté API comme un patch global
+    // (« un trade patch TOUS les archis »). Ici le patch reste scopé au monsterId
+    // ET contient toujours les deux clés (0 par défaut).
+    const clamp = (v: number | null | undefined, fallback: number) => {
+        if (v === null || v === undefined || Number.isNaN(v)) return fallback;
+        return Math.min(30, Math.max(0, Math.trunc(v)));
+    };
+    const trade_offer = clamp(params.trade_offer, 0);
+    const trade_want = clamp(params.trade_want, 0);
+    // Trade réciproque : un archi ne peut pas être à la fois offert ET voulu par le même joueur.
+    const body = trade_offer > 0 && trade_want > 0
+        ? { trade_offer, trade_want: 0 }
+        : { trade_offer, trade_want };
+
     try {
         const response = await fetch(`${METAMOB_API_BASE}/v1/quests/${encodeURIComponent(slug)}/monsters/${monsterId}/trade`, {
             method: 'PATCH',
             headers,
-            body: JSON.stringify(params)
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {

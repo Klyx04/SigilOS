@@ -2063,35 +2063,51 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
         });
 
         // Metamob Auto-Update
+        // #180 — Un trade = UN SEUL archi transféré. La lecture de la quantité se fait
+        // dans la QUÊTE EXACTE du membre (metamobQuestSlug) via getQuestDetails, plus
+        // `getUserMonsters` (qui auto-pick une quête et pouvait lire une mauvaise
+        // quantité → écriture absolue destructrice « le trade patch tous ses archi »).
         try {
-            const { getUserMonsters, updateMonsterQuantity } = await import("@/lib/metamob-client");
+            const { getQuestDetails, normalizeQuestMonster, updateMonsterQuantity } = await import("@/lib/metamob-client");
 
-            // 1. Update Requester (Gains 1 monster)
+            const readOwned = async (pseudo: string, slug: string, apiKey: string): Promise<number | null> => {
+                if (!pseudo || !slug || !apiKey) return null;
+                try {
+                    const details = await getQuestDetails(pseudo, slug, { guildApiKey: apiKey, limit: 500 });
+                    const m = details.monsters.find((mm) => (mm as any).id === tradeRequest.monsterId);
+                    if (!m) return null;
+                    return normalizeQuestMonster(m, details.parallel_quests).owned;
+                } catch {
+                    return null;
+                }
+            };
+
+            // 1. Requester (reçoit EXACTEMENT 1 copie)
             if (tradeRequest.requester.metamobApiKey && tradeRequest.requester.metamobQuestSlug && tradeRequest.requester.metamobVerified) {
-                const reqMonsters = await getUserMonsters(tradeRequest.requester.metamobPseudo, { guildApiKey: tradeRequest.requester.metamobApiKey });
-                const reqMonster = reqMonsters.find(m => m.id === tradeRequest.monsterId);
-                const reqCurrent = reqMonster ? reqMonster.quantite : 0;
-                await updateMonsterQuantity(
-                    tradeRequest.requester.metamobPseudo,
-                    tradeRequest.requester.metamobQuestSlug,
-                    tradeRequest.monsterId,
-                    reqCurrent + 1,
-                    { guildApiKey: tradeRequest.requester.metamobApiKey }
-                );
+                const reqKey = decrypt(tradeRequest.requester.metamobApiKey as string) || "";
+                const reqOwned = await readOwned(tradeRequest.requester.metamobPseudo as string, tradeRequest.requester.metamobQuestSlug, reqKey);
+                if (reqOwned !== null) {
+                    await updateMonsterQuantity(
+                        tradeRequest.requester.metamobPseudo,
+                        tradeRequest.requester.metamobQuestSlug,
+                        tradeRequest.monsterId,
+                        reqOwned + 1,
+                        { guildApiKey: reqKey }
+                    );
+                }
             }
 
-            // 2. Update Target (Loses 1 monster)
+            // 2. Target (perd EXACTEMENT 1 copie, bornée à 0)
             if (tradeRequest.target.metamobApiKey && tradeRequest.target.metamobQuestSlug && tradeRequest.target.metamobVerified) {
-                const targetMonsters = await getUserMonsters(tradeRequest.target.metamobPseudo, { guildApiKey: tradeRequest.target.metamobApiKey });
-                const targetMonster = targetMonsters.find(m => m.id === tradeRequest.monsterId);
-                const targetCurrent = targetMonster ? targetMonster.quantite : 0;
-                if (targetCurrent > 0) {
+                const tgtKey = decrypt(tradeRequest.target.metamobApiKey as string) || "";
+                const tgtOwned = await readOwned(tradeRequest.target.metamobPseudo as string, tradeRequest.target.metamobQuestSlug, tgtKey);
+                if (tgtOwned !== null && tgtOwned > 0) {
                     await updateMonsterQuantity(
                         tradeRequest.target.metamobPseudo,
                         tradeRequest.target.metamobQuestSlug,
                         tradeRequest.monsterId,
-                        targetCurrent - 1,
-                        { guildApiKey: tradeRequest.target.metamobApiKey }
+                        Math.max(0, tgtOwned - 1),
+                        { guildApiKey: tgtKey }
                     );
                 }
             }

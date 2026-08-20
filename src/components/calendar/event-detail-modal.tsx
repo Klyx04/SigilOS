@@ -37,6 +37,7 @@ import {
     Star,
     Coins,
     AlertTriangle,
+    Copy,
 } from "lucide-react";
 import {
     Dialog,
@@ -349,6 +350,26 @@ export function EventDetailModal({
     const isKrala = isDirectKralamoure || isImportedKralamoure;
     const cachedCount = isKrala ? (eventMetadata?.metamobParticipantsCount || 0) : 0;
     const displayCount = registeredCount > 0 ? registeredCount : cachedCount;
+
+    // #179 — copier les pseudos des participants (organisateur + inscrits + réserve)
+    const [copiedPseudos, setCopiedPseudos] = useState(false);
+    const participantDisplayName = (p: Participant): string =>
+        (p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme").replace(/\s\(\d+\)$/, "");
+    const handleCopyPseudos = () => {
+        const names: string[] = [];
+        if (event.creator) names.push(event.creator.name || "Anonyme");
+        event.participants
+            .filter((p) => p.status === "REGISTERED" || p.status === "RESERVE")
+            .sort((a, b) => a.position - b.position)
+            .forEach((p) => names.push(participantDisplayName(p)));
+        const text = names.map((n) => `/w ${n}`).join("\n");
+        if (!text.trim()) return;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedPseudos(true);
+            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
+            setTimeout(() => setCopiedPseudos(false), 2000);
+        }).catch(() => toast.error("Impossible de copier"));
+    };
 
     const handleAction = async (action: () => Promise<void>) => {
         setIsLoading(true);
@@ -817,9 +838,23 @@ export function EventDetailModal({
                                                 <Users className="h-4 w-4 text-pink-400" />
                                                 Participants{isKrala ? " Metamob" : ""}
                                             </div>
-                                            <span className="px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-400 text-xs font-black shadow-lg shadow-pink-500/10">
-                                                {displayCount}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                {/* #179 — copier les pseudos des participants */}
+                                                {event.participants.filter((p) => p.status === "REGISTERED" || p.status === "RESERVE").length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCopyPseudos}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-elevated/60 border border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors normal-case tracking-normal italic-none"
+                                                        title="Copier les pseudos des participants (format /w Pseudo)"
+                                                    >
+                                                        {copiedPseudos ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                                                        {copiedPseudos ? "Copié" : "Pseudos"}
+                                                    </button>
+                                                )}
+                                                <span className="px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-400 text-xs font-black shadow-lg shadow-pink-500/10">
+                                                    {displayCount}
+                                                </span>
+                                            </div>
                                         </h3>
 
                                         <div className="space-y-2">

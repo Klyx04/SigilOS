@@ -102,13 +102,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
     };
 
     return (
-        <div className="w-full relative overflow-hidden rounded-3xl bg-background border border-border shadow-2xl">
-            {/* Background Effects */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
-            <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
-
-            <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-info/5 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-fuchsia-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="w-full relative overflow-hidden rounded-3xl bg-surface border border-border">
 
             {/* MAIN LAYOUT CONTAINER */}
             <div className="relative z-10 p-6 md:p-8 flex flex-col gap-8 md:gap-12">
@@ -118,8 +112,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
 
                     {/* LEFT: Guild Identity */}
                     <div className="flex items-center gap-4 relative z-30 shrink-0">
-                        <div className="p-3 rounded-2xl bg-foreground/[0.03] border border-border shadow-inner backdrop-blur-sm relative">
-                            <div className="absolute inset-0 bg-warning/10 rounded-2xl blur-lg animate-pulse" />
+                        <div className="p-3 rounded-2xl bg-foreground/[0.03] border border-border relative">
                             <Crown className="w-7 h-7 text-warning dark:text-warning relative z-10" />
                         </div>
                         <div className="space-y-0.5">
@@ -134,8 +127,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
 
                     {/* CENTER: Timer (Absolute on desktop, completely isolated) */}
                     <div className="relative md:absolute md:left-1/2 md:-translate-x-1/2 md:top-0 w-full md:w-auto flex justify-center z-20 order-first md:order-none mb-6 md:mb-0">
-                        <div className="group/timer cursor-default transform scale-110 md:scale-125 origin-top transition-transform duration-300 hover:scale-[1.15] md:hover:scale-[1.3]">
-                            <div className="absolute -inset-6 bg-gradient-to-r from-info/0 via-info/10 to-info/0 blur-xl opacity-0 group-hover/timer:opacity-100 transition-opacity duration-300" />
+                        <div className="cursor-default transform scale-110 md:scale-125 origin-top">
                             <div className="relative">
                                 <ResetCountdown />
                             </div>
@@ -145,7 +137,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     {/* RIGHT: XP Stats (with explicit min-width to prevent squeeze) */}
                     <div className="text-left md:text-right relative z-30 self-end md:self-start shrink-0 min-w-[120px]">
                         <div className="flex items-baseline justify-start md:justify-end gap-2">
-                            <span className="text-4xl font-black text-foreground tracking-tighter drop-shadow-lg">
+                            <span className="text-4xl font-black text-foreground tracking-tighter">
                                 {currentXP.toLocaleString()}
                             </span>
                             <span className="text-lg font-black text-muted-foreground tracking-tight italic">
@@ -168,15 +160,15 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     <div className="relative h-6 w-full">
 
                         {/* THE TRACK (Background & Fill) */}
-                        <div className="absolute inset-0 bg-foreground/10 rounded-full border border-border overflow-visible shadow-inner">
+                        <div className="absolute inset-0 bg-foreground/10 rounded-full border border-border overflow-visible">
                             <TooltipProvider delayDuration={0}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div
-                                            className="h-full rounded-full bg-gradient-to-r from-info via-info to-fuchsia-500 transition-all duration-300 ease-out relative  cursor-help"
+                                            className="h-full rounded-full bg-info transition-colors duration-300 ease-out relative cursor-help"
                                             style={{ width: `${progress}%` }}
                                         >
-                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-elevated blur-[2px]" />
+                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-elevated" />
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="glass-premium border-border text-foreground font-mono font-bold">
@@ -218,21 +210,20 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                         <div className="absolute top-8 flex flex-col items-center transition-transform  duration-300 origin-top">
                                             {/* Icon Circle */}
                                             <div className={cn(
-                                                "w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-xl backdrop-blur-md mb-1.5 relative",
+                                                "w-10 h-10 rounded-full flex items-center justify-center border-2 mb-1.5 relative",
                                                 style.bg,
                                                 style.color,
                                                 style.borderColor,
                                                 // More vibrant "unreached" state: less opacity reduction, keep saturation
                                                 isReached ? style.glow : "opacity-100 grayscale-[0.3] border-border bg-background"
                                             )}>
-                                                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 to-transparent opacity-50" />
-                                                <Icon className="w-5 h-5 relative z-10 drop-shadow-md" />
+                                                <Icon className="w-5 h-5 relative z-10" />
                                             </div>
 
                                             {/* Labels */}
                                             <div className="flex flex-col items-center gap-0.5">
                                                 <span className={cn(
-                                                    "text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-background border border-border whitespace-nowrap shadow-lg",
+                                                    "text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-background border border-border whitespace-nowrap",
                                                     style.color
                                                 )}>
                                                     {style.label}
@@ -264,7 +255,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                     <span> À faire</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-info to-fuchsia-500 " />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-info " />
                                     <span className="text-foreground">Complété</span>
                                 </div>
                             </div>
@@ -276,7 +267,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                 <span> À faire</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-info to-fuchsia-500 " />
+                                <div className="w-2.5 h-2.5 rounded-full bg-info " />
                                 <span className="text-foreground">Complété</span>
                             </div>
                         </div>

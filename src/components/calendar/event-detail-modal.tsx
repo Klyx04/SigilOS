@@ -286,6 +286,8 @@ export function EventDetailModal({
     const [presentParticipants, setPresentParticipants] = useState<Set<string>>(new Set());
     const [isCompletingRaid, setIsCompletingRaid] = useState(false);
     const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
+    // #191 — #179 — Doit être AVANT le guard `if (!event) return null` (règles des Hooks)
+    const [copiedPseudos, setCopiedPseudos] = useState(false);
 
     const eventMetadata = (event as any)?.metadata as any;
     const missionIds = eventMetadata?.missionIds as string[] | undefined;
@@ -352,7 +354,6 @@ export function EventDetailModal({
     const displayCount = registeredCount > 0 ? registeredCount : cachedCount;
 
     // #179 — copier les pseudos des participants (organisateur + inscrits + réserve)
-    const [copiedPseudos, setCopiedPseudos] = useState(false);
     const participantDisplayName = (p: Participant): string =>
         (p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme").replace(/\s\(\d+\)$/, "");
     const handleCopyPseudos = () => {

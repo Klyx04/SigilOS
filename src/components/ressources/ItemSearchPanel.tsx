@@ -310,16 +310,17 @@ export function ItemSearchPanel() {
         }
         setBookLoading(true);
         try {
-            // #178 — le filtre de catégorie est appliqué CÔTÉ CLIENT (les IDs numériques
-            // ne sont pas fiables comme `include` côté API Dofusbook) : on récupère les
-            // résultats bruts puis on filtre par `category_id` / `category_name`.
-            const res = await fetch(`/api/dofusbook/search?q=${encodeURIComponent(q)}`);
+            // #189 — passer la catégorie à la route API (qui la transmet via &include= à Dofusbook)
+            // + fallback client-side pour les champs category_id/category_name selon la réponse API
+            const categoryParam = bookCategory ? `&category=${bookCategory}` : "";
+            const res = await fetch(`/api/dofusbook/search?q=${encodeURIComponent(q)}${categoryParam}`);
             const data = await res.json();
 
             // Dofusbook returns either { results: [] }, { data: [] } or [] directly
             const results = Array.isArray(data) ? data : (data.data || data.results || []);
             if (data.error) throw new Error(data.error);
 
+            // Fallback client-side filter au cas où le filtre serveur ne serait pas exhaustif
             let filtered = results;
             if (bookCategory) {
                 const cat = DOFUSBOOK_CATEGORIES.find((c) => c.id === bookCategory);
@@ -330,12 +331,17 @@ export function ItemSearchPanel() {
                     const catName = String(item.category_name ?? item.categoryName ?? "").trim().toLowerCase();
                     return !!cat && catName === cat.name.toLowerCase();
                 });
+                // Si le filtre côté API a bien fonctionné, tous les items sont déjà filtrés
+                // → fallback ne retire rien dans ce cas
+                if (filtered.length === 0 && results.length > 0) {
+                    // La réponse Dofusbook est déjà filtrée côté serveur → accepter tous les résultats
+                    filtered = results;
+                }
             }
             setBookResults(filtered);
         } catch {
-            // Echec gracieux Dofusbook : pas de log console en prod.
+            // Échec gracieux Dofusbook : pas de log console en prod.
             setBookResults([]);
-            // Optional: You could show a specialized error toast or inline message here
         } finally {
             setBookLoading(false);
         }

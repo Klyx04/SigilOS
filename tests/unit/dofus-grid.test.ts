@@ -55,10 +55,10 @@ describe("dofus-grid — géométrie des maps Dofus 3 (TacticalMapRenderer/Dofen
 });
 
 describe("dofus-grid — états de case (VOID/HOLE/GROUND/OBSTACLE/SPECIAL)", () => {
-    it("stateFromValue : 0 = sol, 1 = obstacle, 2 = spécial, sinon void", () => {
+    it("stateFromValue : 0 = sol, 1 = obstacle, 2 = trou (HOLE), sinon void", () => {
         expect(stateFromValue(0)).toBe(CellState.GROUND);
         expect(stateFromValue(1)).toBe(CellState.OBSTACLE);
-        expect(stateFromValue(2)).toBe(CellState.SPECIAL);
+        expect(stateFromValue(2)).toBe(CellState.HOLE);
         expect(stateFromValue(5)).toBe(CellState.VOID);
     });
 
@@ -70,23 +70,21 @@ describe("dofus-grid — états de case (VOID/HOLE/GROUND/OBSTACLE/SPECIAL)", ()
         expect(isWalkable(CellState.HOLE)).toBe(false);
     });
 
-    it("classifyGrid : les « 1 » sans voisin sol deviennent VOID, les murs d'arène OBSTACLE", () => {
-        // Cadre de murs autour d'une case sol au centre — les coins (jamais concernés)
-        // deviennent VOID, les murs adjacents au sol deviennent OBSTACLE 3D.
+    it("classifyGrid : le cadre (case impossible) devient VOID noir, un bloc entouré de sol devient OBSTACLE 3D", () => {
+        // Sol au centre + un obstacle isolé en (2,2) ; le cadre de 1 reste VOID.
         const grid = [
             [1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1],
-            [1, 1, 0, 1, 1],
-            [1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1],
             [1, 1, 1, 1, 1],
         ];
         const s = classifyGrid(grid);
-        expect(s[2][2]).toBe(CellState.GROUND); // le sol
-        expect(s[0][0]).toBe(CellState.VOID); // coin loin du sol
-        expect(s[0][2]).toBe(CellState.VOID); // bord haut loin du sol
-        expect(s[2][4]).toBe(CellState.VOID); // bord droit loin du sol
-        expect(s[1][2]).toBe(CellState.OBSTACLE); // mur adjacent au sol
-        expect(s[2][1]).toBe(CellState.OBSTACLE);
+        expect(s[1][1]).toBe(CellState.GROUND); // sol
+        expect(s[2][2]).toBe(CellState.OBSTACLE); // bloc isolé, entouré de sol → 3D
+        expect(s[0][0]).toBe(CellState.VOID); // coin du cadre → noir
+        expect(s[0][2]).toBe(CellState.VOID); // bord haut du cadre → noir
+        expect(s[1][0]).toBe(CellState.VOID); // bord gauche du cadre (touche 2 sols) → noir
         expect(elevationOf(CellState.OBSTACLE)).toBe(1);
         expect(elevationOf(CellState.GROUND)).toBe(0);
     });

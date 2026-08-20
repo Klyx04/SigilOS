@@ -48,9 +48,9 @@ export function distance(a: DofusPos, b: DofusPos): number {
 }
 
 // ── États de case (cf. src/temp/debug.md) ───────────────────────────────────
-// Dans les données Dofensive `Cells[row][col]` : 0 = sol, 1 = obstacle, 2 = case
-// spéciale (sémantique exacte à confirmer — vérifiée ≠ cases de départ).
-// Les cases de départ (alliés/ennemis) sont fournies séparément (AllyCells/EnemyCells).
+// Dans les données Dofensive `Cells[row][col]` : 0 = sol, 1 = obstacle, 2 = trou
+// (case impossible, noir). Les cases de départ (alliés/ennemis) sont fournies
+// séparément (AllyCells/EnemyCells) et ne tombent que sur des 0.
 
 export enum CellState {
     VOID = "VOID", // hors carte / noir — jamais utilisable
@@ -64,7 +64,7 @@ export enum CellState {
 
 export function stateFromValue(v: number): CellState {
     if (v === 1) return CellState.OBSTACLE;
-    if (v === 2) return CellState.SPECIAL;
+    if (v === 2) return CellState.HOLE; // trou dans le terrain — case impossible (noir)
     if (v === 0) return CellState.GROUND;
     return CellState.VOID;
 }
@@ -80,9 +80,10 @@ export function blocksLineOfSight(state: CellState): boolean {
 /**
  * Classe la grille brute Dofensive (0/1/2) en états de case (CellState).
  *
- * Distinction clé VOID vs OBSTACLE : une cellule « 1 » est un OBSTACLE (bloc 3D)
- * si elle a au moins un voisin sol (GROUND/SPECIAL) — c'est un mur d'arène ;
- * sinon c'est un VOID (cadre hors-carte « jamais concerné », rendu en noir).
+ * Distinction VOID vs OBSTACLE : un « 1 » est un **OBSTACLE** (bloc 3D) s'il est
+ * réellement *entouré* de sol (≥ 4 voisins GROUND/SPECIAL sur 8) — c'est-à-dire un
+ * mur/bloc isolé à l'intérieur de l'arène. Sinon c'est un **VOID** (case impossible :
+ * cadre hors-carte, jamais concernée → rendue en noir, sans tuile ni grille).
  */
 export function classifyGrid(cells: number[][]): CellState[][] {
     const rows = cells.length;
@@ -95,17 +96,17 @@ export function classifyGrid(cells: number[][]): CellState[][] {
         for (let c = 0; c < cols; c++) {
             const v = cells[r]?.[c] ?? 1;
             if (v === 1) {
-                let nearGround = false;
-                for (let dr = -1; dr <= 1 && !nearGround; dr++) {
+                let groundNeighbors = 0;
+                for (let dr = -1; dr <= 1; dr++) {
                     for (let dc = -1; dc <= 1; dc++) {
                         if (dr === 0 && dc === 0) continue;
                         const nr = r + dr;
                         const nc = c + dc;
                         if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-                        if (isGround(cells[nr]?.[nc])) { nearGround = true; break; }
+                        if (isGround(cells[nr]?.[nc])) groundNeighbors++;
                     }
                 }
-                rowStates.push(nearGround ? CellState.OBSTACLE : CellState.VOID);
+                rowStates.push(groundNeighbors >= 4 ? CellState.OBSTACLE : CellState.VOID);
             } else {
                 rowStates.push(stateFromValue(v));
             }

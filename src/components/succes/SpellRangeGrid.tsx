@@ -349,7 +349,7 @@ export function SpellRangeGrid({
     let viewW = 1;
     let viewH = 1;
     if (mapData) {
-        const pad = 24;
+        const pad = 36; // marge (inclut la hauteur des obstacles remontés de 24 px)
         const xMax = gridCols * tileW + tileHalfW;
         const yMax = (gridRows - 1) * tileHalfH + tileH;
         viewX = -pad;
@@ -557,16 +557,40 @@ export function SpellRangeGrid({
                     style={{ minWidth: "380px" }}
                 >
                     {/* Fond noir (le vide autour des maps ressort en noir franc) */}
-                    {mapData && <rect x={viewX} y={viewY} width={viewW} height={viewH} fill="#0a0a08" />}
+                    {mapData && <rect x={viewX} y={viewY} width={viewW} height={viewH} fill="#050505" />}
                     {mapData ? (
                         /* ── MAP RÉELLE : grille en quinconce Dofus (40×14) ── */
-                        Array.from({ length: gridRows }).map((_, r) =>
-                            Array.from({ length: gridCols }).map((_, c) => {
+                        (() => {
+                            // Palette structurelle style Dofensive (kaki/beige désaturé).
+                            const C = {
+                                floor: "#8D8A66",
+                                floorMuted: "#777457",
+                                special: "#A69A58",
+                                grid: "rgba(215, 208, 164, 0.20)",
+                                obsTop: "#777358",
+                                obsLeft: "#5C5945",
+                                obsRight: "#484638",
+                                obsStroke: "rgba(230, 224, 185, 0.35)",
+                            };
+                            const OBST_H = 24;
+                            const isObs = (cc: number, rr: number) => cellState(cc, rr) === CellState.OBSTACLE;
+
+                            // Cellules non-VOID triées par profondeur isométrique (row + col).
+                            const cells: { c: number; r: number; depth: number }[] = [];
+                            for (let r = 0; r < gridRows; r++) {
+                                for (let c = 0; c < gridCols; c++) {
+                                    if (cellState(c, r) === CellState.VOID) continue;
+                                    cells.push({ c, r, depth: r + c });
+                                }
+                            }
+                            cells.sort((a, b) => a.depth - b.depth || a.r - b.r || a.c - b.c);
+
+                            return [
+                                cells.map(({ c, r }) => {
                                 const state = cellState(c, r);
-                                // VOID : hors-carte « jamais concerné » — noir, non rendu.
-                                if (state === CellState.VOID) return null;
+                                // HOLE (trou) : case impossible → noir, non rendue.
+                                if (state === CellState.HOLE) return null;
                                 const obs = state === CellState.OBSTACLE;
-                                const spawn = !obs && state === CellState.SPECIAL;
                                 const key = `${c},${r}`;
                                 const isStartAlly = !!startCells?.ally.has(key);
                                 const isStartEnemy = !!startCells?.enemy.has(key);
@@ -583,63 +607,78 @@ export function SpellRangeGrid({
                                     ${sx - tileHalfW},${sy + tileHalfH}
                                 `;
 
-                                let fillColor = r % 2 === 0 ? "#8a867a" : "#7c786c";
-                                let strokeColor = "#5a574d";
-                                let strokeWidth = 0.6;
+                                let fillColor = r % 2 === 0 ? C.floor : C.floorMuted;
+                                let strokeColor = C.grid;
+                                let strokeWidth = 0.4;
 
                                 if (obs) {
-                                    // Bloc 3D (mur d'arène) — brun en relief.
-                                    fillColor = r % 2 === 0 ? "#7a5230" : "#6e4828";
-                                    strokeColor = "#573718";
-                                    strokeWidth = 1;
-                                } else if (spawn) {
-                                    fillColor = r % 2 === 0 ? "#b99a4e" : "#a88b44";
-                                    strokeColor = "#8a7234";
-                                    strokeWidth = 0.8;
+                                    fillColor = C.obsTop;
+                                    strokeColor = C.obsStroke;
+                                    strokeWidth = 0.5;
                                 } else if (isStartAlly) {
                                     fillColor = "#2e5a8a";
                                     strokeColor = "#4a86c4";
-                                    strokeWidth = 1.2;
+                                    strokeWidth = 1.1;
                                 } else if (isStartEnemy) {
                                     fillColor = "#8a3a30";
                                     strokeColor = "#c65a4a";
-                                    strokeWidth = 1.2;
+                                    strokeWidth = 1.1;
                                 }
 
                                 if (inRange && !obs) {
                                     fillColor = r % 2 === 0 ? "#79b638" : "#6ea830";
                                     strokeColor = "#8fd443";
-                                    strokeWidth = 0.8;
+                                    strokeWidth = 0.7;
                                 }
 
                                 if (isCaster) {
                                     fillColor = "#6b1d1d";
                                     strokeColor = "#c53030";
-                                    strokeWidth = 1.5;
+                                    strokeWidth = 1.4;
                                 } else if (isAllyCell) {
                                     fillColor = inRange ? "#a11c1c" : "#1e3a5f";
                                     strokeColor = inRange ? "#ef4444" : "#3b82f6";
-                                    strokeWidth = 1.5;
+                                    strokeWidth = 1.4;
                                 }
 
                                 if (isHovered && !isCaster && !isAllyCell && !obs) {
                                     fillColor = inRange ? "#9ae44c" : "#a39e90";
                                 }
 
+                                // Prisme 3D : seules les faces exposées sont rendues.
+                                const obsLeft = isObs(c - 1, r);
+                                const obsRight = isObs(c + 1, r);
+                                const ty = sy - OBST_H;
+                                const tTop = { x: sx, y: ty };
+                                const tRight = { x: sx + tileHalfW, y: ty + tileHalfH };
+                                const tBottom = { x: sx, y: ty + tileH };
+                                const tLeft = { x: sx - tileHalfW, y: ty + tileHalfH };
+                                const bRight = { x: sx + tileHalfW, y: sy + tileHalfH };
+                                const bBottom = { x: sx, y: sy + tileH };
+                                const bLeft = { x: sx - tileHalfW, y: sy + tileHalfH };
+
                                 return (
                                     <g key={`${c}-${r}`} className={obs ? "" : "cursor-pointer"}>
-                                        {/* Extrusion 3D des murs (blocs bruns en relief) */}
-                                        {obs && (
+                                        {obs && !obsLeft && (
                                             <polygon
-                                                points={`${sx - tileHalfW},${sy + tileHalfH} ${sx + tileHalfW},${sy + tileHalfH} ${sx + tileHalfW},${sy + tileHalfH + 8} ${sx - tileHalfW},${sy + tileHalfH + 8}`}
-                                                fill="#4a2f1a"
-                                                stroke="#4a2f1a"
+                                                points={`${tLeft.x},${tLeft.y} ${tBottom.x},${tBottom.y} ${bBottom.x},${bBottom.y} ${bLeft.x},${bLeft.y}`}
+                                                fill={C.obsLeft}
+                                                stroke={C.obsStroke}
+                                                strokeWidth={0.4}
+                                                className="transition-colors duration-150"
+                                            />
+                                        )}
+                                        {obs && !obsRight && (
+                                            <polygon
+                                                points={`${tRight.x},${tRight.y} ${bRight.x},${bRight.y} ${bBottom.x},${bBottom.y} ${tBottom.x},${tBottom.y}`}
+                                                fill={C.obsRight}
+                                                stroke={C.obsStroke}
                                                 strokeWidth={0.4}
                                                 className="transition-colors duration-150"
                                             />
                                         )}
                                         <polygon
-                                            points={points}
+                                            points={obs ? `${tTop.x},${tTop.y} ${tRight.x},${tRight.y} ${tBottom.x},${tBottom.y} ${tLeft.x},${tLeft.y}` : points}
                                             fill={fillColor}
                                             stroke={strokeColor}
                                             strokeWidth={strokeWidth}
@@ -648,34 +687,40 @@ export function SpellRangeGrid({
                                             onMouseLeave={() => setHoveredCell(null)}
                                             className="transition-colors duration-150"
                                         />
-                                        {isCaster && (
-                                            <g transform={`translate(${sx - 20}, ${sy - 12})`} pointerEvents="none">
-                                                {bossImageUrl ? (
-                                                    <image href={bossImageUrl} x="0" y="0" width="40" height="40" className="drop-shadow-2xl" />
-                                                ) : (
-                                                    <text x="20" y="26" textAnchor="middle" fontSize="22" className="select-none">👑</text>
-                                                )}
-                                            </g>
-                                        )}
-                                        {allies.map((ally, ai) => {
-                                            if (ally.x !== c || ally.y !== r) return null;
-                                            const isSel = selectedAlly === ai;
-                                            return (
-                                                <g key={`ally-${ai}`} pointerEvents="none">
-                                                    {isSel && (<circle cx={sx} cy={sy + 10} r="18" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
-                                                    <g transform={`translate(${sx - 16}, ${sy - 18})`}>
-                                                        <image href="/assets/module-succes/feca.webp" x="0" y="0" width="32" height="32" className="drop-shadow-2xl" />
-                                                    </g>
-                                                    <g transform={`translate(${sx}, ${sy + 16}) rotate(${ally.facing})`}>
-                                                        <polygon points="0,-7 -3,3 3,3" fill="#ffffff" opacity="0.9" />
-                                                    </g>
-                                                </g>
-                                            );
-                                        })}
                                     </g>
                                 );
-                            })
-                        )
+                            }),
+                            /* Passe 2 — entités triées par profondeur (au-dessus des obstacles) */
+                            cells.map(({ c, r }) => {
+                                if (cellState(c, r) === CellState.OBSTACLE) return null;
+                                const { sx, sy } = cellToScreen(c, r, tileW, tileH);
+                                if (c === casterPos.x && r === casterPos.y) {
+                                    return (
+                                        <g key="boss" transform={`translate(${sx - 28}, ${sy - 44})`} pointerEvents="none">
+                                            {bossImageUrl ? (
+                                                <image href={bossImageUrl} x="0" y="0" width="56" height="56" className="drop-shadow-2xl" />
+                                            ) : (
+                                                <text x="28" y="36" textAnchor="middle" fontSize="30" className="select-none">👑</text>
+                                            )}
+                                        </g>
+                                    );
+                                }
+                                const ai = allies.findIndex((a) => a.x === c && a.y === r);
+                                if (ai >= 0) {
+                                    const isSel = selectedAlly === ai;
+                                    return (
+                                        <g key={`ally-${ai}`} pointerEvents="none">
+                                            {isSel && (<circle cx={sx} cy={sy + 10} r="22" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                            <g transform={`translate(${sx - 22}, ${sy - 32})`}>
+                                                <image href="/assets/module-succes/feca.webp" x="0" y="0" width="44" height="44" className="drop-shadow-2xl" />
+                                            </g>
+                                        </g>
+                                    );
+                                }
+                                return null;
+                            }),
+                        ];
+                    })()
                     ) : (
                         /* ── GRILLE LIBRE : damier isométrique 17×17 ── */
                         Array.from({ length: gridRows }).map((_, rIdx) =>
@@ -746,11 +791,11 @@ export function SpellRangeGrid({
                                             className="transition-colors duration-150"
                                         />
                                         {isCaster && (
-                                            <g transform={`translate(${sx - 20}, ${sy - 22})`} pointerEvents="none">
+                                            <g transform={`translate(${sx - 26}, ${sy - 36})`} pointerEvents="none">
                                                 {bossImageUrl ? (
-                                                    <image href={bossImageUrl} x="0" y="0" width="40" height="40" className="drop-shadow-2xl" />
+                                                    <image href={bossImageUrl} x="0" y="0" width="52" height="52" className="drop-shadow-2xl" />
                                                 ) : (
-                                                    <text x="20" y="26" textAnchor="middle" fontSize="22" className="select-none">👑</text>
+                                                    <text x="26" y="34" textAnchor="middle" fontSize="28" className="select-none">👑</text>
                                                 )}
                                             </g>
                                         )}
@@ -759,9 +804,9 @@ export function SpellRangeGrid({
                                             const isSel = selectedAlly === ai;
                                             return (
                                                 <g key={`ally-${ai}`} pointerEvents="none">
-                                                    {isSel && (<circle cx={sx} cy={sy + 10} r="20" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
-                                                    <g transform={`translate(${sx - 18}, ${sy - 20})`}>
-                                                        <image href="/assets/module-succes/feca.webp" x="0" y="0" width="36" height="36" className="drop-shadow-2xl" />
+                                                    {isSel && (<circle cx={sx} cy={sy + 10} r="21" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                                    <g transform={`translate(${sx - 21}, ${sy - 30})`}>
+                                                        <image href="/assets/module-succes/feca.webp" x="0" y="0" width="42" height="42" className="drop-shadow-2xl" />
                                                     </g>
                                                 </g>
                                             );
@@ -782,10 +827,13 @@ export function SpellRangeGrid({
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Allié hors de portée</span>
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par le sort</span>
                     {mapData && (
-                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#3a372e", border: "1px solid #26241e" }} /> Obstacle (mur)</span>
+                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
                     )}
                     {mapData && (
-                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#b99a4e" }} /> Case spéciale</span>
+                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> Obstacle</span>
+                    )}
+                    {mapData && (
+                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> Trou / case impossible</span>
                     )}
                 </div>
 

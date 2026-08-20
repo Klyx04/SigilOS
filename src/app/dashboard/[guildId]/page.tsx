@@ -11,6 +11,9 @@ import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions"
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
+import { hasFilledAvailability } from "@/lib/dofus-assets";
+import { getISOWeek, getYear } from "date-fns";
 import NextImage from "next/image";
 import Link from "next/link";
 
@@ -26,6 +29,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
+import { AvailabilityReminderPopup } from "@/components/dashboard/availability-reminder-popup";
 
 export default async function DashboardPage({
     params,
@@ -69,6 +73,7 @@ export default async function DashboardPage({
         calendarResult,
         pollsResult,
         activeRaid,
+        availabilityModuleEnabled,
     ] = await Promise.all([
         getActivePresence(guildId, 50),
         getUserProfile(guildId),
@@ -80,12 +85,32 @@ export default async function DashboardPage({
         getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
         user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
         getActiveRaid(guildId).catch(() => null),
+        isModuleEnabled(guildId, "availability"),
     ]);
 
     // Derived Data
     const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
     const activeGroups = groupsResult.success ? groupsResult.groups : [];
+
+    // Module Disponibilités — rappel hebdomadaire doux.
+    // #183 — JAMAIS à la 1ère arrivée d'un NOUVEAU membre (`!profile.hasSeenWelcome`) :
+    // le pop-up de bienvenue suffit à son arrivée ; le rappel hebdo reprend ensuite.
+    // JAMAIS non plus si : onboarding en cours, module inactif, pas de permission,
+    // semaine déjà remplie ou déjà dismissée cette semaine sur n'importe quel appareil.
+    const now = new Date();
+    const currentWeekKey = `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+    const profileAvail = (profile as any)?.availability as Record<string, any> | undefined;
+    const isDismissedThisWeek = profileAvail?.dismissedWeek === currentWeekKey;
+
+    const showAvailabilityReminder =
+        user.isOnboardingComplete &&
+        availabilityModuleEnabled &&
+        !!user.canViewAvailability &&
+        !!profile &&
+        !!profile.hasSeenWelcome &&
+        !isDismissedThisWeek &&
+        !hasFilledAvailability(profileAvail);
     const upcomingEvents = calendarResult.success ? calendarResult.events : [];
     const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
     const hasRaidNow = !!activeRaid;
@@ -255,6 +280,9 @@ export default async function DashboardPage({
                 </section>
 
             </div>
+
+            {/* #Module Disponibilités — rappel hebdo (jamais à la 1ère arrivée d'un nouveau, #183) */}
+            <AvailabilityReminderPopup guildId={guildId} enabled={showAvailabilityReminder} />
         </div>
     );
 }

@@ -7,7 +7,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 
 function ErrorContent() {
     const searchParams = useSearchParams();
@@ -38,12 +37,10 @@ function ErrorContent() {
     }
 
     return (
-        <div className="relative z-10 max-w-md w-full group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-orange-500/20 to-red-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-300" />
-
-            <div className="relative bg-zinc-950/80 backdrop-blur-3xl border border-red-500/20 rounded-3xl p-10 text-center shadow-2xl">
-                <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-8 shadow-inner">
-                    <ShieldAlert className="w-10 h-10 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.4)]" />
+        <div className="relative z-10 max-w-md w-full">
+            <div className="relative bg-zinc-950 border border-red-500/20 rounded-3xl p-10 text-center">
+                <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-8">
+                    <ShieldAlert className="w-10 h-10 text-red-500" />
                 </div>
 
                 <div className="space-y-4 mb-10">
@@ -64,7 +61,7 @@ function ErrorContent() {
                     {error === "NoManagedGuild" && (
                         <Button
                             asChild
-                            className="w-full h-14 bg-indigo-500 hover:bg-indigo-400 text-white font-black text-lg rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_8px_32px_-8px_rgba(88,101,242,0.5)] border border-indigo-400/50"
+                            className="w-full h-14 bg-indigo-500 hover:bg-indigo-400 text-white font-black text-lg rounded-2xl transition-colors active:scale-95 border border-indigo-400/50"
                         >
                             <a href="https://discord.gg/uX7G6SUDgN" target="_blank" rel="noopener noreferrer">
                                 <svg className="w-6 h-6 mr-3" viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -76,7 +73,7 @@ function ErrorContent() {
                     )}
                     <Button
                         asChild
-                        className={`w-full h-14 font-black text-lg rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl ${
+                        className={`w-full h-14 font-black text-lg rounded-2xl transition-colors active:scale-95 ${
                             error === "NoManagedGuild"
                             ? "bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700/50"
                             : "bg-white text-black hover:bg-zinc-200"
@@ -97,14 +94,6 @@ export default function AuthErrorPage() {
     return (
         <div className="min-h-screen bg-black text-white selection:bg-red-500/30 font-sans flex flex-col relative overflow-hidden landing-theme">
             {/* Ambient Background Effects */}
-            <div className="fixed inset-0 z-0">
-                <AuroraBackground className="h-full w-full pointer-events-none opacity-20" />
-            </div>
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-red-500/5 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-900/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-            </div>
-
             <PublicHeader variant="standard" backHref="/" backLabel="Accueil" />
 
             <main className="flex-1 flex items-center justify-center p-4 relative z-10 pt-20">

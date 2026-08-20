@@ -229,7 +229,8 @@ async function sendDiscordNotification(
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
         const buttonComponents: any[] = [
-            { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}` },
+            // #169 — le bouton « S'inscrire » ouvre une modal Discord (choix de classe) : dj:apply:{postId}
+            { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:apply:${post.id}` },
             { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${post.id}` },
             { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: embed.url || `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
         ];
@@ -337,7 +338,8 @@ function buildMultiButtonRows(post: any, guildId: string) {
     return entries.map((entry: any, idx: number) => ({
         type: 1,
         components: [
-            { type: 2, style: 1, label: `S'inscrire — ${(entry.name || "Donjon").substring(0, 40)}`, emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}:${idx}` },
+            // #169 — la modal de classe est ouverte via dj:apply:{postId}:{idx} ; le submit revient en dj:join
+            { type: 2, style: 1, label: `S'inscrire — ${(entry.name || "Donjon").substring(0, 40)}`, emoji: { name: "⚔️" }, custom_id: `dj:apply:${post.id}:${idx}` },
             { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${post.id}:${idx}` },
             { type: 2, style: 5, label: "Voir le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
         ],
@@ -1113,14 +1115,16 @@ export async function updateDjPost(
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const post = await (db as any).djSearchPost.findFirst({
+        const postBefore = await (db as any).djSearchPost.findFirst({
             where: { id: postId, guildId: guildConfig.id },
-            select: { profileId: true, status: true },
+            select: { profileId: true, status: true, maxMembers: true },
         });
 
-        if (!post) return { success: false, error: "Post introuvable" };
-        if (post.profileId !== user.profileId) return { success: false, error: "Seul le créateur peut modifier ce post" };
-        if (post.status === "CLOSED" || post.status === "EXPIRED") return { success: false, error: "Impossible de modifier un post fermé" };
+        if (!postBefore) return { success: false, error: "Post introuvable" };
+        if (postBefore.profileId !== user.profileId) return { success: false, error: "Seul le créateur peut modifier ce post" };
+        if (postBefore.status === "CLOSED" || postBefore.status === "EXPIRED") return { success: false, error: "Impossible de modifier un post fermé" };
+
+        const prevMax = postBefore.maxMembers ?? 1;
 
         await (db as any).djSearchPost.update({
             where: { id: postId },
@@ -1135,6 +1139,48 @@ export async function updateDjPost(
                 ...(payload.questUrl !== undefined && { questUrl: payload.questUrl }),
             },
         });
+
+        // #169 — basculement AUTO file → inscrits : si le créateur AUGMENTE le nombre
+        // de places, les membres en file d'attente (PENDING) sont promus dans l'ordre
+        // d'arrivée jusqu'à la nouvelle capacité. Le statut du post reste aligné.
+        if (payload.maxMembers > prevMax) {
+            const acceptedCount = await (db as any).djSearchParticipant.count({
+                where: { postId, status: "ACCEPTED" },
+            });
+            const freeSlots = Math.max(0, payload.maxMembers - acceptedCount);
+
+            if (freeSlots > 0) {
+                const waiting = await (db as any).djSearchParticipant.findMany({
+                    where: { postId, status: "PENDING" },
+                    orderBy: { createdAt: "asc" },
+                    take: freeSlots,
+                    select: { id: true, profile: { select: { userId: true } } },
+                });
+
+                if (waiting.length > 0) {
+                    await (db as any).djSearchParticipant.updateMany({
+                        where: { id: { in: waiting.map((w: any) => w.id) } },
+                        data: { status: "ACCEPTED" },
+                    });
+                    logger.info(`[DJ #169] ${waiting.length} membre(s) promu(s) de la file vers inscrits (post ${postId})`);
+                }
+            }
+
+            const refreshedCount = await (db as any).djSearchParticipant.count({
+                where: { postId, status: "ACCEPTED" },
+            });
+            const newStatus = refreshedCount >= payload.maxMembers ? "FULL" : "OPEN";
+            if (postBefore.status !== newStatus) {
+                await (db as any).djSearchPost.update({
+                    where: { id: postId },
+                    data: { status: newStatus },
+                });
+            }
+
+            // Rafraîchir l'embed Discord (nouveaux inscrits + compteur de places)
+            updateDjDiscordEmbed(guildId, postId).catch(() => { });
+            await notifyDjUpdate(guildId);
+        }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
@@ -1632,7 +1678,9 @@ export async function internalJoinDjPost(
     postId: string,
     profileId: string,
     userId: string,
-    dungeonIndex?: number
+    dungeonIndex?: number,
+    classe?: string | null,
+    message?: string | null
 ): Promise<ActionResponse> {
     try {
         const post = await (db as any).djSearchPost.findUnique({
@@ -1663,8 +1711,20 @@ export async function internalJoinDjPost(
             return { success: false, error: "Ce groupe est complet" };
         }
 
+        // #169 — classe/message transmis par la modal Discord (bornés, jamais de null → "")
+        const cleanClasse = classe ? classe.trim().slice(0, 30) : "";
+        const cleanMessage = message ? message.trim().slice(0, 200) : "";
+
         await (db as any).djSearchParticipant.create({
-            data: { postId, profileId, userId, status: "ACCEPTED", dungeonIndex: joinedDungeonIndex },
+            data: {
+                postId,
+                profileId,
+                userId,
+                status: "ACCEPTED",
+                dungeonIndex: joinedDungeonIndex,
+                ...(cleanClasse ? { classe: cleanClasse } : {}),
+                ...(cleanMessage ? { message: cleanMessage } : {}),
+            },
         });
 
         const newCount = post.participants.length + 1;

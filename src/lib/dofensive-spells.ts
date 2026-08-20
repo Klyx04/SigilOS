@@ -34,8 +34,16 @@ export interface DofensiveSpellCombat {
     castTestLos: boolean;
     castInLine: boolean;
     castInDiagonal: boolean;
+    /** Probabilité de coup critique (%). */
+    criticalChance: number;
+    /** Nombre de lancers par tour. */
     maxCastPerTurn: number;
+    /** Nombre de lancers par cible. */
+    maxCastPerTarget: number;
+    /** Cooldown (tours). */
     minCastInterval: number;
+    /** Effets résumés (texte FR formaté). */
+    effects: string[];
     zone: DofensiveSpellZone | null;
 }
 

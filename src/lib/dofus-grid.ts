@@ -47,6 +47,23 @@ export function distance(a: DofusPos, b: DofusPos): number {
     return Math.abs(lb.x - la.x) + Math.abs(lb.y - la.y);
 }
 
+/**
+ * Portée (PO) d'un sort Dofus entre deux cellules, dans le repère losange.
+ *
+ * - Sort **libre** (aucune contrainte de direction) : distance de déplacement,
+ *   Manhattan `|du|+|dv|` (un pas orthogonal = 1 PO).
+ * - Sort **contraint** (ligne et/ou diagonale) : la PO se mesure dans l'axe de
+ *   lancer → `max(|du|,|dv|)` (un pas diagonal = 1 PO). Sinon les diagonales
+ *   compteraient double (Manhattan 2k pour k pas diagonaux) et la portée serait fausse.
+ */
+export function castRangeDistance(a: DofusPos, b: DofusPos, hasDirectionConstraint: boolean): number {
+    const la = toLos(a.x, a.y);
+    const lb = toLos(b.x, b.y);
+    const du = Math.abs(lb.x - la.x);
+    const dv = Math.abs(lb.y - la.y);
+    return hasDirectionConstraint ? Math.max(du, dv) : du + dv;
+}
+
 // ── États de case (cf. src/temp/debug.md) ───────────────────────────────────
 // Dans les données Dofensive `Cells[row][col]` :
 //   0 = sol (marchable) · 1 = case impossible / trou (noir, non marchable) ·

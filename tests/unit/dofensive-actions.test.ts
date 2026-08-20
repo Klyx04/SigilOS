@@ -140,9 +140,21 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
                                     MinRange: 0,
                                     Range: 0,
                                     CastLineOfSight: false,
+                                    CriticalProbability: 15,
                                     MaxCastPerTurn: 0,
+                                    MaxCastPerTarget: 1,
                                     MinCastInterval: 1,
-                                    GroupEffects: [{ Effects: [{ Zone: { Name: "Cellule ciblée", Size: -1, Range: 0 } }] }],
+                                    GroupEffects: [
+                                        {
+                                            Effects: [
+                                                {
+                                                    Name: "#1 dommages Eau",
+                                                    Parameters: [{ Name: "101" }],
+                                                    Zone: { Name: "Cellule ciblée", Size: -1, Range: 0 },
+                                                },
+                                            ],
+                                        },
+                                    ],
                                 },
                             ],
                         },
@@ -158,6 +170,9 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         const starting = res.data?.[0];
         expect(starting?.name).toBe("Instinct maternel");
         expect(starting?.maxCastPerTurn).toBe(0); // ne doit PAS devenir 1
+        expect(starting?.maxCastPerTarget).toBe(1);
+        expect(starting?.criticalChance).toBe(15);
+        expect(starting?.effects).toEqual(["101 dommages Eau"]);
         expect(starting?.imageUrl).toBe("https://cdn.static.dofensive.com/dofensive/spells/2676");
         expect(starting?.zone).toEqual({ shape: "Point", size: 0, range: 0 }); // Cellule ciblée → Point
     });

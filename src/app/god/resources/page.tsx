@@ -12,8 +12,12 @@ export default async function GodResourcesPage() {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) redirect("/");
 
-    // Obtenir une guilde de référence pour le God Hub (ou la première guilde active)
+    // Obtenir une guilde de référence pour le God Hub (première guilde active).
+    // ⚠️ Doit rester cohérent avec la source de propagation de `resources-actions`
+    // (getContentCreators / getResourceCategories) : c'est elle qui est distribuée.
     const referenceGuild = await db.guildConfig.findFirst({
+        where: { isActive: true },
+        orderBy: { createdAt: "asc" },
         select: { id: true, discordGuildId: true }
     });
 

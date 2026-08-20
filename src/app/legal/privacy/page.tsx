@@ -35,39 +35,44 @@ export default function PrivacyPage() {
             <div className="prose prose-invert prose-emerald max-w-none prose-headings:text-foreground prose-strong:text-success">
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">1. Nature des Données Collectées</h2>
-                <p>Nous traitons les catégories de données suivantes :</p>
+                <p>SigilOS traite les catégories de données suivantes :</p>
                 <ul className="list-disc pl-6 space-y-2">
-                    <li><strong>Identité Numérique :</strong> Votre identifiant Discord unique (ID), votre pseudonyme et votre avatar. Ces données sont récupérées via l'API officielle Discord lors de votre connexion.</li>
-                    <li><strong>Données de Jeu :</strong> Les informations relatives à votre avancement synchronisées manuellement ou via OCR (niveaux, succès, monstres d'Ocre possédés).</li>
-                    <li><strong>Preuves Visuelles :</strong> Les captures d'écran de jeu que vous soumettez pour valider vos succès. Ces images sont traitées par nos algorithmes de reconnaissance avant d'être archivées.</li>
+                    <li><strong>Identité Numérique :</strong> l'identifiant Discord unique (ID), le pseudonyme et l'avatar. Ces données sont récupérées via l'API officielle Discord lors de la connexion.</li>
+                    <li><strong>Données de Jeu :</strong> les informations relatives à l'avancement Dofus (niveaux, succès, monstres d'Ocre possédés), renseignées manuellement par le membre ou synchronisées.</li>
+                    <li><strong>Preuves Visuelles :</strong> les captures d'écran de jeu soumises pour valider un succès. La capture est analysée automatiquement (OCR) puis archivée uniquement pour la traçabilité, avant purge périodique.</li>
                 </ul>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">2. Finalités du Traitement</h2>
-                <p>Vos données sont utilisées exclusivement pour :</p>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">2. Le traitement par OCR (lecture automatique)</h2>
+                <p>
+                    Le <strong>OCR</strong> (reconnaissance optique de caractères) est utilisé exclusivement pour lire le texte visible sur une capture d'écran de jeu que vous soumettez volontairement (par exemple le nom d'un succès ou un compteur de points). Cette lecture permet d'éviter une saisie manuelle et de rapprocher la capture du succès correspondant. L'OCR ne s'exécute que sur une image fournie par le membre, avec son consentement explicite, et ne collecte aucune donnée en dehors de cette image.
+                </p>
+
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">3. Finalités du Traitement</h2>
+                <p>Les données sont utilisées exclusivement pour :</p>
                 <ul className="list-disc pl-6 space-y-2">
-                    <li>Gérer votre authentification et vos droits d'accès.</li>
-                    <li>Permettre aux administrateurs de votre guilde de coordonner les activités.</li>
-                    <li>Améliorer la précision de nos outils de lecture automatique (OCR).</li>
+                    <li>Gérer l'authentification et les droits d'accès.</li>
+                    <li>Permettre aux administrateurs de la guilde de coordonner les activités.</li>
+                    <li>Fournir la lecture automatique (OCR) des preuves soumises par les membres.</li>
                 </ul>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">3. Conservation des Données</h2>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">4. Conservation des Données</h2>
                 <p>
-                    Vos données de profil sont conservées tant que votre compte est actif. Les preuves visuelles (screenshots) peuvent être purgées régulièrement pour optimiser nos infrastructures une fois la validation effectuée.
+                    Les données de profil sont conservées tant que le compte est actif. Les captures d'écran soumises en preuve peuvent être purgées régulièrement après validation afin de limiter l'empreinte de stockage.
                 </p>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">4. Sécurité et Hébergement</h2>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">5. Sécurité et Hébergement</h2>
                 <p>
-                    SigilOS est hébergé sur des serveurs sécurisés situés en <strong>Union Européenne (France)</strong>. Nous utilisons le protocole HTTPS pour tous les échanges et appliquons des mesures strictes d'isolation des bases de données par guilde.
+                    SigilOS est hébergé sur des serveurs sécurisés situés en <strong>Union Européenne (France)</strong>. Le protocole HTTPS protège tous les échanges et des mesures strictes d'isolation des données par guilde sont appliquées.
                 </p>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">5. Partage avec des Tiers</h2>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">6. Partage avec des Tiers</h2>
                 <p className="font-bold text-success">
                     Aucune donnée n'est vendue, louée ou partagée avec des régies publicitaires ou des sociétés tierces.
                 </p>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">6. Vos Droits</h2>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">7. Vos Droits</h2>
                 <p>
-                    Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Vous pouvez exercer ces droits depuis votre interface dashboard ou en contactant l'administrateur via Discord.
+                    Conformément au Règlement Général sur la Protection des Données (RGPD), chaque utilisateur dispose d'un droit d'accès, de rectification et de suppression de ses données. Ces droits s'exercent depuis l'interface dashboard ou en contactant l'administrateur via Discord.
                 </p>
             </div>
         </div>

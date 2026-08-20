@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/guides`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/changelog`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
         { url: `${baseUrl}/status`, lastModified: now, changeFrequency: "daily", priority: 0.3 },
+        { url: `${baseUrl}/roadmap`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
         { url: `${baseUrl}/legal/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
         { url: `${baseUrl}/legal/cgu`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
         { url: `${baseUrl}/legal/mentions`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
@@ -55,6 +56,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: "monthly",
             priority: 0.5,
         });
+    }
+
+    // #101 — Almanax : pages indexables par date (/almanax/YYYY-MM-DD) sur les
+    // 30 prochains jours. Les offrandes changent chaque jour → priority 0.5,
+    // changeFrequency "daily". Best-effort : si l'API est indisponible, on saute.
+    try {
+        const { getUpcomingAlmanax } = await import("@/server/actions/resources-actions");
+        const almanaxItems = await getUpcomingAlmanax();
+        for (const item of almanaxItems) {
+            const day = item?.date ? item.date.slice(0, 10) : null;
+            if (!day) continue;
+            routes.push({
+                url: `${baseUrl}/almanax/${day}`,
+                lastModified: now,
+                changeFrequency: "daily",
+                priority: 0.5,
+            });
+        }
+    } catch (error) {
+        console.error("[Sitemap] Error fetching almanax dates:", error);
     }
 
     return routes;

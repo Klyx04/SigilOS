@@ -315,7 +315,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             </div>
 
             {/* Filtres */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex flex-col md:flex-row md:items-center gap-3" data-tour="succes-filters">
                 <div className="relative flex-1">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -382,7 +382,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
 
                 {/* ─── LISTE DES DONJONS ─── */}
-                <div className={cn("space-y-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar", selectedDungeon && "hidden lg:block")}>
+                <div data-tour="succes-tracker-list" className={cn("space-y-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar", selectedDungeon && "hidden lg:block")}>
                     {filteredDungeons.length === 0 ? (
                         <div className="py-16 text-center text-muted-foreground">
                             <Trophy className="w-10 h-10 mx-auto mb-3 opacity-20" />
@@ -446,7 +446,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                 </div>
 
                 {/* ─── DÉTAIL DU DONJON SÉLECTIONNÉ ─── */}
-                <div className={cn(!selectedDungeon && "hidden lg:block")}>
+                <div data-tour="succes-tracker-detail" className={cn(!selectedDungeon && "hidden lg:block")}>
                     {selectedDungeon ? (
                         <div className="bg-surface/70 border border-border rounded-2xl overflow-hidden">
                             <div className="border-b border-border p-5 space-y-4">
@@ -603,7 +603,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
                                 {/* Hint partenaires — le lien métier avec les posts, sans ouvrir le board ici */}
                                 {selectedPartners && selectedPartners.filter((p) => !completedIds.has(p.achievementId) && p.membersWhoHaveIt.length > 0).length > 0 && (
-                                    <div className="mt-5 border border-warning/20 bg-warning/5 rounded-xl p-4">
+                                    <div data-tour="succes-partners" className="mt-5 border border-warning/20 bg-warning/5 rounded-xl p-4">
                                         <div className="flex items-center gap-2 mb-3">
                                             <Users className="w-4 h-4 text-warning" />
                                             <p className="text-xs font-bold uppercase tracking-widest text-warning">Partenaires potentiels</p>

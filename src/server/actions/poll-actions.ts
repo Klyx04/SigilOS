@@ -596,7 +596,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         const isCreator = poll.creatorId === profile.id;
         const hasMicro = await checkUserHasPollRole(data.guildId, session.user.id);
 
-        if (!ctx.isAdmin && !ctx.isAdmin) {
+        if (!ctx.isAdmin) {
             if (!isCreator || !hasMicro) {
                 return { success: false, error: "Vous devez avoir le micro pour modifier votre sondage." };
             }

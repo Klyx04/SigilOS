@@ -23,43 +23,51 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
-## 🧭 Chantier global (src/temp/chantier) — SESSION 09/09 — ONE-SHOT 8 chantiers (#149/#175/#171/#178/#179/#183/#167/#180)
+## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
-> **Branche `feat/chantier-2026-09-07`** = `727a4ef50` (8 chantiers) + `a745faa94` (correction #183) — **poussés** →
-> **CRÉER LA PR** : https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07
-> (la branche portait déjà `d610b18d6` session 19/08 + docs `e5f345a05`).
-> **dev** inchangé = `796df8c12` (rien de nouveau mergé).
-> Mémo : `src/temp/memo-2026-09-09-chantier-global.md`. Amorce suivante :
-> `src/temp/prompt-next-chantier-2026-09-09.md` (priorités : **#127/#85** audits · **#169 reste** · **#172**).
+> **Branche `feat/chantier-2026-09-07`** — commits poussés : `9174a8c33` (one-shot) · `dbe645c67` (2ᵉ passe) ·
+> `d034a02f8` (isolation + fiche boss) · `1dbe964fd` (propagation God) — **CRÉER LA PR** :
+> https://github.com/Klyx04/SigilOS/pull/new/feat/chantier-2026-09-07 (la branche porte aussi les 8 commits 09/09)
+> **dev** inchangé = `796df8c12`. Vérifs session : tsc 0 · lint 0 erreur · build OK · **229/229** · pre-commit vert.
+> Mémo : `src/temp/memo-2026-09-20-chantier-global.md`. Amorce : `src/temp/prompt-next-chantier-2026-09-20.md`.
 >
-> ### ✅ FAIT (session 09/09 — mode one shot)
-> 1. **#149 SECU — audit bypass God** : helper `assertPostGuildTenant` → isolement tenant strict `guildId`
->    sur `closeDjPost`, `closeDjPostWithContributions`, `deleteDjPost`, `joinDjPost`, `leaveDjPost`,
->    `acceptDjParticipant`, `rejectDjParticipant` (fail-closed « Post introuvable » + warn #149) ;
->    **injection de points bloquée** (`updateMany` scopé guilde du post). Profils cross-guild = God seul.
-> 2. **#175 WorldMap → DJ** : « Créer un groupe » ouvre la modale de création **pré-remplie** (`?dungeonId=`)
->    sinon **popup de blocage** « donjon non répertorié » (style Ganymède).
-> 3. **#171 DPNL/Dofensive** avec **favicon** dans le détail donjon « Mes Succès ».
-> 4. **#178 Encyclopédie** : filtres de type **côté client** + **copier-coller craft** (liste + par ingrédient, dofusbook+dofusdb).
-> 5. **#179 Copier pseudos** `/w Pseudo` dans DJ (inscrits+file), Songes (leader+membres), Raids (orga+inscrits+réserve).
-> 6. **#183 Pop-up semaine dispo** : bridé à la **1ʳᵉ arrivée d'un NOUVEAU membre** (`!!profile.hasSeenWelcome`),
->    le rappel hebdo est **conservé** pour les membres accueillis.
-> 7. **#167 Thread Forum DJ** : nom réel du donjon/quête (plus « Donjon - Groupe » figé) + multi-donjon `⚔️ {1er}+{n-1}`.
-> 8. **#180 Trade Metamob** : **1 archi = +1/−1 exactement** (lecture `getQuestDetails` sur la quête exacte du membre,
->    plus `getUserMonsters` auto-pick destructeur) + PATCH trade **toujours complet** borné 0-30 + **réciprocité** offer/want.
-> 9. Vérifs : tsc 0 · lint 0 erreur · build OK · pre-commit vert · push `727a4ef50` + `a745faa94`.
+> ### ✅ FAIT
+> 1. **#127 SECU — audit RBAC ressources** : `updatePoll` corrigé (condition dupliquée) · **permission `resources:manage`**
+>    (carte RBAC « Gérer les Ressources », `ctx.canManageResources`, `requireResourcesManage(guildId)`) · **isolation
+>    multi-tenant blindée** sur upsert/delete catégories/liens/créateurs (fail-closed « n'appartient pas à votre guilde ») ·
+>    **le God est la source officielle** : créateurs propagés à toutes les guildes (ajout/MAJ/suppression par handle),
+>    catégories/liens aux guildes neuves (guilde de référence `isActive+createdAt asc`, cohérente avec `/god/resources`).
+> 2. **#85 — Blacklist** : `extractBlacklistText` lit le contenu **des embeds** (create+update) → la « recherche Discord »
+>    fonctionne enfin (le bug était `message.content` vide pour les signalements en embed).
+> 3. **#169 (reste)** — Embed DJ : bouton « S'inscrire » → **modal Discord** (classe + message, submit type 5 RBAC),
+>    `internalJoinDjPost` stocke classe/message · **basculement AUTO file→inscrit** quand le créateur augmente les places.
+> 4. **#172** — Tour guide Succès (phase/steps/routage/bouton Tutoriel, étapes stables — fin des sauts d'étapes).
+> 5. **#176 🔸 PARTIEL — Fiches boss Succès** : onglet dédié (image réelle monstre, grades PV/PA/PM, sorts, drops,
+>    coordonnées, liens DofusDB/Dofensive) + fiche **retirée** du Succès Commun + affichage **à la place** de la grille.
+>    **Reste** : réintégrer la **MapViewer interactive** (carte), fallback image monstre, « Quêtes liées »
+>    (addendum `src/temp/refonte-succès-dj`), validation UX en réel.
+> 6. **#101 SEO** : route `/almanax/[date]` (canonical/OG/JSON-LD/breadcrumb) · sitemap (`/roadmap` + 30 jours almanax) ·
+>    robots · maillage interne des guides · page `/guides/[slug]` déjà canonical+OG+robots (drafts exclus).
+> 7. **Guides raids SEO 🔸 PARTIEL** : `guide-gigalodon-dofus.ts` + `guide-sanctuaire-jardins-eternels.ts` enregistrés
+>    (`index.ts`) + maillage interne. **Reste** : siphonner les images webp (`scripts/siphon-guide-images.ts`),
+>    relecture/paraphrase vs sources, lien dans `ressources?tab=guides`, vérif indexation.
+> 8. **#181** : privacy OCR clairement expliqué + « nous » retirés (landing v3 déjà propre — vérif prod).
+> 9. **#96** : README section « Déploiement CD (2026) » (deploy-cd.sh / rollback / MAINTENANCE.md).
+> 10. **#34 🔸 PARTIEL — God Télémetry** : UI dé-sloppée (tokens) + volet **Data/Product** (DAU/WAU, guildes actives 7j,
+>     ratio d'engagement, total événements). **Reste** : volet complet (optimisations, UX, DevOps) à poursuivre.
+> 11. **#41bis** — circuit-breaker API Dofusbook → **notif God** (type SYSTEM, 1/h, seuil 5 échecs) visible sur `/god`
+>     + canal Discord (`godNotifyChannelId`) si configuré.
+> 12. **#129 🔸 PARTIEL** — responsivité : composants touchés responsive-first ; **sweep composant par composant à finir**.
+> 13. **#57 🔸 PARTIEL** — ouverture prod : checklist prête `src/temp/checklist-ouverture-prod-57.md` (**action VPS requise**).
 >
-> ### 🔜 Reste (priorités suggérées prochaine session)
-> - **Sécurité** : **#127** (audit RBAC ressources : créateurs / liens & outils) · **#85** (blacklist sync bidirectionnelle).
-> - **Features** : **#169 reste** (embed Discord : bouton inscription avec choix de classe + basculement auto file→inscrit)
->   · **#172** (tour guide Succès) · **#176** (fiches boss Succès).
-> - **UI/UX** : **#129 reste** (responsivité : sweep composant par composant).
-> - **SEO / Prod** : **#181** (refonte sigilos.fr + CGU/mentions/privacy) · **Guides raids SEO** (Gigalodon + Sanctuaire) ·
->   **#101** (almanax + sitemap) · **#57 + Ouverture Dashboard** (beta→prod) · **#96** (README / déploiement).
-> - **God / Game-Data** : **#34 reste** (Télémetry Data/Product/UX/DevOps) · **#41bis** (alerte God si API dofusbook casse).
-> - **De côté** : **#46bis Inter-Guilde** (lots 2-5 : calendrier `openToExternals`, galerie/mini-jeux GLOBAL,
->   ladder/ocre/songes/donjons/services/quetes, God canaux + tours) · **#186 Performance & Réactivité**
->   (Optimistic UI, PresenceProvider, virtualisation, prefetch).
+> ### 🔜 Reste (prochaine amorce — `prompt-next-chantier-2026-09-20.md`)
+> - **#176 (reste)** — Fiches boss : MapViewer + fallback images + « Quêtes liées » + validation UX.
+> - **Guides SEO (reste)** — images webp, paraphrase, indexation, `ressources?tab=guides`.
+> - **#34 (reste)** — Télémetry : poursuivre Data/Product/UX/DevOps.
+> - **#129 (reste)** — responsivité : sweep complet.
+> - **#57** — bascule beta→prod (VPS) : `prisma migrate deploy` (migration `20260905000000_add_landing_screen`),
+>   crontab `/api/cron/account-retention`, Caddy/SSL, import profils.
+> - **De côté** : **#46bis Inter-Guilde** (lots 2-5) · **#186 Performance** · PR à créer (12+8 commits).
 
 
 > **dev** = `796df8c12` — **PR en attente** : branche `feat/chantier-2026-09-07` commit `d610b18d6`

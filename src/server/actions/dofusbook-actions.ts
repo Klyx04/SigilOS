@@ -8,6 +8,45 @@ import { assertSafeUrl } from "@/lib/image-downloader";
 const DOFUSBOOK_API = "https://www.dofusbook.net/api/stuffs/dofus/public/";
 const CACHE_TTL = 3600 * 24; // 24 hours
 
+// =============================================================================
+// #41bis — Surveillance API Dofusbook : si l'API change de schéma ou bloque les
+// imports (403/429/5xx répétés), le God est notifié une fois par fenêtre.
+// Circuit breaker module-level (reset si une récupération aboutit).
+// =============================================================================
+const DOFUSBOOK_ALERT_WINDOW_MS = 60 * 60 * 1000; // 1 notif max / heure
+const DOFUSBOOK_FAILURE_THRESHOLD = 5; // 5 échecs consécutifs avant alerte
+
+let dofusbookFailureCount = 0;
+let dofusbookLastAlertAt = 0;
+
+async function trackDofusbookFailure(kind: string, detail: string): Promise<void> {
+    dofusbookFailureCount += 1;
+    logger.warn(`[Dofusbook #41bis] Failure #${dofusbookFailureCount} (${kind}): ${detail}`);
+
+    const now = Date.now();
+    if (dofusbookFailureCount >= DOFUSBOOK_FAILURE_THRESHOLD && now - dofusbookLastAlertAt > DOFUSBOOK_ALERT_WINDOW_MS) {
+        dofusbookLastAlertAt = now;
+        dofusbookFailureCount = 0;
+        try {
+            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            await notifyGod({
+                title: "⚠️ API Dofusbook en difficulté",
+                message: `L'API Dofusbook semble avoir changé ou bloquer les imports (${DOFUSBOOK_FAILURE_THRESHOLD}+ échecs : ${kind} — ${detail}). Les nouveaux stuffs importés peuvent être cassés. Vérifier le schéma de réponse ou le WAF Cloudflare.`,
+                type: "SYSTEM",
+                success: false,
+                ping: true,
+                metadata: { kind, detail, count: dofusbookFailureCount },
+            } as any);
+        } catch (err) {
+            logger.error("[Dofusbook #41bis] Échec envoi notif God:", err);
+        }
+    }
+}
+
+function resetDofusbookFailures(): void {
+    if (dofusbookFailureCount > 0) dofusbookFailureCount = 0;
+}
+
 /**
  * Extracts the numerical ID from a Dofusbook URL.
  * Supports both full and short URLs (by following redirects).
@@ -127,16 +166,28 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
             if (!response.ok) {
                 logger.error(`[Dofusbook] API Error ${response.status} for build ${id}`);
                 if (response.status === 404) return { success: false, error: "Stuff introuvable", id };
+                await trackDofusbookFailure("http", `${response.status} sur build ${id}`);
                 return { success: false, error: `Dofusbook bloqué (${response.status})`, id };
             }
 
             raw = await response.json();
         }
 
-        if (!raw) return { success: false, error: "Impossible de récupérer les données Dofusbook", id };
+        if (!raw) {
+            await trackDofusbookFailure("unreachable", `Aucune stratégie n'a abouti pour ${id}`);
+            return { success: false, error: "Impossible de récupérer les données Dofusbook", id };
+        }
 
         // 4. Process and cache
         const data = processDofusbookRawData(id, raw);
+        resetDofusbookFailures();
+
+        // #41bis — si le schéma de réponse a changé, la sortie peut être vide :
+        // les nouveaux stuffs importés seraient cassés silencieusement.
+        const hasAnyItem = data?.items && Object.values(data.items).some(Boolean);
+        if (!hasAnyItem) {
+            await trackDofusbookFailure("schema", `Réponse sans item exploitable pour ${id} (API changée ?)`);
+        }
 
         if (redis && redis.status === "ready") {
             await redis.set(cacheKey, JSON.stringify(data), "EX", CACHE_TTL);

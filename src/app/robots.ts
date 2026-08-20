@@ -13,7 +13,7 @@ export default function robots(): MetadataRoute.Robots {
     return {
         rules: {
             userAgent: '*',
-            allow: isIndexable ? ['/', '/almanax', '/changelog', '/guilds', '/guides', '/legal/', '/status'] : [],
+            allow: isIndexable ? ['/', '/almanax', '/changelog', '/guilds', '/guides', '/legal/', '/status', '/roadmap'] : [],
             disallow: isIndexable
                 ? ['/dashboard/', '/api/', '/god/', '/mng-', '/docs/', '/_next/', '/onboarding/', '/test-route/'] // Hide sensitive, internal, auth-gated, et route secrète God (R3)
                 : '/', // Full block for search engines on non-prod

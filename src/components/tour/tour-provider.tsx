@@ -36,6 +36,7 @@ export type TourPhase =
     | "stats"
     | "presentation"
     | "guide"
+    | "succes"
     | null;
 
 /**
@@ -47,7 +48,7 @@ export const MODULE_TOUR_PHASES = [
     "missions", "ladder", "songes", "ocre",
     "services", "donjons", "calendar", "sondages", "annuaire",
     "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
-    "guide",
+    "guide", "succes",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -1240,6 +1241,51 @@ const PRESENTATION_STEPS: TourStep[] = [
     },
 ];
 
+const SUCCES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="succes-views"]',
+        title: "Mes Succès / Succès Commun / Fiches Boss",
+        description: "Trois vues : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, et « Fiches Boss » pour les drops, sorts et carte des boss.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-tracker-list"]',
+        title: "La liste des donjons",
+        description: "Chaque donjon affiche sa progression (succès cochés / total). Clique sur un donjon pour ouvrir le détail à droite.",
+        placement: "right",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-tracker-detail"]',
+        title: "Le détail d'un donjon",
+        description: "Tous les succès du donjon, avec leurs points et les guides partenaires (DPNL, Dofensive). Coche un succès pour le valider, ou utilise le bouton global « Tout cocher ».",
+        placement: "left",
+        module: "succes",
+    },
+    {
+        target: 'input[placeholder*="Rechercher un donjon"]',
+        title: "Recherche et filtres",
+        description: "Recherche un donjon ou un boss par nom, filtre par statut (À faire / Finis) et par tranche de niveau.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-views"]',
+        title: "Partenaires potentiels",
+        description: "Passe sur « Succès Commun » : pour chaque succès que tu cherches, tu vois qui dans la guilde l'a déjà validé — contacte-les pour partir en groupe.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="sidebar-succes"]',
+        title: "Où le retrouver",
+        description: "Retrouve le module Succès dans la barre latérale (menu Progression).",
+        placement: "right",
+        module: "succes",
+    },
+];
+
 export const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -1305,6 +1351,7 @@ export function TourProvider({
     const minijeuSteps = applyFilters(MINIJEU_STEPS);
     const statsSteps = applyFilters(STATS_STEPS);
     const presentationSteps = applyFilters(PRESENTATION_STEPS);
+    const succesSteps = applyFilters(SUCCES_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -1338,6 +1385,7 @@ export function TourProvider({
             case "minijeu": return minijeuSteps;
             case "stats": return statsSteps;
             case "presentation": return presentationSteps;
+            case "succes": return succesSteps;
             default: return [];
         }
     };
@@ -1536,6 +1584,9 @@ export function TourProvider({
                 break;
             case "guide":
                 // Déjà sur la page du guide (le tour se lance depuis le module).
+                break;
+            case "succes":
+                router.push(`/dashboard/${guildId}/succes`);
                 break;
             default:
                 break;

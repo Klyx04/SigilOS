@@ -9,8 +9,15 @@ import {
     cellIdToXY,
     cellToScreen,
     classifyGrid,
+    spellZoneCells,
     toLos,
 } from "@/lib/dofus-grid";
+
+export interface SpellZone {
+    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Inconnue";
+    size: number;
+    range: number;
+}
 
 export interface SpellData {
     id: number;
@@ -23,6 +30,11 @@ export interface SpellData {
     castTestLos?: boolean;
     castInLine?: boolean;
     castInDiagonal?: boolean;
+    /** Limites de cast (source Dofensive — spells/{id}). */
+    maxCastPerTurn?: number;
+    minCastInterval?: number;
+    /** Zone d'effet AoE normalisée (source Dofensive) — prévisu sur la grille. */
+    zone?: SpellZone;
 }
 
 interface SpellRangeGridProps {
@@ -326,6 +338,25 @@ export function SpellRangeGrid({
         return count;
     }, [casterPos, currentSpell, gridRows, gridCols, mapData]);
 
+    // Prévisu de zone d'effet (AoE) : quand on survole une case en portée, on
+    // affiche les cases touchées si le sort y était lancé (données Dofensive).
+    // Limité aux zones « réelles » (taille 1-12) — les auras à l'échelle de la map
+    // (ex. « Instinct maternel », Cercle 63) ne sont pas prévisualisées.
+    const zonePreview = useMemo(() => {
+        if (!hoveredCell || !currentSpell?.zone || !isCellInRange(hoveredCell.x, hoveredCell.y)) return null;
+        const { size } = currentSpell.zone;
+        if (size < 1 || size > 12) return null;
+        const cells = spellZoneCells({
+            zone: currentSpell.zone,
+            target: hoveredCell,
+            caster: casterPos,
+            cols: gridCols,
+            rows: gridRows,
+        });
+        return new Set(cells.map((c) => `${c.x},${c.y}`));
+    }, [hoveredCell, currentSpell, casterPos, isCellInRange, gridCols, gridRows]);
+    const isInZone = (x: number, y: number): boolean => !!zonePreview && zonePreview.has(`${x},${y}`);
+
     // Recentre sur la case de départ du boss (map) ou le centre (grille libre).
     const recenter = () => {
         if (mapData && mapData.enemyCells.length) {
@@ -452,6 +483,28 @@ export function SpellRangeGrid({
                         {castInDiagonal && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30">
                                 <Sparkles className="w-3 h-3" /> Diagonale
+                            </span>
+                        )}
+
+                        {currentSpell.maxCastPerTurn !== undefined && currentSpell.maxCastPerTurn > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-800/80 text-zinc-300 border border-white/10">
+                                <Zap className="w-3 h-3 text-amber-400" />
+                                {currentSpell.maxCastPerTurn}×/tour
+                            </span>
+                        )}
+
+                        {(currentSpell.minCastInterval ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30">
+                                Cooldown {currentSpell.minCastInterval} tour{currentSpell.minCastInterval! > 1 ? "s" : ""}
+                            </span>
+                        )}
+
+                        {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && currentSpell.zone.size <= 12 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                <Sparkles className="w-3 h-3" />
+                                Zone {currentSpell.zone.shape}
+                                {currentSpell.zone.size > 0 ? ` ${currentSpell.zone.size}` : ""}
+                                {currentSpell.zone.range > 0 ? ` (portée ${currentSpell.zone.range})` : ""}
                             </span>
                         )}
 
@@ -644,6 +697,13 @@ export function SpellRangeGrid({
                                     fillColor = inRange ? "#9ae44c" : "#a39e90";
                                 }
 
+                                // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée.
+                                if (isInZone(c, r) && !obs && !isCaster && !isAllyCell) {
+                                    fillColor = "#e0a320";
+                                    strokeColor = "#ffcf5e";
+                                    strokeWidth = 1.1;
+                                }
+
                                 // Prisme 3D : seules les faces exposées sont rendues.
                                 const obsLeft = isObs(c - 1, r);
                                 const obsRight = isObs(c + 1, r);
@@ -763,6 +823,13 @@ export function SpellRangeGrid({
 
                                 if (isHovered && !isCaster && !isAllyCell) {
                                     fillColor = inRange ? "#9ae44c" : "#7c7767";
+                                }
+
+                                // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée.
+                                if (isInZone(x, y) && !isCaster && !isAllyCell) {
+                                    fillColor = "#e0a320";
+                                    strokeColor = "#ffcf5e";
+                                    strokeWidth = 1.2;
                                 }
 
                                 const sideColor = inRange ? "#4c7a1f" : isCaster ? "#4a1212" : isAllyCell ? (inRange ? "#6f1010" : "#122a4a") : "#3a372e";

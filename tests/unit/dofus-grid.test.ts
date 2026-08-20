@@ -8,7 +8,9 @@ import {
     distance,
     elevationOf,
     isWalkable,
+    losToXY,
     positionToCellId,
+    spellZoneCells,
     stateFromValue,
     toLos,
 } from "@/lib/dofus-grid";
@@ -121,5 +123,60 @@ describe("dofus-grid — états de case (VOID/HOLE/GROUND/OBSTACLE)", () => {
         expect(s[2][2]).toBe(CellState.HOLE);
         expect(s[2][3]).toBe(CellState.HOLE);
         expect(s[1][0]).toBe(CellState.GROUND);
+    });
+});
+
+describe("dofus-grid — repère losange inverse + zones d'effet (AoE)", () => {
+    it("losToXY est l'inverse de toLos", () => {
+        for (const [x, y] of [[0, 0], [7, 20], [7, 21], [13, 39], [5, 12], [0, 1]] as const) {
+            const los = toLos(x, y);
+            const back = losToXY(los.x, los.y);
+            expect(back.x).toBe(x);
+            expect(back.y).toBe(y);
+        }
+    });
+
+    it("spellZoneCells — Cercle taille 1 : cible + voisins à distance ≤1, pas plus", () => {
+        const cells = spellZoneCells({
+            zone: { shape: "Cercle", size: 1, range: 0 },
+            target: { x: 7, y: 20 },
+            caster: { x: 7, y: 14 },
+            cols: 14,
+            rows: 40,
+        });
+        expect(cells).toContainEqual({ x: 7, y: 20 }); // la cible
+        expect(cells).toContainEqual({ x: 7, y: 21 }); // voisin vertical (distance 1)
+        expect(cells).not.toContainEqual({ x: 7, y: 22 }); // distance 2 exclue
+    });
+
+    it("spellZoneCells — Croix : axes losange à travers la cible", () => {
+        const cells = spellZoneCells({
+            zone: { shape: "Croix", size: 1, range: 0 },
+            target: { x: 7, y: 20 },
+            caster: { x: 7, y: 14 },
+            cols: 14,
+            rows: 40,
+        });
+        expect(cells).toContainEqual({ x: 7, y: 20 });
+        expect(cells).toContainEqual({ x: 7, y: 21 });
+        expect(cells).toContainEqual({ x: 7, y: 19 });
+        expect(cells.length).toBeGreaterThan(1);
+    });
+
+    it("spellZoneCells — bornes de la grille respectées (pas de coordonnées hors-map)", () => {
+        const cells = spellZoneCells({
+            zone: { shape: "Cercle", size: 5, range: 0 },
+            target: { x: 0, y: 0 },
+            caster: { x: 0, y: 0 },
+            cols: 5,
+            rows: 5,
+        });
+        expect(cells.length).toBeGreaterThan(0);
+        for (const c of cells) {
+            expect(c.x).toBeGreaterThanOrEqual(0);
+            expect(c.x).toBeLessThan(5);
+            expect(c.y).toBeGreaterThanOrEqual(0);
+            expect(c.y).toBeLessThan(5);
+        }
     });
 });

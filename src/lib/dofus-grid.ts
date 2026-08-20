@@ -110,3 +110,113 @@ export function classifyGrid(cells: number[][]): CellState[][] {
 export function elevationOf(state: CellState): number {
     return state === CellState.OBSTACLE ? 1 : 0;
 }
+
+/** (repère losange) → (col, row) — inverse de toLos. */
+export function losToXY(u: number, v: number): DofusPos {
+    const y = u + v;
+    return { x: (u - v - (y % 2)) / 2, y };
+}
+
+// ── Zones d'effet (AoE) ──────────────────────────────────────────────────────
+// Formes de zone Dofensive normalisées : Cercle, Croix/Perpend, Ligne, Cône,
+// Rectangle, Point. La zone est centrée sur la CIBLE (case de portée), avec une
+// orientation déduite caster → cible pour Ligne/Cône.
+
+export interface SpellZoneInput {
+    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Inconnue";
+    size: number;
+    range: number;
+}
+
+/**
+ * Cases touchées par une zone AoE centrée sur `target` (orientation caster → target
+ * pour Ligne/Cône). Bornes de la grille (cols×rows) appliquées. Testable unitairement.
+ */
+export function spellZoneCells(opts: {
+    zone: SpellZoneInput;
+    target: DofusPos;
+    caster: DofusPos;
+    cols: number;
+    rows: number;
+}): DofusPos[] {
+    const { zone, target, caster, cols, rows } = opts;
+    const size = zone.size || 0;
+    const out: DofusPos[] = [];
+    const seen = new Set<string>();
+    const add = (x: number, y: number) => {
+        const xi = Math.round(x);
+        const yi = Math.round(y);
+        if (xi < 0 || xi >= cols || yi < 0 || yi >= rows) return;
+        const k = `${xi},${yi}`;
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push({ x: xi, y: yi });
+    };
+    add(target.x, target.y);
+
+    const t = toLos(target.x, target.y);
+    const c = toLos(caster.x, caster.y);
+
+    switch (zone.shape) {
+        case "Cercle":
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    if (distance(target, { x, y }) <= size) add(x, y);
+                }
+            }
+            break;
+        case "Croix":
+        case "Perpend":
+            for (let i = -size; i <= size; i++) {
+                const p1 = losToXY(t.x + i, t.y);
+                const p2 = losToXY(t.x, t.y + i);
+                add(p1.x, p1.y);
+                add(p2.x, p2.y);
+            }
+            break;
+        case "Ligne": {
+            const dU = t.x - c.x;
+            const dV = t.y - c.y;
+            if (dU !== 0 || dV !== 0) {
+                for (let i = 1; i <= size; i++) {
+                    const p = losToXY(t.x + i * dU, t.y + i * dV);
+                    add(p.x, p.y);
+                }
+            }
+            break;
+        }
+        case "Cône": {
+            const dU = t.x - c.x;
+            const dV = t.y - c.y;
+            const dir = Math.hypot(dU, dV);
+            if (dir >= 1) {
+                const du = dU / dir;
+                const dv = dV / dir;
+                for (let y = 0; y < rows; y++) {
+                    for (let x = 0; x < cols; x++) {
+                        if (distance(target, { x, y }) > size) continue;
+                        const p = toLos(x, y);
+                        const cu = p.x - t.x;
+                        const cv = p.y - t.y;
+                        const n = Math.hypot(cu, cv);
+                        if (n < 1) continue;
+                        const dot = (cu * du + cv * dv) / n;
+                        if (dot >= Math.cos(Math.PI / 3)) add(x, y); // cône 120°
+                    }
+                }
+            }
+            break;
+        }
+        case "Rectangle":
+            for (let dy = -size; dy <= size; dy++) {
+                for (let dx = -size; dx <= size; dx++) {
+                    const p = losToXY(t.x + dx, t.y + dy);
+                    add(p.x, p.y);
+                }
+            }
+            break;
+        default: // Point / Inconnue
+            break;
+    }
+    return out;
+}

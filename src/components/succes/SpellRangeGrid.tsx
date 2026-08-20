@@ -8,7 +8,7 @@ import {
     CellState,
     cellIdToXY,
     cellToScreen,
-    stateFromValue,
+    classifyGrid,
     toLos,
 } from "@/lib/dofus-grid";
 
@@ -91,7 +91,6 @@ export function SpellRangeGrid({
 
     // Composition simulée : jusqu'à 4 alliés.
     const [allies, setAllies] = useState<{ x: number; y: number; facing: number }[]>([]);
-    const [bossFacing, setBossFacing] = useState(0);
     const [selectedAlly, setSelectedAlly] = useState<number | null>(null);
     const [placingAlly, setPlacingAlly] = useState(false);
     const [showStartCells, setShowStartCells] = useState(false);
@@ -106,11 +105,12 @@ export function SpellRangeGrid({
     const gridRows = mapData ? mapData.cells.length : GRID_SIZE;
     const gridCols = mapData && mapData.cells[0] ? mapData.cells[0].length : GRID_SIZE;
 
+    // États classés (VOID/HOLE/GROUND/OBSTACLE/SPECIAL) à partir de la grille brute 0/1/2.
+    const mapStates = useMemo(() => (mapData ? classifyGrid(mapData.cells) : null), [mapData]);
+
     const cellState = (x: number, y: number): CellState => {
-        if (!mapData) return CellState.GROUND;
-        const row = mapData.cells[y];
-        if (!row) return CellState.OBSTACLE;
-        return stateFromValue(row[x] ?? 1);
+        if (!mapStates) return CellState.GROUND;
+        return mapStates[y]?.[x] ?? CellState.VOID;
     };
     const isObstacle = (x: number, y: number): boolean => cellState(x, y) === CellState.OBSTACLE;
 
@@ -241,12 +241,10 @@ export function SpellRangeGrid({
             return;
         }
 
-        // Aucun Féca sélectionné : on sélectionne un Féca, on pivote le boss ou on déplace le boss.
+        // Aucun Féca sélectionné : on sélectionne un Féca ou on déplace le boss.
         const allyIdx = allies.findIndex((a) => a.x === x && a.y === y);
         if (allyIdx >= 0) {
             setSelectedAlly(allyIdx);
-        } else if (x === casterPos.x && y === casterPos.y) {
-            setBossFacing((f) => (f + 45) % 360);
         } else {
             setCasterPos({ x, y });
         }
@@ -558,11 +556,15 @@ export function SpellRangeGrid({
                     className="w-full h-auto drop-shadow-2xl"
                     style={{ minWidth: "380px" }}
                 >
+                    {/* Fond noir (le vide autour des maps ressort en noir franc) */}
+                    {mapData && <rect x={viewX} y={viewY} width={viewW} height={viewH} fill="#0a0a08" />}
                     {mapData ? (
                         /* ── MAP RÉELLE : grille en quinconce Dofus (40×14) ── */
                         Array.from({ length: gridRows }).map((_, r) =>
                             Array.from({ length: gridCols }).map((_, c) => {
                                 const state = cellState(c, r);
+                                // VOID : hors-carte « jamais concerné » — noir, non rendu.
+                                if (state === CellState.VOID) return null;
                                 const obs = state === CellState.OBSTACLE;
                                 const spawn = !obs && state === CellState.SPECIAL;
                                 const key = `${c},${r}`;
@@ -586,8 +588,9 @@ export function SpellRangeGrid({
                                 let strokeWidth = 0.6;
 
                                 if (obs) {
-                                    fillColor = "#3a372e";
-                                    strokeColor = "#26241e";
+                                    // Bloc 3D (mur d'arène) — brun en relief.
+                                    fillColor = r % 2 === 0 ? "#7a5230" : "#6e4828";
+                                    strokeColor = "#573718";
                                     strokeWidth = 1;
                                 } else if (spawn) {
                                     fillColor = r % 2 === 0 ? "#b99a4e" : "#a88b44";
@@ -625,6 +628,16 @@ export function SpellRangeGrid({
 
                                 return (
                                     <g key={`${c}-${r}`} className={obs ? "" : "cursor-pointer"}>
+                                        {/* Extrusion 3D des murs (blocs bruns en relief) */}
+                                        {obs && (
+                                            <polygon
+                                                points={`${sx - tileHalfW},${sy + tileHalfH} ${sx + tileHalfW},${sy + tileHalfH} ${sx + tileHalfW},${sy + tileHalfH + 8} ${sx - tileHalfW},${sy + tileHalfH + 8}`}
+                                                fill="#4a2f1a"
+                                                stroke="#4a2f1a"
+                                                strokeWidth={0.4}
+                                                className="transition-colors duration-150"
+                                            />
+                                        )}
                                         <polygon
                                             points={points}
                                             fill={fillColor}
@@ -642,11 +655,6 @@ export function SpellRangeGrid({
                                                 ) : (
                                                     <text x="20" y="26" textAnchor="middle" fontSize="22" className="select-none">👑</text>
                                                 )}
-                                            </g>
-                                        )}
-                                        {isCaster && (
-                                            <g transform={`translate(${sx}, ${sy + 18}) rotate(${bossFacing})`} pointerEvents="none">
-                                                <polygon points="0,-8 -4,4 4,4" fill="#fbbf24" opacity="0.95" />
                                             </g>
                                         )}
                                         {allies.map((ally, ai) => {
@@ -746,11 +754,6 @@ export function SpellRangeGrid({
                                                 )}
                                             </g>
                                         )}
-                                        {isCaster && (
-                                            <g transform={`translate(${sx}, ${sy + 22}) rotate(${bossFacing})`} pointerEvents="none">
-                                                <polygon points="0,-9 -5,5 5,5" fill="#fbbf24" opacity="0.95" />
-                                            </g>
-                                        )}
                                         {allies.map((ally, ai) => {
                                             if (ally.x !== x || ally.y !== y) return null;
                                             const isSel = selectedAlly === ai;
@@ -759,9 +762,6 @@ export function SpellRangeGrid({
                                                     {isSel && (<circle cx={sx} cy={sy + 10} r="20" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
                                                     <g transform={`translate(${sx - 18}, ${sy - 20})`}>
                                                         <image href="/assets/module-succes/feca.webp" x="0" y="0" width="36" height="36" className="drop-shadow-2xl" />
-                                                    </g>
-                                                    <g transform={`translate(${sx}, ${sy + 20}) rotate(${ally.facing})`}>
-                                                        <polygon points="0,-8 -4,4 4,4" fill="#ffffff" opacity="0.9" />
                                                     </g>
                                                 </g>
                                             );

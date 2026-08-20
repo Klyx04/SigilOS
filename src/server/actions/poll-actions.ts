@@ -17,6 +17,10 @@ import { getGameDisplayName } from "@/lib/display-name";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
 import { rateLimit } from "@/lib/ratelimit";
 
+// Durée max d'un sondage : 30 jours (au-delà, valeur plafonnée côté serveur).
+// Un sondage « sans date » (expiresAt null) est fermé automatiquement par le cron close-old-polls après 30 jours.
+const MAX_POLL_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+
 /**
  * Generates a visual progress bar for Discord embeds.
  */
@@ -274,7 +278,10 @@ async function lazyClosePollsForGuild(guildConfigId: string): Promise<void> {
             where: {
                 guildId: guildConfigId,
                 status: "ACTIVE",
-                expiresAt: { lt: new Date() },
+                OR: [
+                    { expiresAt: { lt: new Date() } },
+                    { expiresAt: null, createdAt: { lt: new Date(Date.now() - MAX_POLL_DURATION_MS) } },
+                ],
             },
             data: {
                 status: "CLOSED",
@@ -284,6 +291,42 @@ async function lazyClosePollsForGuild(guildConfigId: string): Promise<void> {
     } catch (e) {
         logger.error("[Polls] Lazy close error", { error: e });
     }
+}
+
+/**
+ * Cron close-old-polls : clôture des sondages expirés et des sondages « sans date » 
+ * de plus de 30 jours (idempotent, sécurisé côté route par verifyCronSecret).
+ */
+export async function autoCloseExpiredPolls(): Promise<{ closed: number; deletedEmbeds: number }> {
+    const now = new Date();
+    const cutoff = new Date(Date.now() - MAX_POLL_DURATION_MS);
+
+    const targets = await db.poll.findMany({
+        where: {
+            status: "ACTIVE",
+            OR: [
+                { expiresAt: { lt: now } },
+                { expiresAt: null, createdAt: { lt: cutoff } },
+            ],
+        },
+        select: { id: true, discordChannelId: true, discordMessageId: true },
+    });
+
+    if (targets.length === 0) return { closed: 0, deletedEmbeds: 0 };
+
+    await db.poll.updateMany({
+        where: { id: { in: targets.map((t) => t.id) } },
+        data: { status: "CLOSED", closedAt: now },
+    });
+
+    let deletedEmbeds = 0;
+    for (const t of targets) {
+        if (t.discordChannelId && t.discordMessageId) {
+            await deleteChannelMessage(t.discordChannelId, t.discordMessageId).catch(() => null);
+            deletedEmbeds++;
+        }
+    }
+    return { closed: targets.length, deletedEmbeds };
 }
 
 // --- Actions ---
@@ -480,10 +523,10 @@ export async function createPoll(
 
         // Create poll + options in transaction
         const poll = await db.$transaction(async (tx) => {
-            // Default expiry: 7 days if not provided
+            // Durée max 30 jours ; « sans date » (null) = fermé par le cron après 30 jours.
             const finalExpiresAt = data.expiresAt
-                ? new Date(data.expiresAt)
-                : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                ? new Date(Math.min(new Date(data.expiresAt).getTime(), Date.now() + MAX_POLL_DURATION_MS))
+                : null;
 
             const newPoll = await tx.poll.create({
                 data: {
@@ -615,7 +658,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
                 category: data.category as PollCategory,
                 allowMultipleVotes: data.allowMultipleVotes,
                 isAnonymous: data.isAnonymous,
-                expiresAt: data.expiresAt ? new Date(data.expiresAt) : data.expiresAt === null ? null : poll.expiresAt,
+                expiresAt: data.expiresAt ? new Date(Math.min(new Date(data.expiresAt).getTime(), Date.now() + MAX_POLL_DURATION_MS)) : data.expiresAt === null ? null : poll.expiresAt,
                 externalUrl: data.externalUrl !== undefined ? (data.externalUrl || null) : undefined,
             }
         });

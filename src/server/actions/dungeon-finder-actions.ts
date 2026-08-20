@@ -9,6 +9,8 @@ import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDjContributionPoints } from "@/lib/points-config";
+import { createAuditLog } from "./audit-actions";
+import { sanitizeName } from "@/lib/security";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -1391,7 +1393,8 @@ export async function closeDjPost(
     guildId: string,
     postId: string,
     successValidations?: { dungeonId: string; achievementId: string }[],
-    validatedProfileIds?: string[]
+    validatedProfileIds?: string[],
+    reason?: string
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
     if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
@@ -1408,6 +1411,21 @@ export async function closeDjPost(
         if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
         if (post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Tu ne peux fermer que tes propres posts" };
+        }
+
+        // #option-b — Fermeture par un admin avec motif obligatoire (traçabilité).
+        if (user.isAdmin && reason) {
+            const safeReason = sanitizeName(reason, 500) || reason.slice(0, 500);
+            await createAuditLog({
+                guildId,
+                actorUserId: user.id ?? "",
+                actorName: user.name || "Admin",
+                action: "FINDER_POST_CLOSED" as any,
+                targetType: "DJ_SEARCH_POST" as any,
+                targetId: postId,
+                metadata: { reason: safeReason, byAdmin: true },
+            });
+            logger.info(`[closeDjPost] Fermeture admin du post ${postId} — motif: ${safeReason}`);
         }
 
         await (db as any).djSearchPost.update({

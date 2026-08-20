@@ -68,6 +68,9 @@ const CATEGORIES = [
 
 const DEFAULT_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
+// Plafond de durée d'un sondage : 30 jours max. Les sondages « sans date » (toggle off) sont fermés auto à 30 j (cron close-old-polls).
+const MAX_EXPIRY_HOURS = 720;
+
 export function PollCreator({
     guildId,
     discordChannels = [],
@@ -125,7 +128,7 @@ export function PollCreator({
             setHasExpiry(!!editPoll.expiresAt);
             if (editPoll.expiresAt) {
                 const hours = Math.round((new Date(editPoll.expiresAt).getTime() - new Date(editPoll.createdAt).getTime()) / (1000 * 60 * 60));
-                setExpiryHours(hours > 0 ? hours : 24);
+                setExpiryHours(Math.min(hours > 0 ? hours : 24, MAX_EXPIRY_HOURS));
             }
             setExternalUrl(editPoll.externalUrl || "");
             // Pré-remplir les rôles depuis le CSV stocké
@@ -254,7 +257,7 @@ export function PollCreator({
 
     const executeSubmit = () => {
         const expiresAt = hasExpiry
-            ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
+            ? new Date(Date.now() + Math.min(expiryHours, MAX_EXPIRY_HOURS) * 60 * 60 * 1000).toISOString()
             : null;
 
         startTransition(async () => {
@@ -550,11 +553,12 @@ export function PollCreator({
                                                         exit={{ opacity: 0, height: 0 }}
                                                         className="overflow-hidden"
                                                     >
-                                                        <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-surface/80 border border-border mt-3">
+                                                        <div className="grid grid-cols-4 gap-2 p-1 rounded-xl bg-surface/80 border border-border mt-3">
                                                             {[
                                                                 { value: 24, label: "24h", emoji: "⏳" },
                                                                 { value: 48, label: "48h", emoji: "⌛" },
-                                                                { value: 168, label: "7j", emoji: "📅" }
+                                                                { value: 168, label: "7j", emoji: "📅" },
+                                                                { value: 720, label: "30j", emoji: "📆" }
                                                             ].map((opt) => (
                                                                 <button
                                                                     key={opt.value}
@@ -584,6 +588,11 @@ export function PollCreator({
                                                     </motion.div>
                                                 )}
                                             </AnimatePresence>
+                                            {!hasExpiry && (
+                                                <p className="text-caption text-muted-foreground mt-2">
+                                                    Sans date : le sondage sera fermé automatiquement après 30 jours.
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">

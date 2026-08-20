@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Circle, Trophy, X, Loader2, Star, ShieldCheck, UserPlus, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { closeDjPostWithContributions, closeDjPost, getDjGuildMembersForClose } from "@/server/actions/dungeon-finder-actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -33,6 +34,8 @@ function getPointsFromLevel(level?: number | null): number {
 
 export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMode = false }: DjCloseModalProps) {
     const [isPending, startTransition] = useTransition();
+    // #option-b — Motif obligatoire quand un admin ferme le post d'un autre membre.
+    const [reason, setReason] = useState("");
 
     // ── Participants qui se sont inscrits formellement ──────────────────────
     const acceptedParticipants = post.participants.filter(
@@ -107,6 +110,11 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
         });
     }, [isOpen, guildId, allMembers.length]);
 
+    // Reset du motif à chaque ouverture.
+    useEffect(() => {
+        if (isOpen) setReason("");
+    }, [isOpen]);
+
     function toggle(profileId: string) {
         setValidated((prev) => {
             const next = new Set(prev);
@@ -155,7 +163,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                 .map((s) => ({ dungeonId: s.dungeonId, achievementId: s.achievementId }));
 
             const res = adminMode
-                ? await closeDjPost(guildId, post.id, successValidations, Array.from(validated))
+                ? await closeDjPost(guildId, post.id, successValidations, Array.from(validated), reason.trim())
                 : await closeDjPostWithContributions(guildId, post.id, Array.from(validated), successValidations);
 
             if (res.success) {
@@ -495,6 +503,21 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                             )}
                         </div>
 
+                        {adminMode && (
+                            <div className="px-6 pb-1">
+                                <label className="text-caption font-bold text-foreground uppercase tracking-wide">
+                                    Motif de fermeture (obligatoire)
+                                </label>
+                                <Textarea
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    placeholder="Pourquoi ce post est-il fermé par la modération ? (visible dans le journal)"
+                                    maxLength={500}
+                                    rows={2}
+                                    className="mt-2 bg-background border-border text-foreground resize-none"
+                                />
+                            </div>
+                        )}
                         {/* Footer */}
                         <div className="px-6 pb-6 pt-4 flex gap-3 border-t border-border">
                             <Button
@@ -507,7 +530,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                             </Button>
                             <Button
                                 onClick={handleConfirm}
-                                disabled={isPending}
+                                disabled={isPending || (adminMode && reason.trim().length === 0)}
                                 className="flex-1 bg-violet-600 hover:bg-violet-500 text-foreground font-black max-h-12 h-12 shadow-md shadow-violet-900/20"
                             >
                                 {isPending ? (

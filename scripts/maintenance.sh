@@ -197,6 +197,21 @@ else
     echo "⚠️  Posts inactifs ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6d. Clôture auto des sondages expirés / « sans date » de plus de 30 jours
+# (cron close-old-polls — plafond durée sondage : 30 jours max)
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    POLLS_RESPONSE=$(curl -s -o /tmp/polls-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/close-old-polls")
+    if [ "$POLLS_RESPONSE" -eq 200 ]; then
+        echo "✅ Sondages expirés clôturés automatiquement"
+    else
+        echo "⚠️  Sondages : HTTP $POLLS_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Sondages ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
 # 7. Audit Final
 echo "🩺 Lancement de l'audit de santé..."
 bash "$(dirname "$0")/audit.sh"

@@ -122,6 +122,41 @@ export async function getResourceCategories(guildId: string) {
     });
 
     if (categories.length === 0) {
+        // #127 — les guildes neuves reçoivent les catégories/liens officiels gérés par le
+        // God dans la guilde de référence (/god/resources) au lieu du pool codé en dur.
+        const referenceGuild = await db.guildConfig.findFirst({
+            where: { isActive: true },
+            orderBy: { createdAt: "asc" as const },
+            select: { id: true },
+        });
+        if (referenceGuild && referenceGuild.id !== targetId) {
+            const refCats = await db.resourceCategory.findMany({
+                where: { guildId: referenceGuild.id },
+                include: { links: { orderBy: { order: "asc" } } },
+                orderBy: { order: "asc" },
+            });
+            if (refCats.length > 0) {
+                for (const cat of refCats) {
+                    await db.resourceCategory.create({
+                        data: {
+                            label: cat.label, color: cat.color, order: cat.order, guildId: targetId,
+                            links: {
+                                create: (cat.links || []).map((l: any, idx: number) => ({
+                                    title: l.title, description: l.description, url: l.url,
+                                    emoji: l.emoji, isOfficial: l.isOfficial || false, order: l.order ?? idx,
+                                })),
+                            },
+                        },
+                    });
+                }
+                return await db.resourceCategory.findMany({
+                    where: { guildId: targetId },
+                    include: { links: { orderBy: { order: "asc" } } },
+                    orderBy: { order: "asc" },
+                });
+            }
+        }
+
         const defaultCats = [
             {
                 label: "Référence & Quêtes", color: "#10b981", order: 0,
@@ -268,40 +303,106 @@ export async function deleteResourceLink(id: string, guildId: string) {
 export async function getContentCreators(guildId: string) {
     try {
         const targetId = await getDbGuildId(guildId);
-        let creators = await db.contentCreator.findMany({
-            where: { guildId: targetId },
-            orderBy: { order: "asc" }
+
+        // #127 — Source officielle : les créateurs gérés par le God dans la guilde de
+        // référence (/god/resources). Ajouts / MAJ / suppressions du God propagés à
+        // TOUTES les guildes (l'UI God annonce « distribués sur toutes les guildes »).
+        const referenceGuild = await db.guildConfig.findFirst({
+            where: { isActive: true },
+            orderBy: { createdAt: "asc" as const },
+            select: { id: true },
         });
 
-        const defaultCreators = [
-            { name: "Huz", role: "Forgemagie & Économie", youtube: "https://www.youtube.com/@Huzounet", twitch: "https://www.twitch.tv/huzounet", handle: "huzounet", color: "#fb923c", order: 0 },
-            { name: "Skyzio", role: "PvM & Astuces", youtube: "https://www.youtube.com/@Skyzio", twitch: "https://www.twitch.tv/skyzio_", handle: "skyzio", color: "#3b82f6", order: 1 },
-            { name: "Lanyelle", role: "Lore & Quêtes", youtube: "https://www.youtube.com/@Laniyelle", twitch: "https://www.twitch.tv/laniyelle", handle: "laniyelle", color: "#a855f7", order: 2 },
-            { name: "Barbofus", role: "Guides & Aventure", youtube: "https://www.youtube.com/@BarbeDouce-YT", twitch: "https://www.twitch.tv/barbe___douce", handle: "barbe", color: "#10b981", order: 3 },
-            { name: "Sapeuh", role: "PvP & E-sport", youtube: "https://www.youtube.com/@SAPEUH1", twitch: "https://www.twitch.tv/sapeuh", handle: "sapeuh", color: "#ef4444", order: 4 },
-            { name: "Liche", role: "Solotage & Succès", youtube: "https://www.youtube.com/@Liche_fr", twitch: "https://www.twitch.tv/lichefr", handle: "liche", color: "#facc15", order: 5 },
-            { name: "Volcasaurus", role: "Défis & Solotages", youtube: "https://www.youtube.com/@volcasaurus4500", twitch: "https://www.twitch.tv/volcatwitch", handle: "volcatwitch", color: "#22d3ee", order: 6 },
-            { name: "Humility", role: "Guides & Actualités", youtube: "https://www.youtube.com/@humilityfr", twitch: "https://www.twitch.tv/humility", handle: "humility", color: "#f59e0b", order: 7 },
-        ];
+        if (!referenceGuild) {
+            return await db.contentCreator.findMany({
+                where: { guildId: targetId },
+                orderBy: { order: "asc" },
+            });
+        }
 
-        // 1. If empty, full population
-        if (creators.length === 0) {
-            for (const c of defaultCreators) {
-                await db.contentCreator.create({ data: { ...c, guildId: targetId } });
-            }
-            creators = await db.contentCreator.findMany({ where: { guildId: targetId }, orderBy: { order: "asc" } });
-        } else {
-            // 2. If already exists, check if new ones (Volca/Humility) are missing
-            const currentNames = creators.map(c => c.name);
-            const missing = defaultCreators.filter(dc => !currentNames.includes(dc.name));
+        const officialCreators = await db.contentCreator.findMany({
+            where: { guildId: referenceGuild.id },
+            orderBy: { order: "asc" },
+        });
 
-            if (missing.length > 0) {
-                for (const m of missing) {
-                    await db.contentCreator.create({ data: { ...m, guildId: targetId } });
-                }
-                creators = await db.contentCreator.findMany({ where: { guildId: targetId }, orderBy: { order: "asc" } });
+        // La guilde de référence EST la source → retour direct.
+        if (referenceGuild.id === targetId) {
+            return officialCreators;
+        }
+
+        let creators = await db.contentCreator.findMany({
+            where: { guildId: targetId },
+            orderBy: { order: "asc" },
+        });
+
+        const officialByHandle = new Map<string, any>();
+        for (const off of officialCreators) {
+            const key = String(off.handle || "").toLowerCase();
+            if (key) officialByHandle.set(key, off);
+        }
+
+        let changed = false;
+
+        // 1. Ajouts + MAJ (identifiant stable = handle).
+        for (const off of officialCreators) {
+            const key = String(off.handle || "").toLowerCase();
+            if (!key) continue;
+            const local = creators.find((c: any) => String(c.handle || "").toLowerCase() === key);
+            if (!local) {
+                await db.contentCreator.create({
+                    data: {
+                        guildId: targetId,
+                        name: off.name?.trim(),
+                        role: off.role?.trim(),
+                        youtube: off.youtube?.trim(),
+                        twitch: off.twitch?.trim(),
+                        handle: off.handle,
+                        color: off.color || "#3b82f6",
+                        order: off.order ?? 0,
+                    },
+                });
+                changed = true;
+            } else if (
+                local.name !== off.name ||
+                local.role !== off.role ||
+                local.youtube !== off.youtube ||
+                local.twitch !== off.twitch ||
+                local.color !== off.color ||
+                local.order !== off.order
+            ) {
+                await db.contentCreator.update({
+                    where: { id: local.id },
+                    data: {
+                        name: off.name?.trim(),
+                        role: off.role?.trim(),
+                        youtube: off.youtube?.trim(),
+                        twitch: off.twitch?.trim(),
+                        color: off.color || "#3b82f6",
+                        order: off.order ?? 0,
+                    },
+                });
+                changed = true;
             }
         }
+
+        // 2. Suppressions : un créateur local qui suivait le pool officiel (handle connu)
+        // et qui n'est plus dans la liste officielle → retiré (distribution God).
+        // Les créateurs sans handle (ajouts manuels d'officiers) ne sont jamais touchés.
+        for (const local of creators) {
+            const key = String(local.handle || "").toLowerCase();
+            if (!key) continue;
+            if (officialByHandle.has(key)) continue;
+            await db.contentCreator.delete({ where: { id: local.id } });
+            changed = true;
+        }
+
+        if (changed) {
+            creators = await db.contentCreator.findMany({
+                where: { guildId: targetId },
+                orderBy: { order: "asc" },
+            });
+        }
+
         return creators;
     } catch (e) {
         logger.error("Failed to get content creators", { error: (e as Error).message });

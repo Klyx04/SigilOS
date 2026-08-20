@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -66,14 +66,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         ? post.participants.find((p) => p.profile.id === currentProfileId)
         : null;
 
-    // #138 — Le post porte-t-il des succès (simple OU multi) ? → validation obligatoire à la clôture.
-    const postHasSuccesses = useMemo(() => {
-        if (Array.isArray(post.dungeonsJson) && post.dungeonsJson.length > 0) {
-            return post.dungeonsJson.some((d) => (d?.wantedAchievementIds?.length ?? 0) > 0);
-        }
-        return (post.wantedAchievementIds?.length ?? 0) > 0;
-    }, [post]);
-
     const acceptedCount = post._acceptedCount + 1; // +1 creator
     const spotsLeft = post.maxMembers - acceptedCount;
 
@@ -99,25 +91,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
             const res = await leaveDjPost(guildId, post.id);
             if (res.success) {
                 toast.success("Tu t'es retiré du post.");
-                onRefresh();
-            } else {
-                toast.error(res.error);
-            }
-        });
-    }
-
-    function handleClose() {
-        // #138 — Si le post porte des succès, la validation succès est OBLIGATOIRE → on passe
-        // par la modale de clôture (mode admin : pas de points, mais succès possibles).
-        if (postHasSuccesses) {
-            setIsCloseModalOpen(true);
-            return;
-        }
-        // Admin quick-close (no contribution modal)
-        startTransition(async () => {
-            const res = await closeDjPost(guildId, post.id);
-            if (res.success) {
-                toast.success("Post fermé.");
                 onRefresh();
             } else {
                 toast.error(res.error);
@@ -162,18 +135,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 )}
             >
                 {/* Banner */}
-                <div className="relative h-28 bg-background/90 overflow-hidden flex items-center shrink-0 border-b border-border">
-                    {coverImage && (
-                        <div className="absolute inset-0">
-                            <img
-                                src={coverImage}
-                                alt={subtitle}
-                                className="w-full h-full object-cover opacity-25"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-                        </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent opacity-80" />
+                <div className="relative h-28 bg-surface overflow-hidden flex items-center shrink-0 border-b border-border">
 
                     <div className="relative flex items-center gap-4 px-5 w-full">
                         <div className={cn(
@@ -215,20 +177,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
 
                     {/* Status badge */}
                     <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
-                        {post.isDiscordPublished && post.discordMessageId && post.discordChannelId && (
-                            <a 
-                                href={`https://discord.com/channels/${guildId}/${post.discordChannelId}/${post.discordMessageId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#5865F2]/10 hover:bg-[#5865F2] border border-[#5865F2]/20 text-foreground transition-colors"
-                                title="Voir sur Discord"
-                            >
-                                <svg className="w-4 h-4 transition-transform group-hover/discord:scale-110" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.966 2.419-2.156 2.419m7.974 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.946 2.419-2.156 2.419"/>
-                                </svg>
-                            </a>
-                        )}
                         <div className={cn(
                             "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-wider",
                             post.status === "OPEN"
@@ -484,6 +432,20 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2 pt-2">
+                        {post.isDiscordPublished && post.discordMessageId && post.discordChannelId && (
+                            <a
+                                href={`https://discord.com/channels/${guildId}/${post.discordChannelId}/${post.discordMessageId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#5865F2]/10 hover:bg-[#5865F2] border border-[#5865F2]/20 text-foreground hover:text-white transition-colors shrink-0"
+                                title="Voir sur Discord"
+                            >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.966 2.419-2.156 2.419m7.974 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.946 2.419-2.156 2.419"/>
+                                </svg>
+                            </a>
+                        )}
                         <Button
                             variant="ghost"
                             size="sm"
@@ -565,7 +527,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={handleClose}
+                                onClick={() => setIsCloseModalOpen(true)}
                                 disabled={isPending}
                                 className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
                             >
@@ -587,7 +549,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 onRefresh={onRefresh}
             />
 
-            {(isOwner || (isAdmin && !isOwner && postHasSuccesses)) && (
+            {(isOwner || (isAdmin && !isOwner)) && (
                 <DjCloseModal
                     isOpen={isCloseModalOpen}
                     post={post}

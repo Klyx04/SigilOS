@@ -1,7 +1,6 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-06-15)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-10-03)
 
-**Branche Active** : `feat/profile-onboarding-and-polish` (Onboarding Wizard, Tour Guidé & Polish UI/UX)
-**Status** : Onboarding Wizard et Tour Guidé fonctionnels et poussés. Correction de l'accès membre si le serveur Dofus n'est pas configuré. Corrections de scroll modal Ocre et bouton de retour-en-haut intégrées. Redirection breadcrumb opérationnelle. En attente de PR/CI puis déploiement VPS.
+**Status** : Fix Auth RBAC/Cache TTL opérationnel (résolution du bug intermittent 'Configuration en cours / Serveur Inconnu'). Refonte intégrale et technique des 2 guides de Raids Dofus 3.6 (Gouffre du Gigalodon & Sanctuaire des Jardins Éternels) avec paraphrase 100%, tableaux, boss et vraies mécaniques. Annuaire des guides dé-sloppé avec vignettes réelles du jeu Dofus compactes. Compilation `tsc` et build Next.js 16 validés (0 erreur).
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 

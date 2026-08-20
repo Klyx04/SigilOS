@@ -703,6 +703,10 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
 const monsterStatsCache = new Map<string, { data: any; expiresAt: number }>();
 const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
 
+// Cache court pour la famille (race DofusDB) d'un boss — 24 h.
+const dungeonFamilyCache = new Map<string, { data: any; expiresAt: number }>();
+const DUNGEON_FAMILY_TTL = 24 * 60 * 60 * 1000;
+
 export async function getMonsterStats(monsterName: string, dungeonName?: string): Promise<ActionResponse<any>> {
     // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
     const cacheKey = `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
@@ -919,35 +923,41 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             water: g5.chance || 0,
             fire: g5.intelligence || 0,
             air: g5.agility || 0,
-            neutral: g5.strength || 0
+            neutral: 0 // Le Neutre n'est boosté par aucune stat élémentaire.
         };
 
-        // Mapping effect types for description with Stat Scaling
+        // Mapping effect types for description with Stat Scaling & comprehensive effect dictionary
         const parseEffects = (effects: any[], isSubSpell = false): string | null => {
             if (!effects || effects.length === 0) return null;
-            return effects.map(eff => {
+            const parsed = effects.map(eff => {
+                // If DofusDB provides a pre-formatted string, use it directly
+                if (eff.formatted?.fr) return eff.formatted.fr;
+                if (eff.description?.fr) return eff.description.fr;
+                if (typeof eff.formatted === 'string' && eff.formatted.trim()) return eff.formatted.trim();
+
                 const id = eff.effectId;
-                const min = eff.diceNum || 0;
+                const min = eff.diceNum || eff.value || 0;
                 const max = eff.diceSide || 0;
+                // Traction/repoussement : la distance vit parfois dans la zone (diceNum=0).
+                const zoneParam = eff.zoneDescr?.param1 || 0;
                 let text = "";
 
                 // Helper to scale damage
                 const scale = (val: number, stat: number) => Math.floor(val * (1 + stat / 100));
-                // Format a damage value: show single value when fixed (diceSide=0), range otherwise
                 const dmg = (scaledMin: number, scaledMax: number) =>
-                    scaledMax > 0 ? `${scaledMin}-${scaledMax}` : `${scaledMin}`;
+                    scaledMax > 0 && scaledMax !== scaledMin ? `${scaledMin} à ${scaledMax}` : `${scaledMin}`;
 
                 // Element-based direct damage IDs — effectElement: 1=Terre 2=Feu 3=Eau 4=Air 5+=Neutre
                 const elementDamageIds = [91, 92, 93, 94, 95, 112, 113, 117];
                 if (elementDamageIds.includes(id) && min > 0) {
                     const elem = eff.effectElement;
                     if (elem === 1)      text = `Dommages Terre : ${dmg(scale(min, monsterStats.earth),   scale(max, monsterStats.earth))}`;
-                    else if (elem === 2) text = `Dommages Feu   : ${dmg(scale(min, monsterStats.fire),    scale(max, monsterStats.fire))}`;
-                    else if (elem === 3) text = `Dommages Eau   : ${dmg(scale(min, monsterStats.water),   scale(max, monsterStats.water))}`;
-                    else if (elem === 4) text = `Dommages Air   : ${dmg(scale(min, monsterStats.air),     scale(max, monsterStats.air))}`;
+                    else if (elem === 2) text = `Dommages Feu : ${dmg(scale(min, monsterStats.fire),    scale(max, monsterStats.fire))}`;
+                    else if (elem === 3) text = `Dommages Eau : ${dmg(scale(min, monsterStats.water),   scale(max, monsterStats.water))}`;
+                    else if (elem === 4) text = `Dommages Air : ${dmg(scale(min, monsterStats.air),     scale(max, monsterStats.air))}`;
                     else                text = `Dommages Neutre : ${dmg(scale(min, monsterStats.neutral), scale(max, monsterStats.neutral))}`;
                 // Vol de vie / classic steal-damage IDs
-                } else if (id === 100) {
+                } else if (id === 100 || id === 108) {
                     text = `Vol de vie Neutre : ${dmg(scale(min, monsterStats.neutral), scale(max, monsterStats.neutral))}`;
                 } else if (id === 97) {
                     text = `Dommages Terre : ${dmg(scale(min, monsterStats.earth), scale(max, monsterStats.earth))}`;
@@ -957,110 +967,96 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                     text = `Dommages Feu : ${dmg(scale(min, monsterStats.fire), scale(max, monsterStats.fire))}`;
                 } else if (id === 98) {
                     text = `Dommages Air : ${dmg(scale(min, monsterStats.air), scale(max, monsterStats.air))}`;
+                } else if (id === 275 || id === 276 || id === 277 || id === 278 || id === 279) {
+                    // Dégâts en % de PV érodés / PV max
+                    text = `Dommages : ${min}% des PV max`;
+                } else if (id === 85 || id === 86 || id === 87 || id === 88 || id === 89) {
+                    // Dégâts en % de la vie actuelle
+                    text = `Dommages : ${min}% de la vie de la cible`;
                 } else if (id === 6 || id === 8) {
-                    text = `Attire de ${min} case${min > 1 ? "s" : ""}`;
+                    const dist = min > 0 ? min : zoneParam;
+                    text = dist > 0 ? `Attire de ${dist} case${dist > 1 ? "s" : ""}` : "";
                 } else if (id === 5 || id === 4) {
-                    text = `Repousse de ${min} case${min > 1 ? "s" : ""}`;
+                    const dist = min > 0 ? min : zoneParam;
+                    text = dist > 0 ? `Repousse de ${dist} case${dist > 1 ? "s" : ""}` : "";
                 } else if (id === 1103) {
                     const val = eff.value || min;
                     text = val > 0 ? `Repousse différée de ${val} case${val > 1 ? "s" : ""}` : `Repousse (effet différé)`;
-                } else if (id === 753) {
+                } else if (id === 753 || id === 754) {
                     text = `+${min} Tacle`;
-                } else if (id === 754) {
-                    text = `+${min} Tacle (buff)`;
+                } else if (id === 752) {
+                    text = `-${min} Fuite`;
                 } else if (id === 132) {
-                    text = `Immobilise la cible`;
+                    text = `Retire tous les PM (État Pesanteur / Enraciné)`;
+                } else if (id === 1039 || id === 1040) {
+                    text = `Donne ${min} points de Bouclier`;
                 } else if (id === 293 || id === 294) {
-                    text = `+${eff.diceSide || eff.value || 5} dégâts de base (Buff)`;
+                    text = `+${eff.diceSide || eff.value || min || 5} Dommages fixes`;
                 } else if (id === 138 || id === 114) {
                     text = `+${min} Puissance`;
+                } else if (id === 115) {
+                    text = `+${min} % Critique`;
                 } else if (id === 1160 || id === 2160 || id === 2161) {
+                    const triggeredId = eff.diceNum || eff.value;
                     if (isSubSpell) {
-                        text = `Déclenche effet (Sort ID:${eff.diceNum || eff.value})`;
+                        text = `Déclenche un sous-effet`;
                     } else {
-                        const triggeredId = eff.diceNum || eff.value;
                         const subSpell = subSpellsMap[triggeredId];
                         if (subSpell) {
                             const subEffectsParsed = parseEffects(subSpell.effects, true);
-                            if (subEffectsParsed) {
-                                text = `Déclenche ${subSpell.name} (${subEffectsParsed})`;
-                            } else {
-                                text = `Déclenche ${subSpell.name}`;
-                            }
+                            text = subEffectsParsed ? `Déclenche ${subSpell.name} : ${subEffectsParsed}` : `Déclenche ${subSpell.name}`;
                         } else {
-                            if (triggeredId === 5063) {
-                                text = `Applique la Contamination (Vortex)`;
-                            } else if (triggeredId === 6797) {
-                                text = `Applique Appel des Fonds Marins`;
-                            } else if (triggeredId === 3585) {
-                                text = `Fraction de molaire : repousse les ennemis`;
-                            } else if (triggeredId === 3587) {
-                                text = `Liqueur de Fée Ling : soin ou malus tactique`;
-                            } else {
-                                text = `Déclenche un effet secondaire (Sort ID:${triggeredId})`;
-                            }
+                            text = `Déclenche un effet passif / secondaire`;
                         }
                     }
-                } else if (id === 623) {
-                    text = `Invoque une entité`;
-                } else if (id === 82) {
-                    text = `Soigne : ${min}-${max} PV`;
+                } else if (id === 181 || id === 623) {
+                    text = `Invoque une créature alliée`;
+                } else if (id === 82 || id === 108) {
+                    text = `Soigne : ${min}${max > 0 && max !== min ? ` à ${max}` : ""} PV`;
+                } else if (id === 81) {
+                    text = `Soigne ${min}% des PV max`;
                 } else if (id === 1) {
-                    text = `Transpose de ${min} cases`;
-                } else if (id === 140) {
-                    text = `Retrait PV directs : ${min}`;
-                } else if (id === 126) {
-                    text = `Retrait PV directs : ${min}`;
+                    text = `Transpose / Échange de place`;
+                } else if (id === 4) {
+                    text = `Avance de ${min} case${min > 1 ? "s" : ""}`;
+                } else if (id === 140 || id === 126) {
+                    text = `Retrait direct : ${min} PV`;
                 } else if (id === 950 || id === 951 || id === 952) {
-                    text = `Applique un État (Mécanique Boss)`;
-                } else if (id === 168) {
-                    text = `Retrait PA : ${min}`;
-                } else if (id === 169) {
-                    text = `Retrait PM : ${min}`;
+                    const stateId = eff.value || eff.diceNum || eff.diceSide;
+                    text = `Applique un État`;
+                } else if (id === 168 || id === 101) {
+                    text = `Retrait de ${min} PA`;
+                } else if (id === 169 || id === 127) {
+                    text = `Retrait de ${min} PM`;
                 } else if (id === 174) {
-                    text = `Retrait Portée : ${min}`;
+                    text = `Retrait de ${min} Portée`;
+                } else if (id === 111) {
+                    text = `+${min} PA`;
+                } else if (id === 128) {
+                    text = `+${min} PM`;
                 } else if (id === 160) {
                     text = `Téléporte la cible`;
                 } else if (id === 121) {
-                    text = `Dommages subis : +${min}%`;
+                    text = `Dommages subis x${(min / 100 + 1).toFixed(2)}`;
                 } else if (id === 1122) {
-                    text = `Applique Érosion : +${min}%`;
-                }
-
-                // Prefix icons only for the top-level effects to keep nested sub-effects clean
-                if (text && !isSubSpell) {
-                    const elem = eff.effectElement;
-                    if (elementDamageIds.includes(id)) {
-                        if (elem === 1)      text = `🌿 ${text}`;
-                        else if (elem === 2) text = `🔥 ${text}`;
-                        else if (elem === 3) text = `💧 ${text}`;
-                        else if (elem === 4) text = `🍃 ${text}`;
-                        else                text = `⚪ ${text}`;
-                    } else if (id === 100) text = `⚪ ${text}`;
-                    else if (id === 97) text = `🌿 ${text}`;
-                    else if (id === 96) text = `💧 ${text}`;
-                    else if (id === 99) text = `🔥 ${text}`;
-                    else if (id === 98) text = `🍃 ${text}`;
-                    else if (id === 6 || id === 8) text = `🧲 ${text}`;
-                    else if (id === 5 || id === 4 || id === 1103) text = `💥 ${text}`;
-                    else if (id === 753 || id === 754) text = `🛡️ ${text}`;
-                    else if (id === 132) text = `⛓️ ${text}`;
-                    else if (id === 293 || id === 294) text = `✨ ${text}`;
-                    else if (id === 138 || id === 114) text = `💪 ${text}`;
-                    else if (id === 1160 || id === 2160 || id === 2161) text = `⚡ ${text}`;
-                    else if (id === 623) text = `➕ ${text}`;
-                    else if (id === 82) text = `💖 ${text}`;
-                    else if (id === 1) text = `🏃 ${text}`;
-                    else if (id === 140 || id === 126) text = `💀 ${text}`;
-                    else if (id === 950 || id === 951 || id === 952) text = `🌀 ${text}`;
-                    else if (id === 168 || id === 169 || id === 174) text = `📉 ${text}`;
-                    else if (id === 160) text = `🏃 ${text}`;
-                    else if (id === 121) text = `📉 ${text}`;
-                    else if (id === 1122) text = `📉 ${text}`;
+                    text = `Applique ${min}% d'Érosion`;
+                } else if (id === 131) {
+                    text = `Applique un Poison élémentaire (${min} dégâts)`;
+                } else if (id === 400 || id === 401 || id === 402) {
+                    text = `Pose un Glyphe / Piège sur le terrain`;
+                } else if (id === 141) {
+                    text = `Tue instantanément la cible (OS)`;
+                } else if (id === 265) {
+                    text = `Réduit les dégâts de ${min}`;
+                } else {
+                    // Effet inconnu / mécanique scriptée → on ne l'affiche pas (pas de brut API).
+                    text = "";
                 }
 
                 return text;
-            }).filter(Boolean).join(" | ");
+            }).filter((t): t is string => Boolean(t) && t.trim().length > 0);
+
+            return parsed.length > 0 ? parsed.join(" · ") : null;
         };
 
         // Fallback to subarea lookup via local file if coordinates is still null
@@ -1087,6 +1083,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             id: monster.id,
                 name: monster.name.fr,
                 imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
+                familyId: monster.race ?? null,
                 coordinates,
                 grades: monster.grades.map((g: any, idx: number) => ({
                     level: g.level,
@@ -1104,13 +1101,16 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                 drops: monster.drops?.map((d: any) => {
                     const item = itemsMap[d.objectId];
                     const iconId = item?.iconId || d.objectId;
-                    const rawPercent = d.percentDropForGrade5 || d.percentDropForGrade1 || d.minPercentDrop || d.percent || 0;
-                    const formattedPercent = parseFloat(rawPercent.toFixed(3));
+                    const gradePercents = [d.percentDropForGrade1, d.percentDropForGrade2, d.percentDropForGrade3, d.percentDropForGrade4, d.percentDropForGrade5]
+                        .filter((pg): pg is number => typeof pg === 'number');
+                    const rawPercent = d.percentDropForGrade5 ?? d.percentDropForGrade1 ?? d.minPercentDrop ?? d.percent ?? 0;
+                    const formattedPercent = parseFloat(Number(rawPercent).toFixed(3));
                     return {
                         objectId: d.objectId,
                         name: item?.name?.fr || "Objet",
                         imageUrl: item?.img || `https://static.dofusdb.fr/items/illustr/${iconId}.png`,
-                        percent: formattedPercent
+                        percent: formattedPercent,
+                        percentByGrade: gradePercents.length > 0 ? gradePercents.map((pg) => parseFloat(Number(pg).toFixed(3))) : undefined
                     };
                 }) || [],
                 spells: spellsArr.map(s => {
@@ -1134,7 +1134,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                         id: s.id,
                         name: s.name?.fr || "Sort",
                         imageUrl: spellImg,
-                        description: s.description?.fr || effectDesc || "Ce sort possède des mécaniques tactiques spécifiques au boss.",
+                        description: s.description?.fr || effectDesc || "",
                         apCost: level.apCost || level.paCost || 0,
                         minRange: level.minRange || 0,
                         range: level.range || level.maxRange || 0,
@@ -1148,6 +1148,58 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
         return { success: true, data: resultData };
     } catch (error) {
         logger.error('[getMonsterStats] Error:', { error });
+        return { success: false, error: 'Erreur DofusDB' };
+    }
+}
+
+/**
+ * getDungeonMonsters — Récupère la famille (race DofusDB) du boss d'un donjon + les monstres associés.
+ * Zéro saisie manuelle : tout est dérivé de `bossName` via l'API DofusDB (cache 24 h).
+ * La liste renvoyée sert à afficher les « monstres de la salle » (accompagnateurs) dans la fiche boss.
+ */
+export async function getDungeonMonsters(
+    bossName: string,
+    dungeonName?: string
+): Promise<ActionResponse<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] }>> {
+    const cacheKey = `${bossName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
+    const cached = dungeonFamilyCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return { success: true, data: cached.data };
+    }
+
+    try {
+        const searchRes = await fetch(
+            `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(bossName.trim())}&lang=fr&$limit=5`,
+            { cache: 'no-store' }
+        );
+        if (!searchRes.ok) throw new Error('DofusDB search failed');
+        const searchData = await searchRes.json();
+        const bossHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === bossName.toLowerCase().trim()) || searchData.data?.[0];
+        const race = bossHeader?.race ?? null;
+
+        if (!race) {
+            return { success: true, data: { familyId: null, monsters: [] } };
+        }
+
+        const familyRes = await fetch(
+            `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
+            { cache: 'no-store' }
+        );
+        if (!familyRes.ok) throw new Error('DofusDB family fetch failed');
+        const familyData = await familyRes.json();
+
+        const monsters = (familyData.data || []).map((m: any) => ({
+            id: m.id,
+            name: m.name?.fr || 'Monstre',
+            imageUrl: m.img || null,
+            isBoss: !!m.isBoss,
+        }));
+
+        const result = { familyId: race, monsters };
+        dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+        return { success: true, data: result };
+    } catch (error) {
+        logger.error('[getDungeonMonsters] Error:', { error });
         return { success: false, error: 'Erreur DofusDB' };
     }
 }

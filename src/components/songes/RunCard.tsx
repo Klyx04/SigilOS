@@ -21,7 +21,8 @@ import {
     MessageSquare,
     CalendarCheck,
     Pencil,
-    AlertTriangle
+    AlertTriangle,
+    Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -112,6 +113,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
     const [pendingRequest, setPendingRequest] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    // #179 — copier les pseudos des participants (format /w Pseudo)
+    const [copiedPseudos, setCopiedPseudos] = useState(false);
 
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
@@ -155,6 +158,18 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const getDisplayName = (userId: string): string => {
         const profile = profiles.find((p) => p.userId === userId);
         return profile?.pseudoDofus || profile?.discordNickname || "Joueur";
+    };
+
+    // #179 — copier les pseudos (leader + membres) au format /w Pseudo
+    const handleCopyPseudos = () => {
+        const names = [getDisplayName(run.leaderId), ...run.members.map((m) => getDisplayName(m.userId))];
+        const text = names.map((n) => `/w ${n}`).join("\n");
+        if (!text.trim()) return;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedPseudos(true);
+            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
+            setTimeout(() => setCopiedPseudos(false), 2000);
+        }).catch(() => toast.error("Impossible de copier"));
     };
 
     const handleSendJoinRequest = async () => {
@@ -334,6 +349,21 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- MEMBERS --- */}
             <div className="relative z-10 space-y-3 mb-6">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Membres</span>
+                    {/* #179 — copier les pseudos des participants */}
+                    {run.members.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={handleCopyPseudos}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-elevated text-caption font-bold text-muted-foreground hover:text-foreground hover:bg-elevated/70 transition-colors"
+                            title="Copier les pseudos des participants (format /w Pseudo)"
+                        >
+                            {copiedPseudos ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            {copiedPseudos ? "Copié" : "Pseudos"}
+                        </button>
+                    )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[1, 2, 3, 4].map((slot) => {
                         const member = run.members.find((m) => m.slot === slot);

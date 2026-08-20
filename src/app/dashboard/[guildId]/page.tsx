@@ -92,12 +92,12 @@ export default async function DashboardPage({
     const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
     const activeGroups = groupsResult.success ? groupsResult.groups : [];
-    const upcomingEvents = calendarResult.success ? calendarResult.events : [];
-    const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
-    const hasRaidNow = !!activeRaid;
 
     // Module Disponibilités — rappel hebdomadaire doux.
-    // JAMAIS si : onboarding en cours, module inactif, pas de permission, semaine déjà remplie ou déjà dismissée cette semaine sur n'importe quel appareil.
+    // #183 — JAMAIS à la 1ère arrivée d'un NOUVEAU membre (`!profile.hasSeenWelcome`) :
+    // le pop-up de bienvenue suffit à son arrivée ; le rappel hebdo reprend ensuite.
+    // JAMAIS non plus si : onboarding en cours, module inactif, pas de permission,
+    // semaine déjà remplie ou déjà dismissée cette semaine sur n'importe quel appareil.
     const now = new Date();
     const currentWeekKey = `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, "0")}`;
     const profileAvail = (profile as any)?.availability as Record<string, any> | undefined;
@@ -108,8 +108,12 @@ export default async function DashboardPage({
         availabilityModuleEnabled &&
         !!user.canViewAvailability &&
         !!profile &&
+        !!profile.hasSeenWelcome &&
         !isDismissedThisWeek &&
         !hasFilledAvailability(profileAvail);
+    const upcomingEvents = calendarResult.success ? calendarResult.events : [];
+    const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
+    const hasRaidNow = !!activeRaid;
 
     // Quick Stats Data
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
@@ -277,7 +281,7 @@ export default async function DashboardPage({
 
             </div>
 
-            {/* #Module Disponibilités — popup hebdo (1x/semaine si non rempli) */}
+            {/* #Module Disponibilités — rappel hebdo (jamais à la 1ère arrivée d'un nouveau, #183) */}
             <AvailabilityReminderPopup guildId={guildId} enabled={showAvailabilityReminder} />
         </div>
     );

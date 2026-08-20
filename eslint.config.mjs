@@ -130,8 +130,8 @@ const eslintConfig = defineConfig([
           "god-sidebar", "god-top-nav", "mobile-god-sidebar", "god-nav-config",
           "\\god\\",
           // landings legacy (chrome + sections volontairement sombres)
-          "public-header", "galactic-header", "galactic-footer", "aurora-background",
-          "border-beam", "ui-test", "nebula-client-wrapper", "access-denied",
+          "public-header", "galactic-header", "galactic-footer",
+          "ui-test", "nebula-client-wrapper", "access-denied",
           // pages de secours / legacy hors balayage (maintenance, auth, erreurs)
           "\\maintenance\\", "\\auth\\", "global-error", "coming-soon-banner",
           // données de couleur volontaires (config par catégorie / rendu inline)

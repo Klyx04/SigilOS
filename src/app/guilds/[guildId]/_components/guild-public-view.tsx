@@ -28,8 +28,6 @@ import { Button } from "@/components/ui/button";
 import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
 import { AuroraBackground } from "@/components/ui/aurora-background";
-import { GlassPanel } from "@/components/ui/glass-panel";
-import { BorderBeam } from "@/components/ui/border-beam";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import type { User } from "next-auth";

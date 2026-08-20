@@ -67,7 +67,11 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
 
     return (
         <Link
-            href={`/dashboard/${guildId}/quetes-dofus/${dofus.slug}${selectedCharacter !== "PRINCIPAL" ? `?character=${selectedCharacter}` : ""}`}
+            href={
+                dofus.slug === "ocre"
+                    ? `/dashboard/${guildId}/quete-ocre`
+                    : `/dashboard/${guildId}/quetes-dofus/${dofus.slug}${selectedCharacter !== "PRINCIPAL" ? `?character=${selectedCharacter}` : ""}`
+            }
             className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 will-change-transform"
             style={{
                 background: `linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)`,

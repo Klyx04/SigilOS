@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { deleteChannelMessage } from "@/server/discord";
+import { deleteChannelMessage, fetchChannel, postChannelMessage, createForumThread, patchChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
@@ -224,9 +224,14 @@ async function sendDiscordNotification(
         if (!token) return;
 
         const channelId = guildConfig.djNotifyChannelId;
-        const channelRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, { headers: { Authorization: `Bot ${token}` } });
-        if (!channelRes.ok) { logger.error(`[DJ Embed] Cannot fetch channel: ${channelRes.status}`); return; }
-        const channelData = await channelRes.json();
+        let channelData: { type: number; available_tags?: { id: string; name: string; moderated?: boolean }[] } | null = null;
+        try {
+            channelData = await fetchChannel(channelId);
+        } catch (fetchErr) {
+            logger.error(`[DJ Embed] Cannot fetch channel: ${(fetchErr as Error).message}`);
+            return;
+        }
+        if (!channelData) { logger.error("[DJ Embed] Cannot fetch channel: 404"); return; }
         const isForumChannel = channelData.type === 15;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
@@ -290,29 +295,25 @@ async function sendDiscordNotification(
                 forumBody.applied_tags = [firstUsableTag.id];
             }
 
-            const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
-                method: "POST",
-                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify(forumBody),
-            });
-            if (res.ok) { const t = await res.json(); discordChannelId = t.id; discordMessageId = t.message?.id; }
-            else { logger.error("[DJ Embed] Forum thread error:", await res.json()); }
+            const thread = await createForumThread(channelId, forumBody);
+            if (thread) { discordChannelId = thread.id; discordMessageId = thread.message?.id ?? null; }
+            else { logger.error("[DJ Embed] Forum thread error"); }
         } else {
             const roleMentions = mentionRoleId ? mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ") : "";
             const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
             const mentions = [creatorMention, roleMentions].filter(Boolean).join(" ");
             
-            const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-                method: "POST",
-                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ 
+            try {
+                const messageId = await postChannelMessage(channelId, {
                     content: mentions || undefined,
-                    embeds: [embed], 
-                    components 
-                }),
-            });
-            if (res.ok) { const m = await res.json(); discordChannelId = channelId; discordMessageId = m.id; }
-            else { logger.error("[DJ Embed] Text channel error:", await res.json()); }
+                    embeds: [embed],
+                    components,
+                });
+                if (messageId) { discordChannelId = channelId; discordMessageId = messageId; }
+                else { logger.error("[DJ Embed] Text channel error"); }
+            } catch (postErr) {
+                logger.error("[DJ Embed] Text channel error:", postErr);
+            }
         }
 
         if (discordChannelId && discordMessageId) {
@@ -365,9 +366,14 @@ async function sendMultiDiscordNotification(
         if (!token) return;
 
         const channelId = guildConfig.djNotifyChannelId;
-        const channelRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, { headers: { Authorization: `Bot ${token}` } });
-        if (!channelRes.ok) { logger.error(`[DJ Multi Embed] Cannot fetch channel: ${channelRes.status}`); return; }
-        const channelData = await channelRes.json();
+        let channelData: { type: number; available_tags?: { id: string; name: string; moderated?: boolean }[] } | null = null;
+        try {
+            channelData = await fetchChannel(channelId);
+        } catch (fetchErr) {
+            logger.error(`[DJ Multi Embed] Cannot fetch channel: ${(fetchErr as Error).message}`);
+            return;
+        }
+        if (!channelData) { logger.error("[DJ Multi Embed] Cannot fetch channel: 404"); return; }
         const isForumChannel = channelData.type === 15;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
@@ -397,21 +403,21 @@ async function sendMultiDiscordNotification(
                 auto_archive_duration: 1440,
             };
             if (firstUsableTag) forumBody.applied_tags = [firstUsableTag.id];
-            const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
-                method: "POST",
-                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify(forumBody),
-            });
-            if (res.ok) { const t = await res.json(); discordChannelId = t.id; discordMessageId = t.message?.id; }
-            else { logger.error("[DJ Multi Embed] Forum thread error:", await res.json()); }
+            const thread = await createForumThread(channelId, forumBody);
+            if (thread) { discordChannelId = thread.id; discordMessageId = thread.message?.id ?? null; }
+            else { logger.error("[DJ Multi Embed] Forum thread error"); }
         } else {
-            const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-                method: "POST",
-                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ content: mentions || undefined, embeds, components: rows }),
-            });
-            if (res.ok) { const m = await res.json(); discordChannelId = channelId; discordMessageId = m.id; }
-            else { logger.error("[DJ Multi Embed] Text channel error:", await res.json()); }
+            try {
+                const messageId = await postChannelMessage(channelId, {
+                    content: mentions || undefined,
+                    embeds,
+                    components: rows,
+                });
+                if (messageId) { discordChannelId = channelId; discordMessageId = messageId; }
+                else { logger.error("[DJ Multi Embed] Text channel error"); }
+            } catch (postErr) {
+                logger.error("[DJ Multi Embed] Text channel error:", postErr);
+            }
         }
 
         // Attacher le message Discord au post unique
@@ -499,8 +505,6 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             },
         });
         if (!post?.discordMessageId || !post?.discordChannelId) return;
-        const token = process.env.DISCORD_BOT_TOKEN;
-        if (!token) return;
         const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
         const isMulti = (post.dungeonsJson ?? []).length > 0;
@@ -536,11 +540,8 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             patchBody = { embeds: [embed], components };
         }
 
-        const patchRes = await fetch(
-            `https://discord.com/api/v10/channels/${post.discordChannelId}/messages/${post.discordMessageId}`,
-            { method: "PATCH", headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(patchBody) }
-        );
-        if (!patchRes.ok) logger.error("[updateDjDiscordEmbed] PATCH failed:", patchRes.status);
+        const ok = await patchChannelMessage(post.discordChannelId, post.discordMessageId, patchBody);
+        if (!ok) logger.error("[updateDjDiscordEmbed] PATCH failed");
     } catch (err) { logger.error("[updateDjDiscordEmbed]", err); }
 }
 

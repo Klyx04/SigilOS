@@ -6,7 +6,7 @@ import { logServiceActivity } from "./activity-log-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ServiceCategory, ServiceStatus, NotificationType, NotificationCategory } from "@prisma/client";
-import { validateChannelBelongsToGuild } from "@/server/discord";
+import { validateChannelBelongsToGuild, fetchChannel, postChannelMessage, createForumThread, deleteChannelMessage } from "@/server/discord";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
 
@@ -158,19 +158,17 @@ async function sendServiceDiscordNotification(
         const channelId = guildConfig.servicesNotifyChannelId;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
-        // -- Detect channel type --
-        const channelInfoRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
-            headers: { Authorization: `Bot ${token}` },
-        });
-        if (!channelInfoRes.ok) {
-            logger.warn("[ServiceEmbed] Cannot fetch channel info", { status: channelInfoRes.status });
+        // -- Detect channel type -- (via la couche centrale : fetchChannel, jamais de fetch direct)
+        let channelInfo: { type: number; available_tags?: { id: string; name: string; moderated?: boolean }[] } | null = null;
+        try {
+            channelInfo = await fetchChannel(channelId);
+        } catch (err) {
+            logger.warn("[ServiceEmbed] Cannot fetch channel info", { err: String(err) });
+        }
+        if (!channelInfo) {
+            logger.warn("[ServiceEmbed] Cannot fetch channel info");
             return;
         }
-        const channelInfo = await channelInfoRes.json() as {
-            type: number;
-            available_tags?: { id: string; name: string; moderated?: boolean }[];
-            flags?: number;
-        };
         const isForum = FORUM_TYPES.includes(channelInfo.type);
 
         // -- Build embed content --
@@ -200,10 +198,10 @@ async function sendServiceDiscordNotification(
             ]
         }];
 
-        let res: Response;
+        let discordMessageId: string | null = null;
 
         if (isForum) {
-            // ── FORUM CHANNEL : POST /threads ──
+            // ── FORUM CHANNEL : POST /threads (centralisé createForumThread) ──
             const availableTags = channelInfo.available_tags || [];
             const firstUsableTag = availableTags.find(t => !t.moderated);
             const applied_tags = firstUsableTag ? [firstUsableTag.id] : [];
@@ -219,25 +217,21 @@ async function sendServiceDiscordNotification(
                 body.applied_tags = applied_tags;
             }
 
-            res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
-                method: "POST",
-                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
+            const thread = await createForumThread(channelId, body);
+            if (thread) discordMessageId = thread.id;
         } else {
-            // ── TEXTE CLASSIQUE : POST /messages ──
-            res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-                method: "POST",
-                headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ embeds: [embed], components }),
-            });
+            // ── TEXTE CLASSIQUE : POST /messages (centralisé postChannelMessage) ──
+            try {
+                discordMessageId = await postChannelMessage(channelId, { embeds: [embed], components });
+            } catch (postErr) {
+                logger.warn("[ServiceEmbed] Discord API error", { err: String(postErr) });
+            }
         }
 
-        if (res.ok) {
-            const m = await res.json() as { id: string };
+        if (discordMessageId) {
             await db.serviceListing.update({
                 where: { id: listingId },
-                data: { discordMessageId: m.id, discordChannelId: channelId },
+                data: { discordMessageId, discordChannelId: channelId },
             });
         } else {
             logger.warn("[ServiceEmbed] Discord API error");
@@ -522,16 +516,10 @@ export async function deleteServiceListing(
             return { success: false, error: "Seul l'auteur ou un admin peut supprimer cette annonce." };
         }
 
-        // Delete Discord message if exists
+        // Delete Discord message if exists (centralisé : deleteChannelMessage)
         if (listing.discordChannelId && listing.discordMessageId) {
             try {
-                const token = process.env.DISCORD_BOT_TOKEN;
-                if (token) {
-                    await fetch(`https://discord.com/api/v10/channels/${listing.discordChannelId}/messages/${listing.discordMessageId}`, {
-                        method: "DELETE",
-                        headers: { Authorization: `Bot ${token}` },
-                    });
-                }
+                await deleteChannelMessage(listing.discordChannelId, listing.discordMessageId);
             } catch {
                 // Silently fail — message may already be deleted
             }
@@ -780,18 +768,14 @@ export async function contactPasseurAction(
             ]
         }];
 
-        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
+        try {
+            await postChannelMessage(channelId, {
                 content: `🔔 ${providerMention}, tu as une nouvelle demande de service de la part de ${requesterMention} !`,
                 embeds: [embed],
                 components,
-            }),
-        });
-
-        if (!res.ok) {
-            logger.warn("[contactPasseurAction] Discord API error");
+            });
+        } catch (postErr) {
+            logger.warn("[contactPasseurAction] Discord API error", { err: String(postErr) });
             return { success: false, error: "Impossible d'envoyer la notification Discord" };
         }
 
@@ -985,13 +969,9 @@ export async function sendServiceReplyAction(
                     timestamp: new Date().toISOString(),
                     footer: { text: `${senderLabel} • SigilOS Services` },
                 };
-                await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-                    method: "POST",
-                    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        content: `🔔 ${recipientMention}, ${senderLabel} a répondu à ta demande pour **${listing.title}** :`,
-                        embeds: [embed],
-                    }),
+                await postChannelMessage(channelId, {
+                    content: `🔔 ${recipientMention}, ${senderLabel} a répondu à ta demande pour **${listing.title}** :`,
+                    embeds: [embed],
                 });
             } catch (discordErr) {
                 logger.warn("[sendServiceReplyAction] channel message failed", { err: discordErr });

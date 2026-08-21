@@ -2,7 +2,7 @@
 import { logger } from "@/lib/logger";
 
 import { isSuperAdmin } from "./super-admin-actions";
-import { fetchChannel, fetchBotGuilds } from "@/server/discord";
+import { fetchChannel, fetchBotGuilds, fetchBotIdentity, leaveGuild } from "@/server/discord";
 import { db } from "@/lib/prisma";
 
 /**
@@ -42,19 +42,15 @@ export async function diagnoseDiscordConnectivity() {
             return { success: true, results };
         }
 
-        // 1. Verify Token & Identity (borné 8s)
-        const meRes = await withTimeout(fetch("https://discord.com/api/v10/users/@me", {
-            headers: { Authorization: `Bot ${token}` }
-        }), 8_000);
-
-        if (!meRes.ok) {
-            results.token = { status: "ERROR", message: `Invalid Token (API returned ${meRes.status})` };
+        // 1. Verify Token & Identity (borné 8s) — via la couche centrale (fetchBotIdentity).
+        try {
+            const botData = await withTimeout(fetchBotIdentity(), 8_000);
+            results.token = { status: "OK", message: "Token valid" };
+            results.botIdentity = { id: botData.id, username: botData.username };
+        } catch (e: any) {
+            results.token = { status: "ERROR", message: `Invalid Token (${e.message})` };
             return { success: true, results };
         }
-
-        const botData = await meRes.json();
-        results.token = { status: "OK", message: "Token valid" };
-        results.botIdentity = { id: botData.id, username: botData.username };
 
         // 2. Fetch Guilds (borné 10s)
         try {
@@ -137,21 +133,6 @@ export async function forceBotLeaveGuild(guildId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: "Unauthorized" };
 
-    try {
-        const token = process.env.DISCORD_BOT_TOKEN;
-        const res = await fetch(`https://discord.com/api/v10/users/@me/guilds/${guildId}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bot ${token}` }
-        });
-
-        if (res.status === 204) {
-            return { success: true };
-        } else {
-            const err = await res.json().catch(() => ({}));
-            return { success: false, error: err.message || `Discord API returned ${res.status}` };
-        }
-    } catch (error: any) {
-        logger.error("[ForceLeave] Failure:", error);
-        return { success: false, error: error.message };
-    }
+    // #223 — centralisé : leaveGuild via la couche anti-corruption (discordFetch).
+    return leaveGuild(guildId);
 }

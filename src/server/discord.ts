@@ -61,36 +61,45 @@ export function sanitizeMentions(text: string | null | undefined): string {
 }
 
 
-/** Hôte Discord allow-listé — le hostname des requêtes bot ne dépend JAMAIS de l'utilisateur (CodeQL js/request-forgery). */
-const DISCORD_API_HOST = "discord.com";
-const DISCORD_API_BASE = `https://${DISCORD_API_HOST}`;
-
 /**
- * #223 P1 — Fetch Discord centralisé, fail-closed :
- *  - URL construite depuis un hôte allow-listé (`DISCORD_API_BASE`) + chemin validé ;
- *  - l'objet URL validé est passé à `fetch` (jamais la chaîne brute) ;
- *  - gardes : hostname + protocole https + anti path-traversal ("..").
+ * #223 P1 — Fetch Discord centralisé, fail-closed (CodeQL js/request-forgery / SSRF) :
+ *  - allow-list STRICTE du chemin : regex ancrée `^/api/v10/...` + caractères sûrs, pas de `..` ;
+ *  - URL construite depuis un hôte LITTÉRAL allow-listé (`https://discord.com`) ;
+ *  - gardes défensives : hostname === "discord.com" + protocole https ;
+ *  - l'objet URL validé est passé à `fetch` (jamais la chaîne brute).
  */
 async function fetchWithRetry(path: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
-    let url: URL;
-    try {
-        url = new URL(path, DISCORD_API_BASE);
-    } catch {
-        logger.warn("[Discord] fetchWithRetry: chemin invalide refusé");
-        throw new Error("URL Discord invalide");
+    // Sanitisation fail-closed : la barrière regex couvre l'ENTIER du chemin (ancres ^...$),
+    // reconnue par CodeQL (js/request-forgery) comme nettoyage AVANT construction de l'URL.
+    // Caractères autorisés : "/api/v10/" + [\w % : @ . _ ~ - / ? & =]. Bloque ".." (path traversal).
+    if (
+        typeof path !== "string" ||
+        path.length > 500 ||
+        !/^\/api\/v10\/[\w%:@._~\-/?&=]*$/.test(path) ||
+        path.includes("..")
+    ) {
+        logger.warn("[Discord] fetchWithRetry: chemin Discord non autorisé");
+        throw new Error("Chemin Discord non autorisé");
     }
 
-    // Allow-list stricte : hôte fixe + https uniquement.
-    if (url.hostname !== DISCORD_API_HOST || url.protocol !== "https:") {
+    const url = new URL(path, "https://discord.com");
+
+    // Garde défensive : hôte allow-listé + https (jamais dérivés de l'utilisateur).
+    if (url.hostname !== "discord.com" || url.protocol !== "https:") {
         logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${url.hostname})`);
         throw new Error("Hôte Discord non autorisé");
     }
 
-    // Anti path-traversal : aucun segment ".." dans le chemin.
-    if (url.pathname.split("/").includes("..")) {
-        logger.warn("[Discord] fetchWithRetry: chemin non autorisé (path traversal)");
+    // Barrière finale sur la valeur EXACTE passée au sink (URL complète allow-listée) :
+    // même motif que le bornage regex reconnu par CodeQL (F-16, editInteractionMessage).
+    const finalUrl = url.toString();
+    if (
+        !/^https:\/\/discord\.com\/api\/v10\/[\w%:@._~\-/?&=]*$/.test(finalUrl) ||
+        finalUrl.includes("..")
+    ) {
+        logger.warn("[Discord] fetchWithRetry: URL finale non autorisée");
         throw new Error("Chemin Discord non autorisé");
     }
 
@@ -101,7 +110,7 @@ async function fetchWithRetry(path: string, options: RequestInit): Promise<Respo
 
     for (let i = 0; i < MAX_RETRIES; i++) {
         try {
-            const res = await fetch(url, safeOptions);
+            const res = await fetch(finalUrl, safeOptions);
 
             // If success or client error (4xx) that is not 429, return immediately.
             // We only retry on server errors (5xx) or rate limits (429).

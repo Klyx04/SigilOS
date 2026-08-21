@@ -19,6 +19,7 @@ import { formatDofusPseudo } from "@/lib/utils";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
+import { postChannelMessage } from "@/server/discord";
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
 const RANKING_CACHE_TTL = 300_000; // 5 minutes
@@ -1848,20 +1849,13 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
             embed.fields.push({ name: "📝 Motif", value: validation.data.reason, inline: false });
         }
 
-        const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ embeds: [embed] }),
-        });
-
-        if (!response.ok) {
-            // Remove rate limit if it was a system error? No, keep it to prevent attack.
-            const errorData = await response.json().catch(() => ({}));
-            logger.error("Discord API Error", { status: response.status, errorData, guildId });
-            if (response.status === 403) {
+        try {
+            await postChannelMessage(channelId, { embeds: [embed] });
+        } catch (err: any) {
+            // F-15 : message d'erreur sûr, jamais le corps brut de Discord.
+            const errMsg = String(err?.message ?? err);
+            logger.error("Discord API Error", { error: errMsg, guildId });
+            if (errMsg.includes("Permission bloquée")) {
                 return { success: false, error: "Bot n'a pas accès au salon. Vérifiez les permissions." };
             }
             return { success: false, error: "Erreur Discord API" };

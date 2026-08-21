@@ -10,6 +10,14 @@ const MAX_SIGNATURE_TIMESTAMP_SKEW_SECONDS = 300;
 // #223 P2 — User-Agent conforme aux recommandations Discord (DiscordBot (url, version)).
 export const DISCORD_USER_AGENT = "DiscordBot (https://github.com/Klyx04/SigilOS, 1.0.0)";
 
+// #223 P3.1 — Mode dégradé (outbox BullMQ/Redis) pour les écritures Discord.
+// Opt-in via l'env `DISCORD_OUTBOX_ENABLED=true` : les écritures sont déposées dans
+// une file Redis (retry persistant 429/5xx) au lieu d'un HTTP synchrone. Défaut = OFF
+// (comportement actuel conservé, aucune régression en prod tant que la variable n'est pas posée).
+export function isDiscordOutboxEnabled(): boolean {
+    return process.env.DISCORD_OUTBOX_ENABLED === "true";
+}
+
 /**
  * #223 P1 — Clé publique Ed25519 valide : exactement 64 caractères hex (32 octets).
  * Fail-closed si absente, vide ou mal formée.
@@ -68,7 +76,7 @@ export function sanitizeMentions(text: string | null | undefined): string {
  *  - gardes défensives : hostname === "discord.com" + protocole https ;
  *  - l'objet URL validé est passé à `fetch` (jamais la chaîne brute).
  */
-async function fetchWithRetry(path: string, options: RequestInit): Promise<Response> {
+export async function fetchWithRetry(path: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
     // Sanitisation fail-closed : la barrière regex couvre l'ENTIER du chemin (ancres ^...$),
@@ -143,6 +151,11 @@ async function fetchWithRetry(path: string, options: RequestInit): Promise<Respo
 
     throw lastError || new Error(`Failed to fetch ${url} after ${MAX_RETRIES} retries`);
 }
+
+// #223 — Alias lisible de la primitive Discord centralisée (SSRF guard + v10 + UA + retry 429/5xx).
+// Exporté pour que les modules hors couche centrale puissent appeler Discord SANS jamais
+// écrire `discord.com` en dur (unique point d'entrée HTTP vers l'API Discord).
+export const discordFetch = fetchWithRetry;
 
 export async function fetchGuildRoles(guildId: string, options: { excludeManaged?: boolean } = { excludeManaged: true }) {
     // In-memory cache — next: { revalidate } is ignored in Server Actions context
@@ -230,6 +243,51 @@ export async function fetchBotGuilds() {
     if (!res.ok) throw new Error(`Failed to fetch bot guilds: ${res.statusText}`);
 
     return (await res.json()) as Array<{ id: string; name: string; icon: string | null }>;
+}
+
+/**
+ * #223 — Identité du bot (GET /users/@me), centralisée pour les diagnostics God.
+ * Fail-closed : 401 → erreur explicite (token reset / IDENTIFY flood), jamais de throw silencieux.
+ */
+export async function fetchBotIdentity(): Promise<{ id: string; username: string; global_name?: string | null }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`/api/v10/users/@me`, {
+        headers: { Authorization: `Bot ${token}` },
+        cache: "no-store",
+    });
+
+    if (!res.ok) {
+        if (res.status === 401) throw new Error("Invalid Discord bot token (401)");
+        throw new Error(`Failed to fetch bot identity: ${res.statusText}`);
+    }
+
+    return (await res.json()) as { id: string; username: string; global_name?: string | null };
+}
+
+/**
+ * #223 — Fait quitter une guilde au bot (DELETE /users/@me/guilds/{id}).
+ * Retourne { success } + { error? } pour l'UI God (ne throw pas).
+ */
+export async function leaveGuild(guildId: string): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "DISCORD_BOT_TOKEN manquant" };
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/users/@me/guilds/${guildId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${token}` },
+        });
+
+        if (res.status === 204 || res.ok) return { success: true };
+
+        const err = await res.json().catch(() => ({}));
+        return { success: false, error: (err as { message?: string }).message || `Discord API returned ${res.status}` };
+    } catch (error: any) {
+        logger.error("[Discord] leaveGuild échoué:", { error: error.message });
+        return { success: false, error: error.message };
+    }
 }
 
 export async function fetchGuildMember(guildId: string, userId: string) {
@@ -423,6 +481,9 @@ export async function fetchChannel(channelId: string) {
         type: number;
         flags?: number;
         application_id?: string | null;
+        // #223 — tags de forum (utilisés pour le post DJ / services) : lire via la couche centrale,
+        // jamais un fetch `/channels/{id}` en dur dans un module métier.
+        available_tags?: { id: string; name: string; moderated?: boolean }[];
     };
 }
 
@@ -479,6 +540,115 @@ export async function validateChannelBelongsToGuild(channelId: string, guildId: 
         return true;
     } catch (error) {
         console.error("[Discord Security] Channel validation failed:", error);
+        return false;
+    }
+}
+
+// =============================================================================
+// #223 — ÉCRITURES GÉNÉRIQUES CENTRALISÉES (toutes via discordFetch)
+// =============================================================================
+
+/**
+ * #223 — POST /channels/{id}/messages générique (écriture brute centralisée).
+ * Retourne l'ID du message créé. Fail-closed : non-2xx → throw avec un message SÛR
+ * (F-15 : le corps brut de Discord n'est jamais exposé au client).
+ */
+export async function postChannelMessage(channelId: string, body: Record<string, unknown>): Promise<string | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bot ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const errBody = await res.text();
+        console.error(`[Discord] Status ${res.status}: ${errBody}`);
+
+        // F-15: ne PAS exposer le corps brut de Discord au client (fuite de détails internes).
+        let message = "Échec de l'envoi du message Discord";
+        try {
+            const parsed = JSON.parse(errBody);
+            if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
+            else if (res.status === 404) message = "Salon introuvable (ID incorrect)";
+            else if (parsed?.message) message = "Discord a refusé la demande";
+        } catch { /* use default */ }
+
+        throw new Error(message);
+    }
+
+    const json = (await res.json()) as { id: string };
+    return json.id;
+}
+
+/**
+ * #223 — POST /channels/{id}/threads générique (threads publics / posts Forum).
+ * Retourne l'objet thread (contient `id` + `message.id`) ou null en cas d'échec (jamais de throw).
+ */
+export async function createForumThread(
+    channelId: string,
+    body: Record<string, unknown>
+): Promise<{ id: string; message?: { id?: string } } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/threads`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            const error = await res.text();
+            console.error(`[Discord] Forum thread failed: ${res.status} ${error}`);
+            return null;
+        }
+
+        return (await res.json()) as { id: string; message?: { id?: string } };
+    } catch (error) {
+        console.error("[Discord] Error creating forum thread:", error);
+        return null;
+    }
+}
+
+/**
+ * #223 — PATCH /channels/{id}/messages/{mid} générique (mise à jour d'un embed Discord).
+ */
+export async function patchChannelMessage(
+    channelId: string,
+    messageId: string,
+    body: Record<string, unknown>
+): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            console.error(`[Discord] patchChannelMessage failed ${res.status}: ${errBody}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error("[Discord] Error patching message:", error);
         return false;
     }
 }
@@ -634,36 +804,17 @@ export async function sendChannelMessage(
         body.flags = 4;
     }
 
+    // #223 P3.1 — Mode dégradé (outbox BullMQ/Redis) : on dépose l'écriture dans la file
+    // (retry persistant 429/5xx par le worker) au lieu d'un HTTP synchrone. L'ID du message
+    // est inconnu tant que la file n'a pas été flushée → null (le worker stocke la réponse).
+    if (isDiscordOutboxEnabled()) {
+        const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
+        await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+        return null;
+    }
+
     try {
-        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bot ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error(`[Discord] Status ${res.status}: ${errBody}`);
-            
-            // F-15: do NOT surface raw Discord error text to the client (it may leak
-            // internal details). Keep the full body in the server log above, and only
-            // expose a safe, user-friendly message.
-            let message = "Échec de l'envoi du message Discord";
-            try {
-                const parsed = JSON.parse(errBody);
-                if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
-                else if (res.status === 404) message = "Salon introuvable (ID incorrect)";
-                else if (parsed?.message) message = "Discord a refusé la demande";
-            } catch { /* use default */ }
-            
-            throw new Error(message);
-        }
-
-        const json = await res.json() as { id: string };
-        return json.id; // Return message ID
+        return await postChannelMessage(channelId, body);
     } catch (error: any) {
         console.error("[Discord] Error sending message:", error);
         throw error;
@@ -1280,23 +1431,15 @@ export async function sendDiscordRawEmbed(
         }
     };
 
+    // #223 P3.1 — Mode dégradé (outbox) : même file que sendChannelMessage (kind: postMessage).
+    if (isDiscordOutboxEnabled()) {
+        const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
+        await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+        return null;
+    }
+
     try {
-        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bot ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!res.ok) {
-            console.error(`[Discord] Raw embed failed: ${res.status}`, await res.text());
-            return null;
-        }
-
-        const json = await res.json() as { id: string };
-        return json.id;
+        return await postChannelMessage(channelId, body);
     } catch (error) {
         console.error("[Discord] Error sending raw embed:", error);
         return null;

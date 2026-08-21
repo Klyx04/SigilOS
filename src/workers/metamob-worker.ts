@@ -9,6 +9,8 @@ import { sendGlobalStatusPing } from "../server/actions/status-actions";
 import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
 // ── Ladder Sync ──────────────────────────────────────────────────────────────
 import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
+// ── Discord Outbox (P3.1) : flush des écritures Discord en mode dégradé ───────
+import { discordOutboxWorker } from "./discord-outbox-worker";
 
 interface ExchangeJobData {
     guildId: string;
@@ -397,6 +399,20 @@ cronQueue.add(
     }
 );
 
+// 3. Discord Veille (mensuelle — 1er du mois à 09:00) : gardien automatique #223 D.
+// Personne n'a besoin de s'en souvenir : le système surveille le changelog / docs Discord
+// et alerte God si un changement inquiétant est détecté (détail : src/lib/discord-veille.ts).
+cronQueue.add(
+    "discord-watch",
+    {},
+    {
+        repeat: { pattern: "0 9 1 * *" }, // 1st day of month at 09:00
+        jobId: "discord-watch-repeat",
+        removeOnComplete: 10,
+        removeOnFail: 5,
+    }
+);
+
 const cronWorker = new Worker(
     CRON_QUEUE_NAME,
     async (job) => {
@@ -429,6 +445,17 @@ const cronWorker = new Worker(
                 }
             }
         }
+
+        if (job.name === "discord-watch") {
+            logger.info("[Cron] Exécution de la VEILLE Discord mensuelle...");
+            try {
+                const { runDiscordVeille } = await import("../lib/discord-veille");
+                const report = await runDiscordVeille();
+                logger.info(`[Cron] Veille Discord terminée (anomalies: ${report.anomalies.length}, gateway: ${report.gatewayOk})`);
+            } catch (e) {
+                logger.error(`[Cron] Veille Discord échouée: ${String(e)}`);
+            }
+        }
     },
     {
         ...defaultQueueOptions,
@@ -446,6 +473,7 @@ const shutdown = async () => {
     await cronQueue.close();
     await ladderSyncWorker.close();
     await ladderQueue.close();
+    await discordOutboxWorker.close();
     process.exit(0);
 };
 

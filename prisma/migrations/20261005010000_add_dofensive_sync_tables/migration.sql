@@ -1,12 +1,3 @@
--- AlterTable
-ALTER TABLE "GuildConfig" DROP COLUMN "interGuildEnabled",
-DROP COLUMN "interGuildModules";
-
--- AlterTable
-ALTER TABLE "PlatformConfig" DROP COLUMN "interGuildChannels",
-DROP COLUMN "interGuildGlobalEnabled",
-DROP COLUMN "interGuildModules";
-
 -- CreateTable
 CREATE TABLE "DofensiveDungeon" (
     "id" TEXT NOT NULL,

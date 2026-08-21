@@ -10,6 +10,8 @@ import {
     cellIdToXY,
     cellToScreen,
     classifyGrid,
+    getLosPath,
+    getSpellRangeDistance,
     spellZoneCells,
     toLos,
 } from "@/lib/dofus-grid";
@@ -55,6 +57,11 @@ interface SpellRangeGridProps {
     dungeonMaps?: DofensiveMapLite[];
     /** Nom du donjon (label du sélecteur). */
     dungeonName?: string;
+    /** Grades du monstre (fiche) — affiche un sélecteur de grade dans la simulation. */
+    grades?: { level: number }[];
+    /** Index du grade actif (fiche). Lié au grade affiché côté fiche. */
+    activeGradeIndex?: number;
+    onGradeChange?: (idx: number) => void;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -91,6 +98,9 @@ export function SpellRangeGrid({
     bossImageUrl,
     dungeonMaps,
     dungeonName,
+    grades,
+    activeGradeIndex,
+    onGradeChange,
 }: SpellRangeGridProps) {
     // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
     // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
@@ -283,6 +293,8 @@ export function SpellRangeGrid({
     const ZOOM_MIN = 0.5;
     const ZOOM_MAX = 3.5;
     const zoomRef = useRef<HTMLDivElement | null>(null);
+    // Marqueur SVG du lanceur (boss) — sert au « recentrage auto sur le lanceur ».
+    const casterMarkerRef = useRef<SVGGElement | null>(null);
     useEffect(() => {
         const el = zoomRef.current;
         if (!el) return;
@@ -300,50 +312,36 @@ export function SpellRangeGrid({
     const castInDiagonal = currentSpell?.castInDiagonal ?? false;
     const castTestLos = currentSpell?.castTestLos ?? true;
 
-    // Calcul de portée Dofus — PO dans l'axe de lancer pour les sorts contraints
-    // (ligne/diagonale), distance de déplacement (Manhattan) pour les sorts libres.
+    const isRealMap = !!mapData;
+
+    // Calcul de portée Dofus robuste et unifié :
+    // - Sur map réelle (40x14) : repère Losange (u, v)
+    // - Sur grille libre (17x17) : repère orthogonal Losange direct (x, y)
     const isCellInRange = (x: number, y: number): boolean => {
         if (!currentSpell) return false;
         if (isObstacle(x, y)) return false;
-        const a = toLos(casterPos.x, casterPos.y);
-        const b = toLos(x, y);
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const hasDirection = castInLine || castInDiagonal;
-        const distance = castRangeDistance(casterPos, { x, y }, hasDirection);
-        const manhattan = Math.abs(dx) + Math.abs(dy);
 
-        // Mêlée (PO 0)
-        if (distance === 0) return minRange === 0;
+        const a = isRealMap ? toLos(casterPos.x, casterPos.y) : { x: casterPos.x, y: casterPos.y };
+        const b = isRealMap ? toLos(x, y) : { x, y };
+        const du = b.x - a.x;
+        const dv = b.y - a.y;
 
-        // Hors des bornes de portée
-        if (distance < minRange || distance > maxRange) return false;
-
-        // Lancer en ligne : les 4 axes droits (haut/bas/gauche/droite) — dans le
-        // repère losange ce sont les diagonales |du| == |dv|.
-        if (castInLine && !castInDiagonal) {
-            return Math.abs(dx) === Math.abs(dy);
+        // Auto-ciblage / mêlée PO 0
+        if (du === 0 && dv === 0) {
+            return minRange === 0;
         }
 
-        // Lancer en diagonale : les 4 axes en X de la map — même axe losange (du==0 || dv==0).
-        if (castInDiagonal && !castInLine) {
-            return dx === 0 || dy === 0;
-        }
+        // Distance de lancer selon contraintes de lancer (ligne, diagonale, étoile, libre)
+        const dist = getSpellRangeDistance(du, dv, castInLine, castInDiagonal);
+        if (dist < 0) return false;
+        if (dist < minRange || dist > maxRange) return false;
 
-        // Ligne et diagonale (étoile à 8 branches)
-        if (castInLine && castInDiagonal) {
-            return dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
-        }
-
-        // Ligne de vue : un mur (obstacle réel de la map) intercepte le tir.
-        if (castTestLos && manhattan > 0) {
-            const path = lineCells(casterPos.x, casterPos.y, x, y).slice(1);
-            const last = path[path.length - 1];
-            if (last && last.x === x && last.y === y) path.pop();
+        // Test Ligne de Vue (LoS) : aucun obstacle 3D ou bordure opaque traversée
+        if (castTestLos) {
+            const path = getLosPath(casterPos, { x, y }, isRealMap);
             if (path.some((c) => isObstacle(c.x, c.y))) return false;
         }
 
-        // Portée libre (cercle de Manhattan)
         return true;
     };
 
@@ -358,16 +356,57 @@ export function SpellRangeGrid({
         return count;
     }, [casterPos, currentSpell, gridRows, gridCols, mapData]);
 
+    // Persistance localStorage (placements, map sélectionnée, toggle départ)
+    const storageKey = `sigilos_sim_${dungeonName || bossName || "default"}`;
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.mapId && (parsed.mapId === "empty" || dungeonMaps?.some((m) => m.id === parsed.mapId))) {
+                    setSelectedMapId(parsed.mapId);
+                }
+                if (Array.isArray(parsed.allies)) {
+                    setAllies(parsed.allies);
+                }
+                if (parsed.casterPos && typeof parsed.casterPos.x === "number") {
+                    setCasterPos(parsed.casterPos);
+                }
+                if (typeof parsed.showStartCells === "boolean") {
+                    setShowStartCells(parsed.showStartCells);
+                }
+            }
+        } catch {
+            // Ignorer si parse error
+        }
+    }, [storageKey, dungeonMaps]);
+
+    // Sauvegarde automatique des changements dans localStorage
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify({
+                    mapId: selectedMapId,
+                    allies,
+                    casterPos,
+                    showStartCells,
+                })
+            );
+        } catch {
+            // Ignorer
+        }
+    }, [storageKey, selectedMapId, allies, casterPos, showStartCells]);
+
     // Prévisu de zone d'effet (AoE) : quand on survole une case en portée, on
-    // affiche les cases touchées si le sort y était lancé (données Dofensive).
-    // Limité aux zones « réelles » non directionnelles (Cercle/Croix, taille 1-12) —
-    // les auras à l'échelle de la map et les zones directionnelles (Ligne/Cône) ne
-    // sont pas prévisualisées (ambigües sans direction de lancer).
+    // calcule toutes les cases touchées (Cercle, Croix, Ligne, Cône, Rectangle).
     const zonePreview = useMemo(() => {
         if (!hoveredCell || !currentSpell?.zone || !isCellInRange(hoveredCell.x, hoveredCell.y)) return null;
         const { shape, size } = currentSpell.zone;
-        if (shape !== "Cercle" && shape !== "Croix") return null;
-        if (size < 1 || size > 12) return null;
+        if (size < 1 || size > 15) return null;
         const cells = spellZoneCells({
             zone: currentSpell.zone,
             target: hoveredCell,
@@ -379,6 +418,18 @@ export function SpellRangeGrid({
     }, [hoveredCell, currentSpell, casterPos, isCellInRange, gridCols, gridRows]);
     const isInZone = (x: number, y: number): boolean => !!zonePreview && zonePreview.has(`${x},${y}`);
 
+    // Alliés touchés dans la zone d'impact actuelle
+    const hitAllies = useMemo(() => {
+        if (!zonePreview) return new Set<number>();
+        const hits = new Set<number>();
+        allies.forEach((a, idx) => {
+            if (zonePreview.has(`${a.x},${a.y}`)) {
+                hits.add(idx);
+            }
+        });
+        return hits;
+    }, [zonePreview, allies]);
+
     // Recentre sur la case de départ du boss (map) ou le centre (grille libre).
     const recenter = () => {
         if (mapData && mapData.enemyCells.length) {
@@ -388,6 +439,56 @@ export function SpellRangeGrid({
         }
         setCasterPos({ x: Math.floor(gridCols / 2), y: Math.floor(gridRows / 2) });
     };
+
+    // Scrolle le conteneur pour ramener le lanceur au centre (mini-carte / zoom).
+    const scrollCasterIntoView = () => {
+        if (typeof window === "undefined") return;
+        try {
+            casterMarkerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        } catch {
+            // scrollIntoView non supporté → on ne fait rien
+        }
+    };
+
+    // Recentrage auto sur le lanceur quand on passe au-dessus du seuil de zoom.
+    const wasZoomed = useRef(false);
+    useEffect(() => {
+        const isZoomed = zoom > 1.2;
+        if (isZoomed && !wasZoomed.current) {
+            const t = window.setTimeout(scrollCasterIntoView, 60);
+            return () => window.clearTimeout(t);
+        }
+        wasZoomed.current = isZoomed;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [zoom]);
+
+    // Mini-carte : pixels 1 case → 1 px pour l'aperçu global (cliquable → déplacer le lanceur).
+    const miniMap = useMemo(() => {
+        if (!mapData) return null;
+        const rows = mapData.cells.length;
+        const cols = mapData.cells[0]?.length ?? 0;
+        if (rows === 0 || cols === 0) return null;
+        const px = 4;
+        const w = cols * px;
+        const h = rows * px;
+        const cellsEls: React.ReactNode[] = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const state = mapStates?.[r]?.[c];
+                const key = `${c},${r}`;
+                const isC = c === casterPos.x && r === casterPos.y;
+                const isA = allies.some((a) => a.x === c && a.y === r);
+                let fill = "#1a1a18";
+                if (state === CellState.OBSTACLE) fill = "#6b6548";
+                else if (state === CellState.GROUND) fill = "#8D8A66";
+                else if (state === CellState.HOLE) fill = "#050505";
+                if (isC) fill = "#c53030";
+                else if (isA) fill = "#3b82f6";
+                cellsEls.push(<rect key={key} x={c * px} y={r * px} width={px - 0.5} height={px - 0.5} rx={0.6} fill={fill} />);
+            }
+        }
+        return { rows, cols, px, w, h, cellsEls };
+    }, [mapData, mapStates, casterPos, allies]);
 
     // ── Dimensions de rendu ──
     // Maps réelles : grille brick Dofus (losanges 64×32, quinconce). Grille libre : 17×17 isométrique.
@@ -434,6 +535,26 @@ export function SpellRangeGrid({
                 <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 mb-2.5 flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 text-amber-400" /> Sorts du Boss{dungeonName ? ` — ${dungeonName}` : ""}
                 </p>
+                {grades && grades.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2.5" aria-label="Sélecteur de grade (lié à la fiche)">
+                        <span className="text-[11px] font-bold text-zinc-500 mr-1">Grade :</span>
+                        {grades.map((gr, idx) => (
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={() => onGradeChange?.(idx)}
+                                className={cn(
+                                    "px-2.5 py-1 rounded-lg border text-[10px] font-black transition-all",
+                                    (activeGradeIndex ?? grades.length - 1) === idx
+                                        ? "bg-amber-500/20 border-amber-400 text-amber-300"
+                                        : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white hover:border-white/20"
+                                )}
+                            >
+                                Niv {gr.level}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                     {spells.map((spell) => {
                         const isSelected = currentSpell?.id === spell.id;
@@ -456,12 +577,32 @@ export function SpellRangeGrid({
                                         <Zap className="w-3.5 h-3.5 text-amber-400" />
                                     )}
                                 </div>
-                                <span>{spell.name}</span>
-                                {spell.apCost !== undefined && spell.apCost > 0 && (
-                                    <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">
-                                        {spell.apCost} PA
+                                <div className="flex flex-col items-start min-w-0 gap-0.5">
+                                    <span className="truncate max-w-[150px]">{spell.name}</span>
+                                    <span className="flex flex-wrap items-center gap-1">
+                                        {spell.apCost !== undefined && spell.apCost > 0 && (
+                                            <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-px rounded">
+                                                {spell.apCost} PA
+                                            </span>
+                                        )}
+                                        {(spell.minCastInterval ?? 0) > 0 && (
+                                            <span
+                                                className="text-[10px] font-bold text-red-400 bg-red-500/10 px-1.5 py-px rounded"
+                                                title={`Cooldown : relance possible après ${spell.minCastInterval} tour${(spell.minCastInterval ?? 0) > 1 ? "s" : ""}`}
+                                            >
+                                                ⏳ {spell.minCastInterval} t
+                                            </span>
+                                        )}
+                                        {(spell.maxCastPerTurn ?? 0) > 0 && (
+                                            <span
+                                                className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-px rounded"
+                                                title={`Lancers max par tour : ${spell.maxCastPerTurn}`}
+                                            >
+                                                {spell.maxCastPerTurn}×/tour
+                                            </span>
+                                        )}
                                     </span>
-                                )}
+                                </div>
                             </button>
                         );
                     })}
@@ -568,6 +709,21 @@ export function SpellRangeGrid({
 
             {/* 3. SIMULATION TACTIQUE (style Dofensive / Dofus) */}
             <div className="relative rounded-2xl bg-[#161614] border border-white/10 p-2 sm:p-4 overflow-x-auto flex flex-col items-center justify-center select-none shadow-inner">
+                {/* Mini-carte (aperçu global) — cliquer recentre sur le lanceur */}
+                {miniMap && zoom > 1.2 && (
+                    <button
+                        type="button"
+                        onClick={scrollCasterIntoView}
+                        className="absolute top-2 right-2 z-20 rounded-lg border border-white/10 bg-black/75 p-1.5 shadow-lg hover:border-amber-400/50 transition-colors"
+                        title="Mini-carte — cliquer pour recentrer sur le lanceur"
+                        aria-label="Mini-carte — recentrer sur le lanceur"
+                    >
+                        <svg width={miniMap.w} height={miniMap.h} viewBox={`0 0 ${miniMap.w} ${miniMap.h}`} className="block" shapeRendering="crispEdges">
+                            {miniMap.cellsEls}
+                            <rect x={0} y={0} width={miniMap.w} height={miniMap.h} fill="none" stroke="#fbbf24" strokeWidth={1} />
+                        </svg>
+                    </button>
+                )}
                 <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
                     <span className="font-bold text-zinc-300">
                         Entité : <strong className="text-amber-400">{bossName}</strong>
@@ -802,7 +958,7 @@ export function SpellRangeGrid({
                                 const { sx, sy } = cellToScreen(c, r, tileW, tileH);
                                 if (c === casterPos.x && r === casterPos.y) {
                                     return (
-                                        <g key="boss" transform={`translate(${sx - 28}, ${sy - 44})`} pointerEvents="none">
+                                        <g key="boss" ref={casterMarkerRef} transform={`translate(${sx - 28}, ${sy - 44})`} pointerEvents="none">
                                             {bossImageUrl ? (
                                                 <image href={bossImageUrl} x="0" y="0" width="56" height="56" className="drop-shadow-2xl" />
                                             ) : (
@@ -814,12 +970,21 @@ export function SpellRangeGrid({
                                 const ai = allies.findIndex((a) => a.x === c && a.y === r);
                                 if (ai >= 0) {
                                     const isSel = selectedAlly === ai;
+                                    const isHit = hitAllies.has(ai);
                                     return (
                                         <g key={`ally-${ai}`} pointerEvents="none">
                                             {isSel && (<circle cx={sx} cy={sy + 10} r="22" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                            {isHit && (
+                                                <circle cx={sx} cy={sy + 10} r="20" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
+                                                    <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
+                                                </circle>
+                                            )}
                                             <g transform={`translate(${sx - 22}, ${sy - 32})`}>
                                                 <image href="/assets/module-succes/feca.webp" x="0" y="0" width="44" height="44" className="drop-shadow-2xl" />
                                             </g>
+                                            {isHit && (
+                                                <text x={sx} y={sy - 36} textAnchor="middle" fill="#ef4444" fontSize="11" fontWeight="900" className="select-none">⚠️ ZONE</text>
+                                            )}
                                         </g>
                                     );
                                 }
@@ -904,7 +1069,7 @@ export function SpellRangeGrid({
                                             className="transition-colors duration-150"
                                         />
                                         {isCaster && (
-                                            <g transform={`translate(${sx - 26}, ${sy - 36})`} pointerEvents="none">
+                                            <g ref={casterMarkerRef} transform={`translate(${sx - 26}, ${sy - 36})`} pointerEvents="none">
                                                 {bossImageUrl ? (
                                                     <image href={bossImageUrl} x="0" y="0" width="52" height="52" className="drop-shadow-2xl" />
                                                 ) : (

@@ -351,7 +351,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
             import("@/server/actions/discord-actions").then(d => {
                 d.getDiscordChannelInfo(guildId, activeChannelId).then(chanRes => {
                     if (chanRes.success && chanRes.data) {
-                        setTargetChannelName(chanRes.data.name);
+                        setTargetChannelName(chanRes.data.name ?? "Salon masqué");
                     }
                 });
             });

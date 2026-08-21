@@ -292,6 +292,33 @@ export async function verifyGuildAccessibility(guildId: string): Promise<boolean
 }
 
 /**
+ * #223 — Résilience Discord long terme (obfuscation des salons, HTTP le 16/11/2026).
+ * Détecte un salon obfusqué : nom `"___hidden___"` OU flag `CHANNEL_OBFUSCATED` (1 << 17 = 131072).
+ * Un salon obfusqué n'a pas de nom affichable et ne doit jamais être utilisé en écriture.
+ */
+export function isObfuscatedChannel(channel: { name?: string | null; flags?: number }): boolean {
+    return channel.name === "___hidden___" || ((channel.flags ?? 0) & (1 << 17)) !== 0;
+}
+
+/**
+ * #223 — Nom de salon SÛR pour l'affichage : ne renvoie JAMAIS `"___hidden___"`.
+ * Retourne `null` si le salon est obfusqué ou sans nom (l'UI affiche « Salon masqué » / l'ID).
+ */
+export function safeChannelName(channel: { name?: string | null; flags?: number }): string | null {
+    if (!channel.name) return null;
+    if (isObfuscatedChannel(channel)) return null;
+    return channel.name;
+}
+
+/**
+ * #223 — Vérifie qu'un salon est utilisable pour une écriture (non obfusqué).
+ * Fail-closed : un salon obfusqué est refusé (le bot n'y a pas réellement accès).
+ */
+export function assertUsableChannel(channel: { name?: string | null; flags?: number }): boolean {
+    return !isObfuscatedChannel(channel);
+}
+
+/**
  * Fetch channel info from Discord API
  */
 export async function fetchChannel(channelId: string) {
@@ -311,18 +338,20 @@ export async function fetchChannel(channelId: string) {
 
     return (await res.json()) as {
         id: string;
-        guild_id?: string;
-        name: string;
+        guild_id?: string | null;
+        name: string | null;
         type: number;
+        flags?: number;
+        application_id?: string | null;
     };
 }
 
 /**
  * Fetch all channels for a guild (text, voice, categories, etc.)
  */
-export async function fetchGuildChannels(guildId: string): Promise<{ id: string; name: string; type: number; position: number }[]> {
+export async function fetchGuildChannels(guildId: string): Promise<{ id: string; name: string | null; type: number; position: number; flags?: number }[]> {
     const cacheKey = `guild_channels:${guildId}`;
-    const cached = getCached<{ id: string; name: string; type: number; position: number }[]>(cacheKey);
+    const cached = getCached<{ id: string; name: string | null; type: number; position: number; flags?: number }[]>(cacheKey);
     if (cached) return cached;
 
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -335,9 +364,16 @@ export async function fetchGuildChannels(guildId: string): Promise<{ id: string;
 
     if (!res.ok) throw new Error(`Failed to fetch guild channels: ${res.statusText}`);
 
-    const channels = (await res.json()) as { id: string; name: string; type: number; position: number }[];
+    const channels = (await res.json()) as { id: string; name: string | null; type: number; position: number; flags?: number }[];
+    // #223 — obfuscation des salons (16/11/2026) : un salon sans VIEW_CHANNEL est soit omis
+    // par l'API HTTP, soit renvoyé obfusqué (`name: "___hidden___"` + flag 1<<17). On nullifie
+    // le nom pour ne JAMAIS exposer `___hidden___` à l'UI/base, et on le journalise.
+    const sanitized = channels.map(ch => ({ ...ch, name: isObfuscatedChannel(ch) ? null : ch.name }));
+    if (sanitized.some(ch => ch.name === null)) {
+        logger.warn("[Discord] fetchGuildChannels: un ou plusieurs salons obfusqués masqués", { guildId });
+    }
     // Sort by position
-    const sorted = [...channels].sort((a, b) => a.position - b.position);
+    const sorted = [...sanitized].sort((a, b) => a.position - b.position);
     setCached(cacheKey, sorted, 60_000); // 1 min cache
     return sorted;
 }

@@ -23,6 +23,18 @@ export interface DofensiveSpellZone {
     range: number;
 }
 
+/** Effet Dofensive structuré (durée, déclencheurs, masques d'affectation). */
+export interface DofensiveSpellEffect {
+    /** Effet principal formaté (ex. « État Invulnérable », « -10 Fuite »). */
+    label: string;
+    /** Durée formatée : « infini », « pour N tour(s) », ou null (instantané). */
+    duration: string | null;
+    /** Déclencheurs (ex. « L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation »). */
+    triggers: string[];
+    /** Masques d'affectation (ex. « Affecte le lanceur (même en-dehors de la zone d'effet) »). */
+    masks: string[];
+}
+
 export interface DofensiveSpellCombat {
     id: number;
     name: string;
@@ -42,8 +54,18 @@ export interface DofensiveSpellCombat {
     maxCastPerTarget: number;
     /** Cooldown (tours). */
     minCastInterval: number;
-    /** Effets résumés (texte FR formaté). */
+    /** Description Dofensive du sort (ex. « Ce sort est lancé une seule fois par l'ennemi lorsqu'il rejoint le combat. »). */
+    description?: string;
+    /** Grade/Niveau Dofensive du level utilisé (« Niv. X »). */
+    grade?: number;
+    /** Effets résumés (texte FR formaté) — lignes « label (durée) » + déclencheurs. */
     effects: string[];
+    /** Version structurée des effets (durées, déclencheurs, masques) pour l'affichage détaillé. */
+    effectDetails?: DofensiveSpellEffect[];
+    /** Effets critiques formatés (lignes) — section « Effets critiques ». */
+    criticalEffects?: string[];
+    /** false si le sort n'a aucun effet critique (« Aucun effet critique »). */
+    hasCriticalEffects?: boolean;
     zone: DofensiveSpellZone | null;
 }
 
@@ -77,7 +99,8 @@ export function mergeDofensiveSpells(
             ...ds,
             name: db?.name || ds.name,
             imageUrl: ds.imageUrl || db?.imageUrl, // icône Dofensive préférée (distincte par sort)
-            description: db?.description,
+            // Description Dofensive prioritaire (contexte de combat du sort), DofusDB en fallback.
+            description: ds.description || db?.description,
             zone: ds.zone ?? undefined,
         });
         seen.add(ds.id);

@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
 import { sanitizeHtml } from "@/lib/security";
+import { getLocalMonsterStat, persistMonsterStat } from "@/lib/dofensive-sync";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -707,7 +708,11 @@ const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
 const dungeonFamilyCache = new Map<string, { data: any; expiresAt: number }>();
 const DUNGEON_FAMILY_TTL = 24 * 60 * 60 * 1000;
 
-export async function getMonsterStats(monsterName: string, dungeonName?: string): Promise<ActionResponse<any>> {
+export async function getMonsterStats(
+    monsterName: string,
+    dungeonName?: string,
+    forceRefresh = false
+): Promise<ActionResponse<any>> {
     // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
     const cacheKey = `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
     const cached = monsterStatsCache.get(cacheKey);
@@ -748,6 +753,23 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
         }
     } catch (err) {
         logger.error("[getMonsterStats] Local coordinate fetch error:", { error: err });
+    }
+
+    // Local-first (siphon local, chantier 2) : fiche fraîche (< 24 h) → zéro appel
+    // DofusDB en direct. Les coordonnées du donjon sont ré-attachées si absentes
+    // (le cron de sync ne les stocke pas — elles viennent du worldmap.json local).
+    // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
+    if (process.env.VITEST !== "true" && !forceRefresh) {
+        try {
+            const local = await getLocalMonsterStat(monsterName);
+            if (local) {
+                if (!local.coordinates && coordinates) local.coordinates = coordinates;
+                monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: local };
+            }
+        } catch (err) {
+            logger.warn("[getMonsterStats] Local-first échec:", { error: String(err) });
+        }
     }
 
     try {
@@ -1145,6 +1167,13 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                 })
         };
         monsterStatsCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + MONSTER_STATS_TTL });
+        // Self-healing (sync intelligente) : copie locale de la fiche pour le
+        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
+        try {
+            if (process.env.VITEST !== "true") await persistMonsterStat({ ...resultData, dungeonName });
+        } catch (err) {
+            logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
+        }
         return { success: true, data: resultData };
     } catch (error) {
         logger.error('[getMonsterStats] Error:', { error });

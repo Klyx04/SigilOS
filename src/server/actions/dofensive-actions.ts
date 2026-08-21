@@ -16,77 +16,25 @@
  * renvoie { success: false } et le client garde son fallback local.
  */
 
-import { logger } from "@/lib/logger";
 import type {
     DofensiveSpellCombat,
+    DofensiveSpellEffect,
     DofensiveSpellZone,
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
+import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
+import {
+    getLocalDofensiveDungeon,
+    getLocalDofensiveMap,
+    getLocalDofensiveSpells,
+    persistDofensiveMap,
+} from "@/lib/dofensive-sync";
 
 type ActionResponse<T = void> = {
     success: boolean;
     error?: string;
     data?: T;
 };
-
-const DOFENSIVE_BASE = "https://dofensive.com/api/dofus2/bestiary";
-const DOFENSIVE_HEADERS = {
-    Accept: "application/json",
-    "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)",
-};
-
-const dofensiveCache = new Map<string, { data: unknown; expiresAt: number }>();
-const DOFENSIVE_TTL = 24 * 60 * 60 * 1000; // 24 h — data de jeu statique
-
-// ── Garde anti-SSRF ─────────────────────────────────────────────────────────
-// Les IDs (map/monstre/sort) peuvent provenir du client (query params ?boss=&dungeon=,
-// sélecteur de salle, liste de sorts). On ne construit JAMAIS d'URL avec une valeur
-// non validée : allowlist stricte des chemins Dofensive + ID entier strictement positif.
-const DOFENSIVE_PATH_RE =
-    /^\/(?:dungeons\/preview\?lang=fr|maps\/\d+\?lang=fr|monsters\/\d+\?lang=fr|spells\/\d+\?lang=fr)$/;
-
-/** Convertit un ID Dofensive en entier strictement positif, ou `null` si invalide (anti-SSRF). */
-function toSafeId(value: number | string | null | undefined): number | null {
-    const n = typeof value === "number" ? value : Number(String(value ?? "").trim());
-    if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
-    return n;
-}
-
-function norm(s: string): string {
-    return String(s ?? "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
-}
-
-async function dofensiveFetch<T>(path: string, key: string): Promise<T | null> {
-    // Garde SSRF : seul un chemin de l'allowlist (IDs entiers) peut atteindre fetch().
-    if (!DOFENSIVE_PATH_RE.test(path)) {
-        logger.error(`[dofensive] Chemin refusé (garde SSRF): ${path}`);
-        return null;
-    }
-    const cached = dofensiveCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.data as T;
-
-    try {
-        const res = await fetch(`${DOFENSIVE_BASE}${path}`, {
-            headers: DOFENSIVE_HEADERS,
-            cache: "no-store",
-            signal: AbortSignal.timeout(15_000),
-        });
-        if (!res.ok) throw new Error(`Dofensive HTTP ${res.status}`);
-        const json = (await res.json()) as { Data?: unknown; Errors?: unknown[] };
-        const data = json?.Data ?? null;
-        if (data !== null && data !== undefined) {
-            dofensiveCache.set(key, { data, expiresAt: Date.now() + DOFENSIVE_TTL });
-        }
-        return data as T;
-    } catch (error) {
-        logger.error(`[dofensive] ${key} — fetch failed:`, { error });
-        return null;
-    }
-}
 
 // ─── Types exposés (camelCase normalisé) ────────────────────────────────────
 
@@ -144,6 +92,15 @@ export async function getDofensiveDungeonForBoss(
     dungeonName?: string
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     if (!bossName || !bossName.trim()) return { success: false, error: "Nom de boss manquant" };
+
+    // Local-first (siphon local, chantier 2) : donjon déjà synchronisé en base →
+    // zéro appel réseau Dofensive (les maps/monstres/boss y sont stockés).
+    try {
+        const local = await getLocalDofensiveDungeon(bossName, dungeonName);
+        if (local) return { success: true, data: local };
+    } catch {
+        // Fallback live ci-dessous
+    }
 
     const dungeons = await dofensiveFetch<any[]>(
         "/dungeons/preview?lang=fr",
@@ -205,13 +162,21 @@ export async function getDofensiveDungeonForBoss(
     };
 }
 
-/** Charge une map réelle Dofensive (grille d'obstacles + cases de départ). */
+/** Charge une map réelle Dofensive (grille d'obstacles + cases de départ) — local-first. */
 export async function getDofensiveMap(mapId: number | string): Promise<ActionResponse<DofensiveMapData>> {
     const id = toSafeId(mapId);
     if (!id) return { success: false, error: "ID de map invalide" };
 
+    // 1. Essai local-first (PostgreSQL)
+    try {
+        const local = await getLocalDofensiveMap(id);
+        if (local) return { success: true, data: local };
+    } catch {
+        // Fallback live ci-dessous
+    }
+
+    // 2. Fetch live Dofensive
     const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `dofensive-map-${id}`);
-    // /maps/{id} → Data: [{ ...map }] (tableau à un élément), comme les autres endpoints.
     const item = Array.isArray(raw) ? raw[0] : raw;
     if (!item) return { success: false, error: "Map introuvable chez Dofensive" };
 
@@ -219,20 +184,22 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
         ? item.Cells.map((row: any) => (Array.isArray(row) ? row.map((v: any) => Number(v) || 0) : []))
         : [];
 
-    return {
-        success: true,
-        data: {
-            id: item.Id as number,
-            name: String(item.Name ?? ""),
-            subarea: item.Subarea ? { id: item.Subarea.Id as number, name: String(item.Subarea.Name ?? "") } : null,
-            dungeon: item.Dungeon ? { id: item.Dungeon.Id as number, name: String(item.Dungeon.Name ?? "") } : null,
-            isBossMap: !!item.IsBossMap,
-            coordinates: item.Coordinates ? { x: item.Coordinates.X as number, y: item.Coordinates.Y as number } : null,
-            cells,
-            allyCells: Array.isArray(item.AllyCells) ? item.AllyCells.map((v: any) => Number(v)) : [],
-            enemyCells: Array.isArray(item.EnemyCells) ? item.EnemyCells.map((v: any) => Number(v)) : [],
-        },
+    const data: DofensiveMapData = {
+        id: item.Id as number,
+        name: String(item.Name ?? ""),
+        subarea: item.Subarea ? { id: item.Subarea.Id as number, name: String(item.Subarea.Name ?? "") } : null,
+        dungeon: item.Dungeon ? { id: item.Dungeon.Id as number, name: String(item.Dungeon.Name ?? "") } : null,
+        isBossMap: !!item.IsBossMap,
+        coordinates: item.Coordinates ? { x: item.Coordinates.X as number, y: item.Coordinates.Y as number } : null,
+        cells,
+        allyCells: Array.isArray(item.AllyCells) ? item.AllyCells.map((v: any) => Number(v)) : [],
+        enemyCells: Array.isArray(item.EnemyCells) ? item.EnemyCells.map((v: any) => Number(v)) : [],
     };
+
+    // Auto-persistance locale en arrière-plan (self-healing)
+    persistDofensiveMap(data).catch(() => {});
+
+    return { success: true, data };
 }
 
 /** Charge un monstre Dofensive (maps préférées + donjons + sorts). */
@@ -288,13 +255,21 @@ function normalizeZone(zone: any): DofensiveSpellZone | null {
 }
 
 /**
- * Formate un nom d'effet Dofensive (template FR) : remplace `#N` par la valeur du
- * paramètre N et résout les conditionnels `{A|B}` (A si présent, sinon B sans `~`).
+ * Résout un template d'effet Dofensive (langage de format FR Ankama/Dofensive) :
+ *   - `#N`              → valeur du paramètre N (ex. "#1 dommages Eau" + [101] → "101 dommages Eau")
+ *   - `{s|#N}`/`{s|||#N}` → pluriel : "s" si |valeur| ≠ 1 (ex. "case{s|#1}" → "cases"/"case")
+ *   - `{A|~B}`          → A si non vide, sinon B sans le préfixe `~` (ex. "{ à #2|~2}" → " à 110"/"")
+ *   - `{A|0}`           → A si non vide, sinon rien (ex. "{La cible |0}" → "La cible ")
  * Ex. "#1{ à #2|~2} dommages Eau" + [101, 110] → "101 à 110 dommages Eau".
  */
-function renderEffectName(name: any, params: any[] | undefined): string {
+function resolveTemplate(name: any, params: any[] | undefined): string {
     let s = String(name ?? "");
+    // Pluriels — à résoudre AVANT les conditionnels génériques.
+    s = s.replace(/\{s\|(#\d+)\}/g, (_m, ref: string) => (pluralizeParams(params, ref) ? "s" : ""));
+    s = s.replace(/\{s\|\|\|(#\d+)\}/g, (_m, ref: string) => (pluralizeParams(params, ref) ? "s" : ""));
+    // Conditionnels `{A|~B}` / `{A|0}` → A si non vide.
     s = s.replace(/\{([^}|]*)\|([^}]*)\}/g, (_m, a: string, b: string) => (a.trim() ? a : b.replace(/^~/, "")));
+    // Paramètres `#N`.
     s = s.replace(/#(\d+)/g, (_m, n: string) => {
         const p = Array.isArray(params) ? params[Number(n) - 1] : undefined;
         return p && p.Name !== undefined && p.Name !== null ? String(p.Name) : "";
@@ -302,14 +277,109 @@ function renderEffectName(name: any, params: any[] | undefined): string {
     return s.replace(/\s+/g, " ").trim();
 }
 
+/** Pluriel Dofus : true si la valeur du paramètre référé (`#N`) n'est pas ±1. */
+function pluralizeParams(params: any[] | undefined, ref: string): boolean {
+    const n = Number(ref.slice(1));
+    const v = Array.isArray(params) ? Number(params[n - 1]?.Name) : Number.NaN;
+    return Number.isFinite(v) && Math.abs(v) !== 1;
+}
+
+/** Formate la durée d'un effet : -1 → « infini », N → « pour N tour(s) », 0 → null. */
+function formatEffectDuration(duration: any): string | null {
+    const d = Number(duration);
+    if (!Number.isFinite(d) || d === 0) return null;
+    if (d < 0) return "infini";
+    return `pour ${d} tour${d > 1 ? "s" : ""}`;
+}
+
+/** Déclencheurs d'un effet Dofensive (Special/Caster/Target triggers). */
+function renderEffectTriggers(effect: any): string[] {
+    const out: string[] = [];
+    const push = (arr: any, prefix: string | null) => {
+        if (!Array.isArray(arr)) return;
+        for (const t of arr) {
+            const text = t ? resolveTemplate(t.Name, Array.isArray(t.Parameters) ? t.Parameters : undefined) : "";
+            if (!text) continue;
+            // En milieu de phrase (après le préfixe), on passe la 1re lettre en minuscule
+            // (« La cible reçoit ... » → « la cible reçoit ... »).
+            if (prefix) out.push(`${prefix}${text.charAt(0).toLowerCase()}${text.slice(1)}`);
+            else out.push(text);
+        }
+    };
+    push(effect.SpecialTriggers, null); // ex. « Effet déclenché immédiatement »
+    push(effect.CasterTriggers, "L'effet est déclenché lorsque "); // ex. « le lanceur ... »
+    push(effect.TargetTriggers, "L'effet est déclenché lorsque "); // ex. « la cible ... »
+    return out;
+}
+
+/** Masques d'affectation d'un effet (inclusion/exclusion, ex. « Affecte le lanceur ... »). */
+function renderEffectMasks(effect: any): string[] {
+    const out: string[] = [];
+    const push = (arr: any) => {
+        if (!Array.isArray(arr)) return;
+        for (const m of arr) {
+            const text = m ? resolveTemplate(m.Name, Array.isArray(m.Parameters) ? m.Parameters : undefined) : "";
+            if (text) out.push(text);
+        }
+    };
+    push(effect.InclusionMasks);
+    push(effect.ExclusionMasks);
+    return out;
+}
+
+/** Collecte les effets structurés de tous les GroupEffects (toutes les cibles du sort). */
+function collectEffectDetails(groups: any): DofensiveSpellEffect[] {
+    const out: DofensiveSpellEffect[] = [];
+    for (const group of Array.isArray(groups) ? groups : []) {
+        for (const e of Array.isArray(group?.Effects) ? group.Effects : []) {
+            const label = resolveTemplate(e?.Name, Array.isArray(e?.Parameters) ? e.Parameters : undefined);
+            if (!label) continue;
+            out.push({
+                label,
+                duration: formatEffectDuration(e?.Duration),
+                triggers: renderEffectTriggers(e),
+                masks: renderEffectMasks(e),
+            });
+        }
+    }
+    return out;
+}
+
+/** Aplatit les effets en lignes « label (durée) » + lignes de déclencheurs. */
+function flattenEffectLines(details: DofensiveSpellEffect[]): string[] {
+    const lines: string[] = [];
+    for (const d of details) {
+        lines.push(d.duration ? `${d.label} (${d.duration})` : d.label);
+        for (const tr of d.triggers) lines.push(tr);
+    }
+    return lines;
+}
+
 /**
  * Charge les sorts de combat d'un monstre Dofensive (AP, portée, LdV, ligne/diagonale,
  * cooldown, max cast, zone AoE). Grade = dernier niveau (le plus haut), cohérent avec
  * la fiche boss. Anti-SSRF : l'ID est validé avant toute construction d'URL.
  */
-export async function getDofensiveSpells(monsterId: number): Promise<ActionResponse<DofensiveSpellCombat[]>> {
+export async function getDofensiveSpells(
+    monsterId: number,
+    gradeLevel?: number,
+    forceRefresh = false
+): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const id = toSafeId(monsterId);
     if (!id) return { success: false, error: "ID de monstre invalide" };
+
+    // Local-first (siphon local, chantier 2) : les sorts de combat fusionnés du grade
+    // MAX sont déjà en base (`MonsterStat.stats.spells`) → zéro appel Dofensive. Un
+    // changement de grade explicite (gradeLevel) garde le fetch live (données par grade) ;
+    // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
+    if (gradeLevel === undefined && !forceRefresh) {
+        try {
+            const local = await getLocalDofensiveSpells(id);
+            if (local && local.length > 0) return { success: true, data: local };
+        } catch {
+            // Fallback live ci-dessous
+        }
+    }
 
     const monRaw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
     const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
@@ -335,15 +405,19 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
             const spell = Array.isArray(raw) ? raw[0] : raw;
             if (!spell) return null;
             const levels: any[] = Array.isArray(spell.Levels) ? spell.Levels : [];
-            const level = levels[levels.length - 1] ?? levels[0];
+            // Sélectionne le niveau correspondant au grade demandé ou le grade maximum
+            const targetIdx = typeof gradeLevel === "number" && gradeLevel >= 1 && gradeLevel <= levels.length
+                ? gradeLevel - 1
+                : levels.length - 1;
+            const level = levels[targetIdx] ?? levels[levels.length - 1] ?? levels[0];
             if (!level) return null;
-            const firstGroup = level.GroupEffects?.[0];
-            const firstEffect = firstGroup?.Effects?.[0];
-            const effects: string[] = Array.isArray(firstGroup?.Effects)
-                ? firstGroup.Effects.slice(0, 6)
-                      .map((e: any) => renderEffectName(e?.Name, Array.isArray(e?.Parameters) ? e.Parameters : undefined))
-                      .filter(Boolean)
-                : [];
+            const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
+            // Effets détaillés (tous les groupes de cibles) : durées, déclencheurs, masques.
+            const effectDetails = collectEffectDetails(level.GroupEffects);
+            const effects = flattenEffectLines(effectDetails).slice(0, 30);
+            // Effets critiques (GroupCriticalEffects) — section séparée.
+            const criticalDetails = collectEffectDetails(level.GroupCriticalEffects);
+            const criticalEffects = flattenEffectLines(criticalDetails).slice(0, 20);
             return {
                 id: Number(spell.Id ?? sid),
                 name: String(spell.Name ?? ""),
@@ -360,7 +434,12 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
                 maxCastPerTurn: Number(level.MaxCastPerTurn) || 0,
                 maxCastPerTarget: Number(level.MaxCastPerTarget) || 0,
                 minCastInterval: Number(level.MinCastInterval) || 0,
+                description: String(spell.Description ?? "") || undefined,
+                grade: Number(level.Grade) || undefined,
                 effects,
+                effectDetails,
+                criticalEffects: criticalEffects.length > 0 ? criticalEffects : undefined,
+                hasCriticalEffects: criticalDetails.length > 0,
                 zone: normalizeZone(firstEffect?.Zone),
             };
         })
@@ -377,11 +456,13 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
  */
 export async function getBossDofensiveSpells(
     monsterName: string,
-    dungeonName?: string
+    dungeonName?: string,
+    gradeLevel?: number,
+    forceRefresh = false
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
     const monsterId = dungeon.success ? toSafeId(dungeon.data?.bossMonsterId) : null;
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
-    return getDofensiveSpells(monsterId);
+    return getDofensiveSpells(monsterId, gradeLevel, forceRefresh);
 }
 

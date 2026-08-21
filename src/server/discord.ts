@@ -61,21 +61,37 @@ export function sanitizeMentions(text: string | null | undefined): string {
 }
 
 
-async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
+/** Hôte Discord allow-listé — le hostname des requêtes bot ne dépend JAMAIS de l'utilisateur (CodeQL js/request-forgery). */
+const DISCORD_API_HOST = "discord.com";
+const DISCORD_API_BASE = `https://${DISCORD_API_HOST}`;
+
+/**
+ * #223 P1 — Fetch Discord centralisé, fail-closed :
+ *  - URL construite depuis un hôte allow-listé (`DISCORD_API_BASE`) + chemin validé ;
+ *  - l'objet URL validé est passé à `fetch` (jamais la chaîne brute) ;
+ *  - gardes : hostname + protocole https + anti path-traversal ("..").
+ */
+async function fetchWithRetry(path: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
-    // F-16 CodeQL js/request-forgery : garde fail-closed à la source du fetch — l'hôte est
-    // restreint à l'API Discord (recommandation js/request-forgery : allow-list du hostname).
-    let parsedUrl: URL;
+    let url: URL;
     try {
-        parsedUrl = new URL(url);
+        url = new URL(path, DISCORD_API_BASE);
     } catch {
-        logger.warn("[Discord] fetchWithRetry: URL invalide refusée");
+        logger.warn("[Discord] fetchWithRetry: chemin invalide refusé");
         throw new Error("URL Discord invalide");
     }
-    if (parsedUrl.hostname !== "discord.com") {
-        logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${parsedUrl.hostname})`);
+
+    // Allow-list stricte : hôte fixe + https uniquement.
+    if (url.hostname !== DISCORD_API_HOST || url.protocol !== "https:") {
+        logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${url.hostname})`);
         throw new Error("Hôte Discord non autorisé");
+    }
+
+    // Anti path-traversal : aucun segment ".." dans le chemin.
+    if (url.pathname.split("/").includes("..")) {
+        logger.warn("[Discord] fetchWithRetry: chemin non autorisé (path traversal)");
+        throw new Error("Chemin Discord non autorisé");
     }
 
     // #223 P2 — User-Agent Discord exigé (DiscordBot (url, version)) sur chaque requête bot.
@@ -131,7 +147,7 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/roles`, {
         headers: {
             Authorization: `Bot ${token}`,
         },
@@ -171,7 +187,7 @@ export async function fetchGuild(guildId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -197,7 +213,7 @@ export async function fetchBotGuilds() {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/users/@me/guilds`, {
+    const res = await fetchWithRetry(`/api/v10/users/@me/guilds`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -221,7 +237,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -255,7 +271,7 @@ export async function listGuildMembers(guildId: string, limit = 1000) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members?limit=${limit}`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members?limit=${limit}`, {
         headers: { Authorization: `Bot ${token}` },
     });
 
@@ -291,7 +307,7 @@ export async function fetchAllGuildMembers(guildId: string): Promise<Set<string>
 
     while (hasMore) {
         const res = await fetchWithRetry(
-            `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
+            `/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
             { headers: { Authorization: `Bot ${token}` } }
         );
 
@@ -316,7 +332,7 @@ export async function fetchGuildBans(guildId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/bans`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/bans`, {
         headers: { Authorization: `Bot ${token}` },
         next: { revalidate: 0 }
     });
@@ -336,7 +352,7 @@ export async function verifyGuildAccessibility(guildId: string): Promise<boolean
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}`, {
             headers: { Authorization: `Bot ${token}` },
             next: { revalidate: 0 }
         });
@@ -380,7 +396,7 @@ export async function fetchChannel(channelId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+    const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
         headers: { Authorization: `Bot ${token}` },
         // No cache — we need fresh data for security checks
         cache: "no-store",
@@ -412,7 +428,7 @@ export async function fetchGuildChannels(guildId: string): Promise<{ id: string;
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -610,7 +626,7 @@ export async function sendChannelMessage(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -658,7 +674,7 @@ export async function sendDirectMessage(
 
     try {
         // 1. Create DM channel
-        const dmRes = await fetchWithRetry(`https://discord.com/api/v10/users/@me/channels`, {
+        const dmRes = await fetchWithRetry(`/api/v10/users/@me/channels`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -745,7 +761,7 @@ export async function updateChannelMessage(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
             method: "PATCH",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -798,7 +814,7 @@ export async function editInteractionMessage(
 
     try {
         const res = await fetchWithRetry(
-            `https://discord.com/api/v10/webhooks/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanToken)}/messages/@original`,
+            `/api/v10/webhooks/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanToken)}/messages/@original`,
             {
                 method: "PATCH",
                 headers: {
@@ -834,7 +850,7 @@ export async function deleteChannelMessage(channelId: string, messageId: string)
             return await deleteChannel(channelId);
         }
 
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -857,7 +873,7 @@ export async function deleteChannel(channelId: string): Promise<boolean> {
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -892,7 +908,7 @@ export async function createPrivateThread(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/threads`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -965,7 +981,7 @@ export async function createForumPost(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/threads`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -999,7 +1015,7 @@ export async function addUserToThread(threadId: string, userId: string): Promise
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${threadId}/thread-members/${userId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}/thread-members/${userId}`, {
             method: "PUT",
             headers: { Authorization: `Bot ${token}` },
         });
@@ -1018,7 +1034,7 @@ export async function addRoleToMember(guildId: string, userId: string, roleId: s
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
             method: "PUT",
             headers: { Authorization: `Bot ${token}` },
         });
@@ -1037,7 +1053,7 @@ export async function removeRoleFromMember(guildId: string, userId: string, role
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
             method: "DELETE",
             headers: { Authorization: `Bot ${token}` },
         });
@@ -1056,7 +1072,7 @@ export async function archiveThread(threadId: string): Promise<boolean> {
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${threadId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}`, {
             method: "PATCH",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -1256,7 +1272,7 @@ export async function sendDiscordRawEmbed(
     };
 
     try {
-        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,

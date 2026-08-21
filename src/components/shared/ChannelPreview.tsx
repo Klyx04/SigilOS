@@ -9,10 +9,10 @@ const DEBOUNCE_MS = 300;
 const LIST_TTL_MS = 5 * 60 * 1000;
 const NAME_TTL_MS = 5 * 60 * 1000;
 
-type ChannelInfo = { id: string; name: string; type: number };
+type ChannelInfo = { id: string; name: string | null; type: number };
 
 const guildChannelsCache = new Map<string, { channels: ChannelInfo[]; expiresAt: number }>();
-const nameCache = new Map<string, { name: string; expiresAt: number }>();
+const nameCache = new Map<string, { name: string | null; expiresAt: number }>();
 const guildChannelsInFlight: Map<string, Promise<ChannelInfo[]>> = new Map();
 
 function getCachedList(guildId: string): ChannelInfo[] | null {
@@ -71,7 +71,7 @@ export function ChannelPreview({
     color?: string;
     className?: string;
 }) {
-    const [state, setState] = useState<{ status: "idle" | "loading" | "ok" | "error"; name?: string }>({ status: "idle" });
+    const [state, setState] = useState<{ status: "idle" | "loading" | "ok" | "error"; name?: string | null }>({ status: "idle" });
 
     useEffect(() => {
         const trimmed = channelId.trim();
@@ -147,7 +147,7 @@ export function ChannelPreview({
     return (
         <div className={`flex items-center gap-1.5 text-caption font-bold ${textColor} ${className}`}>
             <Hash className="w-3 h-3" />
-            <span>#{state.name}</span>
+            <span>#{state.name ?? "Salon masqué"}</span>
         </div>
     );
 }

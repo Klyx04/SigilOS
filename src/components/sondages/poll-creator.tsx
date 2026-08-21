@@ -163,7 +163,7 @@ export function PollCreator({
                 // Résoudre le nom du salon configuré par l'admin (lecture seule)
                 getDiscordChannelInfo(guildId, settingsRes.data.pollsNotifyChannelId).then(chanRes => {
                     if (chanRes.success && chanRes.data) {
-                        setTargetChannelName(chanRes.data.name);
+                        setTargetChannelName(chanRes.data.name ?? "Salon masqué");
                     }
                 });
             } else {

@@ -144,7 +144,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                 setBlacklistChannelId(res.data.blacklistChannelId);
                 getDiscordChannelInfo(guildId, res.data.blacklistChannelId).then(chanRes => {
                     if (chanRes.success && chanRes.data) {
-                        setTargetChannelName(chanRes.data.name);
+                        setTargetChannelName(chanRes.data.name ?? "Salon masqué");
                     }
                 });
             }

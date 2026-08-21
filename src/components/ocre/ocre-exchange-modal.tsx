@@ -70,7 +70,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                         import("@/server/actions/discord-actions").then(d => {
                             d.getDiscordChannelInfo(guildId, res.data!.ocreNotifyChannelId!).then(chanRes => {
                                 if (chanRes.success && chanRes.data) {
-                                    setTargetChannelName(chanRes.data.name);
+                                    setTargetChannelName(chanRes.data.name ?? "Salon masqué");
                                 }
                             });
                         });

@@ -55,6 +55,14 @@ try {
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
 const db = new PrismaClient({ adapter });
 
+/**
+ * #223 — Nom de salon sûr pour les logs (obfuscation Gateway) :
+ * ne jamais afficher `___hidden___`. Un salon obfusqué = « Salon masqué ».
+ */
+function safeChannelLabel(name: string | null | undefined): string {
+    return !name || name === "___hidden___" ? "Salon masqué" : name;
+}
+
 const client = new Client({
         intents: [
         GatewayIntentBits.Guilds,
@@ -221,7 +229,7 @@ client.on(Events.GuildCreate, async (guild) => {
                 const canSend = targetChannel.isTextBased() && botMember?.permissionsIn(targetChannel.id).has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]);
 
                 if (!canSend) {
-                    console.log(`[Discord Bot] Cannot send welcome embed to ${targetChannel.name} in ${guild.name} — missing permissions`);
+                    console.log(`[Discord Bot] Cannot send welcome embed to ${safeChannelLabel(targetChannel.name)} in ${guild.name} — missing permissions`);
                     return;
                 }
                 const welcomeEmbed = new EmbedBuilder()
@@ -257,7 +265,7 @@ client.on(Events.GuildCreate, async (guild) => {
                     );
 
                 await targetChannel.send({ embeds: [welcomeEmbed], components: [row as any] });
-                console.log(`[Discord Bot] ✉️ Welcome message sent to ${targetChannel.name} in ${guild.name}`);
+                console.log(`[Discord Bot] ✉️ Welcome message sent to ${safeChannelLabel(targetChannel.name)} in ${guild.name}`);
             }
         } catch (msgErr) {
             console.error(`[Discord Bot] Failed to send welcome message:`, msgErr);

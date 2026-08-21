@@ -18,6 +18,7 @@
 
 import type {
     DofensiveSpellCombat,
+    DofensiveSpellEffect,
     DofensiveSpellZone,
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
@@ -249,18 +250,104 @@ function normalizeZone(zone: any): DofensiveSpellZone | null {
 }
 
 /**
- * Formate un nom d'effet Dofensive (template FR) : remplace `#N` par la valeur du
- * paramètre N et résout les conditionnels `{A|B}` (A si présent, sinon B sans `~`).
+ * Résout un template d'effet Dofensive (langage de format FR Ankama/Dofensive) :
+ *   - `#N`              → valeur du paramètre N (ex. "#1 dommages Eau" + [101] → "101 dommages Eau")
+ *   - `{s|#N}`/`{s|||#N}` → pluriel : "s" si |valeur| ≠ 1 (ex. "case{s|#1}" → "cases"/"case")
+ *   - `{A|~B}`          → A si non vide, sinon B sans le préfixe `~` (ex. "{ à #2|~2}" → " à 110"/"")
+ *   - `{A|0}`           → A si non vide, sinon rien (ex. "{La cible |0}" → "La cible ")
  * Ex. "#1{ à #2|~2} dommages Eau" + [101, 110] → "101 à 110 dommages Eau".
  */
-function renderEffectName(name: any, params: any[] | undefined): string {
+function resolveTemplate(name: any, params: any[] | undefined): string {
     let s = String(name ?? "");
+    // Pluriels — à résoudre AVANT les conditionnels génériques.
+    s = s.replace(/\{s\|(#\d+)\}/g, (_m, ref: string) => (pluralizeParams(params, ref) ? "s" : ""));
+    s = s.replace(/\{s\|\|\|(#\d+)\}/g, (_m, ref: string) => (pluralizeParams(params, ref) ? "s" : ""));
+    // Conditionnels `{A|~B}` / `{A|0}` → A si non vide.
     s = s.replace(/\{([^}|]*)\|([^}]*)\}/g, (_m, a: string, b: string) => (a.trim() ? a : b.replace(/^~/, "")));
+    // Paramètres `#N`.
     s = s.replace(/#(\d+)/g, (_m, n: string) => {
         const p = Array.isArray(params) ? params[Number(n) - 1] : undefined;
         return p && p.Name !== undefined && p.Name !== null ? String(p.Name) : "";
     });
     return s.replace(/\s+/g, " ").trim();
+}
+
+/** Pluriel Dofus : true si la valeur du paramètre référé (`#N`) n'est pas ±1. */
+function pluralizeParams(params: any[] | undefined, ref: string): boolean {
+    const n = Number(ref.slice(1));
+    const v = Array.isArray(params) ? Number(params[n - 1]?.Name) : Number.NaN;
+    return Number.isFinite(v) && Math.abs(v) !== 1;
+}
+
+/** Formate la durée d'un effet : -1 → « infini », N → « pour N tour(s) », 0 → null. */
+function formatEffectDuration(duration: any): string | null {
+    const d = Number(duration);
+    if (!Number.isFinite(d) || d === 0) return null;
+    if (d < 0) return "infini";
+    return `pour ${d} tour${d > 1 ? "s" : ""}`;
+}
+
+/** Déclencheurs d'un effet Dofensive (Special/Caster/Target triggers). */
+function renderEffectTriggers(effect: any): string[] {
+    const out: string[] = [];
+    const push = (arr: any, prefix: string | null) => {
+        if (!Array.isArray(arr)) return;
+        for (const t of arr) {
+            const text = t ? resolveTemplate(t.Name, Array.isArray(t.Parameters) ? t.Parameters : undefined) : "";
+            if (!text) continue;
+            // En milieu de phrase (après le préfixe), on passe la 1re lettre en minuscule
+            // (« La cible reçoit ... » → « la cible reçoit ... »).
+            if (prefix) out.push(`${prefix}${text.charAt(0).toLowerCase()}${text.slice(1)}`);
+            else out.push(text);
+        }
+    };
+    push(effect.SpecialTriggers, null); // ex. « Effet déclenché immédiatement »
+    push(effect.CasterTriggers, "L'effet est déclenché lorsque "); // ex. « le lanceur ... »
+    push(effect.TargetTriggers, "L'effet est déclenché lorsque "); // ex. « la cible ... »
+    return out;
+}
+
+/** Masques d'affectation d'un effet (inclusion/exclusion, ex. « Affecte le lanceur ... »). */
+function renderEffectMasks(effect: any): string[] {
+    const out: string[] = [];
+    const push = (arr: any) => {
+        if (!Array.isArray(arr)) return;
+        for (const m of arr) {
+            const text = m ? resolveTemplate(m.Name, Array.isArray(m.Parameters) ? m.Parameters : undefined) : "";
+            if (text) out.push(text);
+        }
+    };
+    push(effect.InclusionMasks);
+    push(effect.ExclusionMasks);
+    return out;
+}
+
+/** Collecte les effets structurés de tous les GroupEffects (toutes les cibles du sort). */
+function collectEffectDetails(groups: any): DofensiveSpellEffect[] {
+    const out: DofensiveSpellEffect[] = [];
+    for (const group of Array.isArray(groups) ? groups : []) {
+        for (const e of Array.isArray(group?.Effects) ? group.Effects : []) {
+            const label = resolveTemplate(e?.Name, Array.isArray(e?.Parameters) ? e.Parameters : undefined);
+            if (!label) continue;
+            out.push({
+                label,
+                duration: formatEffectDuration(e?.Duration),
+                triggers: renderEffectTriggers(e),
+                masks: renderEffectMasks(e),
+            });
+        }
+    }
+    return out;
+}
+
+/** Aplatit les effets en lignes « label (durée) » + lignes de déclencheurs. */
+function flattenEffectLines(details: DofensiveSpellEffect[]): string[] {
+    const lines: string[] = [];
+    for (const d of details) {
+        lines.push(d.duration ? `${d.label} (${d.duration})` : d.label);
+        for (const tr of d.triggers) lines.push(tr);
+    }
+    return lines;
 }
 
 /**
@@ -305,13 +392,13 @@ export async function getDofensiveSpells(
                 : levels.length - 1;
             const level = levels[targetIdx] ?? levels[levels.length - 1] ?? levels[0];
             if (!level) return null;
-            const firstGroup = level.GroupEffects?.[0];
-            const firstEffect = firstGroup?.Effects?.[0];
-            const effects: string[] = Array.isArray(firstGroup?.Effects)
-                ? firstGroup.Effects.slice(0, 6)
-                      .map((e: any) => renderEffectName(e?.Name, Array.isArray(e?.Parameters) ? e.Parameters : undefined))
-                      .filter(Boolean)
-                : [];
+            const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
+            // Effets détaillés (tous les groupes de cibles) : durées, déclencheurs, masques.
+            const effectDetails = collectEffectDetails(level.GroupEffects);
+            const effects = flattenEffectLines(effectDetails).slice(0, 30);
+            // Effets critiques (GroupCriticalEffects) — section séparée.
+            const criticalDetails = collectEffectDetails(level.GroupCriticalEffects);
+            const criticalEffects = flattenEffectLines(criticalDetails).slice(0, 20);
             return {
                 id: Number(spell.Id ?? sid),
                 name: String(spell.Name ?? ""),
@@ -328,7 +415,12 @@ export async function getDofensiveSpells(
                 maxCastPerTurn: Number(level.MaxCastPerTurn) || 0,
                 maxCastPerTarget: Number(level.MaxCastPerTarget) || 0,
                 minCastInterval: Number(level.MinCastInterval) || 0,
+                description: String(spell.Description ?? "") || undefined,
+                grade: Number(level.Grade) || undefined,
                 effects,
+                effectDetails,
+                criticalEffects: criticalEffects.length > 0 ? criticalEffects : undefined,
+                hasCriticalEffects: criticalDetails.length > 0,
                 zone: normalizeZone(firstEffect?.Zone),
             };
         })

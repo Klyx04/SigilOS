@@ -43,6 +43,14 @@ export interface SpellData {
     minCastInterval?: number;
     /** Effets résumés (texte FR formaté, source Dofensive). */
     effects?: string[];
+    /** Grade/Niveau Dofensive du level utilisé (« Niv. X »). */
+    grade?: number;
+    /** Effets structurés (durées, déclencheurs, masques) — affichage détaillé. */
+    effectDetails?: { label: string; duration: string | null; triggers: string[]; masks: string[] }[];
+    /** Effets critiques (lignes) — section « Effets critiques ». */
+    criticalEffects?: string[];
+    /** false si le sort n'a aucun effet critique (« Aucun effet critique »). */
+    hasCriticalEffects?: boolean;
     /** Zone d'effet AoE normalisée (source Dofensive) — prévisu sur la grille. */
     zone?: SpellZone;
 }
@@ -615,6 +623,11 @@ export function SpellRangeGrid({
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <h4 className="text-sm font-black text-white">{currentSpell.name}</h4>
+                            {currentSpell.grade !== undefined && (
+                                <span className="text-[10px] font-black uppercase text-zinc-400 bg-zinc-800 border border-white/10 px-1.5 py-0.5 rounded">
+                                    Niv. {currentSpell.grade}
+                                </span>
+                            )}
                             <span className="text-xs font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
                                 Portée : {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
                             </span>
@@ -624,18 +637,43 @@ export function SpellRangeGrid({
                                 {currentSpell.description}
                             </p>
                         )}
-                        {Array.isArray(currentSpell.effects) && currentSpell.effects.length > 0 && (
-                            <ul className="flex flex-wrap gap-1.5 pt-1">
-                                {currentSpell.effects.slice(0, 6).map((eff, i) => (
-                                    <li
-                                        key={i}
-                                        className="text-[11px] font-semibold text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md"
-                                    >
-                                        {eff}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                        {(() => {
+                            const details =
+                                currentSpell.effectDetails && currentSpell.effectDetails.length > 0
+                                    ? currentSpell.effectDetails
+                                    : (Array.isArray(currentSpell.effects) ? currentSpell.effects.slice(0, 20).map((e) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] })) : []);
+                            if (details.length === 0) return null;
+                            return (
+                                <div className="pt-1 space-y-1">
+                                    {details.map((det, i) => (
+                                        <div key={i} className="text-[11px] leading-snug">
+                                            <span className="font-semibold text-amber-300/90">
+                                                {det.label}
+                                                {det.duration ? ` (${det.duration})` : ""}
+                                            </span>
+                                            {det.masks.length > 0 && (
+                                                <span className="block text-zinc-500">{det.masks.join(" · ")}</span>
+                                            )}
+                                            {det.triggers.map((tr, j) => (
+                                                <span key={j} className="block text-zinc-500 italic">{tr}</span>
+                                            ))}
+                                        </div>
+                                    ))}
+                                    {currentSpell.hasCriticalEffects === false ? (
+                                        <p className="text-[11px] text-zinc-500 pt-1">Effets critiques : aucun.</p>
+                                    ) : Array.isArray(currentSpell.criticalEffects) && currentSpell.criticalEffects.length > 0 ? (
+                                        <div className="pt-1">
+                                            <span className="text-[11px] font-black text-pink-400/90">Effets critiques :</span>
+                                            <ul className="pl-3 space-y-0.5">
+                                                {currentSpell.criticalEffects.map((ce, k) => (
+                                                    <li key={k} className="text-[11px] text-zinc-300">• {ce}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">

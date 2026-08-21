@@ -591,9 +591,11 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                     </div>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                                                    {Array.isArray(spell.effects) && spell.effects.length > 0
-                                                        ? spell.effects[0]
-                                                        : spell.description || "Effet de combat."}
+                                                    {spell.effectDetails && spell.effectDetails.length > 0
+                                                        ? spell.effectDetails[0].label
+                                                        : Array.isArray(spell.effects) && spell.effects.length > 0
+                                                            ? spell.effects[0]
+                                                            : spell.description || "Effet de combat."}
                                                 </p>
                                             </div>
                                             <button
@@ -661,7 +663,14 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                     <Zap className="w-4 h-4 text-amber-400" />
                                                 )}
                                                 <div>
-                                                    <span className="block text-xs font-black text-foreground">{spell.name}</span>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <span className="block text-xs font-black text-foreground">{spell.name}</span>
+                                                        {spell.grade !== undefined && (
+                                                            <span className="text-[9px] font-black uppercase text-muted-foreground bg-background border border-border px-1 py-px rounded">
+                                                                Niv. {spell.grade}
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                     <span className="text-[10px] font-bold text-blue-400">
                                                         {spell.apCost || 0} PA · {spell.minRange === spell.range ? `${spell.range} PO` : `${spell.minRange ?? 0}-${spell.range ?? 0} PO`}
                                                     </span>
@@ -678,15 +687,48 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                 Simuler
                                             </button>
                                         </div>
-                                        {Array.isArray(spell.effects) && spell.effects.length > 0 ? (
-                                            <ul className="text-[11px] text-zinc-300 space-y-1">
-                                                {spell.effects.map((eff, i) => (
-                                                    <li key={i} className="text-muted-foreground">• {eff}</li>
-                                                ))}
-                                            </ul>
-                                        ) : spell.description ? (
-                                            <p className="text-[11px] text-muted-foreground">{spell.description}</p>
-                                        ) : null}
+                                        {(() => {
+                                            const details =
+                                                spell.effectDetails && spell.effectDetails.length > 0
+                                                    ? spell.effectDetails
+                                                    : (Array.isArray(spell.effects) ? spell.effects.slice(0, 20).map((e) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] })) : []);
+                                            if (details.length === 0) {
+                                                return spell.description ? <p className="text-[11px] text-muted-foreground">{spell.description}</p> : null;
+                                            }
+                                            return (
+                                                <div className="text-[11px] space-y-1">
+                                                    {spell.description && (
+                                                        <p className="text-muted-foreground font-medium">{spell.description}</p>
+                                                    )}
+                                                    <ul className="space-y-1">
+                                                        {details.map((det, i) => (
+                                                            <li key={i} className="text-muted-foreground">
+                                                                <span className="text-foreground font-semibold">
+                                                                    {det.label}
+                                                                    {det.duration ? ` (${det.duration})` : ""}
+                                                                </span>
+                                                                {det.masks.length > 0 && <span className="block text-muted-foreground/80">{det.masks.join(" · ")}</span>}
+                                                                {det.triggers.map((tr, j) => (
+                                                                    <span key={j} className="block text-muted-foreground/80 italic">{tr}</span>
+                                                                ))}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                    {spell.hasCriticalEffects === false ? (
+                                                        <p className="text-muted-foreground/80">Effets critiques : aucun.</p>
+                                                    ) : Array.isArray(spell.criticalEffects) && spell.criticalEffects.length > 0 ? (
+                                                        <div>
+                                                            <span className="font-black text-amber-400/90">Effets critiques :</span>
+                                                            <ul className="space-y-0.5">
+                                                                {spell.criticalEffects.map((ce, k) => (
+                                                                    <li key={k} className="text-muted-foreground">• {ce}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ))}
                             </div>

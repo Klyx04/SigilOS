@@ -110,6 +110,17 @@ client.once(Events.ClientReady, (readyClient) => {
     if (prePopulatedCount > 0) {
         console.log(`[Discord Bot] 🎙️ Pre-populated voice session for ${prePopulatedCount} members active in voice channels (${prePopulatedStreamCount} streaming)`);
     }
+
+    // #223 — Observabilité obfuscation des salons (toggle portail / 16/11/2026) :
+    // compte les salons masqués (name "___hidden___" ou flag CHANNEL_OBFUSCATED 1<<17) par guilde.
+    readyClient.guilds.cache.forEach(guild => {
+        const obfuscatedCount = guild.channels.cache.filter(ch =>
+            ch.name === "___hidden___" || (((ch as { flags?: { bitfield?: number } }).flags?.bitfield ?? 0) & (1 << 17)) !== 0
+        ).size;
+        if (obfuscatedCount > 0) {
+            console.log(`[Discord Bot] 🔒 ${obfuscatedCount} salon(s) obfusqué(s) masqué(s) sur ${guild.name} (${guild.id})`);
+        }
+    });
 });
 
 // ========================

@@ -169,7 +169,7 @@ export async function getGuildatonData(guildId: string): Promise<ActionResponse<
         try {
             const { fetchGuildChannels } = await import("@/server/discord");
             const channels = await fetchGuildChannels(guildId);
-            availableChannels = channels.filter(c => c.type === 0 || c.type === 5).map(c => ({ id: c.id, name: c.name })); // Text & News
+            availableChannels = channels.filter(c => c.type === 0 || c.type === 5).map(c => ({ id: c.id, name: c.name ?? "Salon masqué" })); // Text & News
         } catch(e) {}
         
         const members: GuildatonMember[] = Array.from(allDiscordIds).map(dId => {

@@ -48,7 +48,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
     const [activeAnnouncement, setActiveAnnouncement] = useState(currentAnnouncement);
 
     // Stellium Specific
-    const [stelliumChannels, setStelliumChannels] = useState<{ id: string; name: string }[]>([]);
+    const [stelliumChannels, setStelliumChannels] = useState<{ id: string; name: string | null }[]>([]);
     const [stelliumChannelId, setStelliumChannelId] = useState<string>("");
 
     useEffect(() => {
@@ -325,7 +325,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                     >
                                         <option value="" className="bg-zinc-900 text-zinc-300">Toutes les guildes (Salons d'annonces configurés)</option>
                                         {stelliumChannels.map(c => (
-                                            <option key={c.id} value={c.id} className="bg-zinc-900 text-white"># {c.name}</option>
+                                            <option key={c.id} value={c.id} className="bg-zinc-900 text-white"># {c.name ?? "Salon masqué"}</option>
                                         ))}
                                     </select>
                                 </div>

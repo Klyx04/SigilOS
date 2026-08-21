@@ -25,6 +25,13 @@
 
 ## 🧭 Chantier global (src/temp/chantier) — SESSION 20/09 — ONE-SHOT des 13 chantiers restants + 3 passes de retours
 
+> 🔴 **PRIORITÉ #223 — Résilience Discord long terme** (point dur : **16/11/2026**, obfuscation des salons + HTTP enforcement) :
+> **P0 FAIT (21/08)** — anti-obfuscation implémenté (helpers + `name` nullable + UI « Salon masqué », tsc 0 · lint 0 · 270/270 · build OK).
+> Plan validé + cross-checké doc officielle → `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md`.
+> Source technique : `sigilos-discord-resilience.md` (+ addendum section 20). Mémo : `src/temp/memo-2026-08-21-resilience-discord.md`.
+> **Amorce prochaine itération (P1 → P2 → P3)** : `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md`.
+> **Consignes de dev stabilité long terme : section 5 du plan maître** (couche anti-corruption, IDs only, name nullable, v10, UA, signature + timestamp, pas d'upgrade v11 sans preuve).
+
 > ### SESSION 05/10 → 06/10 — MODULE FICHE BOSS & SIMULATION TACTIQUE **100% TERMINÉ** + SYNC INTELLIGENTE (16 commits POUSSÉS)
 > **05/10** `d1b20c20e` · `c94319206` · `2e6b4f5aa` · `b9b59f2d1` · `a12d4f95c` · `f1c6119ae` ·
 > `97bef55d2` · `db538137f` · `6ef9200ac` — **maps réelles des boss via l'API publique Dofensive**

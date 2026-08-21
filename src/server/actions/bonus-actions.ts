@@ -604,7 +604,7 @@ export async function getBonusConfig(
             const { fetchChannel } = await import("@/server/discord");
             try {
                 const channel = await fetchChannel(config.bonusNotifyChannelId);
-                if (channel) channelName = channel.name;
+                if (channel) channelName = channel.name ?? undefined;
             } catch (err) {
                 logger.error("Failed to fetch bonus channel name:", err);
             }

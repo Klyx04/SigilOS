@@ -512,7 +512,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
                             </SelectTrigger>
                             <SelectContent>
                                 {availableChannels.map((c) => (
-                                    <SelectItem key={c.id} value={c.id}># {c.name}</SelectItem>
+                                    <SelectItem key={c.id} value={c.id}># {c.name ?? "Salon masqué"}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

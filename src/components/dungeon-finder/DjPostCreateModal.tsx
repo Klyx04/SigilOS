@@ -161,7 +161,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                 if (res.success && res.data?.djNotifyChannelId) {
                     getDiscordChannelInfo(guildId, res.data.djNotifyChannelId).then(chanRes => {
                         if (chanRes.success && chanRes.data) {
-                            setTargetChannelName(chanRes.data.name);
+                            setTargetChannelName(chanRes.data.name ?? "Salon masqué");
                         }
                     });
                 }

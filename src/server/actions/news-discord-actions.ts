@@ -127,7 +127,7 @@ export async function getNewsTargetChannelName(guildId: string): Promise<{ succe
         const { getDiscordChannelInfo } = await import("@/server/actions/discord-actions");
         const chanRes = await getDiscordChannelInfo(guildId, config.systemNotifyChannelId);
         if (chanRes.success && chanRes.data) {
-            return { success: true, channelName: chanRes.data.name };
+            return { success: true, channelName: chanRes.data.name ?? undefined };
         }
         return { success: false };
     } catch {

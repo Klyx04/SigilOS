@@ -1760,7 +1760,7 @@ export async function updateGallerySettings(
 export async function getGuildChannels(guildId: string): Promise<{
     success: boolean;
     error?: string;
-    data?: { id: string; name: string; type: number }[];
+    data?: { id: string; name: string | null; type: number }[];
 }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };

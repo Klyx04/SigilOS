@@ -164,7 +164,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     if (res.success && res.data?.songesNotifyChannelId) {
                         getDiscordChannelInfo(guildId, res.data.songesNotifyChannelId).then(chanRes => {
                             if (chanRes.success && chanRes.data) {
-                                setTargetChannelName(chanRes.data.name);
+                                setTargetChannelName(chanRes.data.name ?? "Salon masqué");
                             }
                         });
                     }

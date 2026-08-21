@@ -48,13 +48,75 @@ export function distance(a: DofusPos, b: DofusPos): number {
 }
 
 /**
- * Portée (PO) d'un sort Dofus entre deux cellules, dans le repère losange.
+ * Calcule la distance de lancer entre deux cellules dans le repère losange (u, v).
  *
- * - Sort **libre** (aucune contrainte de direction) : distance de déplacement,
- *   Manhattan `|du|+|dv|` (un pas orthogonal = 1 PO).
- * - Sort **contraint** (ligne et/ou diagonale) : la PO se mesure dans l'axe de
- *   lancer → `max(|du|,|dv|)` (un pas diagonal = 1 PO). Sinon les diagonales
- *   compteraient double (Manhattan 2k pour k pas diagonaux) et la portée serait fausse.
+ * - Sort libre : distance Manhattan |du| + |dv|
+ * - Sort en ligne pure (axes du===0 ou dv===0) : |du| + |dv| (qui vaut max(|du|, |dv|))
+ * - Sort en diagonale pure (|du| === |dv|) : |du| (1 pas diagonal = 1 PO)
+ * - Sort étoile (ligne ou diagonale) : si sur l'axe diagonal -> |du|, si sur l'axe cardinal -> |du|+|dv|
+ */
+export function getSpellRangeDistance(
+    du: number,
+    dv: number,
+    castInLine: boolean,
+    castInDiagonal: boolean
+): number {
+    const isLine = du === 0 || dv === 0;
+    const isDiag = Math.abs(du) === Math.abs(dv);
+
+    if (castInDiagonal && !castInLine) {
+        return isDiag ? Math.abs(du) : -1;
+    }
+    if (castInLine && !castInDiagonal) {
+        return isLine ? Math.abs(du) + Math.abs(dv) : -1;
+    }
+    if (castInLine && castInDiagonal) {
+        if (isDiag) return Math.abs(du);
+        if (isLine) return Math.abs(du) + Math.abs(dv);
+        return -1;
+    }
+    // Sort libre
+    return Math.abs(du) + Math.abs(dv);
+}
+
+/**
+ * Tracé de ligne entre deux cellules dans le repère losange (Bresenham discret Dofus).
+ * Renvoie la suite des cellules (col, row) traversées entre `from` (exclus) et `to` (exclus).
+ */
+export function getLosPath(from: DofusPos, to: DofusPos, isRealMap = true): DofusPos[] {
+    const p0 = isRealMap ? toLos(from.x, from.y) : { x: from.x, y: from.y };
+    const p1 = isRealMap ? toLos(to.x, to.y) : { x: to.x, y: to.y };
+
+    const pts: DofusPos[] = [];
+    const dx = Math.abs(p1.x - p0.x);
+    const dy = Math.abs(p1.y - p0.y);
+    const sx = p0.x < p1.x ? 1 : -1;
+    const sy = p0.y < p1.y ? 1 : -1;
+    let err = dx - dy;
+    let u = p0.x;
+    let v = p0.y;
+
+    while (true) {
+        if (u === p1.x && v === p1.y) break;
+        if (!(u === p0.x && v === p0.y)) {
+            const cell = isRealMap ? losToXY(u, v) : { x: u, y: v };
+            pts.push(cell);
+        }
+        const e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            u += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            v += sy;
+        }
+    }
+    return pts;
+}
+
+/**
+ * Portée (PO) d'un sort Dofus entre deux cellules, dans le repère losange.
  */
 export function castRangeDistance(a: DofusPos, b: DofusPos, hasDirectionConstraint: boolean): number {
     const la = toLos(a.x, a.y);

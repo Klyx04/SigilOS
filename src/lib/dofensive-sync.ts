@@ -18,6 +18,7 @@ import { createHash } from "node:crypto";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofensiveFetch, norm } from "@/lib/dofensive-fetch";
+import type { DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import type { DofensiveDungeonInfo, DofensiveMapData } from "@/server/actions/dofensive-actions";
 
 export const SYNC_TTL = 24 * 60 * 60 * 1000; // 24 h — donnée de jeu statique
@@ -174,6 +175,29 @@ export async function getLocalMonsterStat(monsterName: string): Promise<any | nu
         return row.stats;
     } catch (error) {
         logger.warn("[dofensive-sync] getLocalMonsterStat échec:", { error: String(error) });
+        return null;
+    }
+}
+
+/**
+ * Lit les sorts de combat Dofensive (fusionnés) d'un monstre depuis `MonsterStat.stats.spells`.
+ * Retourne null si absent/périmé OU si les sorts stockés ne sont pas du « combat »
+ * (champ `apCost` + `effects` présents — un simple payload DofusDB ne suffit pas).
+ */
+export async function getLocalDofensiveSpells(monsterId: number): Promise<DofensiveSpellCombat[] | null> {
+    if (!DB_READABLE || !Number.isFinite(monsterId) || monsterId <= 0) return null;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId } });
+        if (!row || !isFresh(row.lastSyncedAt)) return null;
+        const spells = (row.stats as any)?.spells;
+        if (!Array.isArray(spells) || spells.length === 0) return null;
+        // Garde : ne servir que des vrais sorts de combat Dofensive (jamais du DofusDB brut).
+        const combat = spells.filter(
+            (s: any) => s && typeof s?.apCost === "number" && Array.isArray(s?.effects)
+        );
+        return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
+    } catch (error) {
+        logger.warn("[dofensive-sync] getLocalDofensiveSpells échec:", { error: String(error) });
         return null;
     }
 }

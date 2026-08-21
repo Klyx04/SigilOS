@@ -23,7 +23,12 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
-import { getLocalDofensiveDungeon, getLocalDofensiveMap, persistDofensiveMap } from "@/lib/dofensive-sync";
+import {
+    getLocalDofensiveDungeon,
+    getLocalDofensiveMap,
+    getLocalDofensiveSpells,
+    persistDofensiveMap,
+} from "@/lib/dofensive-sync";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -357,10 +362,24 @@ function flattenEffectLines(details: DofensiveSpellEffect[]): string[] {
  */
 export async function getDofensiveSpells(
     monsterId: number,
-    gradeLevel?: number
+    gradeLevel?: number,
+    forceRefresh = false
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const id = toSafeId(monsterId);
     if (!id) return { success: false, error: "ID de monstre invalide" };
+
+    // Local-first (siphon local, chantier 2) : les sorts de combat fusionnés du grade
+    // MAX sont déjà en base (`MonsterStat.stats.spells`) → zéro appel Dofensive. Un
+    // changement de grade explicite (gradeLevel) garde le fetch live (données par grade) ;
+    // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
+    if (gradeLevel === undefined && !forceRefresh) {
+        try {
+            const local = await getLocalDofensiveSpells(id);
+            if (local && local.length > 0) return { success: true, data: local };
+        } catch {
+            // Fallback live ci-dessous
+        }
+    }
 
     const monRaw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
     const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
@@ -438,11 +457,12 @@ export async function getDofensiveSpells(
 export async function getBossDofensiveSpells(
     monsterName: string,
     dungeonName?: string,
-    gradeLevel?: number
+    gradeLevel?: number,
+    forceRefresh = false
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
     const monsterId = dungeon.success ? toSafeId(dungeon.data?.bossMonsterId) : null;
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
-    return getDofensiveSpells(monsterId, gradeLevel);
+    return getDofensiveSpells(monsterId, gradeLevel, forceRefresh);
 }
 

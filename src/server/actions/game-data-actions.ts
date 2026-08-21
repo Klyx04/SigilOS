@@ -708,7 +708,11 @@ const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
 const dungeonFamilyCache = new Map<string, { data: any; expiresAt: number }>();
 const DUNGEON_FAMILY_TTL = 24 * 60 * 60 * 1000;
 
-export async function getMonsterStats(monsterName: string, dungeonName?: string): Promise<ActionResponse<any>> {
+export async function getMonsterStats(
+    monsterName: string,
+    dungeonName?: string,
+    forceRefresh = false
+): Promise<ActionResponse<any>> {
     // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
     const cacheKey = `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
     const cached = monsterStatsCache.get(cacheKey);
@@ -754,7 +758,8 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
     // Local-first (siphon local, chantier 2) : fiche fraîche (< 24 h) → zéro appel
     // DofusDB en direct. Les coordonnées du donjon sont ré-attachées si absentes
     // (le cron de sync ne les stocke pas — elles viennent du worldmap.json local).
-    if (process.env.VITEST !== "true") {
+    // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
+    if (process.env.VITEST !== "true" && !forceRefresh) {
         try {
             const local = await getLocalMonsterStat(monsterName);
             if (local) {

@@ -34,10 +34,12 @@ export async function GET(req: Request) {
 
         for (const b of bosses) {
             try {
-                const statsRes = await getMonsterStats(b.bossName, b.dungeonName);
+                // forceRefresh = true : le cron DOIT re-synchroniser depuis la source
+                // (les getters sont local-first pour les joueurs, pas pour la sync).
+                const statsRes = await getMonsterStats(b.bossName, b.dungeonName, true);
                 if (statsRes.success && statsRes.data) {
                     let data = statsRes.data;
-                    const dRes = await getBossDofensiveSpells(b.bossName, b.dungeonName);
+                    const dRes = await getBossDofensiveSpells(b.bossName, b.dungeonName, undefined, true);
                     if (dRes.success && dRes.data) {
                         data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
                     }

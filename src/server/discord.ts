@@ -4,6 +4,20 @@ import { logger } from "@/lib/logger";
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
+// #223 P1 — Anti-replay des signatures Ed25519 (webhook/interactions) : fenêtre de ±5 min.
+const MAX_SIGNATURE_TIMESTAMP_SKEW_SECONDS = 300;
+
+// #223 P2 — User-Agent conforme aux recommandations Discord (DiscordBot (url, version)).
+export const DISCORD_USER_AGENT = "DiscordBot (https://github.com/Klyx04/SigilOS, 1.0.0)";
+
+/**
+ * #223 P1 — Clé publique Ed25519 valide : exactement 64 caractères hex (32 octets).
+ * Fail-closed si absente, vide ou mal formée.
+ */
+export function isValidEd25519PublicKey(publicKey: string | null | undefined): boolean {
+    return !!publicKey && /^[0-9a-fA-F]{64}$/.test(publicKey);
+}
+
 // =============================================================================
 // In-Memory Cache (TTL-based) for Discord API hot paths
 // Prevents hammering Discord API on every page load / server action
@@ -64,9 +78,14 @@ async function fetchWithRetry(url: string, options: RequestInit): Promise<Respon
         throw new Error("Hôte Discord non autorisé");
     }
 
+    // #223 P2 — User-Agent Discord exigé (DiscordBot (url, version)) sur chaque requête bot.
+    const uaHeaders = new Headers(options.headers);
+    uaHeaders.set("User-Agent", DISCORD_USER_AGENT);
+    const safeOptions: RequestInit = { ...options, headers: uaHeaders };
+
     for (let i = 0; i < MAX_RETRIES; i++) {
         try {
-            const res = await fetch(url, options);
+            const res = await fetch(url, safeOptions);
 
             // If success or client error (4xx) that is not 429, return immediately.
             // We only retry on server errors (5xx) or rate limits (429).
@@ -255,6 +274,42 @@ export async function listGuildMembers(guildId: string, limit = 1000) {
 
     setCached(cacheKey, data, 10 * 60 * 1000); // TTL: 10 minutes
     return data;
+}
+
+/**
+ * #223 P1 — Liste PAGINÉE (limit=1000) de tous les membres d'une guilde (IDs uniquement),
+ * centralisée dans la couche anti-corruption Discord (fetchWithRetry = v10 + SSRF guard + UA).
+ * Remplace le fetch direct paginé de `sync-actions.ts`.
+ */
+export async function fetchAllGuildMembers(guildId: string): Promise<Set<string>> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("DISCORD_BOT_TOKEN not configured");
+
+    const memberIds = new Set<string>();
+    let after = "0";
+    let hasMore = true;
+
+    while (hasMore) {
+        const res = await fetchWithRetry(
+            `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
+            { headers: { Authorization: `Bot ${token}` } }
+        );
+
+        if (!res.ok) {
+            if (res.status === 403) {
+                throw new Error("Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.");
+            }
+            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
+        }
+
+        const members = (await res.json()) as Array<{ user: { id: string } }>;
+        for (const member of members) memberIds.add(member.user.id);
+
+        hasMore = members.length >= 1000;
+        if (hasMore) after = members[members.length - 1].user.id;
+    }
+
+    return memberIds;
 }
 
 export async function fetchGuildBans(guildId: string) {
@@ -1024,12 +1079,35 @@ export async function verifyDiscordSignature(
     const timestamp = request.headers.get("X-Signature-Timestamp");
     const publicKey = process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY;
 
+    // Fail-closed : clé publique absente.
     if (!publicKey) {
-        console.error("[Discord] Missing DISCORD_APPLICATION_PUBLIC_KEY");
+        logger.error("[Discord] Missing DISCORD_APPLICATION_PUBLIC_KEY");
         return false;
     }
 
-    if (!signature || !timestamp) return false;
+    // #223 P1 — Clé publique Ed25519 : 64 hex = 32 octets obligatoires.
+    if (!isValidEd25519PublicKey(publicKey)) {
+        logger.error("[Discord] Clé publique Ed25519 invalide (attendu : 64 hex = 32 octets)");
+        return false;
+    }
+
+    if (!signature || !timestamp) {
+        logger.warn("[Discord] Signature verification aborted: missing signature/timestamp headers");
+        return false;
+    }
+
+    // #223 P1 — Anti-replay : rejeter les timestamps hors de la fenêtre de fraîcheur (±5 min).
+    const ts = parseInt(timestamp, 10);
+    if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > MAX_SIGNATURE_TIMESTAMP_SKEW_SECONDS) {
+        logger.warn("[Discord] Signature verification failed: timestamp hors fenêtre (anti-replay)");
+        return false;
+    }
+
+    // Signature Ed25519 : 64 octets = 128 hex.
+    if (!/^[0-9a-fA-F]{128}$/.test(signature)) {
+        logger.warn("[Discord] Signature verification failed: format signature invalide");
+        return false;
+    }
 
     try {
         const hexToUint8Array = (hex: string) => {
@@ -1040,7 +1118,7 @@ export async function verifyDiscordSignature(
         const keyData = hexToUint8Array(publicKey);
         const key = await crypto.subtle.importKey(
             "raw",
-            keyData.buffer as ArrayBuffer,
+            keyData,
             { name: "Ed25519" },
             false,
             ["verify"]
@@ -1049,9 +1127,9 @@ export async function verifyDiscordSignature(
         const message = new TextEncoder().encode(timestamp + body);
         const sig = hexToUint8Array(signature);
 
-        return await crypto.subtle.verify("Ed25519", key, sig.buffer as ArrayBuffer, message);
+        return await crypto.subtle.verify("Ed25519", key, sig, message);
     } catch (error) {
-        console.error("Signature verification failed:", error);
+        logger.error("Signature verification failed:", { error });
         return false;
     }
 }

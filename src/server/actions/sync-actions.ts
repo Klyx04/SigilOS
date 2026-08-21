@@ -16,10 +16,8 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
 import { createAuditLog } from "./audit-actions";
-import { fetchGuildBans } from "@/server/discord";
+import { fetchGuildBans, fetchAllGuildMembers } from "@/server/discord";
 import { sendLifecycleNotification } from "./lifecycle-actions";
-
-const DISCORD_API = "https://discord.com/api/v10";
 
 interface SyncResult {
     success: boolean;
@@ -33,53 +31,7 @@ interface SyncResult {
     };
 }
 
-/**
- * Fetch all members from a Discord guild
- * Uses pagination to handle large guilds (1000 members per request)
- */
-async function fetchAllGuildMembers(discordGuildId: string): Promise<Set<string>> {
-    const token = process.env.DISCORD_BOT_TOKEN;
-    if (!token) throw new Error("DISCORD_BOT_TOKEN not configured");
 
-    const memberIds = new Set<string>();
-    let after = "0";
-    let hasMore = true;
-
-    while (hasMore) {
-        const res = await fetch(
-            `${DISCORD_API}/guilds/${discordGuildId}/members?limit=1000&after=${after}`,
-            {
-                headers: { Authorization: `Bot ${token}` },
-            }
-        );
-
-        if (!res.ok) {
-            const errText = await res.text();
-            logger.error(`[Sync] Failed to fetch members: ${res.status} - ${errText}`);
-
-            if (res.status === 403) {
-                throw new Error("Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.");
-            }
-
-            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
-        }
-
-        const members = await res.json();
-
-        for (const member of members) {
-            memberIds.add(member.user.id);
-        }
-
-        if (members.length < 1000) {
-            hasMore = false;
-        } else {
-            after = members[members.length - 1].user.id;
-        }
-    }
-
-    logger.info(`[Sync] Successfully fetched ${memberIds.size} unique member IDs from Discord.`);
-    return memberIds;
-}
 
 /**
  * Sync membership status for a guild

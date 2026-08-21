@@ -63,6 +63,13 @@ function safeChannelLabel(name: string | null | undefined): string {
     return !name || name === "___hidden___" ? "Salon masqué" : name;
 }
 
+// #223 P2 — Intents privilégiés (doc stabilité long terme) :
+//  - GuildMembers : synchro des membres (GuildMemberAdd/Remove/Update) + roster.
+//  - MessageContent : suivi des messages (Ladder Discord) + contenu des embeds
+//    (blacklist #85). Activation : 2026 — réexamen / re-apply annuel requis
+//    au-delà de 10 000 utilisateurs (review Discord).
+//  - GuildMessageTyping : retiré (F-24, least privilege — pas besoin de lire
+//    les frappes clavier).
 const client = new Client({
         intents: [
         GatewayIntentBits.Guilds,

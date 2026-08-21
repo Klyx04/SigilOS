@@ -21,9 +21,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { verifyDiscordSignature } from "@/server/discord";
+import { revokeDiscordAccountSession } from "@/lib/discord-account-hygiene";
 
 type DiscordWebhookEventData = {
     type?: string;
@@ -56,22 +56,32 @@ async function handleApplicationDeauthorized(payload: DiscordWebhookPayload): Pr
         return;
     }
 
-    // Lookup NON destructif (best-effort) : retrouver le compte SigilOS lié.
-    let userId: string | null = null;
-    try {
-        const account = await db.account.findFirst({
-            where: { provider: "discord", providerAccountId: discordUserId },
-            select: { userId: true },
-        });
-        userId = account?.userId ?? null;
-    } catch (error) {
-        logger.error("[Discord Webhook] APPLICATION_DEAUTHORIZED — lookup account échoué:", { error });
+    // #223 P3.2 — Hygiène de compte branchée : dé-liaison OAuth + invalidation des sessions.
+    // Best-effort (ne throw jamais) : l'ACK 204 doit toujours partir.
+    const result = await revokeDiscordAccountSession(discordUserId);
+
+    logger.warn("[Discord Webhook] APPLICATION_DEAUTHORIZED", {
+        discordUserId,
+        revoked: result.revoked,
+        userId: result.revoked ? result.userId : null,
+        reason: result.revoked ? null : result.reason,
+    });
+
+    // Traçage God (audit système, sans session utilisateur).
+    if (result.revoked) {
+        try {
+            const { createSystemAuditLog } = await import("@/lib/dofensive-sync");
+            await createSystemAuditLog({
+                action: "DISCORD_DEAUTHORIZED",
+                targetType: "USER",
+                targetId: result.userId,
+                discordUserId,
+                sessionRevoked: true,
+            });
+        } catch (auditErr) {
+            logger.warn("[Discord Webhook] createSystemAuditLog échoué:", { error: String(auditErr) });
+        }
     }
-
-    logger.warn("[Discord Webhook] APPLICATION_DEAUTHORIZED", { discordUserId, userId });
-
-    // TODO #223 P3 : révocation de session Auth.js + hygiène de compte.
-    // (Un refresh qui échoue avec `invalid_grant` équivaut à un deauthorized.)
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

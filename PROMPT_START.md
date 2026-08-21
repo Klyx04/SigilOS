@@ -12,14 +12,11 @@
 Réfère-toi à @/CONTEXT.md pour le contexte complet.
 
 📋 OUVRE AUSSI (obligatoire avant toute tâche) :
-- @/src/temp/chantier.md — la liste de tâches du chantier AVEC ses annotations de progression
-  (✅ FAIT / 🔸 PARTIEL / ⚪ EN ATTENTE). Ne supprime jamais de demande ; annoter chaque item traité
-  en 1-2 lignes à chaque itération. ⚠️ Deux items sont numérotés « 46 » — le 2ᵉ = #46bis.
-  (⚠️ le chemin exact est `src/temp/chantier.md` — le fichier `chantier` sans extension n'existe pas).
-- La mémo de session la plus récente pour la priorité #223 (résilience Discord) : `src/temp/memo-2026-08-21-resilience-discord.md`
-  (+ amorce P1/P2/P3 : `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md`).
-- Mémo générale : `src/temp/memo-2026-09-04-chantier-place-marche-metamob.md` pour l'état réel global (ce qui reste à faire,
-  les PR en attente, les migrations à vérifier).
+- @/src/temp/chantier-actif.md — demandes OUVERTES + dernières annotations (léger, à lire à chaque session).
+  ⚠️ Historique complet (toutes demandes annotées depuis 2026) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md` (à la demande).
+- Mémo de session priorité #223 (résilience Discord) : `src/temp/memo-2026-08-21-resilience-discord.md`
+  (+ amorce P3/finition/veille : `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md`).
+- ⚠️ Historique complet des sessions (avant 21/08/2026) : `src/temp/archive/contexte/CONTEXT-historique-complet-2026-08-21.md` (à la demande).
 
 🔒 Exigences systématiques (état de l'art) :
 - Sécurité : respecter RULES.md + SECURITY.md (fail-closed, auth sur chaque action,
@@ -90,9 +87,9 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 
 > ⚠️ **Règle permanente** : au démarrage d'une nouvelle session, lire la mémo de session la plus récente, puis **la mettre à jour** en fin de session (ajouter ce qui a été fait, supprimer ce qui est obsolète, corriger toute info devenue fausse).
 
-> 📌 **Liste des tâches** : le fichier `src/temp/chantier` EST la source des tâches. Chaque session
-> doit l'ouvrir, annoter en 1-2 lignes les items traités (✅ FAIT / 🔸 PARTIEL / ⚪ EN ATTENTE),
-> et NE JAMAIS supprimer une demande (on ajoute, on reformate, on annote).
+> 📌 **Liste des tâches** : `src/temp/chantier-actif.md` = demandes OUVERTES (léger, à lire/annoter chaque session).
+> L’historique complet (toutes demandes annotées) est archivé : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`.
+> On NE JAMAIS supprimer une demande (on ajoute, on reformate, on annote) — l’archive conserve tout.
 
 - **Emplacement** : `src/temp/memo-*.md` (dossier **non commité** — jamais poussé sur git).
 - **But** : garder une trace fiable de l'état réel entre les sessions, car `.antigravity` n'est **plus mis à jour** et ne doit plus servir de référence.

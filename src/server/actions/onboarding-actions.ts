@@ -180,18 +180,25 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
     if (!guildConfig) return;
 
     // Helper to strip HTML tags
+    // CodeQL js/incomplete-multi-character-sanitization : le retrait des tags est appliqué
+    // EN BOUCLE jusqu'à stabilité — aucun tag ne peut se reformer depuis un résidu
+    // (ex. `<scri<script></script>pt>` → plus jamais de `<script>` dans la sortie).
     const stripHtml = (html: string) => {
         if (!html) return "";
-        return html
+        let clean = html
             .replace(/<p>/g, "")
             .replace(/<\/p>/g, "\n")
             .replace(/<br\s*\/?>/g, "\n")
             .replace(/<strong>/g, "**")
             .replace(/<\/strong>/g, "**")
             .replace(/<em>/g, "_")
-            .replace(/<\/em>/g, "_")
-            .replace(/<[^>]*>?/gm, "")
-            .trim();
+            .replace(/<\/em>/g, "_");
+        let previous: string;
+        do {
+            previous = clean;
+            clean = clean.replace(/<[^>]*>/g, "");
+        } while (clean !== previous);
+        return clean.trim();
     };
 
     // Fetch user profile to get Discord ID if needed for pinging

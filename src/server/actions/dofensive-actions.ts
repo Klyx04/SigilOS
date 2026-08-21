@@ -16,77 +16,19 @@
  * renvoie { success: false } et le client garde son fallback local.
  */
 
-import { logger } from "@/lib/logger";
 import type {
     DofensiveSpellCombat,
     DofensiveSpellZone,
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
+import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
+import { getLocalDofensiveDungeon, getLocalDofensiveMap, persistDofensiveMap } from "@/lib/dofensive-sync";
 
 type ActionResponse<T = void> = {
     success: boolean;
     error?: string;
     data?: T;
 };
-
-const DOFENSIVE_BASE = "https://dofensive.com/api/dofus2/bestiary";
-const DOFENSIVE_HEADERS = {
-    Accept: "application/json",
-    "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)",
-};
-
-const dofensiveCache = new Map<string, { data: unknown; expiresAt: number }>();
-const DOFENSIVE_TTL = 24 * 60 * 60 * 1000; // 24 h — data de jeu statique
-
-// ── Garde anti-SSRF ─────────────────────────────────────────────────────────
-// Les IDs (map/monstre/sort) peuvent provenir du client (query params ?boss=&dungeon=,
-// sélecteur de salle, liste de sorts). On ne construit JAMAIS d'URL avec une valeur
-// non validée : allowlist stricte des chemins Dofensive + ID entier strictement positif.
-const DOFENSIVE_PATH_RE =
-    /^\/(?:dungeons\/preview\?lang=fr|maps\/\d+\?lang=fr|monsters\/\d+\?lang=fr|spells\/\d+\?lang=fr)$/;
-
-/** Convertit un ID Dofensive en entier strictement positif, ou `null` si invalide (anti-SSRF). */
-function toSafeId(value: number | string | null | undefined): number | null {
-    const n = typeof value === "number" ? value : Number(String(value ?? "").trim());
-    if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
-    return n;
-}
-
-function norm(s: string): string {
-    return String(s ?? "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
-}
-
-async function dofensiveFetch<T>(path: string, key: string): Promise<T | null> {
-    // Garde SSRF : seul un chemin de l'allowlist (IDs entiers) peut atteindre fetch().
-    if (!DOFENSIVE_PATH_RE.test(path)) {
-        logger.error(`[dofensive] Chemin refusé (garde SSRF): ${path}`);
-        return null;
-    }
-    const cached = dofensiveCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.data as T;
-
-    try {
-        const res = await fetch(`${DOFENSIVE_BASE}${path}`, {
-            headers: DOFENSIVE_HEADERS,
-            cache: "no-store",
-            signal: AbortSignal.timeout(15_000),
-        });
-        if (!res.ok) throw new Error(`Dofensive HTTP ${res.status}`);
-        const json = (await res.json()) as { Data?: unknown; Errors?: unknown[] };
-        const data = json?.Data ?? null;
-        if (data !== null && data !== undefined) {
-            dofensiveCache.set(key, { data, expiresAt: Date.now() + DOFENSIVE_TTL });
-        }
-        return data as T;
-    } catch (error) {
-        logger.error(`[dofensive] ${key} — fetch failed:`, { error });
-        return null;
-    }
-}
 
 // ─── Types exposés (camelCase normalisé) ────────────────────────────────────
 
@@ -144,6 +86,15 @@ export async function getDofensiveDungeonForBoss(
     dungeonName?: string
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     if (!bossName || !bossName.trim()) return { success: false, error: "Nom de boss manquant" };
+
+    // Local-first (siphon local, chantier 2) : donjon déjà synchronisé en base →
+    // zéro appel réseau Dofensive (les maps/monstres/boss y sont stockés).
+    try {
+        const local = await getLocalDofensiveDungeon(bossName, dungeonName);
+        if (local) return { success: true, data: local };
+    } catch {
+        // Fallback live ci-dessous
+    }
 
     const dungeons = await dofensiveFetch<any[]>(
         "/dungeons/preview?lang=fr",
@@ -205,13 +156,21 @@ export async function getDofensiveDungeonForBoss(
     };
 }
 
-/** Charge une map réelle Dofensive (grille d'obstacles + cases de départ). */
+/** Charge une map réelle Dofensive (grille d'obstacles + cases de départ) — local-first. */
 export async function getDofensiveMap(mapId: number | string): Promise<ActionResponse<DofensiveMapData>> {
     const id = toSafeId(mapId);
     if (!id) return { success: false, error: "ID de map invalide" };
 
+    // 1. Essai local-first (PostgreSQL)
+    try {
+        const local = await getLocalDofensiveMap(id);
+        if (local) return { success: true, data: local };
+    } catch {
+        // Fallback live ci-dessous
+    }
+
+    // 2. Fetch live Dofensive
     const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `dofensive-map-${id}`);
-    // /maps/{id} → Data: [{ ...map }] (tableau à un élément), comme les autres endpoints.
     const item = Array.isArray(raw) ? raw[0] : raw;
     if (!item) return { success: false, error: "Map introuvable chez Dofensive" };
 
@@ -219,20 +178,22 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
         ? item.Cells.map((row: any) => (Array.isArray(row) ? row.map((v: any) => Number(v) || 0) : []))
         : [];
 
-    return {
-        success: true,
-        data: {
-            id: item.Id as number,
-            name: String(item.Name ?? ""),
-            subarea: item.Subarea ? { id: item.Subarea.Id as number, name: String(item.Subarea.Name ?? "") } : null,
-            dungeon: item.Dungeon ? { id: item.Dungeon.Id as number, name: String(item.Dungeon.Name ?? "") } : null,
-            isBossMap: !!item.IsBossMap,
-            coordinates: item.Coordinates ? { x: item.Coordinates.X as number, y: item.Coordinates.Y as number } : null,
-            cells,
-            allyCells: Array.isArray(item.AllyCells) ? item.AllyCells.map((v: any) => Number(v)) : [],
-            enemyCells: Array.isArray(item.EnemyCells) ? item.EnemyCells.map((v: any) => Number(v)) : [],
-        },
+    const data: DofensiveMapData = {
+        id: item.Id as number,
+        name: String(item.Name ?? ""),
+        subarea: item.Subarea ? { id: item.Subarea.Id as number, name: String(item.Subarea.Name ?? "") } : null,
+        dungeon: item.Dungeon ? { id: item.Dungeon.Id as number, name: String(item.Dungeon.Name ?? "") } : null,
+        isBossMap: !!item.IsBossMap,
+        coordinates: item.Coordinates ? { x: item.Coordinates.X as number, y: item.Coordinates.Y as number } : null,
+        cells,
+        allyCells: Array.isArray(item.AllyCells) ? item.AllyCells.map((v: any) => Number(v)) : [],
+        enemyCells: Array.isArray(item.EnemyCells) ? item.EnemyCells.map((v: any) => Number(v)) : [],
     };
+
+    // Auto-persistance locale en arrière-plan (self-healing)
+    persistDofensiveMap(data).catch(() => {});
+
+    return { success: true, data };
 }
 
 /** Charge un monstre Dofensive (maps préférées + donjons + sorts). */
@@ -307,7 +268,10 @@ function renderEffectName(name: any, params: any[] | undefined): string {
  * cooldown, max cast, zone AoE). Grade = dernier niveau (le plus haut), cohérent avec
  * la fiche boss. Anti-SSRF : l'ID est validé avant toute construction d'URL.
  */
-export async function getDofensiveSpells(monsterId: number): Promise<ActionResponse<DofensiveSpellCombat[]>> {
+export async function getDofensiveSpells(
+    monsterId: number,
+    gradeLevel?: number
+): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const id = toSafeId(monsterId);
     if (!id) return { success: false, error: "ID de monstre invalide" };
 
@@ -335,7 +299,11 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
             const spell = Array.isArray(raw) ? raw[0] : raw;
             if (!spell) return null;
             const levels: any[] = Array.isArray(spell.Levels) ? spell.Levels : [];
-            const level = levels[levels.length - 1] ?? levels[0];
+            // Sélectionne le niveau correspondant au grade demandé ou le grade maximum
+            const targetIdx = typeof gradeLevel === "number" && gradeLevel >= 1 && gradeLevel <= levels.length
+                ? gradeLevel - 1
+                : levels.length - 1;
+            const level = levels[targetIdx] ?? levels[levels.length - 1] ?? levels[0];
             if (!level) return null;
             const firstGroup = level.GroupEffects?.[0];
             const firstEffect = firstGroup?.Effects?.[0];
@@ -377,11 +345,12 @@ export async function getDofensiveSpells(monsterId: number): Promise<ActionRespo
  */
 export async function getBossDofensiveSpells(
     monsterName: string,
-    dungeonName?: string
+    dungeonName?: string,
+    gradeLevel?: number
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
     const monsterId = dungeon.success ? toSafeId(dungeon.data?.bossMonsterId) : null;
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
-    return getDofensiveSpells(monsterId);
+    return getDofensiveSpells(monsterId, gradeLevel);
 }
 

@@ -175,9 +175,163 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         expect(starting?.effects).toEqual(["101 dommages Eau"]);
         expect(starting?.imageUrl).toBe("https://cdn.static.dofensive.com/dofensive/spells/2676");
         expect(starting?.zone).toEqual({ shape: "Point", size: 0, range: 0 }); // Cellule ciblée → Point
+        // Nouveaux champs enrichis : grade + version structurée des effets.
+        expect(starting?.grade).toBe(1);
+        expect(starting?.effectDetails).toEqual([
+            { label: "101 dommages Eau", duration: null, triggers: [], masks: [] },
+        ]);
+        expect(starting?.hasCriticalEffects).toBe(false);
+        expect(starting?.criticalEffects).toBeUndefined();
+    });
+
+    it("getDofensiveSpells : description, durées (infini / N tours), déclencheurs, masques, pluriels", async () => {
+        const fetchMock = vi.fn((url: unknown) => {
+            const u = String(url);
+            if (u.includes("/monsters/2986")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            Id: 2986,
+                            Spells: [{ Id: 2479, Name: "Baïkal" }],
+                            Grades: [{ StartingSpell: { Id: 32666, Name: "Piautre" } }],
+                        },
+                    ])
+                );
+            }
+            if (u.includes("/spells/32666")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            Id: 32666,
+                            Name: "Piautre",
+                            Description: "Ce sort est lancé une seule fois par l'ennemi lorsqu'il rejoint le combat.",
+                            Levels: [
+                                {
+                                    Grade: 1,
+                                    ActionPoints: 5,
+                                    MinRange: 0,
+                                    Range: 0,
+                                    CastLineOfSight: false,
+                                    GroupEffects: [
+                                        {
+                                            Effects: [
+                                                {
+                                                    Name: "État Invulnérable",
+                                                    Parameters: [],
+                                                    Duration: -1,
+                                                    TargetTriggers: [
+                                                        { Name: "{La cible |0}reçoit des dommages d'une invocation", Parameters: [] },
+                                                    ],
+                                                    InclusionMasks: [{ Name: "{Affecte |0}le lanceur (même en-dehors de la zone d'effet)", Parameters: [] }],
+                                                },
+                                                {
+                                                    Name: "#1 Fuite",
+                                                    Parameters: [{ Name: "-10" }],
+                                                    Duration: 1,
+                                                    TargetTriggers: [
+                                                        { Name: "{La cible |0}reçoit des dommages d'une invocation", Parameters: [] },
+                                                    ],
+                                                },
+                                                {
+                                                    Name: "Attire de #1 case{s|#1}",
+                                                    Parameters: [{ Name: "2" }],
+                                                    Duration: 0,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                    GroupCriticalEffects: [],
+                                },
+                            ],
+                        },
+                    ])
+                );
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await getDofensiveSpells(2986);
+        expect(res.success).toBe(true);
+        const spell = res.data?.[0];
+        expect(spell?.name).toBe("Piautre");
+        expect(spell?.grade).toBe(1); // « Piautre (Niv. 1) »
+        expect(spell?.description).toBe("Ce sort est lancé une seule fois par l'ennemi lorsqu'il rejoint le combat.");
+        // Lignes plates : label + (durée) + déclencheurs.
+        expect(spell?.effects).toEqual([
+            "État Invulnérable (infini)",
+            "L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation",
+            "-10 Fuite (pour 1 tour)",
+            "L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation",
+            "Attire de 2 cases",
+        ]);
+        // Version structurée : durées, déclencheurs, masques.
+        expect(spell?.effectDetails?.[0]).toEqual({
+            label: "État Invulnérable",
+            duration: "infini",
+            triggers: ["L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation"],
+            masks: ["Affecte le lanceur (même en-dehors de la zone d'effet)"],
+        });
+        expect(spell?.effectDetails?.[1]).toEqual({
+            label: "-10 Fuite",
+            duration: "pour 1 tour",
+            triggers: ["L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation"],
+            masks: [],
+        });
+        // Aucun effet critique → « Aucun effet critique » côté UI.
+        expect(spell?.hasCriticalEffects).toBe(false);
+        expect(spell?.criticalEffects).toBeUndefined();
+    });
+    it("getDofensiveSpells : les GroupCriticalEffects remplissent la section critiques", async () => {
+        const fetchMock = vi.fn((url: unknown) => {
+            const u = String(url);
+            if (u.includes("/monsters/777")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            Id: 777,
+                            Grades: [{ StartingSpell: { Id: 2480, Name: "Illyana" } }],
+                        },
+                    ])
+                );
+            }
+            if (u.includes("/spells/2480")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            Id: 2480,
+                            Name: "Illyana",
+                            Levels: [
+                                {
+                                    Grade: 2,
+                                    CriticalProbability: 20,
+                                    GroupEffects: [
+                                        { Effects: [{ Name: "#1 soins Feu", Parameters: [{ Name: "86" }], Duration: 0 }] },
+                                    ],
+                                    GroupCriticalEffects: [
+                                        { Effects: [{ Name: "#1 soins Feu", Parameters: [{ Name: "95" }], Duration: 0 }] },
+                                    ],
+                                },
+                            ],
+                        },
+                    ])
+                );
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await getDofensiveSpells(777);
+        expect(res.success).toBe(true);
+        const spell = res.data?.[0];
+        expect(spell?.grade).toBe(2);
+        expect(spell?.effects).toEqual(["86 soins Feu"]);
+        expect(spell?.hasCriticalEffects).toBe(true);
+        expect(spell?.criticalEffects).toEqual(["95 soins Feu"]);
     });
 
     it("mergeDofensiveSpells : le combat Dofensive prime, icône CDN Dofensive préférée", () => {
+
         const dbSpells = [
             { id: 10591, name: "Sort Test", imageUrl: "https://img/spell.png", description: "descr", apCost: 3, range: 4 },
             { id: 99999, name: "Sort Invocation", imageUrl: "https://img/invoc.png" },

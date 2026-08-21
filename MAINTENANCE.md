@@ -42,8 +42,33 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
 - `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
 - `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
+- `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
+- `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). Fréquence recommandée : quotidien (`45 3 * * *`).
+- `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
+
+## ✅ Checklist Déploiement — Sync intelligente fiches boss (chantier 06/10, branche `feat/chantier-2026-09-07`)
+
+1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20261005010000_add_dofensive_sync_tables` (tables `DofensiveDungeon`, `DofensiveMap`, `MonsterStat`).
+2. **Crontab VPS** (3 lignes) :
+   ```
+   30 3 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-dofensive-maps > /dev/null
+   45 3 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-monster-stats > /dev/null
+   15 4 * * 0 curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/check-links > /dev/null
+   ```
+3. **Pré-chauffage optionnel (recommandé)** — lance manuellement les 2 syncs une fois (le 1er run de `sync-monster-stats` est lourd : 10-30 min, à faire de nuit) :
+   ```
+   curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-dofensive-maps
+   curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-monster-stats
+   ```
+4. **Sans pré-chauffage, pas de panne** : les actions sont « local-first » — données absentes/périmées (> 24 h) → fetch live Dofensive/DofusDB depuis le VPS + auto-persistance (self-healing). Les joueurs ne contactent jamais les API externes directement.
+5. **Audit** : chaque run écrit un log God (`createSystemAuditLog`, `actorName: "Système (Cron)"`) visible dans `/god` → Audit Logs.
+
+---
+
+
 
 ## ✅ Checklist Déploiement — chantier session 05/09 (à faire au prochain deploy beta + prod)
+
 
 > Tout le code est sur `feat/chantier-2026-09-04` (PR #505) — merger sur `dev` puis déployer.
 

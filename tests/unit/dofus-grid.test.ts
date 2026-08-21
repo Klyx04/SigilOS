@@ -8,6 +8,8 @@ import {
     classifyGrid,
     distance,
     elevationOf,
+    getLosPath,
+    getSpellRangeDistance,
     isWalkable,
     losToXY,
     positionToCellId,
@@ -194,4 +196,39 @@ describe("dofus-grid — repère losange inverse + zones d'effet (AoE)", () => {
             expect(c.y).toBeLessThan(5);
         }
     });
+
+    it("getSpellRangeDistance : ligne, diagonale, étoile et libre", () => {
+        // Sort libre
+        expect(getSpellRangeDistance(2, 3, false, false)).toBe(5);
+        expect(getSpellRangeDistance(0, 4, false, false)).toBe(4);
+
+        // Sort en ligne pure (du=0 ou dv=0)
+        expect(getSpellRangeDistance(0, 3, true, false)).toBe(3);
+        expect(getSpellRangeDistance(4, 0, true, false)).toBe(4);
+        expect(getSpellRangeDistance(2, 2, true, false)).toBe(-1); // diagonale rejetée
+        expect(getSpellRangeDistance(1, 2, true, false)).toBe(-1); // hors axe rejeté
+
+        // Sort en diagonale pure (|du| == |dv|)
+        expect(getSpellRangeDistance(3, 3, false, true)).toBe(3);
+        expect(getSpellRangeDistance(-3, 3, false, true)).toBe(3);
+        expect(getSpellRangeDistance(0, 3, false, true)).toBe(-1); // ligne rejetée
+        expect(getSpellRangeDistance(2, 3, false, true)).toBe(-1);
+
+        // Sort étoile (ligne ET diagonale)
+        expect(getSpellRangeDistance(0, 4, true, true)).toBe(4);
+        expect(getSpellRangeDistance(3, 3, true, true)).toBe(3);
+        expect(getSpellRangeDistance(2, 3, true, true)).toBe(-1);
+    });
+
+    it("getLosPath : trace une trajectoire discrète exempte du lanceur et de la cible", () => {
+        // Dans le repère losange, 4 pas le long d'un axe (u+4, v) -> 3 cellules intermédiaires
+        const p0 = { x: 7, y: 20 };
+        const u0 = toLos(p0.x, p0.y);
+        const p1 = losToXY(u0.x + 4, u0.y);
+        const path = getLosPath(p0, p1, true);
+        expect(path.length).toBe(3);
+        expect(path).not.toContainEqual(p0);
+        expect(path).not.toContainEqual(p1);
+    });
 });
+

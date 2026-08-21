@@ -117,6 +117,8 @@ describe("CSP nonce-based", () => {
             expect(directive).toContain("https://i.imgur.com");
             expect(directive).toContain("https://unavatar.io");
             expect(directive).toContain("https://media.discordapp.net");
+            // Icônes de sorts Dofensive (fiches boss / simulation) — cdn.static.dofensive.com
+            expect(directive).toContain("https://cdn.static.dofensive.com");
         });
 
         it("reports violations to /api/csp-report (F-29)", () => {

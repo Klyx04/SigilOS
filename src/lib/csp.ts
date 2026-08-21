@@ -71,6 +71,7 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
         "https://barbofus.com https://www.barbofus.com https://static.barbofus.com",
         "https://www.google.com https://*.gstatic.com",
         "https://ganymede-dofus.com https://ganymede-app.com",
+        "https://cdn.static.dofensive.com", // icônes de sorts Dofensive (fiches boss / simulation)
         "https://images.unsplash.com",
         "https://i.imgur.com",
         "https://unavatar.io", // avatars Createurs (YT/Twitch)

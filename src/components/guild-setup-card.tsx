@@ -8,6 +8,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"; // Assuming sonner or use a simple alert if not available
+import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 
 type GuildProps = {
     id: string;
@@ -32,9 +33,14 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
             }
 
             // Using window.location.origin ensures we redirect back to the correct environment (localhost/beta/prod)
-            const redirectUri = encodeURIComponent(`${window.location.origin}/onboarding/success`);
-            const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot&redirect_uri=${redirectUri}&response_type=code`;
-            
+            // #223 P2 — bitmask minimal (plus de permissions=8 Administrateur).
+            const inviteUrl = buildDiscordBotInviteUrl(clientId, {
+                redirectUri: `${window.location.origin}/onboarding/success`,
+                scope: "bot",
+            });
+
+            if (!inviteUrl) return; // fail-closed (clientId déjà vérifié, garde TS)
+
             // Open in a new tab to keep the context, but we list for completion
             window.open(inviteUrl, "_blank");
             return;

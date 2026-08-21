@@ -63,6 +63,13 @@ function safeChannelLabel(name: string | null | undefined): string {
     return !name || name === "___hidden___" ? "Salon masqué" : name;
 }
 
+// #223 P2 — Intents privilégiés (doc stabilité long terme) :
+//  - GuildMembers : synchro des membres (GuildMemberAdd/Remove/Update) + roster.
+//  - MessageContent : suivi des messages (Ladder Discord) + contenu des embeds
+//    (blacklist #85). Activation : 2026 — réexamen / re-apply annuel requis
+//    au-delà de 10 000 utilisateurs (review Discord).
+//  - GuildMessageTyping : retiré (F-24, least privilege — pas besoin de lire
+//    les frappes clavier).
 const client = new Client({
         intents: [
         GatewayIntentBits.Guilds,
@@ -110,6 +117,17 @@ client.once(Events.ClientReady, (readyClient) => {
     if (prePopulatedCount > 0) {
         console.log(`[Discord Bot] 🎙️ Pre-populated voice session for ${prePopulatedCount} members active in voice channels (${prePopulatedStreamCount} streaming)`);
     }
+
+    // #223 — Observabilité obfuscation des salons (toggle portail / 16/11/2026) :
+    // compte les salons masqués (name "___hidden___" ou flag CHANNEL_OBFUSCATED 1<<17) par guilde.
+    readyClient.guilds.cache.forEach(guild => {
+        const obfuscatedCount = guild.channels.cache.filter(ch =>
+            ch.name === "___hidden___" || (((ch as { flags?: { bitfield?: number } }).flags?.bitfield ?? 0) & (1 << 17)) !== 0
+        ).size;
+        if (obfuscatedCount > 0) {
+            console.log(`[Discord Bot] 🔒 ${obfuscatedCount} salon(s) obfusqué(s) masqué(s) sur ${guild.name} (${guild.id})`);
+        }
+    });
 });
 
 // ========================

@@ -13,6 +13,7 @@ import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES } from "@/lib/presentation-cons
 // ============================================================================
 import { sanitizeHtml, sanitizeDiscordLink, sanitizeName } from "@/lib/security";
 import { buildDiscordAvatarUrl } from "@/lib/discord-avatars";
+import { listGuildMembers } from "@/server/discord";
 
 // Local validation helpers
 function validateServerName(server: string | null): string | null {
@@ -386,20 +387,8 @@ export async function getDiscordMembersForSelection(
     }
 
     try {
-        const token = process.env.DISCORD_BOT_TOKEN;
-        const res = await fetch(
-            `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,
-            {
-                headers: { Authorization: `Bot ${token}` },
-                next: { revalidate: 60 },
-            }
-        );
-
-        if (!res.ok) {
-            return { success: false, error: "Impossible de récupérer les membres" };
-        }
-
-        const members = await res.json();
+        // #223 P1 — Fetch centralisé dans la couche Discord (v10 + SSRF guard + UA + cache).
+        const members = await listGuildMembers(guildId);
 
         const humanMembers: DiscordMemberOption[] = members
             .filter((m: any) => !m.user?.bot)

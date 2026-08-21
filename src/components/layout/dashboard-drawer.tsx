@@ -25,6 +25,7 @@ import { getGuildsSeparated } from "@/server/actions/user-actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 
 interface DashboardDrawerProps {
     children: React.ReactNode;
@@ -175,7 +176,10 @@ export function DashboardDrawer({ children, clientId = "1458259008355045519" }: 
                                                     <p className="text-caption font-medium text-muted-foreground/70 mt-0.5">Admin Discord Détecté</p>
                                                 </div>
                                                 <Link 
-                                                    href={`https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(window.location.origin + '/onboarding/success')}&response_type=code`}
+                                                    href={buildDiscordBotInviteUrl(clientId, {
+                                                        guildId: guild.id,
+                                                        redirectUri: `${window.location.origin}/onboarding/success`,
+                                                    }) ?? "#"}
                                                     target="_blank"
                                                     className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center text-success hover:bg-success hover:text-success-foreground transition-colors"
                                                 >

@@ -4,6 +4,20 @@ import { logger } from "@/lib/logger";
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
+// #223 P1 — Anti-replay des signatures Ed25519 (webhook/interactions) : fenêtre de ±5 min.
+const MAX_SIGNATURE_TIMESTAMP_SKEW_SECONDS = 300;
+
+// #223 P2 — User-Agent conforme aux recommandations Discord (DiscordBot (url, version)).
+export const DISCORD_USER_AGENT = "DiscordBot (https://github.com/Klyx04/SigilOS, 1.0.0)";
+
+/**
+ * #223 P1 — Clé publique Ed25519 valide : exactement 64 caractères hex (32 octets).
+ * Fail-closed si absente, vide ou mal formée.
+ */
+export function isValidEd25519PublicKey(publicKey: string | null | undefined): boolean {
+    return !!publicKey && /^[0-9a-fA-F]{64}$/.test(publicKey);
+}
+
 // =============================================================================
 // In-Memory Cache (TTL-based) for Discord API hot paths
 // Prevents hammering Discord API on every page load / server action
@@ -47,26 +61,56 @@ export function sanitizeMentions(text: string | null | undefined): string {
 }
 
 
-async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
+/**
+ * #223 P1 — Fetch Discord centralisé, fail-closed (CodeQL js/request-forgery / SSRF) :
+ *  - allow-list STRICTE du chemin : regex ancrée `^/api/v10/...` + caractères sûrs, pas de `..` ;
+ *  - URL construite depuis un hôte LITTÉRAL allow-listé (`https://discord.com`) ;
+ *  - gardes défensives : hostname === "discord.com" + protocole https ;
+ *  - l'objet URL validé est passé à `fetch` (jamais la chaîne brute).
+ */
+async function fetchWithRetry(path: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
-    // F-16 CodeQL js/request-forgery : garde fail-closed à la source du fetch — l'hôte est
-    // restreint à l'API Discord (recommandation js/request-forgery : allow-list du hostname).
-    let parsedUrl: URL;
-    try {
-        parsedUrl = new URL(url);
-    } catch {
-        logger.warn("[Discord] fetchWithRetry: URL invalide refusée");
-        throw new Error("URL Discord invalide");
+    // Sanitisation fail-closed : la barrière regex couvre l'ENTIER du chemin (ancres ^...$),
+    // reconnue par CodeQL (js/request-forgery) comme nettoyage AVANT construction de l'URL.
+    // Caractères autorisés : "/api/v10/" + [\w % : @ . _ ~ - / ? & =]. Bloque ".." (path traversal).
+    if (
+        typeof path !== "string" ||
+        path.length > 500 ||
+        !/^\/api\/v10\/[\w%:@._~\-/?&=]*$/.test(path) ||
+        path.includes("..")
+    ) {
+        logger.warn("[Discord] fetchWithRetry: chemin Discord non autorisé");
+        throw new Error("Chemin Discord non autorisé");
     }
-    if (parsedUrl.hostname !== "discord.com") {
-        logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${parsedUrl.hostname})`);
+
+    const url = new URL(path, "https://discord.com");
+
+    // Garde défensive : hôte allow-listé + https (jamais dérivés de l'utilisateur).
+    if (url.hostname !== "discord.com" || url.protocol !== "https:") {
+        logger.warn(`[Discord] fetchWithRetry: hôte non autorisé (${url.hostname})`);
         throw new Error("Hôte Discord non autorisé");
     }
 
+    // Barrière finale sur la valeur EXACTE passée au sink (URL complète allow-listée) :
+    // même motif que le bornage regex reconnu par CodeQL (F-16, editInteractionMessage).
+    const finalUrl = url.toString();
+    if (
+        !/^https:\/\/discord\.com\/api\/v10\/[\w%:@._~\-/?&=]*$/.test(finalUrl) ||
+        finalUrl.includes("..")
+    ) {
+        logger.warn("[Discord] fetchWithRetry: URL finale non autorisée");
+        throw new Error("Chemin Discord non autorisé");
+    }
+
+    // #223 P2 — User-Agent Discord exigé (DiscordBot (url, version)) sur chaque requête bot.
+    const uaHeaders = new Headers(options.headers);
+    uaHeaders.set("User-Agent", DISCORD_USER_AGENT);
+    const safeOptions: RequestInit = { ...options, headers: uaHeaders };
+
     for (let i = 0; i < MAX_RETRIES; i++) {
         try {
-            const res = await fetch(url, options);
+            const res = await fetch(finalUrl, safeOptions);
 
             // If success or client error (4xx) that is not 429, return immediately.
             // We only retry on server errors (5xx) or rate limits (429).
@@ -112,7 +156,7 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/roles`, {
         headers: {
             Authorization: `Bot ${token}`,
         },
@@ -152,7 +196,7 @@ export async function fetchGuild(guildId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -178,7 +222,7 @@ export async function fetchBotGuilds() {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/users/@me/guilds`, {
+    const res = await fetchWithRetry(`/api/v10/users/@me/guilds`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -202,7 +246,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -236,7 +280,7 @@ export async function listGuildMembers(guildId: string, limit = 1000) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members?limit=${limit}`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members?limit=${limit}`, {
         headers: { Authorization: `Bot ${token}` },
     });
 
@@ -257,11 +301,47 @@ export async function listGuildMembers(guildId: string, limit = 1000) {
     return data;
 }
 
+/**
+ * #223 P1 — Liste PAGINÉE (limit=1000) de tous les membres d'une guilde (IDs uniquement),
+ * centralisée dans la couche anti-corruption Discord (fetchWithRetry = v10 + SSRF guard + UA).
+ * Remplace le fetch direct paginé de `sync-actions.ts`.
+ */
+export async function fetchAllGuildMembers(guildId: string): Promise<Set<string>> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("DISCORD_BOT_TOKEN not configured");
+
+    const memberIds = new Set<string>();
+    let after = "0";
+    let hasMore = true;
+
+    while (hasMore) {
+        const res = await fetchWithRetry(
+            `/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
+            { headers: { Authorization: `Bot ${token}` } }
+        );
+
+        if (!res.ok) {
+            if (res.status === 403) {
+                throw new Error("Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.");
+            }
+            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
+        }
+
+        const members = (await res.json()) as Array<{ user: { id: string } }>;
+        for (const member of members) memberIds.add(member.user.id);
+
+        hasMore = members.length >= 1000;
+        if (hasMore) after = members[members.length - 1].user.id;
+    }
+
+    return memberIds;
+}
+
 export async function fetchGuildBans(guildId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/bans`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/bans`, {
         headers: { Authorization: `Bot ${token}` },
         next: { revalidate: 0 }
     });
@@ -281,7 +361,7 @@ export async function verifyGuildAccessibility(guildId: string): Promise<boolean
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}`, {
             headers: { Authorization: `Bot ${token}` },
             next: { revalidate: 0 }
         });
@@ -325,7 +405,7 @@ export async function fetchChannel(channelId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+    const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
         headers: { Authorization: `Bot ${token}` },
         // No cache — we need fresh data for security checks
         cache: "no-store",
@@ -357,7 +437,7 @@ export async function fetchGuildChannels(guildId: string): Promise<{ id: string;
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
 
-    const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
         headers: { Authorization: `Bot ${token}` },
         cache: "no-store"
     });
@@ -555,7 +635,7 @@ export async function sendChannelMessage(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -603,7 +683,7 @@ export async function sendDirectMessage(
 
     try {
         // 1. Create DM channel
-        const dmRes = await fetchWithRetry(`https://discord.com/api/v10/users/@me/channels`, {
+        const dmRes = await fetchWithRetry(`/api/v10/users/@me/channels`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -690,7 +770,7 @@ export async function updateChannelMessage(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
             method: "PATCH",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -743,7 +823,7 @@ export async function editInteractionMessage(
 
     try {
         const res = await fetchWithRetry(
-            `https://discord.com/api/v10/webhooks/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanToken)}/messages/@original`,
+            `/api/v10/webhooks/${encodeURIComponent(cleanAppId)}/${encodeURIComponent(cleanToken)}/messages/@original`,
             {
                 method: "PATCH",
                 headers: {
@@ -779,7 +859,7 @@ export async function deleteChannelMessage(channelId: string, messageId: string)
             return await deleteChannel(channelId);
         }
 
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -802,7 +882,7 @@ export async function deleteChannel(channelId: string): Promise<boolean> {
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -837,7 +917,7 @@ export async function createPrivateThread(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/threads`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -910,7 +990,7 @@ export async function createForumPost(
     }
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/threads`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -944,7 +1024,7 @@ export async function addUserToThread(threadId: string, userId: string): Promise
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${threadId}/thread-members/${userId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}/thread-members/${userId}`, {
             method: "PUT",
             headers: { Authorization: `Bot ${token}` },
         });
@@ -963,7 +1043,7 @@ export async function addRoleToMember(guildId: string, userId: string, roleId: s
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
             method: "PUT",
             headers: { Authorization: `Bot ${token}` },
         });
@@ -982,7 +1062,7 @@ export async function removeRoleFromMember(guildId: string, userId: string, role
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
             method: "DELETE",
             headers: { Authorization: `Bot ${token}` },
         });
@@ -1001,7 +1081,7 @@ export async function archiveThread(threadId: string): Promise<boolean> {
     if (!token) return false;
 
     try {
-        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${threadId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}`, {
             method: "PATCH",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -1024,12 +1104,35 @@ export async function verifyDiscordSignature(
     const timestamp = request.headers.get("X-Signature-Timestamp");
     const publicKey = process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY;
 
+    // Fail-closed : clé publique absente.
     if (!publicKey) {
-        console.error("[Discord] Missing DISCORD_APPLICATION_PUBLIC_KEY");
+        logger.error("[Discord] Missing DISCORD_APPLICATION_PUBLIC_KEY");
         return false;
     }
 
-    if (!signature || !timestamp) return false;
+    // #223 P1 — Clé publique Ed25519 : 64 hex = 32 octets obligatoires.
+    if (!isValidEd25519PublicKey(publicKey)) {
+        logger.error("[Discord] Clé publique Ed25519 invalide (attendu : 64 hex = 32 octets)");
+        return false;
+    }
+
+    if (!signature || !timestamp) {
+        logger.warn("[Discord] Signature verification aborted: missing signature/timestamp headers");
+        return false;
+    }
+
+    // #223 P1 — Anti-replay : rejeter les timestamps hors de la fenêtre de fraîcheur (±5 min).
+    const ts = parseInt(timestamp, 10);
+    if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > MAX_SIGNATURE_TIMESTAMP_SKEW_SECONDS) {
+        logger.warn("[Discord] Signature verification failed: timestamp hors fenêtre (anti-replay)");
+        return false;
+    }
+
+    // Signature Ed25519 : 64 octets = 128 hex.
+    if (!/^[0-9a-fA-F]{128}$/.test(signature)) {
+        logger.warn("[Discord] Signature verification failed: format signature invalide");
+        return false;
+    }
 
     try {
         const hexToUint8Array = (hex: string) => {
@@ -1040,7 +1143,7 @@ export async function verifyDiscordSignature(
         const keyData = hexToUint8Array(publicKey);
         const key = await crypto.subtle.importKey(
             "raw",
-            keyData.buffer as ArrayBuffer,
+            keyData,
             { name: "Ed25519" },
             false,
             ["verify"]
@@ -1049,9 +1152,9 @@ export async function verifyDiscordSignature(
         const message = new TextEncoder().encode(timestamp + body);
         const sig = hexToUint8Array(signature);
 
-        return await crypto.subtle.verify("Ed25519", key, sig.buffer as ArrayBuffer, message);
+        return await crypto.subtle.verify("Ed25519", key, sig, message);
     } catch (error) {
-        console.error("Signature verification failed:", error);
+        logger.error("Signature verification failed:", { error });
         return false;
     }
 }
@@ -1178,7 +1281,7 @@ export async function sendDiscordRawEmbed(
     };
 
     try {
-        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
                 Authorization: `Bot ${token}`,

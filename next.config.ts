@@ -108,6 +108,11 @@ const nextConfig: NextConfig = {
         hostname: "ganymede-app.com",
       },
       {
+        // Dofensive — icônes de sorts (fiches boss / simulation tactique)
+        protocol: "https",
+        hostname: "cdn.static.dofensive.com",
+      },
+      {
         // Unsplash — Raid selection background illustrations
         protocol: "https",
         hostname: "images.unsplash.com",

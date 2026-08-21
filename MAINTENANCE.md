@@ -63,6 +63,14 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 4. **Sans pré-chauffage, pas de panne** : les actions sont « local-first » — données absentes/périmées (> 24 h) → fetch live Dofensive/DofusDB depuis le VPS + auto-persistance (self-healing). Les joueurs ne contactent jamais les API externes directement.
 5. **Audit** : chaque run écrit un log God (`createSystemAuditLog`, `actorName: "Système (Cron)"`) visible dans `/god` → Audit Logs.
 
+> ⚠️ **INCIDENT beta 05/10 — P3018 sur `20261005010000_add_dofensive_sync_tables` (COLONNE interGuild absente)** : la 1re version de la migration incluait par erreur des `DROP COLUMN` inter-guild (drift DB locale — migration `20260819000000_add_inter_guild` appliquée en local mais absente du dossier). Migration **corrigée** (suppression des 2 blocs `ALTER TABLE`). **Récupération beta** (les tables existent déjà via le `db push` du déploiement) :
+> ```
+> cd ~/SigilOS && git pull   # récupérer la migration corrigée
+> sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx --yes prisma migrate resolve --applied 20261005010000_add_dofensive_sync_tables
+> sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx --yes prisma migrate status
+> ```
+> Puis relancer `./scripts/deploy-cd.sh beta`. Ne JAMAIS générer de migration via `prisma migrate diff --from-config-datasource` (drift local) : utiliser `--from-migrations`.
+
 ---
 
 

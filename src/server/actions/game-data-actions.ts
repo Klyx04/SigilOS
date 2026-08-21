@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
 import { sanitizeHtml } from "@/lib/security";
+import { getLocalMonsterStat, persistMonsterStat } from "@/lib/dofensive-sync";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -750,6 +751,22 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
         logger.error("[getMonsterStats] Local coordinate fetch error:", { error: err });
     }
 
+    // Local-first (siphon local, chantier 2) : fiche fraîche (< 24 h) → zéro appel
+    // DofusDB en direct. Les coordonnées du donjon sont ré-attachées si absentes
+    // (le cron de sync ne les stocke pas — elles viennent du worldmap.json local).
+    if (process.env.VITEST !== "true") {
+        try {
+            const local = await getLocalMonsterStat(monsterName);
+            if (local) {
+                if (!local.coordinates && coordinates) local.coordinates = coordinates;
+                monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: local };
+            }
+        } catch (err) {
+            logger.warn("[getMonsterStats] Local-first échec:", { error: String(err) });
+        }
+    }
+
     try {
         // Search for the monster - search by name.fr
         const searchRes = await fetch(
@@ -1145,6 +1162,13 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                 })
         };
         monsterStatsCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + MONSTER_STATS_TTL });
+        // Self-healing (sync intelligente) : copie locale de la fiche pour le
+        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
+        try {
+            if (process.env.VITEST !== "true") await persistMonsterStat({ ...resultData, dungeonName });
+        } catch (err) {
+            logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
+        }
         return { success: true, data: resultData };
     } catch (error) {
         logger.error('[getMonsterStats] Error:', { error });

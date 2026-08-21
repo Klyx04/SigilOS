@@ -2625,3 +2625,52 @@ model RushPresence {
   @@index([guildId, profileId])
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SYNC INTELLIGENTE — siphon local des données Dofensive / DofusDB (chantier 2)
+// (voir src/lib/dofensive-sync.ts + crons /api/cron/sync-*)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DofensiveDungeon {
+  id            String   @id @default(cuid())
+  dungeonId     Int      @unique
+  name          String
+  maps          Json // DofensiveMapLite[] { id, name, isBoss }
+  monsters      Json // { id, name }[]
+  bossMonsterId Int?
+  versionHash   String?
+  lastSyncedAt  DateTime @default(now())
+
+  @@index([lastSyncedAt])
+}
+
+model DofensiveMap {
+  id            String   @id @default(cuid())
+  mapId         Int      @unique
+  name          String
+  dungeonId     Int?
+  subarea       Json?
+  coords        Json? // { x, y }
+  cells         Json // Cells[row][col] — 0 sol / 1 trou / 2 obstacle
+  allyCells     Json // number[]
+  enemyCells    Json // number[]
+  isBossMap     Boolean  @default(false)
+  versionHash   String?
+  lastSyncedAt  DateTime @default(now())
+
+  @@index([dungeonId])
+  @@index([lastSyncedAt])
+}
+
+model MonsterStat {
+  id            String   @id @default(cuid())
+  monsterId     Int      @unique // ID Ankama (partagé Dofensive/DofusDB)
+  monsterName   String
+  dungeonName   String?
+  stats         Json // payload DofusDB enrichi (grades/drops/spells) — Dofensive fusionné à la lecture
+  versionHash   String?
+  lastSyncedAt  DateTime @default(now())
+
+  @@index([monsterName])
+  @@index([lastSyncedAt])
+}
+

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { toast } from "sonner";
-import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock, Swords } from "lucide-react";
+import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock, Swords, Users } from "lucide-react";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 
 type Dungeon = {
@@ -28,6 +28,8 @@ export type MultiDungeonSelection = {
     message: string;
     /** ISO string ou "" si non définie. */
     targetDate: string;
+    /** #203 — taille du groupe PAR donjon (2-8), indépendante des autres donjons. */
+    maxMembers: number;
 };
 
 interface DjMultiDungeonModalProps {
@@ -83,11 +85,11 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
             toast.error(`Maximum ${MAX_DUNGEONS} donjons par publication.`);
             return;
         }
-        setSelections(prev => [...prev, { dungeon: d, achievements: [], message: "", targetDate: "" }]);
+        setSelections(prev => [...prev, { dungeon: d, achievements: [], message: "", targetDate: "", maxMembers: 4 }]);
         setExpandedId(d.id);
     }
 
-    function updateSelection(id: string, patch: Partial<Pick<MultiDungeonSelection, "achievements" | "message" | "targetDate">>) {
+    function updateSelection(id: string, patch: Partial<Pick<MultiDungeonSelection, "achievements" | "message" | "targetDate" | "maxMembers">>) {
         setSelections(prev => prev.map(s => s.dungeon.id === id ? { ...s, ...patch } : s));
     }
 
@@ -257,6 +259,25 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                 )}
                                             </div>
 
+
+                                            {/* #203 — Taille du groupe PAR donjon (2-8) */}
+                                            <div className="space-y-1.5">
+                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                                                    <Users className="w-3 h-3" /> Taille du groupe <span className="text-muted-foreground normal-case font-medium">(2 à 8)</span>
+                                                </p>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                                                        <button
+                                                            key={n}
+                                                            type="button"
+                                                            onClick={() => updateSelection(s.dungeon.id, { maxMembers: n })}
+                                                            className={`w-9 h-9 rounded-xl text-xs font-black transition-all ${s.maxMembers === n ? "bg-warning/15 border border-warning/40 text-warning" : "bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated"}`}
+                                                        >
+                                                            {n}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
 
                                             {/* Date — OPTIONNELLE (heure facultative) */}
                                             <div className="space-y-1.5">

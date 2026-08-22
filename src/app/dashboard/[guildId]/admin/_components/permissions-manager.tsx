@@ -8,7 +8,7 @@ import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, MODULE_ORDER as PE
 import { PermissionCard } from "./permission-card";
 import { type Option } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
-import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2 } from "lucide-react";
+import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getDisplayName } from "@/lib/display-name";
 
@@ -65,6 +65,12 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
 
     const [permState, setPermState] = useState(initialPermState);
     const [userState, setUserState] = useState(initialUserState);
+    // #202 — snapshot « sauvegardé » : permet d'afficher un état « modifications non
+    // sauvegardées » et un bouton Sauvegarder toujours visible (footer sticky bas).
+    const [savedSnapshot, setSavedSnapshot] = useState<{ permState: Record<PermissionId, string[]>; userState: Record<PermissionId, string[]> }>({
+        permState: initialPermState,
+        userState: initialUserState,
+    });
     const [isPending, startTransition] = useTransition();
     const [activeModule, setActiveModule] = useState<PermissionModule | "all">("all");
     const [searchQuery, setSearchQuery] = useState("");
@@ -128,6 +134,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
 
             const res = await updateRBACMapping(guildId, rolesMapping, usersMapping);
             if (res.success) {
+                // #202 — le snapshot « sauvegardé » suit l'état réel (l'indicateur se réinitialise).
+                setSavedSnapshot({ permState, userState });
                 toast.success("Permissions sauvegardées");
             } else {
                 toast.error(res.error || "Erreur lors de la sauvegarde");
@@ -202,6 +210,21 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     }, [permState]);
 
     const totalConfigured = useMemo(() => Object.values(permState).filter(r => r.length > 0).length, [permState]);
+
+    // #202 — des modifications locales non sauvegardées existent-elles ?
+    const hasUnsavedChanges = useMemo(() => {
+        const permChanged = (Object.keys(PERMISSIONS) as PermissionId[]).some((perm) => {
+            const cur = (permState[perm] || []).slice().sort().join(",");
+            const init = (savedSnapshot.permState[perm] || []).slice().sort().join(",");
+            return cur !== init;
+        });
+        const userChanged = (Object.keys(PERMISSIONS) as PermissionId[]).some((perm) => {
+            const cur = (userState[perm] || []).slice().sort().join(",");
+            const init = (savedSnapshot.userState[perm] || []).slice().sort().join(",");
+            return cur !== init;
+        });
+        return permChanged || userChanged;
+    }, [permState, userState, savedSnapshot]);
 
     // Roles that have any permission but are missing DASHBOARD_ACCESS (need migration)
     const rolesNeedingMigration = useMemo(() => {
@@ -462,6 +485,31 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                     ))}
                 </div>
             )}
+
+            {/* Sticky Save Footer — #202 : sauvegarder sans re-scroller en haut */}
+            <div className="sticky bottom-0 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-surface/90 backdrop-blur-md border border-border shadow-2xl">
+                <div className="flex items-center gap-3 min-w-0">
+                    {hasUnsavedChanges ? (
+                        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-warning">
+                            <span className="w-2 h-2 rounded-full bg-warning animate-pulse shrink-0" />
+                            Modifications non sauvegardées
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                            Toutes les modifications sont enregistrées
+                        </span>
+                    )}
+                </div>
+                <Button
+                    onClick={handleSave}
+                    disabled={isPending}
+                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-black px-8 h-12 rounded-xl shadow-lg transition-all"
+                >
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    {isPending ? "Synchronisation..." : "Sauvegarder"}
+                </Button>
+            </div>
         </div>
     );
 }

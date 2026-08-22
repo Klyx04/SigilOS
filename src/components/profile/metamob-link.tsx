@@ -344,7 +344,7 @@ export function MetamobLink({
                     </div>
                     <DialogFooter className="p-8 border-t border-border flex gap-3">
                         {linkStep === 1 ? (
-                            <Button onClick={() => setLinkStep(2)} disabled={!inputPseudo.trim()} className="w-full bg-warning font-bold">Suivant</Button>
+                            <Button onClick={() => setLinkStep(2)} disabled={!inputPseudo.trim()} className="w-full bg-warning text-warning-foreground font-bold">Suivant</Button>
                         ) : (
                             <>
                                 <Button variant="ghost" onClick={() => setLinkStep(1)}>Retour</Button>

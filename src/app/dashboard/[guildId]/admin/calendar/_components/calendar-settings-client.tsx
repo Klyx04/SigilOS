@@ -5,7 +5,7 @@
  * Pattern identical to songes-settings-client.tsx
  */
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaid
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface CalendarSettingsClientProps {
     guildId: string;
@@ -41,6 +42,38 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     const [raidRequireKamaDonation, setRaidRequireKamaDonation] = useState(true);
     const [raidKamaDonationThreshold, setRaidKamaDonationThreshold] = useState(3);
 
+    // — Détection « modifications non sauvegardées »
+    type CalendarConfigSnapshot = {
+        channelId: string;
+        raidChannelId: string;
+        raidGigalodonChannelId: string;
+        raidSanctuaireChannelId: string;
+        calendarPingRoleIds: string[];
+        raidPingRoleIds: string[];
+        raidAllowedSignUpRoleIds: string[];
+        raidRequireKamaDonation: boolean;
+        raidKamaDonationThreshold: number;
+    };
+    const [initialConfig, setInitialConfig] = useState<CalendarConfigSnapshot | null>(null);
+
+    const currentConfig: CalendarConfigSnapshot = useMemo(() => ({
+        channelId,
+        raidChannelId,
+        raidGigalodonChannelId,
+        raidSanctuaireChannelId,
+        calendarPingRoleIds: [...calendarPingRoleIds],
+        raidPingRoleIds: [...raidPingRoleIds],
+        raidAllowedSignUpRoleIds: [...raidAllowedSignUpRoleIds],
+        raidRequireKamaDonation,
+        raidKamaDonationThreshold,
+    }), [
+        channelId, raidChannelId, raidGigalodonChannelId, raidSanctuaireChannelId,
+        calendarPingRoleIds, raidPingRoleIds, raidAllowedSignUpRoleIds,
+        raidRequireKamaDonation, raidKamaDonationThreshold,
+    ]);
+
+    const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
+
     useEffect(() => {
         async function loadConfig() {
             const [result, rolesRes] = await Promise.all([
@@ -48,19 +81,31 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                 getDiscordRolesAction(guildId, { ignoreWhitelist: true })
             ]);
             if (result.success && result.data) {
-                setChannelId(result.data.calendarChannelId || "");
-                setIsConfigured(!!result.data.calendarChannelId);
-                setCalendarPingRoleIds(result.data.calendarPingRoleIds || []);
-                setRaidChannelId(result.data.raidChannelId || "");
-                setIsRaidConfigured(!!result.data.raidChannelId);
-                setRaidPingRoleIds(result.data.raidPingRoleIds || []);
-                setRaidGigalodonChannelId(result.data.raidGigalodonChannelId || "");
-                setIsGigalodonConfigured(!!result.data.raidGigalodonChannelId);
-                setRaidSanctuaireChannelId(result.data.raidSanctuaireChannelId || "");
-                setIsSanctuaireConfigured(!!result.data.raidSanctuaireChannelId);
-                setRaidRequireKamaDonation(result.data.raidRequireKamaDonation ?? true);
-                setRaidKamaDonationThreshold(result.data.raidKamaDonationThreshold ?? 3);
-                setRaidAllowedSignUpRoleIds(result.data.raidAllowedSignUpRoleIds || []);
+                const loaded: CalendarConfigSnapshot = {
+                    channelId: result.data.calendarChannelId || "",
+                    raidChannelId: result.data.raidChannelId || "",
+                    raidGigalodonChannelId: result.data.raidGigalodonChannelId || "",
+                    raidSanctuaireChannelId: result.data.raidSanctuaireChannelId || "",
+                    calendarPingRoleIds: result.data.calendarPingRoleIds || [],
+                    raidPingRoleIds: result.data.raidPingRoleIds || [],
+                    raidAllowedSignUpRoleIds: result.data.raidAllowedSignUpRoleIds || [],
+                    raidRequireKamaDonation: result.data.raidRequireKamaDonation ?? true,
+                    raidKamaDonationThreshold: result.data.raidKamaDonationThreshold ?? 3,
+                };
+                setChannelId(loaded.channelId);
+                setIsConfigured(!!loaded.channelId);
+                setCalendarPingRoleIds(loaded.calendarPingRoleIds);
+                setRaidChannelId(loaded.raidChannelId);
+                setIsRaidConfigured(!!loaded.raidChannelId);
+                setRaidPingRoleIds(loaded.raidPingRoleIds);
+                setRaidGigalodonChannelId(loaded.raidGigalodonChannelId);
+                setIsGigalodonConfigured(!!loaded.raidGigalodonChannelId);
+                setRaidSanctuaireChannelId(loaded.raidSanctuaireChannelId);
+                setIsSanctuaireConfigured(!!loaded.raidSanctuaireChannelId);
+                setRaidRequireKamaDonation(loaded.raidRequireKamaDonation);
+                setRaidKamaDonationThreshold(loaded.raidKamaDonationThreshold);
+                setRaidAllowedSignUpRoleIds(loaded.raidAllowedSignUpRoleIds);
+                setInitialConfig(loaded);
             }
             if (rolesRes.success && rolesRes.roles) {
                 setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
@@ -76,6 +121,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             const pingRolesResult = await updateAllowedPingRolesAction(guildId, calendarPingRoleIds, "calendar");
 
             if (result.success && pingRolesResult.success) {
+                setInitialConfig(currentConfig);
                 toast.success("Configuration Calendrier sauvegardée !");
                 setIsConfigured(!!channelId.trim());
             } else {
@@ -91,6 +137,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             const signUpRolesResult = await updateRaidAllowedSignUpRolesAction(guildId, raidAllowedSignUpRoleIds);
 
             if (result.success && pingRolesResult.success && signUpRolesResult.success) {
+                setInitialConfig(currentConfig);
                 toast.success("Configuration Raids sauvegardée !");
                 setIsRaidConfigured(!!raidChannelId.trim());
             } else {
@@ -103,6 +150,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         startTransition(async () => {
             const result = await updateRaidGigalodonChannel(guildId, raidGigalodonChannelId.trim() || null);
             if (result.success) {
+                setInitialConfig(currentConfig);
                 toast.success("Configuration Raid Gigalodon sauvegardée !");
                 setIsGigalodonConfigured(!!raidGigalodonChannelId.trim());
             } else {
@@ -115,6 +163,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         startTransition(async () => {
             const result = await updateRaidSanctuaireChannel(guildId, raidSanctuaireChannelId.trim() || null);
             if (result.success) {
+                setInitialConfig(currentConfig);
                 toast.success("Configuration Raid Sanctuaire sauvegardée !");
                 setIsSanctuaireConfigured(!!raidSanctuaireChannelId.trim());
             } else {
@@ -129,6 +178,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             if (result.success) {
                 setChannelId("");
                 setIsConfigured(false);
+                setInitialConfig((prev) => prev ? { ...prev, channelId: "" } : prev);
                 toast.success("Notifications Calendrier désactivées");
             } else {
                 toast.error(result.error || "Erreur lors de la désactivation");
@@ -142,6 +192,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             if (result.success) {
                 setRaidChannelId("");
                 setIsRaidConfigured(false);
+                setInitialConfig((prev) => prev ? { ...prev, raidChannelId: "" } : prev);
                 toast.success("Notifications Raids désactivées");
             } else {
                 toast.error(result.error || "Erreur lors de la désactivation");
@@ -155,6 +206,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             if (result.success) {
                 setRaidGigalodonChannelId("");
                 setIsGigalodonConfigured(false);
+                setInitialConfig((prev) => prev ? { ...prev, raidGigalodonChannelId: "" } : prev);
                 toast.success("Notifications Raid Gigalodon désactivées");
             } else {
                 toast.error(result.error || "Erreur lors de la désactivation");
@@ -168,6 +220,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             if (result.success) {
                 setRaidSanctuaireChannelId("");
                 setIsSanctuaireConfigured(false);
+                setInitialConfig((prev) => prev ? { ...prev, raidSanctuaireChannelId: "" } : prev);
                 toast.success("Notifications Raid Sanctuaire désactivées");
             } else {
                 toast.error(result.error || "Erreur lors de la désactivation");
@@ -180,6 +233,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             const result = await updateRaidKamaDonationRequired(guildId, enabled);
             if (result.success) {
                 setRaidRequireKamaDonation(enabled);
+                setInitialConfig((prev) => prev ? { ...prev, raidRequireKamaDonation: enabled } : prev);
                 toast.success(enabled
                     ? "Don de kamas requis activé pour les Raids ✅"
                     : "Don de kamas désactivé — Accès Raids libre ⚠️"
@@ -199,6 +253,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     }
 
     return (
+        <>
         <Tabs defaultValue="calendar" className="w-full space-y-6">
             <TabsList className="bg-surface border border-border p-1 rounded-xl">
                 <TabsTrigger value="calendar" className="text-xs font-black uppercase tracking-widest px-6 py-2.5 rounded-lg data-[state=active]:bg-warning data-[state=active]:text-warning-foreground">
@@ -575,6 +630,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                                                 const res = await updateRaidKamaDonationThreshold(guildId, t);
                                                                 if (res.success) {
                                                                     setRaidKamaDonationThreshold(t);
+                                                                    setInitialConfig((prev) => prev ? { ...prev, raidKamaDonationThreshold: t } : prev);
                                                                     toast.success(`Seuil défini à ${t * 10} 🟣 (${t * 10_000} k)`);
                                                                 } else {
                                                                     toast.error(res.error || "Erreur");
@@ -716,5 +772,12 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                 </div>
             </TabsContent>
         </Tabs>
+
+        {/* Garde anti-navigation : avertit si des paramètres calendrier ne sont pas sauvegardés */}
+        <UnsavedChangesGuard
+            hasUnsavedChanges={hasUnsavedChanges}
+            message="Vous avez des modifications des paramètres calendrier non sauvegardées. Quitter cette page les perdra définitivement."
+        />
+        </>
     );
 }

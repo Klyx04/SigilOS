@@ -1558,6 +1558,8 @@ model GuildLoan {
   lastReminderAt    DateTime?
   linkedItemIconUrl String?
   linkedItemName    String?
+  discordChannelId  String?
+  discordMessageId  String?
   borrower          UserProfile @relation("LoansReceived", fields: [borrowerId], references: [id], onDelete: Cascade)
   guild             GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
   lender            UserProfile @relation("LoansGiven", fields: [lenderId], references: [id], onDelete: Cascade)
@@ -1578,6 +1580,8 @@ model VaultEntry {
   proofUrl          String?
   createdAt         DateTime    @default(now())
   linkedItemIconUrl String?
+  discordChannelId  String?
+  discordMessageId  String?
   guild             GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile           UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 

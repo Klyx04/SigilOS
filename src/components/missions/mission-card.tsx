@@ -56,6 +56,8 @@ interface MissionCardProps {
     isRestricted?: boolean;
     linkedEvent?: { id: string, title: string, startDate: Date } | null;
     vitrineMode?: boolean;
+    /** Masque le bouton PREUVE / upload pour les super-admins (God) — #204. */
+    hideUpload?: boolean;
 }
 
 // --- Category Config ---
@@ -148,7 +150,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted, linkedEvent, vitrineMode = false }: MissionCardProps) {
+export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted, linkedEvent, vitrineMode = false, hideUpload = false }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [showValidators, setShowValidators] = useState(false);
@@ -575,7 +577,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             </div>
                         )}
 
-                        {!vitrineMode && !isValidated && (
+                        {!vitrineMode && !hideUpload && !isValidated && (
                             isPendingValidation ? (
                                 <Button
                                     size="sm"

@@ -95,6 +95,8 @@ export type DjPostWithDetails = {
         achievements: { id: string; name: string; iconUrl: string | null }[];
         message: string | null;
         targetDate: Date | null;
+        /** #203 — taille du groupe propre à ce donjon (multi). */
+        maxMembers: number;
     }[] | null;
     dungeon: {
         id: string;
@@ -189,6 +191,8 @@ const createMultiPostSchema = z.object({
         wantedAchievementIds: z.array(z.string()).default([]),
         message: z.string().max(500).nullable(),
         targetDate: z.date().nullable(),
+        // #203 — taille du groupe PAR donjon (2-8), optionnelle (fallback global).
+        maxMembers: z.number().min(2).max(8).optional(),
     })).min(2).max(5),
     maxMembers: z.number().min(2).max(8).default(4),
     requiredClasses: z.array(z.string()).default([]),
@@ -439,14 +443,22 @@ async function sendMultiDiscordNotification(
 async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[]> {
     const entries: any[] = post.dungeonsJson ?? [];
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
-    const totalCount = acceptedParts.length + 1;
-    const participantLines = acceptedParts.map((p: any) => {
-        const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
-        const djName = entries[p.dungeonIndex]?.name;
-        return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}${djName ? ` — ${djName}` : ""}`;
-    });
+    const isMulti = entries.length > 0;
 
     return entries.map((entry: any, idx: number) => {
+        // #203 — comptage PAR donjon (participants ayant rejoint ce donjon ; ceux sans
+        // index = legacy/global, comptés dans chaque donjon pour préserver l'existant).
+        const partsForDungeon = isMulti
+            ? acceptedParts.filter((p: any) => p.dungeonIndex === idx || p.dungeonIndex == null)
+            : acceptedParts;
+        const countForDungeon = partsForDungeon.length + 1; // +1 créateur
+        const maxForDungeon = entry.maxMembers ?? post.maxMembers;
+        const participantLines = partsForDungeon.map((p: any) => {
+            const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+            const djName = entries[p.dungeonIndex]?.name;
+            return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}${djName ? ` — ${djName}` : ""}`;
+        });
+
         const fields: any[] = [];
         fields.push({
             name: "📍 Donjon",
@@ -470,7 +482,7 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
             fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.map((c: string) => `\`${c}\``).join(" "), inline: true });
         }
         fields.push({
-            name: `👥 Membres (${totalCount}/${post.maxMembers})`,
+            name: `👥 Membres (${countForDungeon}/${maxForDungeon})`,
             value: `**${authorName}**\n${participantLines.length > 0 ? participantLines.join("\n") : "*En attente de joueurs...*"}`,
             inline: false,
         });
@@ -1049,6 +1061,8 @@ export async function createDjPosts(
                 })),
                 message: p.message,
                 targetDate: p.targetDate,
+                // #203 — taille du groupe par donjon (fallback : la valeur globale du post).
+                maxMembers: p.maxMembers ?? rest.maxMembers,
             };
         });
 
@@ -1705,7 +1719,7 @@ export async function internalJoinDjPost(
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
             include: {
-                participants: { where: { status: "ACCEPTED" }, select: { id: true } },
+                participants: { where: { status: "ACCEPTED" }, select: { id: true, dungeonIndex: true } },
             },
         });
 
@@ -1726,7 +1740,16 @@ export async function internalJoinDjPost(
         });
         if (existing) return { success: false, error: "Tu as déjà rejoint ce groupe" };
 
-        if (post.participants.length >= post.maxMembers) {
+        // #203 — capacité PAR donjon sur les posts multi (chaque donjon a sa propre taille de groupe).
+        let entryMax = post.maxMembers;
+        if (multiEntries.length > 0 && joinedDungeonIndex != null) {
+            entryMax = multiEntries[joinedDungeonIndex]?.maxMembers ?? post.maxMembers;
+        }
+        const joinedForThisDungeon = multiEntries.length > 0 && joinedDungeonIndex != null
+            ? post.participants.filter((p: any) => p.dungeonIndex === joinedDungeonIndex || p.dungeonIndex == null).length + 1 // +1 créateur
+            : post.participants.length;
+
+        if (joinedForThisDungeon >= entryMax) {
             return { success: false, error: "Ce groupe est complet" };
         }
 
@@ -1747,7 +1770,8 @@ export async function internalJoinDjPost(
         });
 
         const newCount = post.participants.length + 1;
-        if (newCount >= post.maxMembers) {
+        // Un post multi ne passe PAS FULL globalement : chaque donjon a sa propre capacité (#203).
+        if (multiEntries.length === 0 && newCount >= post.maxMembers) {
             await (db as any).djSearchPost.update({
                 where: { id: postId },
                 data: { status: "FULL" },

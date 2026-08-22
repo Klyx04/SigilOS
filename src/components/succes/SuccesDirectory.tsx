@@ -345,7 +345,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
     return (
         <div className="space-y-5">
             {/* Recherche */}
-            <div className="relative">
+            <div className="relative" data-tour="succes-search">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                     value={search}

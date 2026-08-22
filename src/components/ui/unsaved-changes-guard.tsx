@@ -6,6 +6,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 
+
+/**
+ * Schéma d'URL pouvant exécuter du code (CodeQL js/incomplete-url-scheme-check).
+ * `javascript:`, `data:` et `vbscript:` sont rejetés, y compris quand :
+ *   - la casse varie (`JaVaScRiPt:`) ;
+ *   - le schéma est encodé en `%xx` (`%6a%61vascript:`) ;
+ *   - des espaces/contrôles précèdent le schéma (`\rjavascript:`, `\u00a0javascript:`).
+ * Retourne `true` pour tout href qui ne doit être ni exécuté par le navigateur ni
+ * passé à `router.push` (sinon injection de code / XSS).
+ */
+function isExecutableScheme(rawHref: string): boolean {
+    let u = rawHref;
+    try {
+        // Décodé `%xx` (ex. `%6a%61vascript:` → `javascript:`), mais une URI malformée
+        // jette une erreur → on évalue alors la valeur brute.
+        u = decodeURI(rawHref);
+    } catch {
+        /* ignore -> u reste brut */
+    }
+    // On retire espaces/contrôles en tête puis on compare en insensible à la casse.
+    u = u.replace(/^[\s\u0000-\u001f\u00a0]+/i, "").trim().toLowerCase();
+    return u.startsWith("javascript:") || u.startsWith("data:") || u.startsWith("vbscript:");
+}
+
 /**
  * `UnsavedChangesGuard` — pattern réutilisable « modifications non sauvegardées ».
  *
@@ -85,7 +109,17 @@ export function UnsavedChangesGuard({
 
             const href = anchor.getAttribute("href");
             if (!href) return;
-            if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) return;
+
+            // Sécurité (CodeQL js/incomplete-url-scheme-check) : un schéma exécutable
+            // (javascript:, data:, vbscript:) est bloqué — jamais laissé au navigateur
+            // ni poussé via router.push (sinon injection de code / XSS).
+            if (isExecutableScheme(href)) {
+                e.preventDefault();
+                return;
+            }
+
+            // Liens non-navigation (ancre, mailto, tel) -> laisser le navigateur gérer
+            if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
 
             // Liens externes → laisser faire (ouvre généralement un nouvel onglet)
             if (/^https?:\/\//i.test(href)) {

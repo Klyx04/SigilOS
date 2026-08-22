@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
                 returnProofUrl: true,
                 description: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 guild: {
                     select: {
                         discordGuildId: true,
@@ -103,6 +105,16 @@ export async function POST(request: NextRequest) {
             const urlsToDelete = [loan.proofUrl, loan.returnProofUrl].filter(Boolean) as string[];
 
             try {
+                // #201 — supprimer l'embed Discord avant les fichiers (sinon image noire)
+                if (loan.discordChannelId && loan.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(loan.discordChannelId, loan.discordMessageId);
+                    } catch (discordErr) {
+                        stats.errors.push(`Loan ${loan.id} embed delete: ${discordErr}`);
+                    }
+                }
+
                 // Delete files (F-17 : deleteProofFile gère les URLs /api/storage/ actuelles)
                 for (const url of urlsToDelete) {
                     await deleteProofFile(url);
@@ -168,6 +180,8 @@ export async function POST(request: NextRequest) {
                 itemName: true,
                 action: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 guild: {
                     select: {
                         discordGuildId: true,
@@ -188,6 +202,16 @@ export async function POST(request: NextRequest) {
         for (const entry of expiredVault) {
             stats.vaultProcessed++;
             try {
+                // #201 — supprimer l'embed Discord avant le fichier (sinon image noire)
+                if (entry.discordChannelId && entry.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(entry.discordChannelId, entry.discordMessageId);
+                    } catch (discordErr) {
+                        stats.errors.push(`VaultEntry ${entry.id} embed delete: ${discordErr}`);
+                    }
+                }
+
                 if (entry.proofUrl) {
                     await deleteProofFile(entry.proofUrl);
                     stats.filesDeleted++;
@@ -256,6 +280,8 @@ export async function POST(request: NextRequest) {
                 proofUrl: true,
                 returnProofUrl: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 guild: {
                     select: {
                         discordGuildId: true,
@@ -283,6 +309,16 @@ export async function POST(request: NextRequest) {
 
         for (const loan of expiredArchivedLoans) {
             try {
+                // #201 — supprimer l'embed Discord résiduel avant le hard delete (sinon image noire)
+                if (loan.discordChannelId && loan.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(loan.discordChannelId, loan.discordMessageId);
+                    } catch (discordErr) {
+                        stats.errors.push(`ArchiveLoan ${loan.id} embed delete: ${discordErr}`);
+                    }
+                }
+
                 // 1. Cleanup fichiers physiques résiduels (F-17)
                 const residualUrls = [loan.proofUrl, loan.returnProofUrl].filter(Boolean) as string[];
                 for (const url of residualUrls) {

@@ -27,6 +27,8 @@ interface MissionBoardProps {
     isRestricted?: boolean;
     availableAt?: string;
     vitrineMode?: boolean;
+    /** Masque le bouton PREUVE / upload pour les super-admins (God) — #204. */
+    hideUpload?: boolean;
 }
 
 const STATUS_FILTERS: { label: string; value: 'ALL' | 'PENDING' | 'VALIDATED'; icon?: React.ComponentType<{ className?: string }> }[] = [
@@ -48,7 +50,7 @@ const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.Co
 type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
 
-export function MissionBoard({ missions, currentUserId, guildId, isRestricted, availableAt, vitrineMode = false }: MissionBoardProps) {
+export function MissionBoard({ missions, currentUserId, guildId, isRestricted, availableAt, vitrineMode = false, hideUpload = false }: MissionBoardProps) {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
     const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
@@ -241,6 +243,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             isRestricted={isRestricted}
                             linkedEvent={(mission as any).linkedEvent}
                             vitrineMode={vitrineMode}
+                            hideUpload={hideUpload}
                         />
                     </div>
                 ))}

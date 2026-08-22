@@ -251,7 +251,9 @@ export async function createVaultEntry(
                         }
                         fields.push({ name: "🔗 Voir sur le dashboard", value: `[Ouvrir SigilOS](${dashboardUrl})`, inline: false });
 
-                        await sendChannelMessage(
+                        // #201 — on stocke l'ID du message Discord pour pouvoir supprimer
+                        // l'embed à la suppression (évite l'image noire quand le fichier est purgé).
+                        const discordMessageId = await sendChannelMessage(
                             channelId,
                             "",
                             {
@@ -263,6 +265,12 @@ export async function createVaultEntry(
                                 fields,
                             }
                         );
+                        if (discordMessageId) {
+                            await db.vaultEntry.update({
+                                where: { id: entry.id },
+                                data: { discordChannelId: channelId, discordMessageId },
+                            });
+                        }
                     } else {
                         logger.warn(`[createVaultEntry] Channel ${channelId} invalid for guild ${guildId}`);
                     }
@@ -293,13 +301,23 @@ export async function deleteVaultEntry(
 
         const entryFull = await db.vaultEntry.findUnique({
             where: { id: entryId },
-            select: { profileId: true, proofUrl: true, guildId: true },
+            select: { profileId: true, proofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
         });
         if (!entryFull) return { success: false, error: "Entrée introuvable" };
 
         // Only author or admin can delete
         if (entryFull.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Seul l'auteur ou un admin peut supprimer cette entrée." };
+        }
+
+        // #201 — supprimer l'embed Discord AVANT le fichier (sinon image noire)
+        if (entryFull.discordChannelId && entryFull.discordMessageId) {
+            try {
+                const { deleteChannelMessage } = await import("@/server/discord");
+                await deleteChannelMessage(entryFull.discordChannelId, entryFull.discordMessageId);
+            } catch (discordErr) {
+                logger.error("[deleteVaultEntry] Discord embed delete failed:", discordErr);
+            }
         }
 
         // Auto-cleanup screenshot avant le delete DB

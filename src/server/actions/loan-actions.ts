@@ -335,7 +335,9 @@ export async function createLoan(
                         }
                         fields.push({ name: "🔗 Voir sur le dashboard", value: `[Ouvrir SigilOS](${dashboardUrl})`, inline: false });
 
-                        await sendChannelMessage(
+                        // #201 — on stocke l'ID du message Discord pour pouvoir supprimer
+                        // l'embed à la clôture (évite l'image noire quand le fichier est purgé).
+                        const discordMessageId = await sendChannelMessage(
                             channelId,
                             "",
                             {
@@ -347,6 +349,12 @@ export async function createLoan(
                                 fields,
                             }
                         );
+                        if (discordMessageId) {
+                            await db.guildLoan.update({
+                                where: { id: loan.id },
+                                data: { discordChannelId: channelId, discordMessageId },
+                            });
+                        }
                     } else {
                         logger.warn(`[createLoan] Channel ${channelId} invalid for guild ${guildId}, skipping Discord notify`);
                     }
@@ -442,9 +450,18 @@ export async function markLoanReturned(
         if (!partial) {
             const loanForCleanup = await db.guildLoan.findUnique({
                 where: { id: loanId },
-                select: { proofUrl: true, returnProofUrl: true, guildId: true },
+                select: { proofUrl: true, returnProofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
             });
             if (loanForCleanup) {
+                // #201 — supprimer l'embed Discord AVANT les fichiers (sinon image noire)
+                if (loanForCleanup.discordChannelId && loanForCleanup.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(loanForCleanup.discordChannelId, loanForCleanup.discordMessageId);
+                    } catch (discordErr) {
+                        logger.error("[markLoanReturned] Discord embed delete failed:", discordErr);
+                    }
+                }
                 const urlsToDelete = [loanForCleanup.proofUrl, returnProofUrl || loanForCleanup.returnProofUrl].filter(Boolean) as string[];
                 const { deleteProofFile } = await import("@/lib/storage-utils");
                 for (const url of urlsToDelete) {
@@ -507,7 +524,7 @@ export async function cancelLoan(
         // Auto-cleanup: supprimer les screenshots lors de l'annulation
         const loanForCleanup = await db.guildLoan.findUnique({
             where: { id: loanId },
-            select: { proofUrl: true, returnProofUrl: true, guildId: true },
+            select: { proofUrl: true, returnProofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
         });
 
         await db.guildLoan.update({
@@ -516,6 +533,15 @@ export async function cancelLoan(
         });
 
         if (loanForCleanup) {
+            // #201 — supprimer l'embed Discord AVANT les fichiers (sinon image noire)
+            if (loanForCleanup.discordChannelId && loanForCleanup.discordMessageId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(loanForCleanup.discordChannelId, loanForCleanup.discordMessageId);
+                } catch (discordErr) {
+                    logger.error("[cancelLoan] Discord embed delete failed:", discordErr);
+                }
+            }
             const urlsToDelete = [loanForCleanup.proofUrl, loanForCleanup.returnProofUrl].filter(Boolean) as string[];
             const { deleteProofFile } = await import("@/lib/storage-utils");
             for (const url of urlsToDelete) {

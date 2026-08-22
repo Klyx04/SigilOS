@@ -555,6 +555,32 @@ async function clearProofDbReferences(fileUrl: string): Promise<void> {
 
     // Prêts & coffre : pas de file de validation en attente → on vide juste la preuve.
     try {
+        // #201 — supprimer d'abord les embeds Discord associés (sinon image noire)
+        try {
+            const loans = await db.guildLoan.findMany({
+                where: { OR: [{ proofUrl: byName }, { returnProofUrl: byName }] },
+                select: { id: true, discordChannelId: true, discordMessageId: true },
+            });
+            for (const l of loans) {
+                if (l.discordChannelId && l.discordMessageId) {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(l.discordChannelId, l.discordMessageId).catch(() => {});
+                }
+            }
+        } catch { /* best-effort */ }
+        try {
+            const vaults = await db.vaultEntry.findMany({
+                where: { proofUrl: byName },
+                select: { id: true, discordChannelId: true, discordMessageId: true },
+            });
+            for (const v of vaults) {
+                if (v.discordChannelId && v.discordMessageId) {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(v.discordChannelId, v.discordMessageId).catch(() => {});
+                }
+            }
+        } catch { /* best-effort */ }
+
         tasks.push(db.guildLoan.updateMany({ where: { proofUrl: byName }, data: { proofUrl: null } }));
         tasks.push(db.guildLoan.updateMany({ where: { returnProofUrl: byName }, data: { returnProofUrl: null } }));
         tasks.push(db.vaultEntry.updateMany({ where: { proofUrl: byName }, data: { proofUrl: null } }));

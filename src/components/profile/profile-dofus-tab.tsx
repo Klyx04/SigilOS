@@ -170,7 +170,20 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                             >
                                 <div className="w-10 h-10 rounded-xl bg-black/60 border border-border flex items-center justify-center shrink-0 p-1">
                                     {item.imageUrl ? (
-                                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                                        <img
+                                            src={item.imageUrl}
+                                            alt={item.name}
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => {
+                                                // #206 — fallback asset local pour le Dofoobz (image dofusdb KO)
+                                                if (item.slug === "dofoozbz") {
+                                                    const local = "/module-dofus/Dofus_Dofoozbz.png";
+                                                    if (e.currentTarget.src !== window.location.origin + local) {
+                                                        e.currentTarget.src = local;
+                                                    }
+                                                }
+                                            }}
+                                        />
                                     ) : (
                                         <span className="text-xs font-black text-warning">❖</span>
                                     )}

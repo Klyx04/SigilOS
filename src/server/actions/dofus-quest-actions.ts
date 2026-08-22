@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { publishDofusEvent } from "@/lib/dofus-realtime";
 import { rateLimit } from "@/lib/ratelimit";
+import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 
 export type ActionResponse<T = void> = {
     success: boolean;
@@ -286,7 +287,7 @@ export async function getDofusListWithProgress(guildId: string, characterName: s
                 filterCategory: item.filterCategory,
                 filterSubCategory: item.filterSubCategory,
                 levelRecommended: item.levelRecommended,
-                imageUrl: item.imageUrl,
+                imageUrl: resolveDofusImageUrl(item.slug, item.imageUrl),
                 color: item.color,
                 displayOrder: item.displayOrder,
                 description: item.description,
@@ -504,7 +505,7 @@ export async function getDofusDetailWithChains(
             filterCategory: item.filterCategory,
             filterSubCategory: item.filterSubCategory,
             levelRecommended: item.levelRecommended,
-            imageUrl: item.imageUrl,
+            imageUrl: resolveDofusImageUrl(item.slug, item.imageUrl),
             color: item.color,
             displayOrder: item.displayOrder,
             description: item.description,
@@ -635,7 +636,7 @@ export async function getGuildDofusStats(guildId: string): Promise<{
                 name: d.name,
                 nameShort: d.nameShort,
                 color: d.color,
-                imageUrl: d.imageUrl,
+                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
                 filterCategory: d.filterCategory,
                 totalMembers,
                 obtainedCount,

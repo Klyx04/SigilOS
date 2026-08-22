@@ -466,7 +466,7 @@
     "isMeta": false,
     "bonusSummary": "Question d'équilibre : gagne des bonus selon les états Buzz.",
     "levelRecommended": 170,
-    "imageUrl": "https://api.dofusdb.fr/img/items/31794.png",
+    "imageUrl": "/module-dofus/Dofus_Dofoozbz.png",
     "color": "#32CD32",
     "displayOrder": 25,
     "description": "Un Dofus qui bourdonne de puissance. Ou alors c'est juste un moustique coincé dedans.",

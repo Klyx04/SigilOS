@@ -66,6 +66,7 @@ export function SuccesClient({
                             type="button"
                             onClick={() => !v.disabled && setView(v.id)}
                             disabled={v.disabled}
+                            data-tour={v.id === "guilde" ? "succes-view-commun" : undefined}
                             title={v.disabled ? "Accès non autorisé par les permissions" : v.label}
                             className={cn(
                                 "flex items-center gap-3 px-4 py-2.5 min-h-11 rounded-2xl border transition-colors",

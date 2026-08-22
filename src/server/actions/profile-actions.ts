@@ -18,6 +18,7 @@ import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
+import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
 import { postChannelMessage } from "@/server/discord";
 
@@ -2496,17 +2497,15 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
 
         // #206 — le Dofoobz utilise l'asset LOCAL (comme les autres Dofus sur les
         // pages profil/membres) ; l'imageUrl en base (dofusdb) pointait sur le mauvais
-        // icône et restait KO. Normalisation lue à la volée → couvre les bases existantes.
-        const resolveDofusImageUrl = (d: any): string | null =>
-            d.slug === "dofoozbz" ? "/module-dofus/Dofus_Dofoozbz.png" : d.imageUrl;
-
+        // icône et restait KO. Normalisation lue à la volée via resolveDofusImageUrl
+        // (src/lib/dofus-image-url.ts) → couvre les bases existantes + le hub Quêtes Dofus.
         const mainDofusList = dofusItems.map((d: any) => {
             const prog = mainMap.get(d.id);
             return {
                 slug: d.slug,
                 name: d.nameShort,
                 color: d.color,
-                imageUrl: resolveDofusImageUrl(d),
+                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
                 isObtained: prog?.isObtained ?? false,
                 progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
             };
@@ -2524,7 +2523,7 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
                     slug: d.slug,
                     name: d.nameShort,
                     color: d.color,
-                    imageUrl: resolveDofusImageUrl(d),
+                    imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
                     isObtained: prog?.isObtained ?? false,
                     progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
                 };

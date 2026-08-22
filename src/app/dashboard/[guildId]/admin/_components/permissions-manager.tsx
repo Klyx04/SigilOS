@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getDisplayName } from "@/lib/display-name";
+import { UnsavedChangesGuard } from "@/components/ui/unsaved-changes-guard";
 
 type Role = {
     id: string;
@@ -510,6 +511,12 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                     {isPending ? "Synchronisation..." : "Sauvegarder"}
                 </Button>
             </div>
+
+            {/* #202 — garde anti-navigation : avertit si des permissions ne sont pas sauvegardées */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications de permissions non sauvegardées. Quitter cette page les perdra définitivement."
+            />
         </div>
     );
 }

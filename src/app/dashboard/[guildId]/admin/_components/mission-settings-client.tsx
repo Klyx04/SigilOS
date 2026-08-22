@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/ac
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { RoleSelector } from "@/components/admin/role-selector";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface MissionSettingsClientProps {
     guildId: string;
@@ -43,6 +44,41 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    type MissionConfigSnapshot = {
+        channelId: string;
+        roleId: string | null;
+        validationChannelId: string;
+        validationRoleId: string | null;
+        kamaChannelId: string;
+        kamaRoleId: string | null;
+        managementChannelId: string;
+        managementRoleId: string | null;
+        missionVitrineMode: boolean;
+        missionPingRoleIds: string[];
+    };
+
+    const [initialConfig, setInitialConfig] = useState<MissionConfigSnapshot | null>(null);
+
+    const currentConfig: MissionConfigSnapshot = useMemo(() => ({
+        channelId,
+        roleId,
+        validationChannelId,
+        validationRoleId,
+        kamaChannelId,
+        kamaRoleId,
+        managementChannelId,
+        managementRoleId,
+        missionVitrineMode,
+        missionPingRoleIds: [...missionPingRoleIds],
+    }), [
+        channelId, roleId, validationChannelId, validationRoleId,
+        kamaChannelId, kamaRoleId, managementChannelId, managementRoleId,
+        missionVitrineMode, missionPingRoleIds,
+    ]);
+
+    const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
+
     useEffect(() => {
         async function loadData() {
             const [configRes, rolesRes] = await Promise.all([
@@ -52,17 +88,30 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
             ]);
 
             if (configRes.success && configRes.data) {
-                setChannelId(configRes.data.missionChannelId || "");
-                setValidationChannelId(configRes.data.missionValidationChannelId || "");
-                setKamaChannelId(configRes.data.kamaNotifyChannelId || "");
-                setRoleId(configRes.data.missionNotifyRoleId || null);
-                setValidationRoleId(configRes.data.missionValidationNotifyRoleId || null);
-                // New fields (may not exist in older configs, graceful fallback)
-                setKamaRoleId((configRes.data as any).kamaNotifyRoleId || null);
-                setManagementChannelId(configRes.data.missionManagementNotifyChannelId || "");
-                setManagementRoleId(configRes.data.missionManagementNotifyRoleId || null);
-                setMissionVitrineMode(configRes.data.missionVitrineMode || false);
-                setMissionPingRoleIds(configRes.data.missionPingRoleIds || []);
+                const loaded: MissionConfigSnapshot = {
+                    channelId: configRes.data.missionChannelId || "",
+                    roleId: configRes.data.missionNotifyRoleId || null,
+                    validationChannelId: configRes.data.missionValidationChannelId || "",
+                    validationRoleId: configRes.data.missionValidationNotifyRoleId || null,
+                    kamaChannelId: configRes.data.kamaNotifyChannelId || "",
+                    kamaRoleId: (configRes.data as any).kamaNotifyRoleId || null,
+                    managementChannelId: configRes.data.missionManagementNotifyChannelId || "",
+                    managementRoleId: configRes.data.missionManagementNotifyRoleId || null,
+                    missionVitrineMode: configRes.data.missionVitrineMode || false,
+                    missionPingRoleIds: configRes.data.missionPingRoleIds || [],
+                };
+                setChannelId(loaded.channelId);
+                setValidationChannelId(loaded.validationChannelId);
+                setKamaChannelId(loaded.kamaChannelId);
+                setRoleId(loaded.roleId);
+                setValidationRoleId(loaded.validationRoleId);
+                setKamaRoleId(loaded.kamaRoleId);
+                setManagementChannelId(loaded.managementChannelId);
+                setManagementRoleId(loaded.managementRoleId);
+                setMissionVitrineMode(loaded.missionVitrineMode);
+                setMissionPingRoleIds(loaded.missionPingRoleIds);
+                // Snapshot « propre » → la détection dirty démarre à l'état chargé
+                setInitialConfig(loaded);
             }
 
             if (rolesRes.success && rolesRes.roles) {
@@ -90,6 +139,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
             });
             const pingRolesResult = await updateAllowedPingRolesAction(guildId, missionPingRoleIds, "missions");
             if (result.success && pingRolesResult.success) {
+                setInitialConfig(currentConfig);
                 toast.success("Paramètres mis à jour !");
             } else {
                 toast.error((pingRolesResult.success ? result.error : pingRolesResult.error) || "Erreur lors de la sauvegarde");
@@ -309,6 +359,12 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                     </Card>
                 </div>
             </div>
+
+            {/* Garde anti-navigation : avertit si des paramètres ne sont pas sauvegardés */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications de paramètres de missions non sauvegardées. Quitter cette page les perdra définitivement."
+            />
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     Sparkles,
@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { RoleSelector } from "@/components/admin/role-selector";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import {
     Tooltip,
     TooltipContent,
@@ -66,18 +67,58 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
     const [welcomeBadgeName, setWelcomeBadgeName] = useState("Nouveau");
 
+    // — Détection « modifications non sauvegardées »
+    type OnboardingConfigSnapshot = {
+        welcomeEnabled: boolean;
+        welcomeChannelId: string;
+        welcomeTemplate: string;
+        welcomeDiscordTemplate: string;
+        welcomeMentionRoleId: string;
+        welcomeDashboardEnabled: boolean;
+        welcomeDiscordEnabled: boolean;
+        welcomeBadgeName: string;
+    };
+    const [initialConfig, setInitialConfig] = useState<OnboardingConfigSnapshot | null>(null);
+
+    const currentConfig: OnboardingConfigSnapshot = useMemo(() => ({
+        welcomeEnabled,
+        welcomeChannelId,
+        welcomeTemplate,
+        welcomeDiscordTemplate,
+        welcomeMentionRoleId,
+        welcomeDashboardEnabled,
+        welcomeDiscordEnabled,
+        welcomeBadgeName,
+    }), [
+        welcomeEnabled, welcomeChannelId, welcomeTemplate, welcomeDiscordTemplate,
+        welcomeMentionRoleId, welcomeDashboardEnabled, welcomeDiscordEnabled, welcomeBadgeName,
+    ]);
+
+    const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
+
     useEffect(() => {
         const load = async () => {
             const res = await getOnboardingSettings(guildId);
             if (res.success && res.data) {
-                setWelcomeEnabled(res.data.enabled);
-                setWelcomeChannelId(res.data.channelId || "");
-                setWelcomeTemplate(res.data.template || "");
-                setWelcomeDiscordTemplate(res.data.discordTemplate || "");
-                setWelcomeMentionRoleId(res.data.mentionRoleId || "");
-                setWelcomeDashboardEnabled(res.data.dashboardEnabled);
-                setWelcomeDiscordEnabled(res.data.discordEnabled);
-                setWelcomeBadgeName(res.data.welcomeBadgeName || "Nouveau");
+                const loaded: OnboardingConfigSnapshot = {
+                    welcomeEnabled: res.data.enabled,
+                    welcomeChannelId: res.data.channelId || "",
+                    welcomeTemplate: res.data.template || "",
+                    welcomeDiscordTemplate: res.data.discordTemplate || "",
+                    welcomeMentionRoleId: res.data.mentionRoleId || "",
+                    welcomeDashboardEnabled: res.data.dashboardEnabled,
+                    welcomeDiscordEnabled: res.data.discordEnabled,
+                    welcomeBadgeName: res.data.welcomeBadgeName || "Nouveau",
+                };
+                setWelcomeEnabled(loaded.welcomeEnabled);
+                setWelcomeChannelId(loaded.welcomeChannelId);
+                setWelcomeTemplate(loaded.welcomeTemplate);
+                setWelcomeDiscordTemplate(loaded.welcomeDiscordTemplate);
+                setWelcomeMentionRoleId(loaded.welcomeMentionRoleId);
+                setWelcomeDashboardEnabled(loaded.welcomeDashboardEnabled);
+                setWelcomeDiscordEnabled(loaded.welcomeDiscordEnabled);
+                setWelcomeBadgeName(loaded.welcomeBadgeName);
+                setInitialConfig(loaded);
                 if (res.data.availableRoles) setAvailableRoles(res.data.availableRoles);
             }
             setLoading(false);
@@ -98,7 +139,10 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                 dashboardEnabled: welcomeDashboardEnabled,
                 discordEnabled: welcomeDiscordEnabled,
             });
-            if (res.success) toast.success("Paramètres d'accueil enregistrés");
+            if (res.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Paramètres d'accueil enregistrés");
+            }
             else toast.error(res.error || "Erreur");
         } catch (e) {
             toast.error("Erreur de communication");
@@ -114,7 +158,10 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                 guildId,
                 badgeName: welcomeBadgeName,
             });
-            if (res.success) toast.success("Nom du badge mis à jour");
+            if (res.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Nom du badge mis à jour");
+            }
             else toast.error(res.error || "Erreur");
         } catch (e) {
             toast.error("Erreur de communication");
@@ -469,6 +516,12 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                     </div>
                 </Card>
             </div>
+
+            {/* Garde anti-navigation : avertit si des paramètres d'accueil ne sont pas sauvegardés */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications des paramètres d'accueil non sauvegardées. Quitter cette page les perdra définitivement."
+            />
         </TooltipProvider>
     );
 }

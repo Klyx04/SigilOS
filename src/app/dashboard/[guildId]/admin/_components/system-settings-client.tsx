@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { getSystemAnnouncementSettings } from "@/server/actions/system-settings-
 import { saveSystemAnnouncementSettings } from "@/server/actions/announcement-actions";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,22 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
+    // — Détection « modifications non sauvegardées »
+    type SystemConfigSnapshot = {
+        channelId: string;
+        newsEnabled: boolean;
+        lifecycleChannelId: string;
+    };
+    const [initialConfig, setInitialConfig] = useState<SystemConfigSnapshot | null>(null);
+
+    const currentConfig: SystemConfigSnapshot = useMemo(() => ({
+        channelId,
+        newsEnabled,
+        lifecycleChannelId,
+    }), [channelId, newsEnabled, lifecycleChannelId]);
+
+    const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
+
     useEffect(() => {
         async function loadConfig() {
             const [sysRes, missionRes] = await Promise.all([
@@ -47,14 +64,20 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
 
             ]);
 
-            if (sysRes.success && sysRes.data) {
-                setChannelId(sysRes.data.systemNotifyChannelId || "");
+            if (sysRes.success && sysRes.data || missionRes.success && missionRes.data) {
+                const loaded: SystemConfigSnapshot = {
+                    channelId: (sysRes.success && sysRes.data ? sysRes.data.systemNotifyChannelId : "") || "",
+                    newsEnabled: missionRes.success && missionRes.data ? (missionRes.data.newsBroadcastEnabled || false) : false,
+                    lifecycleChannelId: missionRes.success && missionRes.data ? (missionRes.data.lifecycleNotifyChannelId || "") : "",
+                };
+                setChannelId(loaded.channelId);
+                setNewsEnabled(loaded.newsEnabled);
+                setLifecycleChannelId(loaded.lifecycleChannelId);
+                setInitialConfig(loaded);
             }
 
             if (missionRes.success && missionRes.data) {
                 setFullMissionConfig(missionRes.data);
-                setNewsEnabled(missionRes.data.newsBroadcastEnabled || false);
-                setLifecycleChannelId(missionRes.data.lifecycleNotifyChannelId || "");
             }
 
             setIsLoading(false);
@@ -84,6 +107,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
             });
 
             if (sysResult.success && discordResult.success) {
+                setInitialConfig(currentConfig);
                 toast.success("Tous les paramètres système ont été mis à jour !");
             } else {
                 toast.error("Une erreur est survenue lors de la sauvegarde partielle");
@@ -321,6 +345,12 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                     </Card>
                 </div>
             </div>
+
+            {/* Garde anti-navigation : avertit si des paramètres ne sont pas sauvegardés */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications de paramètres système non sauvegardées. Quitter cette page les perdra définitivement."
+            />
         </div>
     );
 }

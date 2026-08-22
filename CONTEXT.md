@@ -36,6 +36,7 @@
 ### Sessions récentes (résumé — détail dans l’archive)
 | Session | Contenu |
 |---|---|
+| **22/08** | **BLOC A complet (9 quick wins)** : #192 bouton Suivant darkmode · #199 tour Succès (ancres stables) · #204 upload missions masqué pour God · **#201 embeds prêts/coffre** (migration `20260822000000_add_loan_vault_discord_embeds` + suppression embed à la clôture/purge) · #202 RBAC footer sticky bas + indicateur non-sauvé · #206 Dofoobz image locale · #203 multi-DJ taille de groupe par donjon ; #286/#247 vérifiés déjà corrigés. Vérifs : tsc 0 · lint 0 erreur · 313/313 · build OK. Mémo : `src/temp/memo-2026-08-22-chantier-bloc-a.md`. |
 | **05/10-06/10** | Module Fiche Boss & Simulation tactique 100 % terminé (16 commits poussés) — géométrie Dofus 3 exacte, sorts Dofensive enrichis, sync intelligente local-first (701 maps + 87 fiches), refonte fiche boss, migration portable. |
 | **04/10** | Anti-AI-slop UI global (6 commits) — primitives plates, home + ~13 modules, auth/docs. |
 | **02-03/10** | Fiches boss + simulateur de portée + fix RBAC/cache + guides raids (Gigalodon, Jardins Éternels). |

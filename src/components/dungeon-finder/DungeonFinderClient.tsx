@@ -127,7 +127,14 @@ export function DungeonFinderClient({
         });
     }, [posts, filters]);
 
-    const myActivePosts = posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN");
+    const myActivePosts = useMemo(
+        () => posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN"),
+        [posts, currentProfileId]
+    );
+    const activePostsCount = useMemo(
+        () => posts.filter((p) => p.status === "OPEN" || p.status === "FULL").length,
+        [posts]
+    );
     const canCreate = myActivePosts.length < 3;
 
     return (
@@ -139,7 +146,7 @@ export function DungeonFinderClient({
                         <DjFiltersBar
                             filters={filters}
                             onChange={setFilters}
-                            total={posts.filter((p) => p.status === "OPEN" || p.status === "FULL").length}
+                            total={activePostsCount}
                             filtered={filteredPosts.length}
                         />
                     </div>
@@ -159,8 +166,8 @@ export function DungeonFinderClient({
                             disabled={!canCreate}
                             title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
                             className={`font-black h-10 gap-2 ${canCreate
-                                ? "bg-background hover:bg-surface text-foreground"
-                                : "bg-elevated/50 text-muted-foreground border border-border cursor-not-allowed opacity-70"
+                                ? "bg-info text-info-foreground hover:bg-info/90 border border-info/40 shadow-lg shadow-info/20"
+                                : "bg-elevated/50 text-muted-foreground border border-border-strong cursor-not-allowed opacity-70"
                                 }`}
                         >
                             {canCreate ? (
@@ -170,7 +177,7 @@ export function DungeonFinderClient({
                             )}
                             Nouveau post
                             {!canCreate && (
-                                <span className="ml-1 text-xs font-bold bg-warning/20 px-1.5 py-0.5 rounded">
+                                <span className="ml-1 text-xs font-bold bg-warning/20 text-warning-foreground px-1.5 py-0.5 rounded">
                                     {myActivePosts.length}/3
                                 </span>
                             )}
@@ -229,7 +236,6 @@ export function DungeonFinderClient({
                                 currentProfileId={currentProfileId}
                                 isAdmin={isAdmin}
                                 onRefresh={handleRefresh}
-                                isDiscordConfigured={isDiscordConfigured}
                             />
                         ))}
                     </div>

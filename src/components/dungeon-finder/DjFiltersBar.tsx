@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { Search, X, Swords, Map, Users, Star, RotateCcw } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export interface DjFiltersState {
@@ -91,25 +90,23 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     {/* Mode Selector */}
                     <div className="flex bg-surface/80 border border-border rounded-xl p-1 h-11 items-center">
                         {[
-                            { value: "", label: "Tous", icon: null, activeColor: "bg-info", activeText: "text-info-foreground" },
-                            { value: "DONJON", label: "DJ", icon: Swords, activeColor: "bg-danger", activeText: "text-danger-foreground" },
-                            { value: "QUETE", label: "Quête", icon: Map, activeColor: "bg-success", activeText: "text-success-foreground" },
-                        ].map(({ value, label, icon: Icon, activeColor, activeText }) => {
+                            { value: "", label: "Tous", icon: null, active: "bg-info text-info-foreground" },
+                            { value: "DONJON", label: "DJ", icon: Swords, active: "bg-danger text-danger-foreground" },
+                            { value: "QUETE", label: "Quête", icon: Map, active: "bg-success text-success-foreground" },
+                        ].map(({ value, label, icon: Icon, active }) => {
                             const isActive = filters.mode === value;
                             return (
                                 <button
                                     key={value}
                                     onClick={() => onChange({ ...filters, mode: value })}
+                                    aria-pressed={isActive}
                                     className={cn(
-                                        "relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-caption font-black transition-colors",
-                                        isActive ? activeText : "text-muted-foreground hover:text-foreground"
+                                        "flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-caption font-black transition-colors",
+                                        isActive ? active : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    {isActive && (
-                                        <span className={cn("absolute inset-0 rounded-lg -z-10", activeColor)} />
-                                    )}
-                                    {Icon && <Icon className={cn("w-3.5 h-3.5", isActive ? "text-foreground" : "text-muted-foreground")} />}
-                                    <span className="relative z-10 uppercase tracking-wider">{label}</span>
+                                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                                    <span className="uppercase tracking-wider">{label}</span>
                                 </button>
                             );
                         })}
@@ -143,15 +140,9 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                 </div>
             </div>
 
-            {/* Row 2: Collapsible Advanced Filters */}
-            <AnimatePresence>
-                {showAdvanced && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0, y: -10 }}
-                        animate={{ height: "auto", opacity: 1, y: 0 }}
-                        exit={{ height: 0, opacity: 0, y: -10 }}
-                        className="overflow-hidden"
-                    >
+            {/* Row 2: Advanced Filters — collapse en CSS léger (opti) */}
+            {showAdvanced && (
+                <div className="overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-200">
                         <div className="flex flex-wrap items-center gap-2 p-3 bg-surface/50 border border-border rounded-2xl shadow-inner mb-2">
                             {/* Level presets */}
                             <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mr-2">Niveau</span>
@@ -203,9 +194,8 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                 </span>
                             )}
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        </div>
+            )}
         </div>
     );
 }

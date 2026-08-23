@@ -2,15 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
     Swords, Map, Users, Clock, Calendar, CheckCircle2,
-    XCircle, LogIn, LogOut, Crown, Link2, Bell
+    XCircle, LogIn, LogOut, Crown, Bell, MoreHorizontal
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
-import { closeDjPost, joinDjPost, leaveDjPost, sendDjReminder } from "@/server/actions/dungeon-finder-actions";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { leaveDjPost, sendDjReminder } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
 import { DjCloseModal } from "./DjCloseModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
@@ -53,10 +58,9 @@ interface DjPostCardProps {
     currentProfileId?: string;
     isAdmin?: boolean;
     onRefresh: () => void;
-    isDiscordConfigured?: boolean;
 }
 
-export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh, isDiscordConfigured }: DjPostCardProps) {
+export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh }: DjPostCardProps) {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
@@ -72,19 +76,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     const modeMeta = MODE_META[post.mode] ?? MODE_META.DONJON;
     const ModIcon = modeMeta.icon;
     const statusMeta = STATUS_META[post.status] ?? STATUS_META.OPEN;
-
-    // Quick-join (no modal)
-    function handleQuickJoin() {
-        startTransition(async () => {
-            const res = await joinDjPost(guildId, post.id, {});
-            if (res.success) {
-                toast.success("Candidature envoyée !");
-                onRefresh();
-            } else {
-                toast.error(res.error);
-            }
-        });
-    }
 
     function handleLeave() {
         startTransition(async () => {
@@ -126,12 +117,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         <>
             <div
                 className={cn(
-                    "group relative rounded-2xl border overflow-hidden flex flex-col h-full",
+                    "group relative rounded-2xl border overflow-hidden flex flex-col h-full transition-all duration-200",
                     isOpen
-                        ? isDonjon
-                            ? "bg-surface/40 border-info/25 hover:border-info/50"
-                            : "bg-surface/40 border-info/25 hover:border-info/50"
-                        : "bg-background/40 border-border opacity-50"
+                        ? "bg-surface/40 border-info/25 hover:-translate-y-0.5 hover:border-info/60 hover:shadow-lg hover:shadow-info/5"
+                        : "bg-background/40 border-border opacity-50",
+                    "motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:shadow-none"
                 )}
             >
                 {/* Banner */}
@@ -502,44 +492,37 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             </div>
                         )}
 
-                        {isOwner && post.status === "OPEN" && (
-                            <div className="flex flex-1 flex-wrap gap-2">
-                                {post.participants.length > 0 && (
+                        {(isOwner || (isAdmin && !isOwner)) && post.status === "OPEN" && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={handleReminder}
                                         disabled={isPending}
-                                        title="Envoyer un rappel aux participants sur Discord"
-                                        className="h-10 px-3 border-info/20 text-info hover:text-info-foreground hover:bg-info transition-colors"
+                                        title="Actions"
+                                        aria-label="Actions"
+                                        className="h-10 w-10 px-0 shrink-0 border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
                                     >
-                                        <Bell className="w-4 h-4" />
+                                        <MoreHorizontal className="w-4 h-4" />
                                     </Button>
-                                )}
-                                <Button
-                                    size="sm"
-                                    onClick={() => setIsCloseModalOpen(true)}
-                                    disabled={isPending}
-                                    title="Valider et donner des points"
-                                    className="flex-1 min-w-[130px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-success/15 hover:bg-success text-success hover:text-success-foreground border border-success/30 hover:border-success transition-colors"
-                                >
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Terminer
-                                </Button>
-                            </div>
-                        )}
-                        {isAdmin && !isOwner && post.status === "OPEN" && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setIsCloseModalOpen(true)}
-                                disabled={isPending}
-                                title="Fermer le post (modération)"
-                                aria-label="Fermer le post"
-                                className="h-10 w-10 px-0 border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
-                            >
-                                <XCircle className="w-4 h-4" />
-                            </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="min-w-[220px] bg-surface border-border">
+                                    {isOwner && post.participants.length > 0 && (
+                                        <DropdownMenuItem onSelect={handleReminder} disabled={isPending}>
+                                            <Bell className="w-4 h-4 mr-2 text-info" />
+                                            Relancer (Discord)
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem
+                                        onSelect={() => setIsCloseModalOpen(true)}
+                                        disabled={isPending}
+                                        className="text-danger focus:text-danger"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        {isOwner ? "Terminer" : "Fermer le post"}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         )}
                     </div>
                 </div>

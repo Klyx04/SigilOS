@@ -3,10 +3,9 @@
 import { cn } from "@/lib/utils";
 
 import { useState, useTransition } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
@@ -16,26 +15,19 @@ import {
 import {
     acceptDjParticipant,
     rejectDjParticipant,
-    closeDjPost,
     joinDjPost,
     leaveDjPost,
     deleteDjPost,
 } from "@/server/actions/dungeon-finder-actions";
-import { DjCloseModal } from "./DjCloseModal";
 import { DjEditModal } from "./DjEditModal";
 import { DjReminderModal } from "./DjReminderModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 
 const MODE_LABELS: Record<string, string> = {
     FARM: "Farm", SUCCES: "Succès", MIXED: "Mixte", QUETE: "Quête", DONJON: "Donjon",
-};
-const STATUS_COLORS: Record<string, string> = {
-    PENDING: "text-warning bg-warning/10 border-warning/20",
-    ACCEPTED: "text-success bg-success/10 border-success/20",
-    REJECTED: "text-danger bg-danger/10 border-danger/20",
 };
 
 // Helper: Discord server nick > Dofus pseudo (set on registration) > Dofus in-game pseudo
@@ -148,22 +140,28 @@ export function DjPostDetailModal({
 
     // Handled by DjReminderModal
 
-    const visibleParticipants = post.participants.filter(p => p.status !== "REJECTED");
-
     return (
         <>
-            <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="w-[95vw] max-w-2xl bg-background border border-border shadow-2xl rounded-2xl text-foreground overflow-y-auto max-h-[90vh] p-0 gap-0 custom-scrollbar">
+            <Sheet open={isOpen} onOpenChange={onClose}>
+                <SheetContent side="right" className="w-full sm:max-w-xl p-0 gap-0 overflow-y-auto border-border bg-background text-foreground custom-scrollbar">
 
                     {/* Hero Image / Banner */}
-                    <div className="relative h-28 bg-surface border-b border-border overflow-hidden shrink-0">
-                        {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) && (
-                            <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    <div className="relative h-24 bg-surface border-b border-border overflow-hidden shrink-0">
+                        {/* Ambiance : léger voile du visuel du donjon (flouté + fondu, jamais pixelisé) */}
+                        {post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl) ? (
+                            <img
+                                src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl}
+                                alt=""
+                                aria-hidden
+                                className="absolute inset-0 w-full h-full object-cover opacity-[0.10] blur-2xl scale-110"
+                            />
+                        ) : (
+                            <div className="absolute inset-0 bg-gradient-to-r from-info/10 via-transparent to-transparent" />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
 
-                        <div className="absolute bottom-4 left-4 right-4 flex items-end gap-4">
-                            <div className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg ${post.mode === "DONJON" ? "bg-elevated/80 border-border" : "bg-info/80 border-info/30"}`}>
+                        <div className="relative z-10 flex items-center gap-4 px-5 h-full">
+                            <div className={cn("w-16 h-16 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg", post.mode === "DONJON" ? "bg-elevated/80 border-border" : "bg-info/80 border-info/30")}>
                                 {post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl) ? (
                                     <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="w-full h-full object-cover" />
                                 ) : post.mode === "DONJON" ? (
@@ -172,19 +170,19 @@ export function DjPostDetailModal({
                                     <Map className="w-6 h-6 text-info" />
                                 )}
                             </div>
-                            <div className="flex-1 min-w-0 pb-1">
-                                <h2 className="text-xl font-black text-foreground truncate drop-shadow-md">
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-xl font-black text-foreground truncate">
                                     {(post.dungeonsJson as any[])?.length > 0
                                         ? `Multi-donjons — ${(post.dungeonsJson as any[]).length}`
                                         : (post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête")}
                                 </h2>
-                                <p className="text-sm font-medium text-foreground">
+                                <p className="text-sm font-medium text-muted-foreground">
                                     {(post.dungeonsJson as any[])?.length > 0
                                         ? "Session de guilde multi-donjons"
                                         : (post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : "Mode Quête")}
                                 </p>
                             </div>
-                            <Badge className={`mb-1 text-caption font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-success/10 text-success border-success/20 " : "bg-surface text-muted-foreground border-border"}`}>
+                            <Badge className={`text-caption font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-success/10 text-success border-success/20 " : "bg-surface text-muted-foreground border-border"}`}>
                                 {post.status === "OPEN" ? "Ouvert" : post.status === "FULL" ? "Complet" : "Fermé"}
                             </Badge>
                         </div>
@@ -589,8 +587,8 @@ export function DjPostDetailModal({
                             </div>
                         )}
                     </div>
-                </DialogContent>
-            </Dialog>
+                </SheetContent>
+            </Sheet>
 
             {isOwner && (
                 <DjEditModal
